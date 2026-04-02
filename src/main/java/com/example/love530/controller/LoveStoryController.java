@@ -16,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 @RequestMapping("/lovestory")
 public class LoveStoryController {
 
+
     private final RestTemplate restTemplate = new RestTemplate();
     private final String loveStoryUrl = "http://localhost:8081";
 
