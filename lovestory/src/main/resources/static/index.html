@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我们的恋爱记录 - Love Story</title>
+    <!-- 引入谷歌字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;700&family=Pacifico&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #ff6b81;
+            --bg-color: #fff0f5;
+            --card-bg: #ffffff;
+            --text-color: #555555;
+            --shadow: 0 10px 30px rgba(255, 107, 129, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* 飘落爱心背景动画 */
+        .heart-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        /* 头部区域 */
+        header {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            background: linear-gradient(rgba(255,255,255,0.6), rgba(255,255,255,0.8)), url('images/background.jpeg') no-repeat center center/cover;
+            position: relative;
+        }
+
+        h1 {
+            font-family: 'Pacifico', cursive;
+            font-size: 4rem;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .timer-box {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 30px 50px;
+            border-radius: 20px;
+            box-shadow: var(--shadow);
+            margin-top: 20px;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .timer-box p {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+
+        #timer {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .heart-icon {
+            color: var(--primary-color);
+            font-size: 1.5rem;
+            animation: beat 1s infinite;
+            display: inline-block;
+        }
+
+        /* 时间轴区域 */
+        .section-title {
+            text-align: center;
+            font-size: 2rem;
+            margin: 80px 0 50px;
+            color: var(--text-color);
+            position: relative;
+        }
+
+        .timeline {
+            position: relative;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .timeline::after {
+            content: '';
+            position: absolute;
+            width: 2px;
+            background-color: var(--primary-color);
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            margin-left: -1px;
+        }
+
+        .container {
+            padding: 10px 40px;
+            position: relative;
+            background-color: inherit;
+            width: 50%;
+        }
+
+        .left { left: 0; }
+        .right { left: 50%; }
+
+        .container::after {
+            content: '❤';
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            right: -17px;
+            background-color: var(--card-bg);
+            border: 2px solid var(--primary-color);
+            top: 15px;
+            border-radius: 50%;
+            z-index: 1;
+            text-align: center;
+            line-height: 26px;
+            color: var(--primary-color);
+            font-size: 0.8rem;
+        }
+
+        .right::after { left: -16px; }
+
+        .content {
+            padding: 20px 30px;
+            background-color: var(--card-bg);
+            position: relative;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            transition: transform 0.3s;
+        }
+
+        .content:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow);
+        }
+
+        .date {
+            color: var(--primary-color);
+            font-weight: bold;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        /* 照片墙 */
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            max-width: 1000px;
+            margin: 0 auto 100px;
+            padding: 20px;
+        }
+
+        .gallery img {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            border-radius: 15px;
+            transition: transform 0.3s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .gallery img:hover {
+            transform: scale(1.03);
+        }
+
+        /* 底部 */
+        footer {
+            text-align: center;
+            padding: 40px;
+            background-color: #fff;
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        /* 动画定义 */
+        @keyframes beat {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* 移动端适配 */
+        @media screen and (max-width: 600px) {
+            .timeline::after { left: 31px; }
+            .container { width: 100%; padding-left: 70px; padding-right: 25px; }
+            .container::after { left: 15px; }
+            .left::after, .right::after { left: 15px; }
+            .right { left: 0%; }
+            h1 { font-size: 2.5rem; }
+            .timer-box { padding: 20px; width: 90%; }
+        }
+        </style>
+        </head>
+        <body>
+
+        <!-- 头部 Hero -->
+        <header>
+        <h1>xixi & 5000</h1>
+        <div class="timer-box">
+        <p>我们已经相爱了</p>
+        <div id="timer">计算中...</div>
+        <p style="margin-top:10px; font-size:0.9rem; color:#888;">Starting from 2025.09.21 <span class="heart-icon">❤</span></p>
+        </div>
+        </header>
+
+        <!-- 甜蜜时光轴 -->
+        <h2 class="section-title">我们的故事 · Story</h2>
+        <div class="timeline">
+        <div class="container left">
+        <div class="content">
+        <span class="date">2023.05.20</span>
+        <h3>第一次相遇</h3>
+        <p>在那个转角的咖啡店，阳光刚好洒在你身上。</p>
+        </div>
+        </div>
+        <div class="container right">
+        <div class="content">
+        <span class="date">2023.06.01</span>
+        <h3>正式在一起</h3>
+        <p>你点头的那一刻，是我今年最开心的瞬间。</p>
+        </div>
+        </div>
+        <div class="container left">
+        <div class="content">
+        <span class="date">2023.10.05</span>
+        <h3>第一次旅行</h3>
+        <p>一起去了海边，看了日出和日落。</p>
+        </div>
+        </div>
+        <div class="container right">
+        <div class="content">
+        <span class="date">2023.12.25</span>
+        <h3>第一个圣诞节</h3>
+        <p>互送了亲手准备的礼物，在这个冬天很温暖。</p>
+        </div>
+        </div>
+        </div>
+
+        <!-- 照片墙 -->
+        <h2 class="section-title">甜蜜瞬间 · Gallery</h2>
+        <div class="gallery">
+        <!-- 这里的图片链接可以换成你们自己的 -->
+        <img src="https://images.unsplash.com/photo-1529619768328-e37af76c6fe5?w=500&auto=format&fit=crop" alt="photo">
+        <img src="https://images.unsplash.com/photo-1621621667797-e06afc21085c?w=500&auto=format&fit=crop" alt="photo">
+        <img src="https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=500&auto=format&fit=crop" alt="photo">
+        <img src="https://images.unsplash.com/photo-1523438885200-e635ba2c371e?w=500&auto=format&fit=crop" alt="photo">
+        </div>
+
+        <footer>
+
+        <p> I Love You Forever</p>
+        </footer>
+
+        <script>
+        // ----------------------------------------------------
+        // ★★★ 请在这里修改你们的纪念日 ★★★
+           const startDate = new Date("2025-09-21T00:00:00");
+        // ----------------------------------------------------
+
+           function updateTimer() {
+            const now = new Date();
+            const diff = now - startDate;
+
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+            const minutes = Math.floor((diff / 1000 / 60) % 60);
+            const seconds = Math.floor((diff / 1000) % 60);
+
+            document.getElementById("timer").innerHTML =
+            `${days} <span style="font-size:1rem">天</span>
+            ${hours} <span style="font-size:1rem">小时</span>
+            ${minutes} <span style="font-size:1rem">分</span>
+            ${seconds} <span style="font-size:1rem">秒</span>`;
+        }
+
+        setInterval(updateTimer, 1000);
+        updateTimer(); // 初始化
+        </script>
+        </body>
+        </html>
