@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    username: root
+    password: kuosi
+    url: jdbc:mysql://49.232.128.132:3306/ycx_pms?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  web:
+    resources:
+      static-locations:
+        - classpath:/static/
