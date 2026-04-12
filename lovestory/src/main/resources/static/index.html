@@ -221,6 +221,13 @@
         </style>
         </head>
         <body>
+        <script>        (function() {
+            const isLoggedIn = sessionStorage.getItem('isLoggedIn');
+            if (!isLoggedIn || isLoggedIn !== 'true') {
+                window.location.href = '/login.html';
+            }
+        })();
+        </script>
 
         <!-- 头部 Hero -->
         <header>
@@ -281,6 +288,13 @@
         </footer>
 
         <script>
+            function logout() {
+                if (confirm('确定要退出吗？')) {
+                    sessionStorage.removeItem('isLoggedIn');
+                    sessionStorage.removeItem('loginTime');
+                    window.location.href = '/login.html';
+                }
+            }
         // ----------------------------------------------------
         // ★★★ 请在这里修改你们的纪念日 ★★★
            const startDate = new Date("2025-09-21T00:00:00");
