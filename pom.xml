@@ -11,6 +11,7 @@
     <modules>
         <module>website</module>
         <module>lovestory</module>
+        <module>common</module>
     </modules>
     <properties>
         <java.version>1.8</java.version>
@@ -20,32 +21,6 @@
         <spring-boot.version>2.6.13</spring-boot.version>
         <spring-cloud-alibaba.version>2021.0.5.0</spring-cloud-alibaba.version>
     </properties>
-    <!-- Deleted:<dependencies> -->
-    <!-- Deleted:    <dependency> -->
-    <!-- Deleted:        <groupId>org.springframework.boot</groupId> -->
-    <!-- Deleted:        <artifactId>spring-boot-starter-data-jdbc</artifactId> -->
-    <!-- Deleted:    </dependency> -->
-    <!-- Deleted:    <dependency> -->
-    <!-- Deleted:        <groupId>com.alibaba</groupId> -->
-    <!-- Deleted:        <artifactId>druid</artifactId> -->
-    <!-- Deleted:        <version>1.1.22</version> -->
-    <!-- Deleted:        <scope>compile</scope> -->
-    <!-- Deleted:    </dependency> -->
-    <!-- Deleted:    <dependency> -->
-    <!-- Deleted:        <groupId>org.springframework.boot</groupId> -->
-    <!-- Deleted:        <artifactId>spring-boot-starter-web</artifactId> -->
-    <!-- Deleted:    </dependency> -->
-    <!-- Deleted:<dependency> -->
-    <!-- Deleted:    <groupId>com.mysql</groupId> -->
-    <!-- Deleted:    <artifactId>mysql-connector-j</artifactId> -->
-    <!-- Deleted:    <scope>runtime</scope> -->
-    <!-- Deleted:</dependency> -->
-    <!-- Deleted:    <dependency> -->
-    <!-- Deleted:        <groupId>org.springframework.boot</groupId> -->
-    <!-- Deleted:        <artifactId>spring-boot-starter-test</artifactId> -->
-    <!-- Deleted:        <scope>test</scope> -->
-    <!-- Deleted:    </dependency> -->
-    <!-- Deleted:</dependencies> -->
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -71,37 +46,5 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
-
-    <!-- Deleted:<build> -->
-    <!-- Deleted:    <plugins> -->
-    <!-- Deleted:        <plugin> -->
-    <!-- Deleted:            <groupId>org.apache.maven.plugins</groupId> -->
-    <!-- Deleted:            <artifactId>maven-compiler-plugin</artifactId> -->
-    <!-- Deleted:            <version>3.8.1</version> -->
-    <!-- Deleted:            <configuration> -->
-    <!-- Deleted:                <source>1.8</source> -->
-    <!-- Deleted:                <target>1.8</target> -->
-    <!-- Deleted:                <encoding>UTF-8</encoding> -->
-    <!-- Deleted:            </configuration> -->
-    <!-- Deleted:        </plugin> -->
-    <!-- Deleted:        <plugin> -->
-    <!-- Deleted:            <groupId>org.springframework.boot</groupId> -->
-    <!-- Deleted:            <artifactId>spring-boot-maven-plugin</artifactId> -->
-    <!-- Deleted:            <version>${spring-boot.version}</version> -->
-    <!-- Deleted:            <configuration> -->
-    <!-- Deleted:                <mainClass>com.example.website.Love530Application</mainClass> -->
-    <!-- Deleted:                <skip>true</skip> -->
-    <!-- Deleted:            </configuration> -->
-    <!-- Deleted:            <executions> -->
-    <!-- Deleted:                <execution> -->
-    <!-- Deleted:                    <id>repackage</id> -->
-    <!-- Deleted:                    <goals> -->
-    <!-- Deleted:                        <goal>repackage</goal> -->
-    <!-- Deleted:                    </goals> -->
-    <!-- Deleted:                </execution> -->
-    <!-- Deleted:            </executions> -->
-    <!-- Deleted:        </plugin> -->
-    <!-- Deleted:    </plugins> -->
-    <!-- Deleted:</build> -->
 
 </project>

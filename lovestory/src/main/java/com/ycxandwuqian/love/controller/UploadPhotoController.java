@@ -1,6 +1,5 @@
 package com.ycxandwuqian.love.controller;
 
-import lombok.extern.log4j.Log4j;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
@@ -21,7 +20,7 @@ import java.util.Map;
 import java.util.UUID;
 @Controller
 @RequestMapping("/api/photos")
-public class uploadPhotoController {
+public class UploadPhotoController {
 
     private static final String UPLOAD_DIR = "D:/Code/Java_Code/love530/lovestory/src/main/resources/static/images/";
 
