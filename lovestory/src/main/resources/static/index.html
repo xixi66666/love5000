@@ -389,132 +389,6 @@
             font-size: 0.9rem;
         }
 
-        /* ========== 恋爱地图时间线样式 ========== */
-        .love-map-container {
-            max-width: 1200px;
-            margin: 0 auto 100px;
-            padding: 0 20px;
-        }
-
-        .map-timeline {
-            position: relative;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 20px;
-            padding: 40px;
-            box-shadow: var(--shadow);
-            overflow: hidden;
-        }
-
-        .map-timeline::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="30" cy="25" r="1.5" fill="rgba(255,255,255,0.1)"/><circle cx="50" cy="15" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="70" cy="30" r="1.2" fill="rgba(255,255,255,0.1)"/><circle cx="90" cy="20" r="1" fill="rgba(255,255,255,0.1)"/></svg>');
-            opacity: 0.3;
-        }
-
-        .map-path {
-            position: relative;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            min-height: 400px;
-            z-index: 1;
-        }
-
-        .map-location {
-            position: relative;
-            flex: 1;
-            text-align: center;
-            cursor: pointer;
-            transition: transform 0.3s;
-        }
-
-        .map-location:hover {
-            transform: translateY(-10px);
-        }
-
-        .location-marker {
-            width: 60px;
-            height: 60px;
-            background: white;
-            border-radius: 50%;
-            margin: 0 auto 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
-            position: relative;
-            animation: markerPulse 2s infinite;
-        }
-
-        @keyframes markerPulse {
-            0%, 100% { box-shadow: 0 5px 20px rgba(0,0,0,0.2); }
-            50% { box-shadow: 0 5px 30px rgba(255,255,255,0.5); }
-        }
-
-        .location-marker::after {
-            content: '';
-            position: absolute;
-            bottom: -10px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 0;
-            height: 0;
-            border-left: 10px solid transparent;
-            border-right: 10px solid transparent;
-            border-top: 15px solid white;
-        }
-
-        .location-info {
-            background: rgba(255,255,255,0.95);
-            border-radius: 15px;
-            padding: 15px;
-            margin-top: 20px;
-            opacity: 0;
-            transform: translateY(10px);
-            transition: all 0.3s;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-
-        .map-location:hover .location-info {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        .location-date {
-            font-size: 0.85rem;
-            color: var(--primary-color);
-            font-weight: 600;
-            margin-bottom: 5px;
-        }
-
-        .location-title {
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: var(--text-color);
-            margin-bottom: 8px;
-        }
-
-        .location-desc {
-            font-size: 0.9rem;
-            color: #888;
-            line-height: 1.5;
-        }
-
-        .map-connector {
-            position: absolute;
-            top: 30px;
-            left: 10%;
-            right: 10%;
-            height: 3px;
-            background: linear-gradient(90deg, transparent, white, transparent);
-            z-index: 0;
-        }
 
         /* ========== 甜蜜回忆卡片堆样式 ========== */
         .memory-cards-container {
@@ -1461,7 +1335,387 @@
                 padding: 15px;
             }
         }
+
+        /* ========== 交互式恋爱旅程地图样式 ========== */
+        .love-map-container {
+            max-width: 1400px;
+            margin: 0 auto 100px;
+            padding: 0 20px;
+        }
+
+        .love-map-container .section-title {
+            margin-bottom: 50px;
+        }
+
+        .journey-map {
+            position: relative;
+            background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,240,245,0.95) 100%);
+            border-radius: 25px;
+            padding: 40px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            border: 2px solid rgba(255,107,129,0.1);
+        }
+
+        /* SVG 容器 */
+        .map-svg-container {
+            position: relative;
+            width: 100%;
+            height: 500px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 15px;
+            overflow: hidden;
+            border: 1px dashed rgba(255,107,129,0.2);
+        }
+
+        .journey-svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 旅程路径动画 */
+        .journey-path {
+            stroke-dasharray: 1500;
+            stroke-dashoffset: 1500;
+            animation: drawPath 4s ease-in-out forwards;
+            animation-delay: 0.5s;
+        }
+
+        @keyframes drawPath {
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+
+        /* 位置标记 */
+        .location-marker {
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        .location-marker:hover {
+            transform: scale(1.2);
+        }
+
+        .marker-circle {
+            fill: white;
+            stroke: var(--primary-color);
+            stroke-width: 4;
+            filter: drop-shadow(0 5px 15px rgba(255,107,129,0.4));
+            transition: all 0.3s;
+        }
+
+        .location-marker:hover .marker-circle {
+            fill: #fff0f5;
+            stroke-width: 5;
+        }
+
+        .marker-glow {
+            fill: url(#markerGlow);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .location-marker:hover .marker-glow {
+            opacity: 0.8;
+        }
+
+        .marker-icon {
+            font-size: 24px;
+            pointer-events: none;
+            fill: var(--primary-color);
+            font-family: 'Noto Sans SC', sans-serif;
+        }
+
+        /* 手绘风格点缀 */
+        .sparkle {
+            fill: white;
+            opacity: 0;
+            animation: sparkle 3s infinite;
+            filter: drop-shadow(0 0 3px rgba(255,107,129,0.5));
+        }
+
+        @keyframes sparkle {
+            0%, 100% { opacity: 0; transform: scale(0.3); }
+            50% { opacity: 1; transform: scale(1); }
+        }
+
+        /* 位置信息面板 */
+        .location-panels {
+            position: absolute;
+            top: 50%;
+            right: 40px;
+            transform: translateY(-50%);
+            width: 380px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+            opacity: 0;
+            transform: translateY(-50%) translateX(30px);
+            transition: all 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            z-index: 10;
+            overflow: hidden;
+            border: 1px solid rgba(255,107,129,0.1);
+        }
+
+        .location-panel.active {
+            opacity: 1;
+            transform: translateY(-50%) translateX(0);
+        }
+
+        .panel-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            border: none;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            font-size: 1.3rem;
+            cursor: pointer;
+            z-index: 11;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .panel-close:hover {
+            background: var(--primary-color);
+            transform: rotate(90deg);
+        }
+
+        .panel-content {
+            padding: 35px;
+        }
+
+        .panel-date {
+            font-size: 0.9rem;
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .panel-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-color);
+            margin-bottom: 20px;
+            line-height: 1.3;
+        }
+
+        .panel-image {
+            width: 100%;
+            height: 220px;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 20px 0;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        .panel-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.7s;
+        }
+
+        .panel-image:hover img {
+            transform: scale(1.05);
+        }
+
+        .panel-description {
+            font-size: 1.05rem;
+            color: var(--text-color);
+            line-height: 1.7;
+            margin-bottom: 20px;
+        }
+
+        .panel-memory {
+            font-size: 1rem;
+            font-style: italic;
+            color: #ff6b81;
+            padding: 15px;
+            background: rgba(255,107,129,0.05);
+            border-radius: 10px;
+            border-left: 4px solid var(--primary-color);
+            line-height: 1.6;
+        }
+
+        /* 地图控制 */
+        .map-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 30px;
+            padding: 0 20px;
+        }
+
+        .control-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 5px 15px rgba(255,107,129,0.3);
+        }
+
+        .control-btn:hover {
+            background: #ff5570;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(255,107,129,0.4);
+        }
+
+        .location-indicator {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            font-size: 1.1rem;
+            color: var(--text-color);
+        }
+
+        .current-location {
+            font-weight: 700;
+            color: var(--primary-color);
+            font-size: 1.3rem;
+        }
+
+        .auto-play-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,107,129,0.1);
+            padding: 8px 15px;
+            border-radius: 20px;
+            color: var(--primary-color);
+            font-size: 0.9rem;
+        }
+
+        .auto-play-icon {
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* 移动端适配 */
+        @media screen and (max-width: 1100px) {
+            .location-panels {
+                position: relative;
+                top: auto;
+                right: auto;
+                transform: none;
+                width: 100%;
+                margin-top: 40px;
+                max-width: 500px;
+                margin-left: auto;
+                margin-right: auto;
+            }
+
+            .location-panel.active {
+                transform: none;
+            }
+        }
+
+        @media screen and (max-width: 768px) {
+            .journey-map {
+                padding: 25px;
+            }
+
+            .map-svg-container {
+                height: 350px;
+            }
+
+            .panel-title {
+                font-size: 1.5rem;
+            }
+
+            .panel-image {
+                height: 180px;
+            }
+
+            .map-controls {
+                flex-direction: column;
+                gap: 15px;
+                padding: 0;
+            }
+
+            .location-indicator {
+                order: -1;
+                margin-bottom: 10px;
+            }
+        }
+
+        @media screen and (max-width: 480px) {
+            .map-svg-container {
+                height: 250px;
+            }
+
+            .panel-content {
+                padding: 25px;
+            }
+
+            .panel-title {
+                font-size: 1.3rem;
+            }
+
+            .panel-image {
+                height: 150px;
+            }
+
+            .control-btn {
+                width: 100%;
+                text-align: center;
+            }
+        }
+             /* 游戏中心样式 */
+         .games-container {
+             max-width: 1000px;
+             margin: 0 auto 80px;
+             padding: 0 20px;
+             display: grid;
+             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+             gap: 30px;
+         }
+        .game-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 40px 20px;
+            text-align: center;
+            box-shadow: var(--shadow);
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+        .game-card:hover {
+            transform: translateY(-10px);
+            border-color: var(--primary-color);
+            box-shadow: 0 15px 30px rgba(255,107,129,0.2);
+        }
+        .game-icon {
+            font-size: 3.5rem;
+            margin-bottom: 20px;
+        }
+        .game-card h3 {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        .game-card p {
+            color: var(--text-color);
+            font-size: 0.95rem;
+        }
     </style>
+
 </head>
 <body>
 <script>        (function() {
@@ -1485,50 +1739,24 @@
     </div>
 </header>
 
-<!-- 甜蜜时光轴 -->
-<h2 class="section-title">我们的故事 · Story</h2>
 
-<!-- 方案1: 恋爱地图时间线 -->
-<div class="love-map-container">
-    <div class="map-timeline">
-        <div class="map-connector"></div>
-        <div class="map-path">
-            <div class="map-location">
-                <div class="location-marker">☕</div>
-                <div class="location-info">
-                    <div class="location-date">2023.05.20</div>
-                    <div class="location-title">初次相遇</div>
-                    <div class="location-desc">转角的咖啡店，阳光正好</div>
-                </div>
-            </div>
-
-            <div class="map-location">
-                <div class="location-marker">🎬</div>
-                <div class="location-info">
-                    <div class="location-date">2023.06.01</div>
-                    <div class="location-title">第一次约会</div>
-                    <div class="location-desc">一起看了场浪漫电影</div>
-                </div>
-            </div>
-
-            <div class="map-location">
-                <div class="location-marker">🏖️</div>
-                <div class="location-info">
-                    <div class="location-date">2023.10.05</div>
-                    <div class="location-title">海边旅行</div>
-                    <div class="location-desc">看日出日落，听海浪声</div>
-                </div>
-            </div>
-
-            <div class="map-location">
-                <div class="location-marker">🎄</div>
-                <div class="location-info">
-                    <div class="location-date">2023.12.25</div>
-                    <div class="location-title">第一个圣诞</div>
-                    <div class="location-desc">互送礼物，温暖过冬</div>
-                </div>
-            </div>
-        </div>
+<!-- 甜蜜游戏中心 · 替换原恋爱地图模块 -->
+<h2 class="section-title">🎮 来玩！！！</h2>
+<div class="games-container">
+    <!-- 贪吃蛇 -->
+    <div class="game-card" onclick="window.open('snake.html', '_blank')">
+        <div class="game-icon">🐍</div>
+        <h3>贪吃蛇</h3>
+    </div>
+    <!-- 井字棋 -->
+    <div class="game-card" onclick="window.open('tic-tac-toe.html', '_blank')">
+        <div class="game-icon">💘⭐</div>
+        <h3>情侣井字棋</h3>
+    </div>
+    <!-- 消消乐 -->
+    <div class="game-card" onclick="window.open('match3.html', '_blank')">
+        <div class="game-icon">💖</div>
+        <h3>快乐小鸟</h3>
     </div>
 </div>
 
@@ -2761,7 +2989,235 @@
 
             xhr.send(formData);
         }
+
+        // ========== 交互式恋爱旅程地图功能 ==========
+        function initLoveJourneyMap() {
+            const markers = document.querySelectorAll('.location-marker');
+            const panels = document.querySelectorAll('.location-panel');
+            const prevBtn = document.querySelector('.prev-location');
+            const nextBtn = document.querySelector('.next-location');
+            const currentLocationSpan = document.querySelector('.current-location');
+            const totalLocationsSpan = document.querySelector('.total-locations');
+            const autoPlayIcon = document.querySelector('.auto-play-icon');
+            const autoPlayText = document.querySelector('.auto-play-text');
+
+            // 检查关键元素是否存在
+            if (markers.length === 0 || !prevBtn || !nextBtn || !currentLocationSpan || !totalLocationsSpan) {
+                console.warn('恋爱旅程地图所需元素未找到，初始化失败');
+                return;
+            }
+
+            let currentLocationIndex = 0;
+            const totalLocations = markers.length;
+            let autoAdvanceInterval;
+            let isAutoPlaying = true;
+
+            // 初始化
+            totalLocationsSpan.textContent = totalLocations;
+            updateCurrentLocation();
+
+            // 标记点击事件
+            markers.forEach((marker, index) => {
+                marker.addEventListener('click', () => {
+                    pauseAutoPlay();
+                    showLocation(index);
+                });
+
+                marker.addEventListener('mouseenter', pauseAutoPlay);
+                marker.addEventListener('mouseleave', () => {
+                    if (isAutoPlaying) {
+                        startAutoPlay();
+                    }
+                });
+            });
+
+            // 面板关闭按钮
+            panels.forEach(panel => {
+                const closeBtn = panel.querySelector('.panel-close');
+                closeBtn.addEventListener('click', () => {
+                    hideAllPanels();
+                    if (isAutoPlaying) {
+                        startAutoPlay();
+                    }
+                });
+
+                panel.addEventListener('mouseenter', pauseAutoPlay);
+                panel.addEventListener('mouseleave', () => {
+                    if (isAutoPlaying) {
+                        startAutoPlay();
+                    }
+                });
+            });
+
+            // 导航按钮
+            prevBtn.addEventListener('click', () => {
+                pauseAutoPlay();
+                showPrevLocation();
+            });
+
+            nextBtn.addEventListener('click', () => {
+                pauseAutoPlay();
+                showNextLocation();
+            });
+
+            // 键盘导航
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowLeft') {
+                    pauseAutoPlay();
+                    showPrevLocation();
+                }
+                if (e.key === 'ArrowRight') {
+                    pauseAutoPlay();
+                    showNextLocation();
+                }
+                if (e.key === 'Escape') {
+                    hideAllPanels();
+                    if (isAutoPlaying) {
+                        startAutoPlay();
+                    }
+                }
+            });
+
+            // 触摸滑动支持（移动端）
+            let touchStartX = 0;
+            let touchEndX = 0;
+            const mapContainer = document.querySelector('.journey-map');
+
+            mapContainer.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+            });
+
+            mapContainer.addEventListener('touchend', (e) => {
+                touchEndX = e.changedTouches[0].screenX;
+                handleSwipe();
+            });
+
+            function handleSwipe() {
+                const swipeThreshold = 50;
+                const diff = touchStartX - touchEndX;
+
+                if (Math.abs(diff) > swipeThreshold) {
+                    pauseAutoPlay();
+                    if (diff > 0) {
+                        showNextLocation();
+                    } else {
+                        showPrevLocation();
+                    }
+                }
+            }
+
+            // 主要功能函数
+            function showLocation(index) {
+                currentLocationIndex = index;
+                updateCurrentLocation();
+
+                // 隐藏所有面板
+                hideAllPanels();
+
+                // 显示选中面板
+                const locationId = markers[index].getAttribute('data-location');
+                const panel = document.querySelector(`.location-panel[data-location="${locationId}"]`);
+                if (panel) {
+                    panel.classList.add('active');
+                }
+
+                // 动画效果：标记放大缩小
+                animateMarker(index);
+            }
+
+            function showNextLocation() {
+                currentLocationIndex = (currentLocationIndex + 1) % totalLocations;
+                showLocation(currentLocationIndex);
+            }
+
+            function showPrevLocation() {
+                currentLocationIndex = (currentLocationIndex - 1 + totalLocations) % totalLocations;
+                showLocation(currentLocationIndex);
+            }
+
+            function hideAllPanels() {
+                panels.forEach(panel => {
+                    panel.classList.remove('active');
+                });
+            }
+
+            function updateCurrentLocation() {
+                currentLocationSpan.textContent = currentLocationIndex + 1;
+            }
+
+            function animateMarker(index) {
+                const marker = markers[index];
+                marker.style.transform = 'scale(1.3)';
+
+                setTimeout(() => {
+                    marker.style.transform = 'scale(1)';
+                }, 300);
+            }
+
+            // 自动播放功能
+            function startAutoPlay() {
+                if (autoAdvanceInterval) {
+                    clearInterval(autoAdvanceInterval);
+                }
+
+                isAutoPlaying = true;
+                autoPlayIcon.textContent = '▶';
+                autoPlayText.textContent = '自动播放中';
+                autoPlayIcon.style.animation = 'pulse 1s infinite';
+
+                autoAdvanceInterval = setInterval(() => {
+                    showNextLocation();
+                }, 8000); // 8秒切换一次
+            }
+
+            function pauseAutoPlay() {
+                if (autoAdvanceInterval) {
+                    clearInterval(autoAdvanceInterval);
+                    autoAdvanceInterval = null;
+                }
+
+                isAutoPlaying = false;
+                autoPlayIcon.textContent = '❚❚';
+                autoPlayText.textContent = '已暂停';
+                autoPlayIcon.style.animation = 'none';
+            }
+
+            function toggleAutoPlay() {
+                if (isAutoPlaying) {
+                    pauseAutoPlay();
+                } else {
+                    startAutoPlay();
+                }
+            }
+
+            // 点击自动播放指示器切换状态
+            const autoPlayIndicator = document.querySelector('.auto-play-indicator');
+            if (autoPlayIndicator) {
+                autoPlayIndicator.addEventListener('click', toggleAutoPlay);
+                autoPlayIndicator.style.cursor = 'pointer';
+            }
+
+            // 初始显示第一个位置
+            showLocation(0);
+
+            // 延迟3秒后开始自动播放
+            setTimeout(() => {
+                startAutoPlay();
+            }, 3000);
+
+            // 鼠标进入地图区域暂停自动播放，离开时恢复
+            mapContainer.addEventListener('mouseenter', pauseAutoPlay);
+            mapContainer.addEventListener('mouseleave', () => {
+                if (isAutoPlaying) {
+                    startAutoPlay();
+                }
+            });
+        }
+
+        // 初始化恋爱旅程地图
+        initLoveJourneyMap();
     });
+
 </script>
 
 
