@@ -1,6 +1,5 @@
 spring:
   datasource:
-    type: com.alibaba.druid.pool.DruidDataSource
     username: root
     password: kuosi
     url: jdbc:mysql://49.232.128.132:3306/lovestory?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
@@ -14,3 +13,13 @@ spring:
     multipart:
       max-file-size: 10MB
       max-request-size: 10MB
+
+love530:
+  oss:
+    enabled: ${LOVE530_OSS_ENABLED:true}
+    endpoint: ${LOVE530_OSS_ENDPOINT:oss-cn-beijing.aliyuncs.com}
+    access-key-id: ${LOVE530_OSS_ACCESS_KEY_ID:LTAI5tR2v4Pe4M1N7daC4XCP}
+    access-key-secret: ${LOVE530_OSS_ACCESS_KEY_SECRET:ged0L6postZzI07JopyoWFRwkZDFcs}
+    bucket-name: ${LOVE530_OSS_BUCKET_NAME:lovestory5000}
+    url-prefix: ${LOVE530_OSS_URL_PREFIX:}
+    base-dir: ${LOVE530_OSS_BASE_DIR:love530/lovestory/photos}

@@ -388,6 +388,32 @@
             font-size: 0.9rem;
         }
 
+        .lightbox-delete {
+            position: absolute;
+            bottom: 78px;
+            right: 20px;
+            background: rgba(220, 53, 69, 0.92);
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 999px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            z-index: 2001;
+            box-shadow: 0 8px 20px rgba(220, 53, 69, 0.25);
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .lightbox-delete:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+
+        .lightbox-delete[hidden] {
+            display: none;
+        }
+
         /* 底部 */
         footer {
             text-align: center;
@@ -1977,7 +2003,7 @@
     <button class="filter-btn" data-filter="special">特别时刻</button>
 </div>
 
-<div class="gallery">
+<div class="gallery" id="photoGallery">
     <!-- 照片1 -->
     <div class="gallery-item" data-category="cat">
         <img src="images/001.jpg" alt="photo" data-description="啾师傅！！！">
@@ -2034,6 +2060,7 @@
             <button class="lightbox-prev" id="lightboxPrev">‹</button>
             <button class="lightbox-next" id="lightboxNext">›</button>
         </div>
+        <button class="lightbox-delete" id="lightboxDelete" hidden>删除这张照片</button>
         <div class="lightbox-description" id="lightboxDescription"></div>
         <div class="lightbox-counter" id="lightboxCounter"></div>
     </div>
@@ -2178,7 +2205,6 @@
                     <option value="girl">宝宝美照</option>
                     <option value="cat">啾仔</option>
                     <option value="us">我们</option>
-                    <option value="special">特别时刻</option>
                 </select>
             </div>
 
@@ -2383,7 +2409,7 @@
         }, 2000);
 
         // 交互式照片墙功能
-        const galleryItems = document.querySelectorAll('.gallery-item');
+        const photoGallery = document.getElementById('photoGallery');
         const filterButtons = document.querySelectorAll('.filter-btn');
         const lightbox = document.getElementById('lightbox');
         const lightboxImage = document.getElementById('lightboxImage');
@@ -2392,44 +2418,113 @@
         const lightboxClose = document.getElementById('lightboxClose');
         const lightboxPrev = document.getElementById('lightboxPrev');
         const lightboxNext = document.getElementById('lightboxNext');
+        const lightboxDelete = document.getElementById('lightboxDelete');
 
         let currentImageIndex = 0;
-        let filteredItems = Array.from(galleryItems);
+        let filteredItems = [];
 
-        // 筛选功能
+        function getGalleryItems() {
+            return Array.from(photoGallery.querySelectorAll('.gallery-item'));
+        }
+
+        function getActiveFilter() {
+            const activeButton = document.querySelector('.filter-btn.active');
+            return activeButton ? activeButton.getAttribute('data-filter') : 'all';
+        }
+
+        function createGalleryItem(photo) {
+            const item = document.createElement('div');
+            item.className = 'gallery-item';
+            item.setAttribute('data-category', photo.category || 'us');
+            if (photo.id) {
+                item.setAttribute('data-photo-id', photo.id);
+            }
+            if (photo.createTime) {
+                item.setAttribute('data-create-time', photo.createTime);
+            }
+
+            const image = document.createElement('img');
+            image.src = photo.url;
+            image.alt = 'photo';
+            image.setAttribute('data-description', photo.description || 'Memory');
+
+            const description = document.createElement('div');
+            description.className = 'photo-description';
+            description.textContent = photo.description || 'Memory';
+
+            item.appendChild(image);
+            item.appendChild(description);
+            return item;
+        }
+
+        function applyGalleryFilter() {
+            const filter = getActiveFilter();
+            const galleryItems = getGalleryItems();
+
+            galleryItems.forEach(item => {
+                if (filter === 'all' || item.getAttribute('data-category') === filter) {
+                    item.style.display = 'block';
+                    setTimeout(() => {
+                        item.style.opacity = '1';
+                        item.style.transform = 'scale(1)';
+                    }, 10);
+                } else {
+                    item.style.opacity = '0';
+                    item.style.transform = 'scale(0.8)';
+                    setTimeout(() => {
+                        item.style.display = 'none';
+                    }, 300);
+                }
+            });
+
+            filteredItems = galleryItems.filter(item => {
+                return filter === 'all' || item.getAttribute('data-category') === filter;
+            });
+        }
+
+        function appendGalleryItem(photo, prepend = false) {
+            const item = createGalleryItem(photo);
+            if (prepend && photoGallery.firstChild) {
+                photoGallery.insertBefore(item, photoGallery.firstChild);
+            } else {
+                photoGallery.appendChild(item);
+            }
+            applyGalleryFilter();
+            return item;
+        }
+
+        async function loadUploadedPhotos() {
+            try {
+                const response = await fetch('/api/photos');
+                if (!response.ok) {
+                    return;
+                }
+
+                const result = await response.json();
+                if (!result.success || !Array.isArray(result.photos)) {
+                    return;
+                }
+
+                const fragment = document.createDocumentFragment();
+                result.photos.forEach(photo => {
+                    fragment.appendChild(createGalleryItem(photo));
+                });
+                photoGallery.appendChild(fragment);
+                applyGalleryFilter();
+            } catch (error) {
+                console.warn('Failed to load uploaded photos', error);
+            }
+        }
+
         filterButtons.forEach(button => {
             button.addEventListener('click', () => {
-                const filter = button.getAttribute('data-filter');
-
-                // 更新活动按钮
                 filterButtons.forEach(btn => btn.classList.remove('active'));
                 button.classList.add('active');
-
-                // 筛选项目
-                galleryItems.forEach(item => {
-                    if (filter === 'all' || item.getAttribute('data-category') === filter) {
-                        item.style.display = 'block';
-                        setTimeout(() => {
-                            item.style.opacity = '1';
-                            item.style.transform = 'scale(1)';
-                        }, 10);
-                    } else {
-                        item.style.opacity = '0';
-                        item.style.transform = 'scale(0.8)';
-                        setTimeout(() => {
-                            item.style.display = 'none';
-                        }, 300);
-                    }
-                });
-
-                // 更新筛选后的项目列表
-                filteredItems = Array.from(galleryItems).filter(item => {
-                    return filter === 'all' || item.getAttribute('data-category') === filter;
-                });
+                applyGalleryFilter();
             });
         });
 
-        // Lightbox 功能
+        // Lightbox 鍔熻兘
         function openLightbox(index) {
             currentImageIndex = index;
             updateLightbox();
@@ -2448,11 +2543,14 @@
             const currentItem = filteredItems[currentImageIndex];
             const img = currentItem.querySelector('img');
             const description = img.getAttribute('data-description');
+            const photoId = currentItem.getAttribute('data-photo-id');
 
             lightboxImage.src = img.src;
             lightboxImage.alt = img.alt;
             lightboxDescription.textContent = description;
             lightboxCounter.textContent = `${currentImageIndex + 1} / ${filteredItems.length}`;
+            lightboxDelete.hidden = !photoId;
+            lightboxDelete.dataset.photoId = photoId || '';
         }
 
         function showNextImage() {
@@ -2465,26 +2563,71 @@
             updateLightbox();
         }
 
-        // 点击图片打开 Lightbox
-        galleryItems.forEach((item, index) => {
-            item.addEventListener('click', () => {
-                // 获取在筛选列表中的索引
-                const filter = document.querySelector('.filter-btn.active').getAttribute('data-filter');
-                const currentFiltered = filter === 'all'
-                    ? Array.from(galleryItems)
-                    : Array.from(galleryItems).filter(item => item.getAttribute('data-category') === filter);
+        async function deleteCurrentPhoto() {
+            const photoId = lightboxDelete.dataset.photoId;
+            if (!photoId) {
+                return;
+            }
 
-                const filteredIndex = currentFiltered.indexOf(item);
-                if (filteredIndex !== -1) {
-                    openLightbox(filteredIndex);
+            if (!confirm('确定要删除这张上传的照片吗？删除后无法恢复。')) {
+                return;
+            }
+
+            lightboxDelete.disabled = true;
+            lightboxDelete.textContent = '删除中...';
+
+            try {
+                const response = await fetch(`/api/photos/${photoId}`, {
+                    method: 'DELETE'
+                });
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || '删除失败');
                 }
-            });
+
+                const itemToRemove = getGalleryItems().find(item => item.getAttribute('data-photo-id') === photoId);
+                if (itemToRemove) {
+                    itemToRemove.remove();
+                }
+
+                const remainingFilteredItems = filteredItems.filter(item => item.getAttribute('data-photo-id') !== photoId);
+                if (remainingFilteredItems.length === 0) {
+                    closeLightbox();
+                } else {
+                    currentImageIndex = Math.min(currentImageIndex, remainingFilteredItems.length - 1);
+                    filteredItems = remainingFilteredItems;
+                    updateLightbox();
+                }
+
+                applyGalleryFilter();
+            } catch (error) {
+                alert(error.message || '删除失败，请稍后重试');
+            } finally {
+                lightboxDelete.disabled = false;
+                lightboxDelete.textContent = '删除这张照片';
+            }
+        }
+
+        photoGallery.addEventListener('click', (event) => {
+            const item = event.target.closest('.gallery-item');
+            if (!item) {
+                return;
+            }
+
+            const currentFiltered = filteredItems.length > 0 ? filteredItems : getGalleryItems();
+            const filteredIndex = currentFiltered.indexOf(item);
+            if (filteredIndex !== -1) {
+                openLightbox(filteredIndex);
+            }
         });
 
-        // Lightbox 控制
+        applyGalleryFilter();
+        loadUploadedPhotos();
         lightboxClose.addEventListener('click', closeLightbox);
         lightboxPrev.addEventListener('click', showPrevImage);
         lightboxNext.addEventListener('click', showNextImage);
+        lightboxDelete.addEventListener('click', deleteCurrentPhoto);
 
         // 键盘导航
         document.addEventListener('keydown', (e) => {
@@ -3083,6 +3226,7 @@
                             `;
             uploadPreview.classList.remove('has-image');
             uploadSubmitBtn.disabled = true;
+            uploadSubmitBtn.textContent = '上传照片 📤';
             uploadProgress.classList.remove('show');
             progressFill.style.width = '0%';
         }
@@ -3146,7 +3290,9 @@
                                 closeUploadModal();
 
                                 // 刷新页面以显示新照片（可选）
-                                location.reload();
+                                if (response.photo) {
+                                    appendGalleryItem(response.photo, true);
+                                }
                             }, 500);
                         } else {
                             clearInterval(progressInterval);
@@ -3415,3 +3561,4 @@
 
 </body>
 </html>
+

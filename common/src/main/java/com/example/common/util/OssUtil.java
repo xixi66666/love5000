@@ -241,7 +241,6 @@ public class OssUtil {
         while (result.startsWith("/")) {
             result = result.substring(1);
         }
-        System.out.println("hahahahahahahsdaaiubhdabuisd ");
         return result;
     }
 
