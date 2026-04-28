@@ -947,6 +947,29 @@
             opacity: 1;
         }
 
+        .upload-toast {
+            position: fixed;
+            top: 24px;
+            left: 50%;
+            z-index: 3000;
+            padding: 12px 28px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border-radius: 999px;
+            box-shadow: 0 10px 28px rgba(255, 107, 129, 0.28);
+            opacity: 0;
+            transform: translate(-50%, -16px);
+            pointer-events: none;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+
+        .upload-toast.show {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+
         /* 照片上传按钮 */
         .upload-trigger {
             position: fixed;
@@ -1900,7 +1923,7 @@
         <!-- 卡片1 -->
         <div class="memory-card" onclick="flipCard(this)">
             <div class="card-front">
-                <img src="images/001.jpg" alt="回忆" class="card-image">
+                <img src="https://lovestory5000.oss-cn-beijing.aliyuncs.com/love530/lovestory/gallery/001.jpg" alt="回忆" class="card-image">
                 <div class="card-content">
                     <div>
                         <div class="card-date">2025.09.21</div>
@@ -1942,7 +1965,7 @@
         <!-- 卡片3 -->
         <div class="memory-card" onclick="flipCard(this)">
             <div class="card-front">
-                <img src="images/005.jpg" alt="回忆" class="card-image">
+                <img src="https://lovestory5000.oss-cn-beijing.aliyuncs.com/love530/lovestory/gallery/005.jpg" alt="回忆" class="card-image">
                 <div class="card-content">
                     <div>
                         <div class="card-date">2023.10.05</div>
@@ -1966,7 +1989,7 @@
         <!-- 卡片4 -->
         <div class="memory-card" onclick="flipCard(this)">
             <div class="card-front">
-                <img src="images/006.jpg" alt="回忆" class="card-image">
+                <img src="https://lovestory5000.oss-cn-beijing.aliyuncs.com/love530/lovestory/gallery/006.jpg" alt="回忆" class="card-image">
                 <div class="card-content">
                     <div>
                         <div class="card-date">2023.12.31</div>
@@ -2006,47 +2029,47 @@
 <div class="gallery" id="photoGallery">
     <!-- 照片1 -->
     <div class="gallery-item" data-category="cat">
-        <img src="images/001.jpg" alt="photo" data-description="啾师傅！！！">
+        <img src="https://lovestory5000.oss-cn-beijing.aliyuncs.com/love530/lovestory/gallery/001.jpg" alt="photo" data-description="啾师傅！！！">
         <div class="photo-description">啾仔啾仔</div>
     </div>
     <!-- 照片2 -->
     <div class="gallery-item" data-category="girl">
-        <img src="images/002.jpg" alt="photo" data-description="KTV">
+        <img src="https://lovestory5000.oss-cn-beijing.aliyuncs.com/love530/lovestory/gallery/002.jpg" alt="photo" data-description="KTV">
         <div class="photo-description">KTV的美丽宝宝</div>
     </div>
     <!-- 照片3 -->
     <div class="gallery-item" data-category="us">
-        <img src="images/003.jpg" alt="photo" data-description="我爱你">
+        <img src="https://lovestory5000.oss-cn-beijing.aliyuncs.com/love530/lovestory/gallery/003.jpg" alt="photo" data-description="我爱你">
         <div class="photo-description">很爱你</div>
     </div>
     <!-- 照片4 -->
     <div class="gallery-item" data-category="girl">
-        <img src="images/004.jpg" alt="photo" data-description="大大大大大美女">
+        <img src="https://lovestory5000.oss-cn-beijing.aliyuncs.com/love530/lovestory/gallery/004.jpg" alt="photo" data-description="大大大大大美女">
         <div class="photo-description">就是你！</div>
     </div>
     <!-- 照片5 -->
     <div class="gallery-item" data-category="cat">
-        <img src="images/005.jpg" alt="photo" data-description="懒虫">
+        <img src="https://lovestory5000.oss-cn-beijing.aliyuncs.com/love530/lovestory/gallery/005.jpg" alt="photo" data-description="懒虫">
         <div class="photo-description">嘿嘿懒虫</div>
     </div>
     <!-- 照片6 -->
     <div class="gallery-item" data-category="girl">
-        <img src="images/006.jpg" alt="photo" data-description="跨年！！！">
+        <img src="https://lovestory5000.oss-cn-beijing.aliyuncs.com/love530/lovestory/gallery/006.jpg" alt="photo" data-description="跨年！！！">
         <div class="photo-description">宝宝亲手做的！！！</div>
     </div>
     <!-- 照片7 -->
     <div class="gallery-item" data-category="girl">
-        <img src="images/007.jpg" alt="photo" data-description="小小吴迁">
+        <img src="https://lovestory5000.oss-cn-beijing.aliyuncs.com/love530/lovestory/gallery/007.jpg" alt="photo" data-description="小小吴迁">
         <div class="photo-description">little 500</div>
     </div>
     <!-- 照片8 -->
     <div class="gallery-item" data-category="us">
-        <img src="images/008.jpg" alt="photo" data-description="我们彼此都爱着彼此">
+        <img src="https://lovestory5000.oss-cn-beijing.aliyuncs.com/love530/lovestory/gallery/008.jpg" alt="photo" data-description="我们彼此都爱着彼此">
         <div class="photo-description">一家三口</div>
     </div>
     <!-- 照片9 -->
     <div class="gallery-item" data-category="us">
-        <img src="images/009.jpg" alt="photo" data-description="我要和你结婚！">
+        <img src="https://lovestory5000.oss-cn-beijing.aliyuncs.com/love530/lovestory/gallery/009.jpg" alt="photo" data-description="我要和你结婚！">
         <div class="photo-description">我要和你结婚！</div>
     </div>
 </div>
@@ -2157,7 +2180,7 @@
         </div>
 
         <div class="secret-board-info">
-            <p>💡 留言仅保存在本地浏览器中，清除浏览器数据会丢失。</p>
+            <p>💡 留言会保存在服务器的 static/message.txt 中。</p>
             <button class="secret-clear-btn" id="secretClearBtn">清空所有留言</button>
         </div>
     </div>
@@ -2422,6 +2445,7 @@
 
         let currentImageIndex = 0;
         let filteredItems = [];
+        let isLoadingUploadedPhotos = false;
 
         function getGalleryItems() {
             return Array.from(photoGallery.querySelectorAll('.gallery-item'));
@@ -2438,6 +2462,7 @@
             item.setAttribute('data-category', photo.category || 'us');
             if (photo.id) {
                 item.setAttribute('data-photo-id', photo.id);
+                item.setAttribute('data-uploaded-photo', 'true');
             }
             if (photo.createTime) {
                 item.setAttribute('data-create-time', photo.createTime);
@@ -2494,8 +2519,15 @@
         }
 
         async function loadUploadedPhotos() {
+            if (isLoadingUploadedPhotos) {
+                return;
+            }
+
+            isLoadingUploadedPhotos = true;
             try {
-                const response = await fetch('/api/photos');
+                const response = await fetch('/api/photos', {
+                    cache: 'no-store'
+                });
                 if (!response.ok) {
                     return;
                 }
@@ -2505,6 +2537,8 @@
                     return;
                 }
 
+                photoGallery.querySelectorAll('[data-uploaded-photo="true"]').forEach(item => item.remove());
+
                 const fragment = document.createDocumentFragment();
                 result.photos.forEach(photo => {
                     fragment.appendChild(createGalleryItem(photo));
@@ -2513,6 +2547,8 @@
                 applyGalleryFilter();
             } catch (error) {
                 console.warn('Failed to load uploaded photos', error);
+            } finally {
+                isLoadingUploadedPhotos = false;
             }
         }
 
@@ -2624,6 +2660,13 @@
 
         applyGalleryFilter();
         loadUploadedPhotos();
+        window.addEventListener('pageshow', loadUploadedPhotos);
+        window.addEventListener('focus', loadUploadedPhotos);
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                loadUploadedPhotos();
+            }
+        });
         lightboxClose.addEventListener('click', closeLightbox);
         lightboxPrev.addEventListener('click', showPrevImage);
         lightboxNext.addEventListener('click', showNextImage);
@@ -2864,8 +2907,8 @@
         const secretClearBtn = document.getElementById('secretClearBtn');
         const charCounter = document.getElementById('charCounter');
 
-        // 留言存储键
-        const MESSAGES_KEY = 'secret_love_messages';
+        // 留言接口地址
+        const MESSAGES_API_URL = '/api/messages';
 
         // 双击触发打开留言板
         let clickCount = 0;
@@ -2902,59 +2945,80 @@
         }
 
         // 加载留言
-        function loadMessages() {
-            const messages = getMessages();
-            secretMessages.innerHTML = '';
+        async function loadMessages() {
+            secretMessages.innerHTML = '<div class="no-messages">留言加载中...</div>';
 
-            if (messages.length === 0) {
-                secretMessages.innerHTML = '<div class="no-messages">还没有留言，写下第一条吧！</div>';
-                return;
+            try {
+                const messages = await getMessages();
+                secretMessages.innerHTML = '';
+
+                if (messages.length === 0) {
+                    secretMessages.innerHTML = '<div class="no-messages">还没有留言，写下第一条吧！</div>';
+                    return;
+                }
+
+                messages.forEach((msg) => {
+                    const messageElement = document.createElement('div');
+                    messageElement.className = 'secret-message';
+                    messageElement.innerHTML = `
+                                    <div class="secret-message-text">${escapeHtml(msg.text)}</div>
+                                    <div class="secret-message-date">${formatDate(msg.date)}</div>
+                                `;
+                    secretMessages.appendChild(messageElement);
+                });
+
+                // 滚动到底部
+                secretMessages.scrollTop = secretMessages.scrollHeight;
+            } catch (e) {
+                secretMessages.innerHTML = '<div class="no-messages">留言加载失败，请稍后重试。</div>';
             }
-
-            messages.forEach((msg, index) => {
-                const messageElement = document.createElement('div');
-                messageElement.className = 'secret-message';
-                messageElement.innerHTML = `
-                                <div class="secret-message-text">${escapeHtml(msg.text)}</div>
-                                <div class="secret-message-date">${formatDate(msg.date)}</div>
-                            `;
-                secretMessages.appendChild(messageElement);
-            });
-
-            // 滚动到底部
-            secretMessages.scrollTop = secretMessages.scrollHeight;
         }
 
         // 保存留言
-        function saveMessage(text) {
+        async function saveMessage(text) {
             if (!text.trim()) return false;
 
-            const messages = getMessages();
-            const newMessage = {
-                text: text.trim(),
-                date: new Date().toISOString()
-            };
-
-            messages.push(newMessage);
-            localStorage.setItem(MESSAGES_KEY, JSON.stringify(messages));
+            const response = await fetch(MESSAGES_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    text: text.trim()
+                })
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || '留言保存失败');
+            }
             return true;
         }
 
         // 获取留言列表
-        function getMessages() {
-            try {
-                const messages = localStorage.getItem(MESSAGES_KEY);
-                return messages ? JSON.parse(messages) : [];
-            } catch (e) {
-                return [];
+        async function getMessages() {
+            const response = await fetch(MESSAGES_API_URL);
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || '留言读取失败');
             }
+            return Array.isArray(result.messages) ? result.messages : [];
         }
 
         // 清空留言
-        function clearMessages() {
+        async function clearMessages() {
             if (confirm('确定要清空所有留言吗？此操作不可撤销。')) {
-                localStorage.removeItem(MESSAGES_KEY);
-                loadMessages();
+                try {
+                    const response = await fetch(MESSAGES_API_URL, {
+                        method: 'DELETE'
+                    });
+                    const result = await response.json();
+                    if (!response.ok || !result.success) {
+                        throw new Error(result.message || '留言清空失败');
+                    }
+                    loadMessages();
+                } catch (e) {
+                    alert(e.message || '留言清空失败，请稍后重试');
+                }
             }
         }
 
@@ -2972,8 +3036,26 @@
             }
         }
 
+        function showUploadSuccessToast() {
+            const toast = document.createElement('div');
+            toast.className = 'upload-toast';
+            toast.textContent = '上传成功';
+            document.body.appendChild(toast);
+
+            requestAnimationFrame(() => {
+                toast.classList.add('show');
+            });
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    toast.remove();
+                }, 250);
+            }, 1600);
+        }
+
         // 发送留言
-        function sendMessage() {
+        async function sendMessage() {
             const text = secretMessageInput.value.trim();
 
             if (!text) {
@@ -2987,7 +3069,9 @@
                 return;
             }
 
-            if (saveMessage(text)) {
+            try {
+                secretSendBtn.disabled = true;
+                await saveMessage(text);
                 secretMessageInput.value = '';
                 updateCharCounter();
                 loadMessages();
@@ -2997,6 +3081,10 @@
                 setTimeout(() => {
                     secretSendBtn.textContent = '发送 💌';
                 }, 1500);
+            } catch (e) {
+                alert(e.message || '留言保存失败，请稍后重试');
+            } finally {
+                secretSendBtn.disabled = false;
             }
         }
 
@@ -3286,7 +3374,7 @@
                             progressText.textContent = '上传成功！';
 
                             setTimeout(() => {
-                                alert('照片上传成功！');
+                                showUploadSuccessToast();
                                 closeUploadModal();
 
                                 // 刷新页面以显示新照片（可选）
