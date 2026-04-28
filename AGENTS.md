@@ -127,10 +127,104 @@ love5000/
 
 ## 代码规范
 
-### Java
+### Java 命名规范
+
+遵循 **Oracle 官方 Java 命名约定**，以下结合本项目的具体示例说明。
+
+#### 类名（PascalCase，大驼峰）
+
+每个单词首字母大写，使用名词或名词短语。
+
+| ✅ 正确 | ❌ 错误（本项目存在的反例） |
+|----------|----------|
+| `UploadPhotoController` | — |
+| `PhotoRepository` | — |
+| `UploadPhotoService` | `uploadPhotoService`（接口名小写开头） |
+| `UploadPhotoServiceImpl` | `uploadPhotoServiceImpl`（实现类名小写开头） |
+
+⚠️ **当前项目中 `lovestory` 模块的 `uploadPhotoService` 和 `uploadPhotoServiceImpl` 命名不符合规范**，新建 Service 时请使用正确命名。
+
+#### 接口（PascalCase，与类相同）
+
+接口名与类名规则一致，**不加 `I` 前缀**。实现类名 = 接口名 + `Impl`。
+
+```java
+// ✅ 正确
+public interface UploadPhotoService { ... }
+public class UploadPhotoServiceImpl implements UploadPhotoService { ... }
+
+// ❌ 错误
+public interface uploadPhotoService { ... }      // 小写开头
+public interface IUploadPhotoService { ... }     // 不用 I 前缀
+public class UploadPhotoServiceImp { ... }       // 用完整 Impl 而非 Imp
+```
+
+#### 方法名（camelCase，小驼峰）
+
+首字母小写，使用动词或动词短语。
+
+| ✅ 正确 | ❌ 错误 |
+|----------|----------|
+| `findById(Long id)` | `FindById(Long id)` |
+| `deleteById(Long id)` | `DeleteById(Long id)` |
+| `getObjectUrl(String key)` | `GetObjectUrl(String key)` |
+| `isSupportedImage(String name)` | `IsSupportedImage(String name)` |
+
+#### 变量名（camelCase，小驼峰）
+
+局部变量、成员变量、方法参数均用小驼峰。
+
+```java
+// ✅ 正确
+private final JdbcTemplate jdbcTemplate;
+private final ObjectProvider<OssUtil> ossUtilProvider;
+String originalFilename = file.getOriginalFilename();
+OssUploadResult uploadResult = ossUtil.upload(file, baseDir);
+
+// ❌ 错误
+private final JdbcTemplate JdbcTemplate;       // 变量名不能大驼峰
+String OriginalFilename = ...;                  // 局部变量不能大驼峰
+```
+
+#### 常量（UPPER_SNAKE_CASE，全大写+下划线）
+
+`static final` 修饰的不可变常量使用全大写，下划线分隔。
+
+```java
+// ✅ 正确（当前项目已遵循）
+private static final String CORRECT_ANSWER = "我爱你的很";
+private static final Set<String> ALLOWED_CATEGORIES = ...;
+private static final DateTimeFormatter TIME_FORMATTER = ...;
+private static final RowMapper<PhotoRecord> PHOTO_ROW_MAPPER = ...;
+```
+
+#### 包名（全小写）
+
+包名全部小写，使用点分隔。各模块包名如下：
+
+| 模块 | 包名 |
+|------|------|
+| `lovestory` | `com.ycxandwuqian.love` |
+| `website` | `com.example.website` |
+| `common` | `com.example.common` |
+
+**新增类必须放在对应模块的现有包名下**，子包按类型划分：`controller`、`service`、`repository`、`model`、`config`。
+
+#### 文件命名
+
+文件名必须与其中唯一的 `public` 类名完全一致（含大小写）：
+
+```
+UploadPhotoController.java  →  public class UploadPhotoController
+PhotoRecord.java            →  public class PhotoRecord
+uploadPhotoService.java     →  public interface uploadPhotoService  ⚠️ 类名和文件名需同步改为大驼峰
+```
+
+---
+
+### Java 其他规范
 
 - **Java 版本**: 1.8——不能使用 `var`、`record`、`switch` 表达式等新版语法。
-- **包命名**: 主应用 `com.ycxandwuqian.love`，公共模块 `com.example.common`，辅助应用 `com.example.website`。新增代码沿用各模块现有包名。
 - **Bean**: 手写 getter/setter，**不使用 Lombok**（common 模块的 Lombok 依赖标记为 `optional:true`，实际未使用）。
 - **依赖注入**: 使用构造器注入（如 `PhotoRepository(JdbcTemplate)`），不使用 `@Autowired` 字段注入。
 - **数据访问**: 直接使用 `JdbcTemplate`，无 ORM（无 JPA、无 MyBatis）。SQL 内嵌在 Java 代码中。
