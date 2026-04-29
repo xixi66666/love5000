@@ -2,293 +2,381 @@
 
 ## 项目概述
 
-**love530** 是一个多模块 Maven Spring Boot 项目，包含照片分享网站和互动小游戏。
+`love5000` 是一个 Java 8 + Spring Boot 2.6.13 的 Maven 多模块项目，父工程 artifactId 为 `love530`，当前包含三个模块：
 
-- **类型**: Web 应用（服务端渲染 + REST API）
-- **语言**: Java 8
-- **框架**: Spring Boot 2.6.13 + Spring Cloud Alibaba 2021.0.5.0
-- **前端**: 原生 HTML/CSS/JS，无框架，静态文件内联在 HTML 中
-- **数据库**: MySQL（阿里云远程实例），通过 JdbcTemplate 直接操作
-- **存储**: 阿里云 OSS（对象存储），由 common 模块提供自动配置
-- **构建**: Maven，多模块父子结构
+- `common`：公共能力模块，提供阿里云 OSS 配置、自动装配和上传工具。
+- `lovestory`：恋爱相册/小游戏 Web 应用，提供静态页面、照片上传、照片列表和删除接口。
+- `website`：个人主页/展示站点 Web 应用，包含静态资源、基础 Web Demo、OSS Demo 和 Nacos Discovery 示例代码。
 
-### 三模块架构
+核心技术栈：
 
-| 模块 | 端口 | 职责 | 启动类 |
-|------|------|------|--------|
-| `lovestory` | 8081 | 主应用：登录门禁、照片上传/展示/删除、贪吃蛇/消消乐/井字棋小游戏 | `com.ycxandwuqian.love.LovestoryApplication` |
-| `website` | 8080 | 辅助应用：静态页面、Demo 控制器、Nacos 演示（已注释） | `com.example.website.WebsiteApplication` |
-| `common` | — | 公共库：OSS 上传/删除/URL 生成工具、自动配置 | 不可独立运行 |
+- 语言：Java 8
+- 构建工具：Maven
+- 后端框架：Spring Boot 2.6.13
+- Web：Spring MVC / Spring Boot Starter Web
+- 数据库：MySQL
+- 数据访问：Spring JDBC / JdbcTemplate
+- 连接池：Alibaba Druid
+- 对象存储：Aliyun OSS SDK
+- 测试：JUnit 5 + Spring Boot Test
+- 静态资源：HTML / CSS / JavaScript，放在 `src/main/resources/static`
 
-**模块依赖**: `lovestory` → `common`，`website` 独立（不依赖 `common`）。
-
----
+**关键架构约定**：根目录 `pom.xml` 只负责模块聚合和依赖版本管理，业务代码分别放在 `common`、`lovestory`、`website` 模块中。跨模块复用能力优先放入 `common`，不要在 Web 模块之间复制工具类。
 
 ## 开发命令
 
-### 构建
+所有命令默认在仓库根目录执行：
 
 ```bash
-# 全量构建（含测试）
-mvn clean package
-
-# 跳过测试构建
-mvn clean package -DskipTests
-
-# 仅构建 lovestory 及其依赖
-mvn clean package -pl lovestory -am
-
-# 仅构建 common 模块
-mvn clean package -pl common
+cd C:/Code/Java_Code/love5000
 ```
 
-### 运行
+### 安装/编译全部模块
 
 ```bash
-# 启动 lovestory（端口 8081）
-mvn spring-boot:run -pl lovestory
-
-# 启动 website（端口 8080）
-mvn spring-boot:run -pl website
+mvn clean install
 ```
 
-⚠️ **启动需要连接远程 MySQL 数据库**（`49.232.128.132:3306`），本地无法连接时应用会启动失败。
-
-### 测试
+### 只编译某个模块及其依赖
 
 ```bash
-# 运行全部测试
+mvn -pl common test
+```
+
+```bash
+mvn -pl lovestory -am test
+```
+
+```bash
+mvn -pl website -am test
+```
+
+### 启动 lovestory 应用
+
+`lovestory` 默认端口为 `8081`，主类是 `com.ycxandwuqian.love.LovestoryApplication`。
+
+```bash
+mvn -pl lovestory -am spring-boot:run -Dspring-boot.run.main-class=com.ycxandwuqian.love.LovestoryApplication
+```
+
+访问：
+
+```text
+http://localhost:8081/
+```
+
+### 启动 website 应用
+
+`website` 默认端口为 `8080`，主类是 `com.example.website.WebsiteApplication`。
+
+```bash
+mvn -pl website -am spring-boot:run
+```
+
+访问：
+
+```text
+http://localhost:8080/
+```
+
+### 运行全部测试
+
+```bash
 mvn test
-
-# 运行 common 模块的 OSS 工具测试
-mvn test -pl common -Dtest=OssUtilTests
-
-# 运行 lovestory 模块测试
-mvn test -pl lovestory
 ```
 
-### 打包产物
+### 跳过测试打包
 
 ```bash
-# lovestory 的 Spring Boot 可执行 jar
-java -jar lovestory/target/lovestory-0.0.1-SNAPSHOT.jar
+mvn clean package -DskipTests
 ```
 
----
+### 清理构建产物
+
+```bash
+mvn clean
+```
 
 ## 项目结构
 
-```
+```text
 love5000/
-├── pom.xml                          # 父 POM（pom 打包，管理版本）
-├── lovestory/                       # ★ 主应用模块（最活跃）
+├── pom.xml
+├── AGENTS.md
+├── common/
+│   ├── pom.xml
+│   └── src/
+│       ├── main/java/com/example/common/
+│       │   ├── config/
+│       │   └── util/
+│       ├── main/resources/META-INF/spring.factories
+│       └── test/java/com/example/common/
+├── lovestory/
 │   ├── pom.xml
 │   └── src/
 │       ├── main/java/com/ycxandwuqian/love/
-│       │   ├── LovestoryApplication.java
-│       │   ├── config/WebConfig.java              # MVC 视图控制器 + 静态资源映射
+│       │   ├── config/
 │       │   ├── controller/
-│       │   │   ├── LoginController.java           # GET /login, POST /api/login/verify
-│       │   │   └── UploadPhotoController.java     # POST/GET/DELETE /api/photos/*
-│       │   ├── model/PhotoRecord.java             # 照片实体（手写 getter/setter）
-│       │   ├── repository/PhotoRepository.java    # JdbcTemplate CRUD
+│       │   ├── model/
+│       │   ├── repository/
 │       │   └── service/
-│       │       ├── uploadPhotoService.java        # 接口（目前是空壳）
-│       │       └── uploadPhotoServiceImpl.java
 │       ├── main/resources/
-│       │   ├── application.yml                    # 数据库、OSS、文件上传配置
-│       │   ├── application.properties             # server.port=8081
-│       │   └── static/                            # ★ 前端文件全部在这里
-│       │       ├── index.html                     # 主页（照片廊 + 游戏入口）
-│       │       ├── login.html                     # 登录页面
-│       │       ├── snake.html                     # 贪吃蛇
-│       │       ├── match3.html                    # 消消乐
-│       │       ├── tic-tac-toe.html               # 井字棋
-│       │       └── images/                        # 本地照片素材
-│       └── test/
-├── website/                         # 辅助 Web 应用
+│       │   ├── application.properties
+│       │   ├── application.yml
+│       │   └── static/
+│       └── test/java/com/ycxandwuqian/love/
+├── website/
 │   ├── pom.xml
-│   └── src/main/java/com/example/website/
-│       ├── WebsiteApplication.java
-│       └── demos/                   # 各种 Demo 代码
-├── common/                          # 公共工具库（OSS 自动配置）
-│   ├── pom.xml
-│   └── src/main/java/com/example/common/
-│       ├── config/
-│       │   ├── OssAutoConfiguration.java   # @ConditionalOnProperty("love530.oss.enabled")
-│       │   └── OssProperties.java          # @ConfigurationProperties("love530.oss")
-│       └── util/
-│           ├── OssUtil.java                # 上传、删除、URL 生成、存在性检查
-│           └── OssUploadResult.java
-└── src/                             # 父级空壳目录，可忽略
+│   └── src/
+│       ├── main/java/com/example/website/
+│       │   ├── demos/
+│       │   └── nacosdiscovery/
+│       ├── main/resources/
+│       │   ├── application.properties
+│       │   ├── application.yml
+│       │   └── static/
+│       └── test/java/com/example/website/
+└── src/main/resources/static/images/
 ```
 
----
+### 模块职责
+
+- `common/src/main/java/com/example/common/config`：公共配置类。`OssAutoConfiguration` 通过 `spring.factories` 自动装配 OSS 工具。
+- `common/src/main/java/com/example/common/util`：公共工具类。`OssUtil` 负责上传、删除、生成 OSS URL 和解析 object key。
+- `lovestory/controller`：REST API 控制器。照片接口集中在 `/api/photos`。
+- `lovestory/repository`：数据库访问层。当前使用 `JdbcTemplate`，不要混入 JPA 风格 Repository。
+- `lovestory/model`：数据库记录模型，例如 `PhotoRecord`。
+- `lovestory/service`：业务服务层。新增业务逻辑优先放在 service，再由 controller 调用。
+- `lovestory/src/main/resources/static`：相册和小游戏静态页面，包括 `index.html`、`login.html`、`snake.html`、`match3.html`、`tic-tac-toe.html`。
+- `website/demos`：示例性质的 Web、OSS、Nacos Discovery 代码。
+- `website/src/main/resources/static`：个人主页静态资源，包括 CSS、JS、图片、音效和 SVG。
+
+## 配置约定
+
+### 端口
+
+- `lovestory`：`8081`，配置在 `lovestory/src/main/resources/application.properties`
+- `website`：`8080`，配置在 `website/src/main/resources/application.properties`
+
+### 数据库
+
+两个 Web 模块都使用 MySQL：
+
+- `lovestory` 数据库：`lovestory`
+- `website` 数据库：`ycx_pms`
+
+`lovestory` 的照片表约定字段：
+
+```sql
+id, path, type, create_time
+```
+
+`PhotoRepository` 依赖该表结构执行：
+
+```sql
+insert into photo(path, type) values (?, ?)
+select id, path, type, create_time from photo order by create_time desc, id desc
+delete from photo where id = ?
+```
+
+### OSS
+
+OSS 配置统一使用 `love530.oss` 前缀：
+
+```yaml
+love530:
+  oss:
+    enabled: true
+    endpoint: oss-cn-beijing.aliyuncs.com
+    access-key-id: ${LOVE530_OSS_ACCESS_KEY_ID}
+    access-key-secret: ${LOVE530_OSS_ACCESS_KEY_SECRET}
+    bucket-name: lovestory5000
+    base-dir: love530/lovestory/photos
+```
+
+⚠️ **严重警告**：不要把真实数据库密码、OSS AccessKey、AccessKeySecret 提交到仓库。新增配置时使用环境变量占位，例如 `${LOVE530_OSS_ACCESS_KEY_ID}`。
 
 ## 代码规范
 
 ### Java 命名规范
 
-遵循 **Oracle 官方 Java 命名约定**，以下结合本项目的具体示例说明。
+- 类名使用 `UpperCamelCase`：`UploadPhotoController`、`PhotoRepository`、`OssUtil`
+- 方法名、变量名使用 `lowerCamelCase`：`uploadPhoto`、`photoRepository`、`normalizedCategory`
+- 常量使用 `UPPER_SNAKE_CASE`：`ALLOWED_CATEGORIES`、`TIME_FORMATTER`
+- 包名全部小写：`com.example.common`、`com.ycxandwuqian.love`
+- Controller 类以 `Controller` 结尾
+- Repository 类以 `Repository` 结尾
+- Service 接口以 `Service` 结尾，实现类以 `ServiceImpl` 结尾
 
-#### 类名（PascalCase，大驼峰）
+**当前需要修正的历史命名**：`uploadPhotoService` 和 `uploadPhotoServiceImpl` 不符合 Java 类名规范。新增或重命名代码时应使用 `UploadPhotoService` 和 `UploadPhotoServiceImpl`。
 
-每个单词首字母大写，使用名词或名词短语。
+### Spring 编码约定
 
-| ✅ 正确 | ❌ 错误（本项目存在的反例） |
-|----------|----------|
-| `UploadPhotoController` | — |
-| `PhotoRepository` | — |
-| `UploadPhotoService` | `uploadPhotoService`（接口名小写开头） |
-| `UploadPhotoServiceImpl` | `uploadPhotoServiceImpl`（实现类名小写开头） |
+- 优先使用构造器注入，不使用字段注入。
+- Controller 只处理 HTTP 参数、响应组装和异常边界，数据库读写放到 Repository，业务规则放到 Service。
+- `common` 模块的自动配置必须保持可选：使用 `@ConditionalOnProperty`、`@ConditionalOnClass`、`@ConditionalOnMissingBean`。
+- OSS 相关 Bean 必须允许关闭：`love530.oss.enabled=false` 时应用应能启动。
+- 新增配置属性时放入 `OssProperties` 或对应的 `@ConfigurationProperties` 类，不要在业务代码里硬编码配置值。
+- 静态资源路径保持在 `src/main/resources/static`，不要依赖 `target/classes` 中的构建产物。
 
-⚠️ **当前项目中 `lovestory` 模块的 `uploadPhotoService` 和 `uploadPhotoServiceImpl` 命名不符合规范**，新建 Service 时请使用正确命名。
+### API 约定
 
-#### 接口（PascalCase，与类相同）
+`lovestory` 照片接口：
 
-接口名与类名规则一致，**不加 `I` 前缀**。实现类名 = 接口名 + `Impl`。
-
-```java
-// ✅ 正确
-public interface UploadPhotoService { ... }
-public class UploadPhotoServiceImpl implements UploadPhotoService { ... }
-
-// ❌ 错误
-public interface uploadPhotoService { ... }      // 小写开头
-public interface IUploadPhotoService { ... }     // 不用 I 前缀
-public class UploadPhotoServiceImp { ... }       // 用完整 Impl 而非 Imp
+```text
+POST   /api/photos/upload
+GET    /api/photos
+DELETE /api/photos/{id}
 ```
 
-#### 方法名（camelCase，小驼峰）
+照片分类只允许：
 
-首字母小写，使用动词或动词短语。
-
-| ✅ 正确 | ❌ 错误 |
-|----------|----------|
-| `findById(Long id)` | `FindById(Long id)` |
-| `deleteById(Long id)` | `DeleteById(Long id)` |
-| `getObjectUrl(String key)` | `GetObjectUrl(String key)` |
-| `isSupportedImage(String name)` | `IsSupportedImage(String name)` |
-
-#### 变量名（camelCase，小驼峰）
-
-局部变量、成员变量、方法参数均用小驼峰。
-
-```java
-// ✅ 正确
-private final JdbcTemplate jdbcTemplate;
-private final ObjectProvider<OssUtil> ossUtilProvider;
-String originalFilename = file.getOriginalFilename();
-OssUploadResult uploadResult = ossUtil.upload(file, baseDir);
-
-// ❌ 错误
-private final JdbcTemplate JdbcTemplate;       // 变量名不能大驼峰
-String OriginalFilename = ...;                  // 局部变量不能大驼峰
+```text
+cat, girl, us
 ```
 
-#### 常量（UPPER_SNAKE_CASE，全大写+下划线）
+上传图片后缀只允许：
 
-`static final` 修饰的不可变常量使用全大写，下划线分隔。
-
-```java
-// ✅ 正确（当前项目已遵循）
-private static final String CORRECT_ANSWER = "我爱你的很";
-private static final Set<String> ALLOWED_CATEGORIES = ...;
-private static final DateTimeFormatter TIME_FORMATTER = ...;
-private static final RowMapper<PhotoRecord> PHOTO_ROW_MAPPER = ...;
+```text
+jpg, jpeg, png, gif, webp
 ```
 
-#### 包名（全小写）
+新增接口时保持响应结构清晰，至少包含：
 
-包名全部小写，使用点分隔。各模块包名如下：
-
-| 模块 | 包名 |
-|------|------|
-| `lovestory` | `com.ycxandwuqian.love` |
-| `website` | `com.example.website` |
-| `common` | `com.example.common` |
-
-**新增类必须放在对应模块的现有包名下**，子包按类型划分：`controller`、`service`、`repository`、`model`、`config`。
-
-#### 文件命名
-
-文件名必须与其中唯一的 `public` 类名完全一致（含大小写）：
-
-```
-UploadPhotoController.java  →  public class UploadPhotoController
-PhotoRecord.java            →  public class PhotoRecord
-uploadPhotoService.java     →  public interface uploadPhotoService  ⚠️ 类名和文件名需同步改为大驼峰
-```
-
----
-
-### Java 其他规范
-
-- **Java 版本**: 1.8——不能使用 `var`、`record`、`switch` 表达式等新版语法。
-- **Bean**: 手写 getter/setter，**不使用 Lombok**（common 模块的 Lombok 依赖标记为 `optional:true`，实际未使用）。
-- **依赖注入**: 使用构造器注入（如 `PhotoRepository(JdbcTemplate)`），不使用 `@Autowired` 字段注入。
-- **数据访问**: 直接使用 `JdbcTemplate`，无 ORM（无 JPA、无 MyBatis）。SQL 内嵌在 Java 代码中。
-- **响应格式**: API 统一返回 `Map<String, Object>`，包含 `success`（boolean）和 `message`（String）字段。
-- **异常处理**: try-catch 捕获 `IllegalArgumentException`、`IllegalStateException`、`DataAccessException` 后返回错误 Map。
-- **控制器**: JSON 接口用 `@RestController`，页面跳转用 `@Controller` 返回视图名。
-- **注释和提交消息**: 使用中文。
-
-### 前端
-
-- **无框架**: 所有页面使用原生 HTML/CSS/JS，不引入任何第三方前端库。
-- **单文件**: CSS 和 JS 全部内联在 HTML 文件的 `<style>` 和 `<script>` 标签中，不创建单独的 `.css`/`.js` 文件。
-- **静态资源**: 放在 `lovestory/src/main/resources/static/` 目录下，通过类路径直接访问。
-
-### 配置
-
-- **OSS 配置**: 通过 `love530.oss.*` 前缀配置，支持环境变量覆盖（如 `${LOVE530_OSS_ENABLED:true}`）。
-- **common 模块自动配置**: 使用 `spring.factories` 注册（`META-INF/spring.factories`），通过 `love530.oss.enabled=true/false` 控制启用。
-- **模块端口**: lovestory → 8081，website → 8080。
-
----
-
-## 测试策略
-
-- **框架**: JUnit 5 + Spring Boot Test + Mockito
-- **当前测试极少**: 仅 `common` 模块有 2 个针对 `OssUtil` 的单元测试，`lovestory` 有一个 Mock DataSource 的上下文加载测试
-- **添加新代码时**: 为 `controller`（使用 `@WebMvcTest`）和 `service/repository`（使用 `@DataJdbcTest` 或纯 Mockito）添加测试
-- **OSS 相关测试不需要真实连接**: 使用 Mock 替换 `OssUtil`
-- **运行**: `mvn test` 在根目录执行全部测试
-
----
-
-## 关键约定
-
-### OSS 文件操作模式
-
-上传照片的标准流程：
-1. `OssUtil.upload(file, baseDir)` → 上传到 OSS，返回 `OssUploadResult`（含 objectKey 和 URL）
-2. `PhotoRepository.save(objectKey, category)` → 将记录写入数据库
-3. 返回 URL 给前端展示
-
-删除照片的反向流程：
-1. `OssUtil.delete(objectKey)` → 从 OSS 删除文件
-2. `PhotoRepository.deleteById(id)` → 从数据库删除记录
-
-### `OssUtil` 获取方式
-
-`OssUtil` 是可选 Bean（通过 `@ConditionalOnProperty` 控制），在 `lovestory` 中使用 `ObjectProvider<OssUtil>` 获取：
-
-```java
-OssUtil ossUtil = ossUtilProvider.getIfAvailable();
-if (ossUtil == null) {
-    // OSS 未配置时的降级逻辑
+```json
+{
+  "success": true,
+  "message": "Upload succeeded"
 }
 ```
 
-### ⚠️ 安全警告
+### 静态页面约定
 
-`application.yml` 中包含数据库密码和 OSS AccessKey。**不要将这些凭据提交到公开仓库**，已提交的历史凭据建议在阿里云控制台轮换。
+- `lovestory` 的页面以纪念相册和小游戏为主，不要把大量业务逻辑散落到多个重复 HTML 文件中。
+- `website` 的主页资源已经分为 `css/style.css` 和 `js/script.js`，新增样式和交互优先放入对应文件。
+- 图片、音效、SVG 放在已有资源目录下：`img/`、`soundeffects/`、`svg/`。
 
----
+## 测试策略
 
-## Git 工作流
+当前测试框架：
 
-- **单分支**: 所有开发在 `master` 分支进行，无 feature 分支、无 PR 流程
-- **提交消息**: 中文，格式为 `日期 简要描述`（如 `04.27 优化上传功能`）
-- **提交前检查**: 确保 `mvn clean package` 构建通过
+- JUnit 5
+- Spring Boot Test
+- Maven Surefire 2.22.2
+
+### 必跑测试
+
+提交前运行全部测试：
+
+```bash
+mvn test
+```
+
+修改 `common` 模块时运行：
+
+```bash
+mvn -pl common test
+```
+
+修改 `lovestory` 或其依赖的 `common` 时运行：
+
+```bash
+mvn -pl lovestory -am test
+```
+
+修改 `website` 时运行：
+
+```bash
+mvn -pl website -am test
+```
+
+### 测试编写要求
+
+- `common` 中的工具类必须写纯单元测试，不依赖真实 OSS。
+- `lovestory` 中涉及数据库的测试必须 mock `DataSource`、`JdbcTemplate` 或 Repository，不直接连接远程 MySQL。
+- Controller 新增接口时优先补充 MockMvc 测试，覆盖成功、参数非法、外部依赖不可用三类场景。
+- Repository 新增 SQL 时至少覆盖 SQL 参数、空结果和删除失败分支。
+- OSS 上传、删除、URL 生成逻辑必须覆盖：
+  - 自定义 CDN 域名
+  - 原始 OSS 域名
+  - URL 中带 query string 的 object key 解析
+  - 空文件名或非法后缀
+
+### 覆盖率要求
+
+项目当前没有配置 JaCoCo。新增测试时按以下目标执行：
+
+- `common` 工具类和配置类：核心分支覆盖率目标不低于 80%
+- `lovestory` controller/service/repository：新增逻辑必须覆盖成功路径和主要失败路径
+- `website` demo 类：至少保证 Spring 上下文测试通过
+
+如需引入覆盖率检查，优先在父 `pom.xml` 统一配置 `jacoco-maven-plugin`，不要只在单个模块里配置。
+
+## 构建与提交检查清单
+
+提交前按顺序执行：
+
+```bash
+mvn clean test
+```
+
+如果只改了静态资源，至少确认目标模块能启动：
+
+```bash
+mvn -pl lovestory -am spring-boot:run -Dspring-boot.run.main-class=com.ycxandwuqian.love.LovestoryApplication
+```
+
+```bash
+mvn -pl website -am spring-boot:run
+```
+
+检查项：
+
+- **关键**：不要提交 `target/`、IDE 缓存、真实密钥、真实数据库密码。
+- **关键**：新增公共能力优先放入 `common`，并通过自动配置或显式 Bean 暴露。
+- **关键**：修改数据库字段时，同步更新 Repository SQL、模型类和测试。
+- **关键**：新增上传类型或照片分类时，同步更新后端校验和前端展示逻辑。
+- ⚠️ 不要依赖远程生产 MySQL 或真实 OSS 来通过单元测试。
+- ⚠️ 不要把 `lovestory/target/classes/static/images` 中的运行时生成文件当作源码修改。
+
+## 常见任务指南
+
+### 新增照片分类
+
+1. 修改 `UploadPhotoController` 中的 `ALLOWED_CATEGORIES`。
+2. 修改 `categoryLabel` 的展示名称。
+3. 更新前端上传入口和列表筛选逻辑。
+4. 补充 controller 测试，覆盖新分类和非法分类。
+5. 运行：
+
+```bash
+mvn -pl lovestory -am test
+```
+
+### 修改 OSS 行为
+
+1. 优先修改 `common/src/main/java/com/example/common/util/OssUtil.java`。
+2. 如需新增配置，修改 `OssProperties`。
+3. 保持 `love530.oss.enabled=false` 可用。
+4. 补充 `common/src/test/java/com/example/common/util/OssUtilTests.java`。
+5. 运行：
+
+```bash
+mvn -pl common test
+```
+
+### 新增 Web 页面
+
+1. `lovestory` 页面放到 `lovestory/src/main/resources/static`。
+2. `website` 页面和资源放到 `website/src/main/resources/static`。
+3. 资源文件使用相对路径引用，不引用本机绝对路径。
+4. 启动对应模块手动访问确认。
+
+## 代理协作原则
+
+- 先读根 `pom.xml` 和目标模块 `pom.xml`，确认模块边界后再改代码。
+- 优先使用已有包结构、已有命名和已有配置前缀。
+- 小改动只跑相关模块测试；跨模块改动跑 `mvn test`。
+- 修改配置文件时检查是否包含密钥，能改成环境变量就改成环境变量。
+- 不修改 `.idea/`、`target/`、运行时生成图片，除非任务明确要求。
+- 不引入新框架替代 `JdbcTemplate`、Maven 或 Spring Boot，除非先完成明确的迁移设计。
