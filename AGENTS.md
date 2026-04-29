@@ -229,12 +229,6 @@ GET    /api/photos
 DELETE /api/photos/{id}
 ```
 
-照片分类只允许：
-
-```text
-cat, girl, us
-```
-
 上传图片后缀只允许：
 
 ```text
@@ -297,10 +291,10 @@ mvn -pl website -am test
 - Controller 新增接口时优先补充 MockMvc 测试，覆盖成功、参数非法、外部依赖不可用三类场景。
 - Repository 新增 SQL 时至少覆盖 SQL 参数、空结果和删除失败分支。
 - OSS 上传、删除、URL 生成逻辑必须覆盖：
-  - 自定义 CDN 域名
-  - 原始 OSS 域名
-  - URL 中带 query string 的 object key 解析
-  - 空文件名或非法后缀
+    - 自定义 CDN 域名
+    - 原始 OSS 域名
+    - URL 中带 query string 的 object key 解析
+    - 空文件名或非法后缀
 
 ### 覆盖率要求
 
