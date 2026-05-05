@@ -1118,3 +1118,64 @@ footer {
 .tab-button, .button-container button {
     -webkit-tap-highlight-color: transparent;
 }
+
+.auth-pop-up {
+    position: fixed;
+    inset: 0;
+    z-index: 99998;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.45);
+}
+
+.auth-pop-up.active {
+    display: flex;
+}
+
+.auth-pop-up-main {
+    display: grid;
+    gap: 12px;
+    width: min(100%, 360px);
+    padding: 22px;
+    border-radius: 8px;
+    background: var(--project-item-bg-color);
+    box-shadow: 0 4px 16px var(--pop-up-box-shadow);
+}
+
+.auth-pop-up-title {
+    font-size: 22px;
+    font-weight: 800;
+}
+
+.auth-pop-up-main input {
+    min-height: 42px;
+    border: 1px solid var(--text-bg-color);
+    border-radius: 7px;
+    padding: 0 12px;
+    color: var(--main-text-color);
+    background: var(--main-bg-color);
+}
+
+.auth-pop-up-main button,
+.auth-pop-up-close {
+    min-height: 40px;
+    border: 0;
+    border-radius: 7px;
+    color: #fff;
+    background: var(--purple-text-color);
+    cursor: pointer;
+}
+
+.auth-pop-up-close {
+    margin-top: 14px;
+    padding: 0 18px;
+}
+
+.auth-message {
+    min-height: 20px;
+    color: var(--project-item-left-text-color);
+    font-size: 13px;
+}

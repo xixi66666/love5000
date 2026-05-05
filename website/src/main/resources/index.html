@@ -173,6 +173,15 @@
                     </label>
                 </div>
                 </a>
+                <a class="iconItemLong auth-login-button" href="javascript:void(0)">
+                    <div class="iconTip">Login</div>
+                </a>
+                <a class="iconItemLong auth-register-button" href="javascript:void(0)">
+                    <div class="iconTip">Register</div>
+                </a>
+                <a class="iconItemLong auth-logout-button" href="javascript:void(0)" style="display: none;">
+                    <div class="iconTip">Logout</div>
+                </a>
                 <!---->
             </div>
 
@@ -201,7 +210,7 @@
             <div class="projectList">
                 <!-- 项目列表开始 -->
                 <!---->
-                <a class="projectItem" target="_blank" href="https://blog.xuxiny.top">
+                <a class="projectItem" target="_blank" href="static/blog/index.html">
                     <div class="projectItemLeft">
                         <h1>Blog</h1>
                         <p>Tech blogs</p>
@@ -432,6 +441,18 @@
                 p-id="951" fill="#000000"></path>
         </svg>
     </div>
+</div>
+
+<div class="auth-pop-up">
+    <form class="auth-pop-up-main">
+        <div class="auth-pop-up-title">Login</div>
+        <input class="auth-username" name="username" placeholder="Username" autocomplete="username" required>
+        <input class="auth-display-name" name="displayName" placeholder="Display name" autocomplete="nickname" style="display: none;">
+        <input class="auth-password" name="password" type="password" placeholder="Password" autocomplete="current-password" required>
+        <div class="auth-message"></div>
+        <button type="submit">Submit</button>
+    </form>
+    <button class="auth-pop-up-close" type="button">Close</button>
 </div>
 
 <script src="static/js/script.js?v=1.33"> </script>

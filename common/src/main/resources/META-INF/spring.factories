@@ -1,2 +1,3 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-com.example.common.config.OssAutoConfiguration
+com.example.common.config.OssAutoConfiguration,\
+com.example.common.auth.config.AuthAutoConfiguration

@@ -223,3 +223,117 @@ function toggleFAQ(element) {
         faqItem.classList.add('active');
     }
 }
+
+document.addEventListener('DOMContentLoaded', function () {
+    var authPopup = document.querySelector('.auth-pop-up');
+    var authForm = document.querySelector('.auth-pop-up-main');
+    var authTitle = document.querySelector('.auth-pop-up-title');
+    var authUsername = document.querySelector('.auth-username');
+    var authDisplayName = document.querySelector('.auth-display-name');
+    var authPassword = document.querySelector('.auth-password');
+    var authMessage = document.querySelector('.auth-message');
+    var loginButton = document.querySelector('.auth-login-button');
+    var registerButton = document.querySelector('.auth-register-button');
+    var logoutButton = document.querySelector('.auth-logout-button');
+    var closeButton = document.querySelector('.auth-pop-up-close');
+    var authMode = 'login';
+
+    if (!authPopup || !authForm) {
+        return;
+    }
+
+    function setAuthState(user) {
+        var loggedIn = !!user;
+        if (loginButton) {
+            loginButton.style.display = loggedIn ? 'none' : 'flex';
+        }
+        if (registerButton) {
+            registerButton.style.display = loggedIn ? 'none' : 'flex';
+        }
+        if (logoutButton) {
+            logoutButton.style.display = loggedIn ? 'flex' : 'none';
+        }
+    }
+
+    function openAuth(mode) {
+        authMode = mode;
+        authTitle.textContent = mode === 'register' ? 'Register' : 'Login';
+        authDisplayName.style.display = mode === 'register' ? 'block' : 'none';
+        authPassword.setAttribute('autocomplete', mode === 'register' ? 'new-password' : 'current-password');
+        authMessage.textContent = '';
+        authForm.reset();
+        authPopup.classList.add('active');
+    }
+
+    function closeAuth() {
+        authPopup.classList.remove('active');
+    }
+
+    function loadMe() {
+        fetch('/api/auth/me')
+            .then(function (response) {
+                if (!response.ok) {
+                    setAuthState(null);
+                    return null;
+                }
+                return response.json();
+            })
+            .then(function (payload) {
+                if (payload) {
+                    setAuthState(payload.user);
+                }
+            })
+            .catch(function () {
+                setAuthState(null);
+            });
+    }
+
+    if (loginButton) {
+        loginButton.addEventListener('click', function () {
+            openAuth('login');
+        });
+    }
+    if (registerButton) {
+        registerButton.addEventListener('click', function () {
+            openAuth('register');
+        });
+    }
+    if (closeButton) {
+        closeButton.addEventListener('click', closeAuth);
+    }
+    if (logoutButton) {
+        logoutButton.addEventListener('click', function () {
+            fetch('/api/auth/logout', { method: 'POST' }).then(function () {
+                setAuthState(null);
+            });
+        });
+    }
+
+    authForm.addEventListener('submit', function (event) {
+        event.preventDefault();
+        authMessage.textContent = '';
+        fetch(authMode === 'register' ? '/api/auth/register' : '/api/auth/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                username: authUsername.value,
+                password: authPassword.value,
+                displayName: authDisplayName.value
+            })
+        }).then(function (response) {
+            if (!response.ok) {
+                throw new Error('auth failed');
+            }
+            return response.json();
+        }).then(function (payload) {
+            setAuthState(payload.user);
+            closeAuth();
+        }).catch(function () {
+            authMessage.textContent = 'Login or register failed';
+        });
+    });
+
+    loadMe();
+});

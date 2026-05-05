@@ -10,3 +10,10 @@ spring:
     resources:
       static-locations:
         - classpath:/static/
+
+server:
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: strict
