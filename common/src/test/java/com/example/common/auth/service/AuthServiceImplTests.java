@@ -61,6 +61,28 @@ class AuthServiceImplTests {
         assertThrows(AuthException.class, () -> service.login(authRequest, new MockHttpServletRequest()));
     }
 
+    @Test
+    void shouldRejectInvalidRegistrationInputWithDetails() {
+        AuthServiceImpl service = new AuthServiceImpl(new FakeAuthUserRepository(), new AuthPasswordService(), new AuthProperties());
+        AuthRequest badUsernameRequest = new AuthRequest();
+        badUsernameRequest.setUsername("bad name");
+        badUsernameRequest.setPassword("password123");
+
+        AuthException usernameException = assertThrows(AuthException.class,
+                () -> service.register(badUsernameRequest, new MockHttpServletRequest()));
+        assertEquals("USERNAME_INVALID", usernameException.getCode());
+        assertTrue(usernameException.getDetails().size() >= 3);
+
+        AuthRequest badPasswordRequest = new AuthRequest();
+        badPasswordRequest.setUsername("xixi");
+        badPasswordRequest.setPassword("password");
+
+        AuthException passwordException = assertThrows(AuthException.class,
+                () -> service.register(badPasswordRequest, new MockHttpServletRequest()));
+        assertEquals("PASSWORD_INVALID", passwordException.getCode());
+        assertTrue(passwordException.getDetails().size() >= 4);
+    }
+
     private static class FakeAuthUserRepository implements AuthUserRepository {
 
         private final Map<Long, AuthUser> users = new HashMap<Long, AuthUser>();

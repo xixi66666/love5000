@@ -7,8 +7,10 @@ import com.example.website.blog.dto.BlogArticleCreateRequest;
 import com.example.website.blog.dto.BlogArticleResponse;
 import com.example.website.blog.service.BlogService;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -61,6 +63,31 @@ public class BlogController {
         response.put("success", true);
         response.put("message", "Article created");
         response.put("article", article);
+        return response;
+    }
+
+    @PutMapping("/articles/{id}")
+    @AuthRequired
+    public Map<String, Object> updateArticle(@PathVariable Long id,
+                                             @RequestBody BlogArticleCreateRequest updateRequest,
+                                             HttpServletRequest request) {
+        AuthUserPrincipal currentUser = authService.requireCurrentUser(request);
+        BlogArticleResponse article = blogService.updateArticle(id, updateRequest, currentUser);
+        Map<String, Object> response = new HashMap<String, Object>();
+        response.put("success", true);
+        response.put("message", "Article updated");
+        response.put("article", article);
+        return response;
+    }
+
+    @DeleteMapping("/articles/{id}")
+    @AuthRequired
+    public Map<String, Object> deleteArticle(@PathVariable Long id, HttpServletRequest request) {
+        AuthUserPrincipal currentUser = authService.requireCurrentUser(request);
+        blogService.deleteArticle(id, currentUser);
+        Map<String, Object> response = new HashMap<String, Object>();
+        response.put("success", true);
+        response.put("message", "Article deleted");
         return response;
     }
 

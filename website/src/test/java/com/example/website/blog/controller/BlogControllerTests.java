@@ -50,6 +50,19 @@ class BlogControllerTests {
         assertEquals(Arrays.asList("Java", "Spring Boot"), controller.listTags().get("tags"));
     }
 
+    @Test
+    void shouldUpdateAndDeleteArticle() {
+        BlogController controller = new BlogController(new FakeBlogService(), new FakeAuthService());
+
+        Map<String, Object> updateResponse = controller.updateArticle(1L, new BlogArticleCreateRequest(), null);
+        Map<String, Object> deleteResponse = controller.deleteArticle(1L, null);
+
+        assertEquals(true, updateResponse.get("success"));
+        assertEquals("Article updated", updateResponse.get("message"));
+        assertEquals(true, deleteResponse.get("success"));
+        assertEquals("Article deleted", deleteResponse.get("message"));
+    }
+
     private static class FakeBlogService implements BlogService {
 
         @Override
@@ -66,6 +79,15 @@ class BlogControllerTests {
         @Override
         public BlogArticleResponse createArticle(BlogArticleCreateRequest request, AuthUserPrincipal currentUser) {
             return article(true);
+        }
+
+        @Override
+        public BlogArticleResponse updateArticle(Long id, BlogArticleCreateRequest request, AuthUserPrincipal currentUser) {
+            return article(true);
+        }
+
+        @Override
+        public void deleteArticle(Long id, AuthUserPrincipal currentUser) {
         }
 
         @Override

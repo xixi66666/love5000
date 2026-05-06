@@ -25,6 +25,12 @@ public class BlogArticleRepository {
         article.setContentHtml(rs.getString("content_html"));
         article.setCategory(rs.getString("category"));
         article.setTags(rs.getString("tags"));
+        article.setAuthorId(rs.getLong("author_id"));
+        if (rs.wasNull()) {
+            article.setAuthorId(null);
+        }
+        article.setAuthorUsername(rs.getString("author_username"));
+        article.setAuthorDisplayName(rs.getString("author_display_name"));
         article.setWordCount(rs.getInt("word_count"));
         article.setReadMinutes(rs.getInt("read_minutes"));
         Timestamp publishedAt = rs.getTimestamp("published_at");
@@ -51,12 +57,25 @@ public class BlogArticleRepository {
                 "content_html text not null," +
                 "category varchar(80) not null," +
                 "tags varchar(300) not null," +
+                "author_id bigint null," +
+                "author_username varchar(64) null," +
+                "author_display_name varchar(100) null," +
                 "word_count int not null default 0," +
                 "read_minutes int not null default 1," +
                 "published_at datetime not null," +
                 "created_at datetime not null default current_timestamp," +
                 "updated_at datetime not null default current_timestamp on update current_timestamp" +
                 ") charset=utf8mb4");
+        addColumnIfAbsent("author_id", "alter table blog_article add column author_id bigint null after tags");
+        addColumnIfAbsent("author_username", "alter table blog_article add column author_username varchar(64) null after author_id");
+        addColumnIfAbsent("author_display_name", "alter table blog_article add column author_display_name varchar(100) null after author_username");
+    }
+
+    private void addColumnIfAbsent(String columnName, String sql) {
+        List<String> columns = jdbcTemplate.queryForList("show columns from blog_article like ?", String.class, columnName);
+        if (columns.isEmpty()) {
+            jdbcTemplate.execute(sql);
+        }
     }
 
     public int count() {
@@ -73,11 +92,12 @@ public class BlogArticleRepository {
     }
 
     public Long saveArticle(String title, String slug, String summary, String contentHtml,
-                            String category, String tags, int wordCount, int readMinutes) {
+                            String category, String tags, Long authorId, String authorUsername,
+                            String authorDisplayName, int wordCount, int readMinutes) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement statement = connection.prepareStatement(
-                    "insert into blog_article(title, slug, summary, content_html, category, tags, word_count, read_minutes, published_at) values (?, ?, ?, ?, ?, ?, ?, ?, now())",
+                    "insert into blog_article(title, slug, summary, content_html, category, tags, author_id, author_username, author_display_name, word_count, read_minutes, published_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())",
                     Statement.RETURN_GENERATED_KEYS
             );
             statement.setString(1, title);
@@ -86,8 +106,15 @@ public class BlogArticleRepository {
             statement.setString(4, contentHtml);
             statement.setString(5, category);
             statement.setString(6, tags);
-            statement.setInt(7, wordCount);
-            statement.setInt(8, readMinutes);
+            if (authorId == null) {
+                statement.setObject(7, null);
+            } else {
+                statement.setLong(7, authorId);
+            }
+            statement.setString(8, authorUsername);
+            statement.setString(9, authorDisplayName);
+            statement.setInt(10, wordCount);
+            statement.setInt(11, readMinutes);
             return statement;
         }, keyHolder);
         Number key = keyHolder.getKey();
@@ -102,6 +129,7 @@ public class BlogArticleRepository {
         String likeTag = "%" + normalizedTag + "%";
         return jdbcTemplate.query(
                 "select id, title, slug, summary, content_html, category, tags, word_count, read_minutes, published_at, created_at, updated_at " +
+                        ", author_id, author_username, author_display_name " +
                         "from blog_article where (? = '' or title like ? or summary like ? or category like ? or tags like ?) " +
                         "and (? = '' or category = ?) and (? = '' or tags like ?) order by published_at desc, id desc",
                 ARTICLE_ROW_MAPPER,
@@ -114,11 +142,35 @@ public class BlogArticleRepository {
     public Optional<BlogArticle> findBySlug(String slug) {
         List<BlogArticle> articles = jdbcTemplate.query(
                 "select id, title, slug, summary, content_html, category, tags, word_count, read_minutes, published_at, created_at, updated_at " +
+                        ", author_id, author_username, author_display_name " +
                         "from blog_article where slug = ?",
                 ARTICLE_ROW_MAPPER,
                 slug
         );
         return articles.stream().findFirst();
+    }
+
+    public Optional<BlogArticle> findById(Long id) {
+        List<BlogArticle> articles = jdbcTemplate.query(
+                "select id, title, slug, summary, content_html, category, tags, word_count, read_minutes, published_at, created_at, updated_at " +
+                        ", author_id, author_username, author_display_name " +
+                        "from blog_article where id = ?",
+                ARTICLE_ROW_MAPPER,
+                id
+        );
+        return articles.stream().findFirst();
+    }
+
+    public void updateArticle(Long id, String title, String slug, String summary, String contentHtml,
+                              String category, String tags, int wordCount, int readMinutes) {
+        jdbcTemplate.update(
+                "update blog_article set title = ?, slug = ?, summary = ?, content_html = ?, category = ?, tags = ?, word_count = ?, read_minutes = ? where id = ?",
+                title, slug, summary, contentHtml, category, tags, wordCount, readMinutes, id
+        );
+    }
+
+    public void deleteById(Long id) {
+        jdbcTemplate.update("delete from blog_article where id = ?", id);
     }
 
     public List<String> findCategories() {

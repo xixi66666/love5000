@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git push *)",
+      "Bash(mvn package *)",
+      "Bash(mvn clean *)",
+      "Bash(jar tf *)",
+      "Bash(jar xf *)",
+      "Bash(rm -rf META-INF)",
+      "Bash(break)",
+      "Bash(exit 0)"
+    ]
+  }
+}

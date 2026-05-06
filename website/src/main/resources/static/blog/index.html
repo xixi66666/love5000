@@ -3,89 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blog - Caleb</title>
-    <meta name="description" content="Caleb 的个人博客微应用">
+    <title>Blog - XiXi</title>
+    <meta name="description" content="XiXi 的个人博客">
     <link rel="icon" href="../favicon.ico">
     <link rel="stylesheet" href="blog.css">
 </head>
 <body>
-<div class="blog-shell">
-    <header class="site-header">
-        <a class="brand" href="../index.html" aria-label="Back to home">
-            <img src="../img/avatar.png" alt="Caleb avatar">
-            <span>Caleb Blog</span>
-        </a>
-        <nav class="top-nav" aria-label="Blog navigation">
-            <a href="#home">首页</a>
-            <a href="#archive">归档</a>
-            <a href="#about">关于</a>
-            <button id="writeButton" type="button">写文章</button>
-            <button id="loginButton" type="button">登录</button>
-            <button id="registerButton" type="button">注册</button>
-            <button id="logoutButton" type="button" hidden>退出</button>
-            <button id="themeToggle" type="button" aria-label="Toggle theme">夜间</button>
-        </nav>
-    </header>
+<header class="global-nav">
+    <a class="brand" href="../index.html" aria-label="返回主页">
+        <img src="xixi-avatar.png" alt="XiXi avatar">
+        <span>XiXi</span>
+    </a>
+    <nav class="top-nav" aria-label="Blog navigation">
+        <a href="#posts">文章</a>
+        <a href="#archive">归档</a>
+    </nav>
+    <div class="nav-actions">
+        <button id="writeButton" type="button">写文章</button>
+        <button id="loginButton" type="button">登录</button>
+        <button id="registerButton" type="button">注册</button>
+        <button id="logoutButton" type="button" hidden>退出</button>
+        <button id="themeToggle" type="button" aria-label="切换主题">夜间</button>
+    </div>
+</header>
 
-    <section class="hero" id="home">
-        <div class="hero-copy">
-            <p class="eyebrow">Tinker & Share</p>
-            <h1>记录开发、折腾和长期学习。</h1>
-            <p>一个面向个人知识沉淀的博客微应用，适合写技术教程、年度总结、软件分享和项目复盘。</p>
-        </div>
-        <div class="hero-panel" aria-label="Blog stats">
-            <span>文章</span>
-            <strong id="postCount">0</strong>
-            <span>分类</span>
-            <strong id="categoryCount">0</strong>
-        </div>
-    </section>
-
-    <main class="layout">
-        <aside class="sidebar" aria-label="Blog sidebar">
-            <section class="profile-card">
-                <img src="../img/avatar.png" alt="Caleb">
-                <h2>Caleb XXY</h2>
-                <p>Full Stack Developer. 写代码，做网站，记录实践过程。</p>
-            </section>
-
-            <section class="side-section">
-                <h2>搜索</h2>
-                <input id="searchInput" type="search" placeholder="搜索标题、摘要或标签">
-            </section>
-
-            <section class="side-section">
-                <h2>分类</h2>
-                <div id="categoryList" class="chip-list"></div>
-            </section>
-
-            <section class="side-section">
-                <h2>标签</h2>
-                <div id="tagList" class="chip-list tag-list"></div>
-            </section>
-        </aside>
-
-        <section class="content">
-            <div class="content-toolbar">
-                <div>
-                    <p class="eyebrow">Latest Posts</p>
-                    <h2 id="listTitle">最新文章</h2>
-                </div>
-                <button id="resetFilters" type="button">全部文章</button>
-            </div>
-
-            <div id="postList" class="post-list"></div>
-            <article id="postDetail" class="post-detail" hidden></article>
-            <section id="archivePanel" class="archive-panel" hidden></section>
-        </section>
-    </main>
+<div class="sub-nav">
+    <a href="#posts" class="sub-title">XiXi Blog</a>
+    <div class="sub-stats" aria-label="Blog stats">
+        <span>文章 <strong id="postCount">0</strong></span>
+        <span>分类 <strong id="categoryCount">0</strong></span>
+    </div>
 </div>
+
+<main class="workspace blog-shell" id="posts">
+    <aside class="sidebar" aria-label="Blog sidebar">
+        <section id="userPanel" class="side-section user-panel"></section>
+
+        <section class="side-section">
+            <h2>搜索</h2>
+            <input id="searchInput" type="search" placeholder="搜索标题、摘要或标签">
+        </section>
+
+        <section class="side-section">
+            <h2>分类</h2>
+            <div id="categoryList" class="chip-list"></div>
+        </section>
+
+        <section class="side-section">
+            <h2>标签</h2>
+            <div id="tagList" class="chip-list tag-list"></div>
+        </section>
+    </aside>
+
+    <section class="content">
+        <div class="content-toolbar">
+            <div>
+                <p class="eyebrow">Latest Posts</p>
+                <h2 id="listTitle">最新文章</h2>
+            </div>
+            <button id="resetFilters" type="button">全部文章</button>
+        </div>
+
+        <div id="postList" class="post-list"></div>
+        <article id="postDetail" class="post-detail" hidden></article>
+        <section id="archivePanel" class="archive-panel" hidden></section>
+    </section>
+</main>
 
 <div id="authModal" class="modal" hidden>
     <form id="authForm" class="modal-panel">
-        <button class="modal-close" type="button" data-close-modal aria-label="Close">x</button>
+        <button class="modal-close" type="button" data-close-modal aria-label="关闭">×</button>
         <p class="eyebrow" id="authModeLabel">Login</p>
         <h2 id="authTitle">登录</h2>
+        <div id="authRules" class="auth-rules" hidden>
+            <strong>注册规范</strong>
+            <ul>
+                <li>用户名长度必须为 3-32 个字符。</li>
+                <li>用户名只能包含英文字母、数字或下划线。</li>
+                <li>用户名会自动去除首尾空格并转换为小写。</li>
+                <li>密码长度必须为 8-72 个字符。</li>
+                <li>密码至少包含 1 个英文字母和 1 个数字。</li>
+                <li>密码不能包含空格、换行或制表符。</li>
+            </ul>
+        </div>
         <label>
             用户名
             <input id="authUsername" name="username" autocomplete="username" required>
@@ -105,9 +105,10 @@
 
 <div id="editorModal" class="modal" hidden>
     <form id="articleForm" class="modal-panel editor-panel">
-        <button class="modal-close" type="button" data-close-modal aria-label="Close">x</button>
-        <p class="eyebrow">New Post</p>
-        <h2>新增文章</h2>
+        <button class="modal-close" type="button" data-close-modal aria-label="关闭">×</button>
+        <p class="eyebrow">Article Editor</p>
+        <h2 id="editorTitle">新增文章</h2>
+        <input id="articleId" name="id" type="hidden">
         <label>
             标题
             <input id="articleTitle" name="title" maxlength="160" required>
@@ -133,7 +134,10 @@
             <textarea id="articleContent" name="contentHtml" rows="10" required></textarea>
         </label>
         <p id="articleMessage" class="form-message"></p>
-        <button class="primary-button" type="submit">发布</button>
+        <div class="editor-actions">
+            <button class="primary-button" id="articleSubmitButton" type="submit">发布</button>
+            <button class="danger-button" id="deleteArticleButton" type="button" hidden>删除</button>
+        </div>
     </form>
 </div>
 

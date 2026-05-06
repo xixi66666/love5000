@@ -2,7 +2,7 @@ spring:
   datasource:
     username: root
     password: kuosi
-    url: jdbc:mysql://49.232.128.132:3306/lovestory?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://49.232.128.132:3306/xixi?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   web:

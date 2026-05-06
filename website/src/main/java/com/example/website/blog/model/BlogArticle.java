@@ -18,6 +18,12 @@ public class BlogArticle {
 
     private String tags;
 
+    private Long authorId;
+
+    private String authorUsername;
+
+    private String authorDisplayName;
+
     private Integer wordCount;
 
     private Integer readMinutes;
@@ -82,6 +88,30 @@ public class BlogArticle {
 
     public void setTags(String tags) {
         this.tags = tags;
+    }
+
+    public Long getAuthorId() {
+        return authorId;
+    }
+
+    public void setAuthorId(Long authorId) {
+        this.authorId = authorId;
+    }
+
+    public String getAuthorUsername() {
+        return authorUsername;
+    }
+
+    public void setAuthorUsername(String authorUsername) {
+        this.authorUsername = authorUsername;
+    }
+
+    public String getAuthorDisplayName() {
+        return authorDisplayName;
+    }
+
+    public void setAuthorDisplayName(String authorDisplayName) {
+        this.authorDisplayName = authorDisplayName;
     }
 
     public Integer getWordCount() {

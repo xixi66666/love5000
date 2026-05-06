@@ -14,6 +14,10 @@ public interface BlogService {
 
     BlogArticleResponse createArticle(BlogArticleCreateRequest request, AuthUserPrincipal currentUser);
 
+    BlogArticleResponse updateArticle(Long id, BlogArticleCreateRequest request, AuthUserPrincipal currentUser);
+
+    void deleteArticle(Long id, AuthUserPrincipal currentUser);
+
     List<String> listCategories();
 
     List<String> listTags();

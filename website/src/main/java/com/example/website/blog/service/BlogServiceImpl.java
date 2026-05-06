@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @Service
@@ -66,6 +67,9 @@ public class BlogServiceImpl implements BlogService {
                 contentHtml,
                 request.getCategory().trim(),
                 tags,
+                currentUser.getId(),
+                currentUser.getUsername(),
+                currentUser.getDisplayName(),
                 wordCount,
                 readMinutes
         );
@@ -73,6 +77,52 @@ public class BlogServiceImpl implements BlogService {
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Created article not found"));
         article.setId(id == null ? article.getId() : id);
         return BlogArticleResponse.from(article, true);
+    }
+
+    @Override
+    public BlogArticleResponse updateArticle(Long id, BlogArticleCreateRequest request, AuthUserPrincipal currentUser) {
+        if (id == null) {
+            throw new ResponseStatusException(BAD_REQUEST, "Article id is required");
+        }
+        BlogArticle existing = blogArticleRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Blog article not found"));
+        requireArticleManager(existing, currentUser);
+        validateCreateRequest(request);
+        String slug = normalizeSlug(request.getSlug(), request.getTitle());
+        blogArticleRepository.findBySlug(slug).ifPresent(article -> {
+            if (!article.getId().equals(id)) {
+                throw new ResponseStatusException(BAD_REQUEST, "Article slug already exists");
+            }
+        });
+        String contentHtml = sanitizeHtml(request.getContentHtml());
+        String tags = joinTags(request.getTags());
+        int wordCount = calculateWordCount(request.getTitle() + request.getSummary() + contentHtml);
+        int readMinutes = Math.max(1, (int) Math.ceil(wordCount / 350.0));
+        blogArticleRepository.updateArticle(
+                id,
+                request.getTitle().trim(),
+                slug,
+                request.getSummary().trim(),
+                contentHtml,
+                request.getCategory().trim(),
+                tags,
+                wordCount,
+                readMinutes
+        );
+        BlogArticle updated = blogArticleRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Updated article not found"));
+        return BlogArticleResponse.from(updated, true);
+    }
+
+    @Override
+    public void deleteArticle(Long id, AuthUserPrincipal currentUser) {
+        if (id == null) {
+            throw new ResponseStatusException(BAD_REQUEST, "Article id is required");
+        }
+        BlogArticle existing = blogArticleRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Blog article not found"));
+        requireArticleManager(existing, currentUser);
+        blogArticleRepository.deleteById(id);
     }
 
     @Override
@@ -114,6 +164,23 @@ public class BlogServiceImpl implements BlogService {
         if (isBlank(request.getCategory()) || request.getCategory().trim().length() > 80) {
             throw new ResponseStatusException(BAD_REQUEST, "Category is required and must be shorter than 80 characters");
         }
+    }
+
+    private void requireArticleManager(BlogArticle article, AuthUserPrincipal currentUser) {
+        if (currentUser == null) {
+            throw new ResponseStatusException(FORBIDDEN, "Login required");
+        }
+        if (isAdmin(currentUser)) {
+            return;
+        }
+        if (article.getAuthorId() != null && article.getAuthorId().equals(currentUser.getId())) {
+            return;
+        }
+        throw new ResponseStatusException(FORBIDDEN, "Only the article author or an administrator can manage this article");
+    }
+
+    private boolean isAdmin(AuthUserPrincipal currentUser) {
+        return currentUser != null && "ADMIN".equalsIgnoreCase(currentUser.getRole());
     }
 
     private boolean isBlank(String value) {

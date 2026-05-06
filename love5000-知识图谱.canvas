@@ -1,0 +1,383 @@
+{
+  "nodes": [
+    {
+      "id": "a000000000000001",
+      "type": "text",
+      "x": 580,
+      "y": 0,
+      "width": 360,
+      "height": 100,
+      "color": "6",
+      "text": "# love530\n## Maven 多模块父工程\nJava 8 + Spring Boot 2.6.13"
+    },
+    {
+      "id": "a000000000000019",
+      "type": "file",
+      "x": 580,
+      "y": 130,
+      "width": 360,
+      "height": 80,
+      "file": "AGENTS.md"
+    },
+    {
+      "id": "a000000000000002",
+      "type": "group",
+      "x": 0,
+      "y": 260,
+      "width": 490,
+      "height": 540,
+      "label": "common 公共模块",
+      "color": "4"
+    },
+    {
+      "id": "a000000000000003",
+      "type": "group",
+      "x": 520,
+      "y": 260,
+      "width": 490,
+      "height": 540,
+      "label": "lovestory 恋爱相册",
+      "color": "2"
+    },
+    {
+      "id": "a000000000000004",
+      "type": "group",
+      "x": 1040,
+      "y": 260,
+      "width": 490,
+      "height": 540,
+      "label": "website 个人主页",
+      "color": "5"
+    },
+    {
+      "id": "a000000000000005",
+      "type": "text",
+      "x": 30,
+      "y": 310,
+      "width": 200,
+      "height": 60,
+      "color": "4",
+      "text": "**OssAutoConfiguration**\n自动装配 OSS Bean"
+    },
+    {
+      "id": "a000000000000006",
+      "type": "text",
+      "x": 260,
+      "y": 310,
+      "width": 200,
+      "height": 60,
+      "color": "4",
+      "text": "**OssUtil**\n上传/删除/URL 生成"
+    },
+    {
+      "id": "a000000000000007",
+      "type": "text",
+      "x": 30,
+      "y": 410,
+      "width": 200,
+      "height": 80,
+      "color": "4",
+      "text": "**Auth 认证**\n- BCrypt 密码哈希\n- Session 登录态\n- /api/auth 控制器\n- @AuthRequired 注解"
+    },
+    {
+      "id": "a000000000000008",
+      "type": "text",
+      "x": 260,
+      "y": 410,
+      "width": 200,
+      "height": 60,
+      "color": "4",
+      "text": "**spring.factories**\n自动配置注册入口"
+    },
+    {
+      "id": "a000000000000009",
+      "type": "file",
+      "x": 30,
+      "y": 510,
+      "width": 430,
+      "height": 60,
+      "file": "common/AGENTS.md"
+    },
+    {
+      "id": "a00000000000000a",
+      "type": "text",
+      "x": 550,
+      "y": 310,
+      "width": 210,
+      "height": 60,
+      "color": "2",
+      "text": "**LovestoryApplication**\n启动类 :8081"
+    },
+    {
+      "id": "a00000000000000b",
+      "type": "text",
+      "x": 780,
+      "y": 310,
+      "width": 200,
+      "height": 80,
+      "color": "2",
+      "text": "**UploadPhotoController**\n- POST /api/photos/upload\n- GET /api/photos\n- DELETE /api/photos/{id}"
+    },
+    {
+      "id": "a00000000000000c",
+      "type": "text",
+      "x": 550,
+      "y": 410,
+      "width": 200,
+      "height": 60,
+      "color": "2",
+      "text": "**PhotoRepository**\nJdbcTemplate CRUD"
+    },
+    {
+      "id": "a00000000000000d",
+      "type": "text",
+      "x": 780,
+      "y": 410,
+      "width": 200,
+      "height": 60,
+      "color": "2",
+      "text": "**PhotoRecord**\nid, path, type, create_time"
+    },
+    {
+      "id": "a00000000000000e",
+      "type": "text",
+      "x": 550,
+      "y": 500,
+      "width": 210,
+      "height": 80,
+      "color": "2",
+      "text": "**静态页面**\n- index.html 相册\n- login.html\n- snake.html 贪吃蛇\n- match3.html 三消\n- tic-tac-toe.html"
+    },
+    {
+      "id": "a00000000000000f",
+      "type": "file",
+      "x": 550,
+      "y": 610,
+      "width": 430,
+      "height": 60,
+      "file": "lovestory/AGENTS.md"
+    },
+    {
+      "id": "a000000000000010",
+      "type": "text",
+      "x": 780,
+      "y": 500,
+      "width": 200,
+      "height": 60,
+      "color": "2",
+      "text": "**MySQL**\n数据库: lovestory\n表: photo"
+    },
+    {
+      "id": "a000000000000011",
+      "type": "text",
+      "x": 1070,
+      "y": 310,
+      "width": 210,
+      "height": 60,
+      "color": "5",
+      "text": "**WebsiteApplication**\n启动类 :8080"
+    },
+    {
+      "id": "a000000000000012",
+      "type": "text",
+      "x": 1300,
+      "y": 310,
+      "width": 200,
+      "height": 90,
+      "color": "5",
+      "text": "**BlogController**\n- GET /api/blog/articles\n- GET /api/blog/articles/{slug}\n- POST /api/blog/articles\n- GET /api/blog/categories\n- GET /api/blog/tags"
+    },
+    {
+      "id": "a000000000000013",
+      "type": "text",
+      "x": 1070,
+      "y": 410,
+      "width": 200,
+      "height": 80,
+      "color": "5",
+      "text": "**BlogArticleRepository**\nblog_article 表 CRUD\nslug 唯一索引"
+    },
+    {
+      "id": "a000000000000014",
+      "type": "text",
+      "x": 1300,
+      "y": 440,
+      "width": 200,
+      "height": 80,
+      "color": "5",
+      "text": "**AuthUserRepository**\nauth_user 表\n用户注册/登录"
+    },
+    {
+      "id": "a000000000000015",
+      "type": "text",
+      "x": 1070,
+      "y": 520,
+      "width": 200,
+      "height": 60,
+      "color": "5",
+      "text": "**BlogDatabaseInitializer**\n自动建表 + 种子数据"
+    },
+    {
+      "id": "a000000000000017",
+      "type": "text",
+      "x": 1300,
+      "y": 550,
+      "width": 200,
+      "height": 60,
+      "color": "5",
+      "text": "**MySQL**\n数据库: ycx_pms\n表: blog_article, auth_user"
+    },
+    {
+      "id": "a000000000000016",
+      "type": "file",
+      "x": 1070,
+      "y": 610,
+      "width": 430,
+      "height": 60,
+      "file": "website/AGENTS.md"
+    },
+    {
+      "id": "a000000000000018",
+      "type": "text",
+      "x": 380,
+      "y": 850,
+      "width": 760,
+      "height": 80,
+      "color": "3",
+      "text": "# 核心技术栈\nJava 8 | Maven | Spring Boot 2.6.13 | Spring MVC | MySQL | Alibaba Druid | JdbcTemplate | Aliyun OSS | JUnit 5 | HTML/CSS/JS"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e000000000000001",
+      "fromNode": "a000000000000001",
+      "fromSide": "bottom",
+      "toNode": "a000000000000002",
+      "toSide": "top",
+      "label": "聚合模块",
+      "color": "4"
+    },
+    {
+      "id": "e000000000000002",
+      "fromNode": "a000000000000001",
+      "fromSide": "bottom",
+      "toNode": "a000000000000003",
+      "toSide": "top",
+      "label": "聚合模块",
+      "color": "2"
+    },
+    {
+      "id": "e000000000000003",
+      "fromNode": "a000000000000001",
+      "fromSide": "bottom",
+      "toNode": "a000000000000004",
+      "toSide": "top",
+      "label": "聚合模块",
+      "color": "5"
+    },
+    {
+      "id": "e000000000000004",
+      "fromNode": "a000000000000003",
+      "fromSide": "left",
+      "toNode": "a000000000000002",
+      "toSide": "right",
+      "label": "依赖 OSS",
+      "color": "1",
+      "toEnd": "arrow"
+    },
+    {
+      "id": "e000000000000005",
+      "fromNode": "a000000000000004",
+      "fromSide": "left",
+      "toNode": "a000000000000002",
+      "toSide": "right",
+      "label": "依赖 Auth",
+      "color": "1",
+      "toEnd": "arrow"
+    },
+    {
+      "id": "e000000000000006",
+      "fromNode": "a00000000000000b",
+      "fromSide": "bottom",
+      "toNode": "a00000000000000c",
+      "toSide": "top",
+      "label": "调用",
+      "toEnd": "arrow"
+    },
+    {
+      "id": "e000000000000007",
+      "fromNode": "a00000000000000b",
+      "fromSide": "left",
+      "toNode": "a000000000000006",
+      "toSide": "top",
+      "label": "上传 OSS",
+      "color": "1",
+      "toEnd": "arrow"
+    },
+    {
+      "id": "e000000000000008",
+      "fromNode": "a000000000000012",
+      "fromSide": "bottom",
+      "toNode": "a000000000000013",
+      "toSide": "top",
+      "label": "调用",
+      "toEnd": "arrow"
+    },
+    {
+      "id": "e000000000000009",
+      "fromNode": "a000000000000012",
+      "fromSide": "right",
+      "toNode": "a000000000000014",
+      "toSide": "top",
+      "label": "鉴权",
+      "color": "6",
+      "toEnd": "arrow"
+    },
+    {
+      "id": "e00000000000000a",
+      "fromNode": "a00000000000000c",
+      "fromSide": "bottom",
+      "toNode": "a000000000000010",
+      "toSide": "top",
+      "label": "读写",
+      "toEnd": "arrow"
+    },
+    {
+      "id": "e00000000000000b",
+      "fromNode": "a000000000000013",
+      "fromSide": "bottom",
+      "toNode": "a000000000000017",
+      "toSide": "left",
+      "label": "读写",
+      "toEnd": "arrow"
+    },
+    {
+      "id": "e00000000000000c",
+      "fromNode": "a000000000000005",
+      "fromSide": "right",
+      "toNode": "a000000000000006",
+      "toSide": "left",
+      "label": "创建 Bean",
+      "color": "3",
+      "toEnd": "arrow"
+    },
+    {
+      "id": "e00000000000000d",
+      "fromNode": "a00000000000000a",
+      "fromSide": "right",
+      "toNode": "a00000000000000b",
+      "toSide": "left",
+      "label": "路由",
+      "toEnd": "arrow"
+    },
+    {
+      "id": "e00000000000000e",
+      "fromNode": "a000000000000011",
+      "fromSide": "right",
+      "toNode": "a000000000000012",
+      "toSide": "left",
+      "label": "路由",
+      "toEnd": "arrow"
+    }
+  ]
+}

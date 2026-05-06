@@ -1,6 +1,7 @@
 package com.example.common.auth.config;
 
 import com.example.common.auth.controller.AuthController;
+import com.example.common.auth.controller.AuthExceptionHandler;
 import com.example.common.auth.repository.AuthUserRepository;
 import com.example.common.auth.service.AuthPasswordService;
 import com.example.common.auth.service.AuthService;
@@ -45,6 +46,12 @@ public class AuthAutoConfiguration {
     @ConditionalOnMissingBean
     public AuthController authController(AuthService authService) {
         return new AuthController(authService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public AuthExceptionHandler authExceptionHandler() {
+        return new AuthExceptionHandler();
     }
 
     @Bean

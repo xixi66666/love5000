@@ -20,6 +20,9 @@ create table if not exists blog_article (
     content_html text not null,
     category varchar(80) not null,
     tags varchar(300) not null,
+    author_id bigint null,
+    author_username varchar(64) null,
+    author_display_name varchar(100) null,
     word_count int not null default 0,
     read_minutes int not null default 1,
     published_at datetime not null,
@@ -28,6 +31,12 @@ create table if not exists blog_article (
     key idx_blog_article_published_at (published_at),
     key idx_blog_article_category (category)
 ) charset = utf8mb4;
+
+-- 管理员账号设计：
+-- 1. 先通过前端注册普通账号。
+-- 2. 再把指定账号提升为管理员，例如：
+-- update auth_user set role = 'ADMIN' where username = 'xixi';
+-- ADMIN 可以编辑和删除所有文章；USER 只能编辑和删除自己创建的文章。
 
 insert into blog_article (
     title,

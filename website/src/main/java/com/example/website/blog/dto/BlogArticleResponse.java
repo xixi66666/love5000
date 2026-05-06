@@ -25,6 +25,12 @@ public class BlogArticleResponse {
 
     private List<String> tags;
 
+    private Long authorId;
+
+    private String authorUsername;
+
+    private String authorDisplayName;
+
     private Integer wordCount;
 
     private Integer readMinutes;
@@ -39,6 +45,9 @@ public class BlogArticleResponse {
         response.setSummary(article.getSummary());
         response.setCategory(article.getCategory());
         response.setTags(parseTags(article.getTags()));
+        response.setAuthorId(article.getAuthorId());
+        response.setAuthorUsername(article.getAuthorUsername());
+        response.setAuthorDisplayName(article.getAuthorDisplayName());
         response.setWordCount(article.getWordCount());
         response.setReadMinutes(article.getReadMinutes());
         response.setPublishedAt(article.getPublishedAt() == null ? null : article.getPublishedAt().format(DATE_TIME_FORMATTER));
@@ -117,6 +126,30 @@ public class BlogArticleResponse {
 
     public void setTags(List<String> tags) {
         this.tags = tags;
+    }
+
+    public Long getAuthorId() {
+        return authorId;
+    }
+
+    public void setAuthorId(Long authorId) {
+        this.authorId = authorId;
+    }
+
+    public String getAuthorUsername() {
+        return authorUsername;
+    }
+
+    public void setAuthorUsername(String authorUsername) {
+        this.authorUsername = authorUsername;
+    }
+
+    public String getAuthorDisplayName() {
+        return authorDisplayName;
+    }
+
+    public void setAuthorDisplayName(String authorDisplayName) {
+        this.authorDisplayName = authorDisplayName;
     }
 
     public Integer getWordCount() {
