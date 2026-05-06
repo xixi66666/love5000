@@ -2,6 +2,7 @@ package com.example.website.blog.repository;
 
 import com.example.website.blog.model.BlogArticle;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
@@ -72,8 +73,8 @@ public class BlogArticleRepository {
     }
 
     private void addColumnIfAbsent(String columnName, String sql) {
-        List<String> columns = jdbcTemplate.queryForList("show columns from blog_article like ?", String.class, columnName);
-        if (columns.isEmpty()) {
+        Boolean exists = jdbcTemplate.query("show columns from blog_article like ?", (ResultSetExtractor<Boolean>) rs -> rs.next(), columnName);
+        if (!Boolean.TRUE.equals(exists)) {
             jdbcTemplate.execute(sql);
         }
     }

@@ -43,7 +43,7 @@ html {
 body {
     margin: 0;
     min-height: 100vh;
-    background: var(--page);
+    background: var(--canvas);
     color: var(--ink);
     font-family: "SF Pro Text", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
     font-size: 17px;
@@ -199,24 +199,25 @@ html[data-theme="dark"] .sub-nav {
     font-weight: 600;
 }
 
-.blog-shell {
-    width: 100%;
-}
-
 .hero {
     display: grid;
-    grid-template-columns: minmax(0, 0.95fr) minmax(280px, 0.72fr);
-    gap: 48px;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 440px);
+    gap: 64px;
     align-items: center;
-    max-width: 1180px;
     min-height: calc(100vh - 132px);
-    margin: 0 auto;
-    padding: 80px 22px;
+    padding: 80px max(22px, calc((100vw - 1180px) / 2));
     background: var(--canvas);
 }
 
 .hero-copy {
     min-width: 0;
+}
+
+.hero-copy h1,
+.hero-copy p,
+.feature-tile h2,
+.feature-tile p {
+    overflow-wrap: anywhere;
 }
 
 .eyebrow {
@@ -230,7 +231,7 @@ html[data-theme="dark"] .sub-nav {
 }
 
 .hero-copy h1 {
-    max-width: 760px;
+    max-width: 800px;
     margin: 0;
     font-family: "SF Pro Display", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     font-size: 56px;
@@ -287,10 +288,10 @@ html[data-theme="dark"] .sub-nav {
 .hero-visual {
     display: grid;
     align-content: end;
-    min-height: 440px;
+    min-height: 520px;
     margin: 0;
     overflow: hidden;
-    border-radius: 18px;
+    border-radius: 0;
     color: var(--on-dark);
     background: var(--tile);
 }
@@ -309,7 +310,7 @@ html[data-theme="dark"] .sub-nav {
 .hero-visual figcaption {
     display: grid;
     gap: 6px;
-    padding: 32px;
+    padding: 32px 36px 36px;
     background: var(--tile-2);
 }
 
@@ -326,13 +327,54 @@ html[data-theme="dark"] .sub-nav {
     line-height: 1.14;
 }
 
+.feature-tile {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 32px;
+    min-height: 360px;
+    padding: 80px max(22px, calc((100vw - 1180px) / 2));
+    color: var(--on-dark);
+    background: var(--tile);
+}
+
+.feature-tile h2 {
+    max-width: 680px;
+    margin: 0;
+    font-family: "SF Pro Display", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 40px;
+    font-weight: 600;
+    line-height: 1.1;
+}
+
+.feature-tile p {
+    max-width: 680px;
+    margin: 18px 0 0;
+    color: var(--body-muted-on-dark);
+    font-size: 24px;
+    font-weight: 300;
+    line-height: 1.5;
+}
+
+.tile-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    border: 1px solid var(--primary-on-dark);
+    border-radius: 999px;
+    padding: 11px 22px;
+    color: var(--primary-on-dark);
+    white-space: nowrap;
+}
+
 .workspace {
     display: grid;
     grid-template-columns: 300px minmax(0, 1fr);
     gap: 24px;
-    max-width: 1180px;
-    margin: 0 auto;
-    padding: 80px 22px;
+    max-width: none;
+    margin: 0;
+    padding: 80px max(22px, calc((100vw - 1180px) / 2));
     background: var(--page);
 }
 
@@ -733,6 +775,7 @@ html[data-theme="dark"] #searchInput {
     .hero {
         grid-template-columns: 1fr;
         min-height: 0;
+        gap: 48px;
     }
 
     .hero-copy h1 {
@@ -748,6 +791,10 @@ html[data-theme="dark"] #searchInput {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .feature-tile {
+        min-height: 300px;
+    }
+
 }
 
 @media (max-width: 734px) {
@@ -758,6 +805,11 @@ html[data-theme="dark"] #searchInput {
     .global-nav {
         gap: 10px;
         padding-inline: 16px;
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .top-nav {
+        display: none;
     }
 
     .nav-actions {
@@ -778,25 +830,44 @@ html[data-theme="dark"] #searchInput {
     }
 
     .sub-stats {
-        gap: 8px;
-        font-size: 12px;
+        display: none;
     }
 
     .hero,
-    .workspace {
+    .workspace,
+    .feature-tile {
         padding: 48px 16px;
+    }
+
+    .hero {
+        gap: 32px;
     }
 
     .hero-copy h1 {
         font-size: 34px;
+        word-break: break-word;
     }
 
     .hero-copy p:not(.eyebrow) {
         font-size: 21px;
+        word-break: break-word;
     }
 
     .hero-visual {
         min-height: 360px;
+    }
+
+    .feature-tile {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .feature-tile h2 {
+        font-size: 34px;
+    }
+
+    .feature-tile p {
+        font-size: 21px;
     }
 
     .sidebar {
@@ -835,6 +906,14 @@ html[data-theme="dark"] #searchInput {
     }
 
     .hero-copy h1 {
+        font-size: 28px;
+    }
+
+    .hero-visual img {
+        width: min(70%, 220px);
+    }
+
+    .feature-tile h2 {
         font-size: 28px;
     }
 

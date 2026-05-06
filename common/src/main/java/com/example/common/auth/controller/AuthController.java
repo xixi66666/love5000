@@ -3,6 +3,7 @@ package com.example.common.auth.controller;
 import com.example.common.auth.dto.AuthRequest;
 import com.example.common.auth.model.AuthUserPrincipal;
 import com.example.common.auth.service.AuthService;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -16,6 +17,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
+@ConditionalOnBean(AuthService.class)
 public class AuthController {
 
     private final AuthService authService;

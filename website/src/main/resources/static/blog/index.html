@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blog - XiXi</title>
+    <title>XiXi Blog</title>
     <meta name="description" content="XiXi 的个人博客">
     <link rel="icon" href="../favicon.ico">
     <link rel="stylesheet" href="blog.css">
@@ -14,7 +14,7 @@
         <img src="xixi-avatar.png" alt="XiXi avatar">
         <span>XiXi</span>
     </a>
-    <nav class="top-nav" aria-label="Blog navigation">
+    <nav class="top-nav" aria-label="博客导航">
         <a href="#posts">文章</a>
         <a href="#archive">归档</a>
     </nav>
@@ -29,44 +29,72 @@
 
 <div class="sub-nav">
     <a href="#posts" class="sub-title">XiXi Blog</a>
-    <div class="sub-stats" aria-label="Blog stats">
+    <div class="sub-stats" aria-label="博客统计">
         <span>文章 <strong id="postCount">0</strong></span>
         <span>分类 <strong id="categoryCount">0</strong></span>
     </div>
 </div>
 
-<main class="workspace blog-shell" id="posts">
-    <aside class="sidebar" aria-label="Blog sidebar">
-        <section id="userPanel" class="side-section user-panel"></section>
-
-        <section class="side-section">
-            <h2>搜索</h2>
-            <input id="searchInput" type="search" placeholder="搜索标题、摘要或标签">
-        </section>
-
-        <section class="side-section">
-            <h2>分类</h2>
-            <div id="categoryList" class="chip-list"></div>
-        </section>
-
-        <section class="side-section">
-            <h2>标签</h2>
-            <div id="tagList" class="chip-list tag-list"></div>
-        </section>
-    </aside>
-
-    <section class="content">
-        <div class="content-toolbar">
-            <div>
-                <p class="eyebrow">Latest Posts</p>
-                <h2 id="listTitle">最新文章</h2>
+<main class="blog-shell">
+    <section class="hero blog-hero" aria-labelledby="heroTitle">
+        <div class="hero-copy">
+            <h1 id="heroTitle">把生活和代码，放进一间安静的展厅。</h1>
+            <p>XiXi Blog 收纳个人项目、学习札记和日常灵感。少一点喧闹，多一点清晰。</p>
+            <div class="hero-actions">
+                <a class="primary-link" href="#posts">浏览文章</a>
+                <a class="secondary-link" href="#archive">查看归档</a>
             </div>
-            <button id="resetFilters" type="button">全部文章</button>
         </div>
+        <figure class="hero-visual" aria-label="XiXi Blog visual">
+            <img src="xixi-avatar.png" alt="XiXi avatar">
+            <figcaption>
+                <span>Personal writing space</span>
+                <strong>Notes, projects, and small discoveries.</strong>
+            </figcaption>
+        </figure>
+    </section>
 
-        <div id="postList" class="post-list"></div>
-        <article id="postDetail" class="post-detail" hidden></article>
-        <section id="archivePanel" class="archive-panel" hidden></section>
+    <section class="feature-tile" aria-label="博客概览">
+        <div>
+            <h2>写作像整理桌面。</h2>
+            <p>分类负责秩序，标签负责线索，文章负责把当时的想法留下来。</p>
+        </div>
+        <a class="tile-link" href="#posts">继续阅读</a>
+    </section>
+
+    <section class="workspace" id="posts">
+        <aside class="sidebar" aria-label="博客筛选">
+            <section id="userPanel" class="side-section user-panel"></section>
+
+            <section class="side-section">
+                <h2>搜索</h2>
+                <input id="searchInput" type="search" placeholder="搜索标题、摘要或标签">
+            </section>
+
+            <section class="side-section">
+                <h2>分类</h2>
+                <div id="categoryList" class="chip-list"></div>
+            </section>
+
+            <section class="side-section">
+                <h2>标签</h2>
+                <div id="tagList" class="chip-list tag-list"></div>
+            </section>
+        </aside>
+
+        <section class="content">
+            <div class="content-toolbar">
+                <div>
+                    <p class="eyebrow">Latest Posts</p>
+                    <h2 id="listTitle">最新文章</h2>
+                </div>
+                <button id="resetFilters" type="button">全部文章</button>
+            </div>
+
+            <div id="postList" class="post-list"></div>
+            <article id="postDetail" class="post-detail" hidden></article>
+            <section id="archivePanel" class="archive-panel" hidden></section>
+        </section>
     </section>
 </main>
 
