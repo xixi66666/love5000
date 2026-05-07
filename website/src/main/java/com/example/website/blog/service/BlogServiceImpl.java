@@ -1,10 +1,10 @@
 package com.example.website.blog.service;
 
 import com.example.common.auth.model.AuthUserPrincipal;
+import com.example.website.blog.dao.BlogArticleDao;
 import com.example.website.blog.dto.BlogArticleCreateRequest;
 import com.example.website.blog.dto.BlogArticleResponse;
 import com.example.website.blog.model.BlogArticle;
-import com.example.website.blog.repository.BlogArticleRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -26,15 +26,19 @@ public class BlogServiceImpl implements BlogService {
 
     private static final Pattern SLUG_PATTERN = Pattern.compile("[^a-z0-9-]");
 
-    private final BlogArticleRepository blogArticleRepository;
+    private final BlogArticleDao blogArticleDao;
 
-    public BlogServiceImpl(BlogArticleRepository blogArticleRepository) {
-        this.blogArticleRepository = blogArticleRepository;
+    public BlogServiceImpl(BlogArticleDao blogArticleDao) {
+        this.blogArticleDao = blogArticleDao;
     }
 
     @Override
     public List<BlogArticleResponse> listArticles(String keyword, String category, String tag) {
-        List<BlogArticle> articles = blogArticleRepository.findPublished(keyword, category, tag);
+        List<BlogArticle> articles = blogArticleDao.findPublished(
+                normalizeFilter(keyword),
+                normalizeFilter(category),
+                normalizeFilter(tag)
+        );
         List<BlogArticleResponse> responses = new ArrayList<BlogArticleResponse>();
         for (BlogArticle article : articles) {
             responses.add(BlogArticleResponse.from(article, false));
@@ -44,8 +48,7 @@ public class BlogServiceImpl implements BlogService {
 
     @Override
     public BlogArticleResponse getArticle(String slug) {
-        BlogArticle article = blogArticleRepository.findBySlug(slug)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Blog article not found"));
+        BlogArticle article = requireArticle(blogArticleDao.findBySlug(slug));
         return BlogArticleResponse.from(article, true);
     }
 
@@ -53,29 +56,28 @@ public class BlogServiceImpl implements BlogService {
     public BlogArticleResponse createArticle(BlogArticleCreateRequest request, AuthUserPrincipal currentUser) {
         validateCreateRequest(request);
         String slug = normalizeSlug(request.getSlug(), request.getTitle());
-        if (blogArticleRepository.findBySlug(slug).isPresent()) {
+        if (blogArticleDao.findBySlug(slug) != null) {
             throw new ResponseStatusException(BAD_REQUEST, "Article slug already exists");
         }
         String contentHtml = sanitizeHtml(request.getContentHtml());
         String tags = joinTags(request.getTags());
         int wordCount = calculateWordCount(request.getTitle() + request.getSummary() + contentHtml);
         int readMinutes = Math.max(1, (int) Math.ceil(wordCount / 350.0));
-        Long id = blogArticleRepository.saveArticle(
-                request.getTitle().trim(),
-                slug,
-                request.getSummary().trim(),
-                contentHtml,
-                request.getCategory().trim(),
-                tags,
-                currentUser.getId(),
-                currentUser.getUsername(),
-                currentUser.getDisplayName(),
-                wordCount,
-                readMinutes
-        );
-        BlogArticle article = blogArticleRepository.findBySlug(slug)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Created article not found"));
-        article.setId(id == null ? article.getId() : id);
+        BlogArticle articleToSave = new BlogArticle();
+        articleToSave.setTitle(request.getTitle().trim());
+        articleToSave.setSlug(slug);
+        articleToSave.setSummary(request.getSummary().trim());
+        articleToSave.setContentHtml(contentHtml);
+        articleToSave.setCategory(request.getCategory().trim());
+        articleToSave.setTags(tags);
+        articleToSave.setAuthorId(currentUser.getId());
+        articleToSave.setAuthorUsername(currentUser.getUsername());
+        articleToSave.setAuthorDisplayName(currentUser.getDisplayName());
+        articleToSave.setWordCount(wordCount);
+        articleToSave.setReadMinutes(readMinutes);
+        blogArticleDao.insert(articleToSave);
+        BlogArticle article = requireArticle(blogArticleDao.findBySlug(slug));
+        article.setId(articleToSave.getId() == null ? article.getId() : articleToSave.getId());
         return BlogArticleResponse.from(article, true);
     }
 
@@ -84,33 +86,30 @@ public class BlogServiceImpl implements BlogService {
         if (id == null) {
             throw new ResponseStatusException(BAD_REQUEST, "Article id is required");
         }
-        BlogArticle existing = blogArticleRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Blog article not found"));
+        BlogArticle existing = requireArticle(blogArticleDao.findById(id));
         requireArticleManager(existing, currentUser);
         validateCreateRequest(request);
         String slug = normalizeSlug(request.getSlug(), request.getTitle());
-        blogArticleRepository.findBySlug(slug).ifPresent(article -> {
-            if (!article.getId().equals(id)) {
-                throw new ResponseStatusException(BAD_REQUEST, "Article slug already exists");
-            }
-        });
+        BlogArticle articleWithSlug = blogArticleDao.findBySlug(slug);
+        if (articleWithSlug != null && !articleWithSlug.getId().equals(id)) {
+            throw new ResponseStatusException(BAD_REQUEST, "Article slug already exists");
+        }
         String contentHtml = sanitizeHtml(request.getContentHtml());
         String tags = joinTags(request.getTags());
         int wordCount = calculateWordCount(request.getTitle() + request.getSummary() + contentHtml);
         int readMinutes = Math.max(1, (int) Math.ceil(wordCount / 350.0));
-        blogArticleRepository.updateArticle(
-                id,
-                request.getTitle().trim(),
-                slug,
-                request.getSummary().trim(),
-                contentHtml,
-                request.getCategory().trim(),
-                tags,
-                wordCount,
-                readMinutes
-        );
-        BlogArticle updated = blogArticleRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Updated article not found"));
+        BlogArticle articleToUpdate = new BlogArticle();
+        articleToUpdate.setId(id);
+        articleToUpdate.setTitle(request.getTitle().trim());
+        articleToUpdate.setSlug(slug);
+        articleToUpdate.setSummary(request.getSummary().trim());
+        articleToUpdate.setContentHtml(contentHtml);
+        articleToUpdate.setCategory(request.getCategory().trim());
+        articleToUpdate.setTags(tags);
+        articleToUpdate.setWordCount(wordCount);
+        articleToUpdate.setReadMinutes(readMinutes);
+        blogArticleDao.updateArticle(articleToUpdate);
+        BlogArticle updated = requireArticle(blogArticleDao.findById(id));
         return BlogArticleResponse.from(updated, true);
     }
 
@@ -119,21 +118,20 @@ public class BlogServiceImpl implements BlogService {
         if (id == null) {
             throw new ResponseStatusException(BAD_REQUEST, "Article id is required");
         }
-        BlogArticle existing = blogArticleRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Blog article not found"));
+        BlogArticle existing = requireArticle(blogArticleDao.findById(id));
         requireArticleManager(existing, currentUser);
-        blogArticleRepository.deleteById(id);
+        blogArticleDao.deleteById(id);
     }
 
     @Override
     public List<String> listCategories() {
-        return blogArticleRepository.findCategories();
+        return blogArticleDao.findCategories();
     }
 
     @Override
     public List<String> listTags() {
         Set<String> tags = new LinkedHashSet<String>();
-        for (String tagValue : blogArticleRepository.findTagValues()) {
+        for (String tagValue : blogArticleDao.findTagValues()) {
             if (tagValue == null || tagValue.trim().isEmpty()) {
                 continue;
             }
@@ -146,6 +144,17 @@ public class BlogServiceImpl implements BlogService {
             }
         }
         return new ArrayList<String>(tags);
+    }
+
+    private BlogArticle requireArticle(BlogArticle article) {
+        if (article == null) {
+            throw new ResponseStatusException(NOT_FOUND, "Blog article not found");
+        }
+        return article;
+    }
+
+    private String normalizeFilter(String value) {
+        return value == null ? "" : value.trim();
     }
 
     private void validateCreateRequest(BlogArticleCreateRequest request) {

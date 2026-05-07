@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.website.blog.dao.BlogArticleDao">
+
+    <resultMap id="BlogArticleResultMap" type="com.example.website.blog.model.BlogArticle">
+        <id column="id" property="id"/>
+        <result column="title" property="title"/>
+        <result column="slug" property="slug"/>
+        <result column="summary" property="summary"/>
+        <result column="content_html" property="contentHtml"/>
+        <result column="category" property="category"/>
+        <result column="tags" property="tags"/>
+        <result column="author_id" property="authorId"/>
+        <result column="author_username" property="authorUsername"/>
+        <result column="author_display_name" property="authorDisplayName"/>
+        <result column="word_count" property="wordCount"/>
+        <result column="read_minutes" property="readMinutes"/>
+        <result column="published_at" property="publishedAt"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <sql id="ArticleColumns">
+        id, title, slug, summary, content_html, category, tags,
+        author_id, author_username, author_display_name,
+        word_count, read_minutes, published_at, created_at, updated_at
+    </sql>
+
+    <insert id="insert" parameterType="com.example.website.blog.model.BlogArticle"
+            useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        insert into blog_article(
+            title, slug, summary, content_html, category, tags,
+            author_id, author_username, author_display_name,
+            word_count, read_minutes, published_at
+        )
+        values (
+            #{title}, #{slug}, #{summary}, #{contentHtml}, #{category}, #{tags},
+            #{authorId}, #{authorUsername}, #{authorDisplayName},
+            #{wordCount}, #{readMinutes}, now()
+        )
+    </insert>
+
+    <select id="findPublished" resultMap="BlogArticleResultMap">
+        select <include refid="ArticleColumns"/>
+        from blog_article
+        <where>
+            <if test="keyword != null and keyword != ''">
+                and (
+                    title like concat('%', #{keyword}, '%')
+                    or summary like concat('%', #{keyword}, '%')
+                    or category like concat('%', #{keyword}, '%')
+                    or tags like concat('%', #{keyword}, '%')
+                )
+            </if>
+            <if test="category != null and category != ''">
+                and category = #{category}
+            </if>
+            <if test="tag != null and tag != ''">
+                and tags like concat('%', #{tag}, '%')
+            </if>
+        </where>
+        order by published_at desc, id desc
+    </select>
+
+    <select id="findBySlug" resultMap="BlogArticleResultMap">
+        select <include refid="ArticleColumns"/>
+        from blog_article
+        where slug = #{slug}
+    </select>
+
+    <select id="findById" resultMap="BlogArticleResultMap">
+        select <include refid="ArticleColumns"/>
+        from blog_article
+        where id = #{id}
+    </select>
+
+    <update id="updateArticle" parameterType="com.example.website.blog.model.BlogArticle">
+        update blog_article
+        set title = #{title},
+            slug = #{slug},
+            summary = #{summary},
+            content_html = #{contentHtml},
+            category = #{category},
+            tags = #{tags},
+            word_count = #{wordCount},
+            read_minutes = #{readMinutes}
+        where id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        delete from blog_article
+        where id = #{id}
+    </delete>
+
+    <select id="findCategories" resultType="java.lang.String">
+        select distinct category
+        from blog_article
+        order by category
+    </select>
+
+    <select id="findTagValues" resultType="java.lang.String">
+        select tags
+        from blog_article
+    </select>
+</mapper>

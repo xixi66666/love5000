@@ -8,7 +8,7 @@
 C:/Code/Java_Code/love5000/common
 ```
 
-该模块不是独立 Web 服务，职责是向其他模块提供可复用的基础能力，当前核心功能是阿里云 OSS 自动配置、文件上传、文件删除、OSS URL 生成和 object key 解析。
+该模块不是独立 Web 服务，职责是向其他模块提供可复用的基础能力，当前核心功能是阿里云 OSS 自动配置、文件上传、文件删除、OSS URL 生成、object key 解析，以及通用认证抽象与自动配置。
 
 技术栈：
 
@@ -18,6 +18,7 @@ C:/Code/Java_Code/love5000/common
 - Spring Boot AutoConfiguration
 - Aliyun OSS SDK 3.1.0
 - Spring Web
+- MyBatis 由父工程统一引入；`common` 不直接写业务 SQL
 - Spring Boot Configuration Processor
 - JUnit 5 / Spring Boot Test
 
@@ -27,6 +28,8 @@ C:/Code/Java_Code/love5000/common
 - `src/main/resources/META-INF/spring.factories`：注册 `OssAutoConfiguration`。
 
 **关键**：`common` 必须保持低耦合。不要在该模块中依赖 `lovestory` 或 `website` 的业务类。
+
+**数据库约定**：`common` 可以定义跨模块复用的接口和模型，但不要在本模块实现业务数据库 CRUD。需要落库的能力由具体 Web 模块通过 MyBatis DAO + XML Mapper 实现。
 
 ## 开发命令
 
@@ -104,6 +107,13 @@ common/
 - `util/OssUtil.java`：封装 OSS 上传、删除、URL 拼接和 object key 解析。
 - `util/OssUploadResult.java`：上传结果 DTO。
 - `META-INF/spring.factories`：Spring Boot 2.x 自动配置入口。
+
+## 数据库访问约定
+
+- 后续所有业务数据库 CRUD 都使用 MyBatis DAO 接口 + XML Mapper 映射器。
+- `common` 只定义公共接口、模型、服务契约和自动配置，不直接维护业务表 SQL。
+- 具体模块的 DAO 接口放在对应模块的 `dao` 包中，Mapper XML 放在对应模块 `src/main/resources/mapper` 下。
+- 不在 `common` 中新增 `JdbcTemplate`、`PreparedStatement`、JPA Repository 或 Java 内联 SQL。
 
 ## 配置约定
 

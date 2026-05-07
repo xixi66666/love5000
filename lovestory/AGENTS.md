@@ -22,7 +22,7 @@ C:/Code/Java_Code/love5000/lovestory
 - Maven
 - Spring Boot 2.6.13
 - Spring MVC
-- Spring JDBC / JdbcTemplate
+- MyBatis / DAO 接口 + XML Mapper 映射器
 - MySQL
 - Alibaba Druid 1.2.24
 - Aliyun OSS，来自 `common` 模块
@@ -108,14 +108,15 @@ lovestory/
     │   │   ├── controller/
     │   │   │   ├── LoginController.java
     │   │   │   └── UploadPhotoController.java
+    │   │   ├── dao/PhotoDao.java
     │   │   ├── model/PhotoRecord.java
-    │   │   ├── repository/PhotoRepository.java
     │   │   └── service/
     │   │       ├── uploadPhotoService.java
     │   │       └── uploadPhotoServiceImpl.java
     │   └── resources/
     │       ├── application.properties
     │       ├── application.yml
+    │       ├── mapper/PhotoMapper.xml
     │       └── static/
     │           ├── index.html
     │           ├── login.html
@@ -131,7 +132,8 @@ lovestory/
 
 - `controller/UploadPhotoController.java`：照片上传、查询、删除 REST API。
 - `controller/LoginController.java`：登录相关入口。
-- `repository/PhotoRepository.java`：使用 `JdbcTemplate` 访问 `photo` 表。
+- `dao/PhotoDao.java`：MyBatis DAO 接口，定义 `photo` 表 CRUD 方法。
+- `resources/mapper/PhotoMapper.xml`：`PhotoDao` 对应的 MyBatis XML Mapper，集中维护照片表 SQL。
 - `model/PhotoRecord.java`：照片记录模型。
 - `config/WebConfig.java`：Web 配置。
 - `static/`：相册页面、登录页、小游戏页面和图片资源。
@@ -192,7 +194,7 @@ webp
 
 当前使用 MySQL，配置在 `src/main/resources/application.yml`。
 
-`PhotoRepository` 依赖 `photo` 表字段：
+`PhotoDao` 通过 `src/main/resources/mapper/PhotoMapper.xml` 依赖 `photo` 表字段：
 
 ```sql
 id
@@ -201,7 +203,7 @@ type
 create_time
 ```
 
-仓库中的 SQL：
+Mapper 中的 SQL：
 
 ```sql
 insert into photo(path, type) values (?, ?)
@@ -242,12 +244,13 @@ love530/lovestory/photos/{category}
 
 Java 命名：
 
-- 类名使用 `UpperCamelCase`：`UploadPhotoController`、`PhotoRepository`。
+- 类名使用 `UpperCamelCase`：`UploadPhotoController`、`PhotoDao`。
 - 方法名和变量名使用 `lowerCamelCase`：`uploadPhoto`、`photoRecord`。
 - 常量使用 `UPPER_SNAKE_CASE`：`ALLOWED_CATEGORIES`、`TIME_FORMATTER`。
 - 包名全小写：`com.ycxandwuqian.love`。
 - Controller 以 `Controller` 结尾。
-- Repository 以 `Repository` 结尾。
+- DAO 接口以 `Dao` 结尾。
+- MyBatis XML 映射文件以 `Mapper.xml` 结尾，并与 DAO namespace 对齐。
 - Service 接口以 `Service` 结尾，实现类以 `ServiceImpl` 结尾。
 
 **关键**：当前历史文件 `uploadPhotoService.java`、`uploadPhotoServiceImpl.java` 不符合 Java 常用类名规范。新增或重命名时使用 `UploadPhotoService`、`UploadPhotoServiceImpl`。
@@ -256,9 +259,11 @@ Spring 约定：
 
 - 优先使用构造器注入。
 - Controller 只处理 HTTP 参数、响应和异常边界。
-- 数据库访问集中在 Repository。
+- 数据库访问统一通过 MyBatis DAO 接口完成。
+- SQL 统一写在 `src/main/resources/mapper` 下的 XML Mapper 中。
 - 业务规则优先放入 Service。
-- 不在 Controller 中硬编码数据库 SQL。
+- 不在 Controller、Service 或普通 Java 类中硬编码数据库 SQL。
+- 不再新增 `JdbcTemplate`、`PreparedStatement`、JPA Repository 或 Java 内联 SQL。
 - 不直接实例化 `OssUtil`，通过 Spring 注入或 `ObjectProvider<OssUtil>` 获取。
 
 静态资源约定：
@@ -289,15 +294,15 @@ src/test/java/com/ycxandwuqian/love/LovestoryApplicationTests.java
 测试要求：
 
 - Controller 新增接口时补充 MockMvc 测试。
-- Repository 新增 SQL 时覆盖成功、空结果、删除失败。
+- DAO/Mapper 新增 SQL 时覆盖成功、空结果、删除失败。
 - OSS 不可用时必须覆盖 `ossUtilProvider.getIfAvailable() == null` 分支。
 - 上传接口必须覆盖空文件、非法后缀、非法分类、正常上传。
-- Spring 上下文测试中 mock `DataSource` 和 `PhotoRepository`，避免连接真实数据库。
+- Spring 上下文测试中 mock `DataSource` 和 `PhotoDao`，避免连接真实数据库。
 
 覆盖率目标：
 
 - `UploadPhotoController` 新增逻辑分支不低于 80%。
-- `PhotoRepository` 新增 SQL 分支必须有测试覆盖。
+- `PhotoDao` / `PhotoMapper.xml` 新增 SQL 分支必须有测试覆盖。
 - 静态页面修改至少手动访问 `http://localhost:8081/` 验证。
 
 ## 提交前检查
@@ -315,7 +320,7 @@ mvn -pl lovestory -am spring-boot:run -Dspring-boot.run.main-class=com.ycxandwuq
 检查清单：
 
 - **关键**：照片分类变更时，同步更新后端校验、前端展示和测试。
-- **关键**：数据库字段变更时，同步更新 SQL、模型和测试。
+- **关键**：数据库字段变更时，同步更新 `PhotoDao`、`PhotoMapper.xml`、模型和测试。
 - **关键**：OSS 配置必须支持环境变量。
 - ⚠️ 不要提交 `target/` 下的图片或 class 文件。
 - ⚠️ 不要在测试中调用真实 OSS 或真实远程数据库。

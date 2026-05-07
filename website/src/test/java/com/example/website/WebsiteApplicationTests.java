@@ -1,7 +1,7 @@
 package com.example.website;
 
-import com.example.website.blog.repository.BlogArticleRepository;
 import com.example.website.auth.WebsiteAuthUserRepository;
+import com.example.website.blog.dao.BlogArticleDao;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -10,7 +10,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 class WebsiteApplicationTests {
 
     @MockBean
-    private BlogArticleRepository blogArticleRepository;
+    private BlogArticleDao blogArticleDao;
 
     @MockBean
     private WebsiteAuthUserRepository websiteAuthUserRepository;

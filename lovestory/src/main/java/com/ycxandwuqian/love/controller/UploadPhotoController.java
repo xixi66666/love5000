@@ -2,8 +2,8 @@ package com.ycxandwuqian.love.controller;
 
 import com.example.common.util.OssUploadResult;
 import com.example.common.util.OssUtil;
+import com.ycxandwuqian.love.dao.PhotoDao;
 import com.ycxandwuqian.love.model.PhotoRecord;
-import com.ycxandwuqian.love.repository.PhotoRepository;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DataAccessException;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -40,11 +40,11 @@ public class UploadPhotoController {
 
     private final ObjectProvider<OssUtil> ossUtilProvider;
 
-    private final PhotoRepository photoRepository;
+    private final PhotoDao photoDao;
 
-    public UploadPhotoController(ObjectProvider<OssUtil> ossUtilProvider, PhotoRepository photoRepository) {
+    public UploadPhotoController(ObjectProvider<OssUtil> ossUtilProvider, PhotoDao photoDao) {
         this.ossUtilProvider = ossUtilProvider;
-        this.photoRepository = photoRepository;
+        this.photoDao = photoDao;
     }
 
     @PostMapping("/upload")
@@ -83,12 +83,10 @@ public class UploadPhotoController {
 
             String sanitizedDescription = StringUtils.hasText(description) ? description.trim() : "";
             OssUploadResult uploadResult = ossUtil.upload(file, "love530/lovestory/photos/" + normalizedCategory);
-            Long photoId = photoRepository.save(uploadResult.getObjectKey(), normalizedCategory);
-
             PhotoRecord photoRecord = new PhotoRecord();
-            photoRecord.setId(photoId);
             photoRecord.setPath(uploadResult.getObjectKey());
             photoRecord.setType(normalizedCategory);
+            photoDao.insert(photoRecord);
             photoRecord.setCreateTime(LocalDateTime.now());
 
             response.put("success", true);
@@ -108,7 +106,7 @@ public class UploadPhotoController {
         Map<String, Object> response = new HashMap<String, Object>();
 
         try {
-            List<Map<String, Object>> photos = photoRepository.findAll().stream()
+            List<Map<String, Object>> photos = photoDao.findAll().stream()
                     .map(photoRecord -> buildPhotoResponse(
                             resolvePhotoUrl(photoRecord.getPath()),
                             photoRecord.getType(),
@@ -131,7 +129,7 @@ public class UploadPhotoController {
         Map<String, Object> response = new HashMap<String, Object>();
 
         try {
-            Optional<PhotoRecord> photoOptional = photoRepository.findById(id);
+            Optional<PhotoRecord> photoOptional = Optional.ofNullable(photoDao.findById(id));
             if (!photoOptional.isPresent()) {
                 response.put("success", false);
                 response.put("message", "Photo not found");
@@ -144,7 +142,7 @@ public class UploadPhotoController {
                 ossUtil.delete(photoRecord.getPath());
             }
 
-            boolean deleted = photoRepository.deleteById(id);
+            boolean deleted = photoDao.deleteById(id) > 0;
             if (!deleted) {
                 response.put("success", false);
                 response.put("message", "Failed to delete photo record");

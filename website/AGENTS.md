@@ -21,6 +21,7 @@ C:/Code/Java_Code/love5000/website
 - Maven
 - Spring Boot 2.6.13
 - Spring MVC
+- MyBatis / DAO 接口 + XML Mapper 映射器
 - MySQL Connector/J
 - Alibaba Druid 1.1.22
 - JUnit 5 / Spring Boot Test
@@ -101,6 +102,15 @@ website/
     ├── main/
     │   ├── java/com/example/website/
     │   │   ├── WebsiteApplication.java
+    │   │   ├── auth/
+    │   │   │   ├── WebsiteAuthUserRepository.java
+    │   │   │   └── dao/WebsiteAuthUserDao.java
+    │   │   ├── blog/
+    │   │   │   ├── controller/
+    │   │   │   ├── dao/
+    │   │   │   ├── dto/
+    │   │   │   ├── model/
+    │   │   │   └── service/
     │   │   ├── demos/
     │   │   │   ├── nacosdiscoveryconsumer/
     │   │   │   ├── nacosdiscoveryprovider/
@@ -111,6 +121,9 @@ website/
     │       ├── application.properties
     │       ├── application.yml
     │       ├── index.html
+    │       ├── mapper/
+    │       │   ├── auth/WebsiteAuthUserMapper.xml
+    │       │   └── blog/BlogArticleMapper.xml
     │       ├── README.md
     │       └── static/
     │           ├── css/style.css
@@ -125,6 +138,12 @@ website/
 核心模块职责：
 
 - `WebsiteApplication.java`：Spring Boot 启动类。
+- `auth/WebsiteAuthUserRepository.java`：适配 `common` 的 `AuthUserRepository`，不直接写 SQL。
+- `auth/dao/WebsiteAuthUserDao.java`：认证用户表 MyBatis DAO。
+- `blog/controller`：博客 REST API。
+- `blog/service`：博客业务规则。
+- `blog/dao`：博客文章 MyBatis DAO。
+- `mapper/auth`、`mapper/blog`：MyBatis XML Mapper，集中维护数据库 CRUD SQL。
 - `demos/web`：基础 Web Controller 示例。
 - `demos/oss`：OSS 示例代码。
 - `demos/nacosdiscoveryconsumer`：Nacos 消费者示例。
@@ -163,6 +182,15 @@ spring:
 
 ⚠️ 严重警告：不要提交真实数据库密码。新增配置时使用环境变量，例如 `${WEBSITE_DB_PASSWORD}`。
 
+数据库访问约定：
+
+- 所有数据库 CRUD 都使用 MyBatis DAO 接口 + XML Mapper 映射器。
+- DAO 接口放在对应业务包的 `dao` 子包中，类名以 `Dao` 结尾。
+- Mapper XML 放在 `src/main/resources/mapper` 下，文件名以 `Mapper.xml` 结尾。
+- SQL 不写在 Controller、Service 或普通 Java 类里。
+- 不再新增 `JdbcTemplate`、`PreparedStatement`、JPA Repository 或 Java 内联 SQL。
+- 数据库表由开发者或运维提前创建，Java 启动流程不负责建表、补字段或写种子数据。
+
 ## 代码规范
 
 Java 命名：
@@ -172,12 +200,14 @@ Java 命名：
 - 常量使用 `UPPER_SNAKE_CASE`。
 - 包名全小写：`com.example.website`。
 - Controller 类以 `Controller` 结尾。
+- DAO 接口以 `Dao` 结尾。
 - Configuration 类以 `Configuration` 或 `Config` 结尾。
 
 Spring 约定：
 
 - Controller 只放 HTTP 示例或页面接口，不承载复杂业务逻辑。
 - 示例代码放在 `demos` 包下，生产化代码不要继续塞进 `demos`。
+- 业务数据库访问放在 DAO + Mapper XML 中，Service 只处理业务规则和事务边界。
 - Nacos 相关代码集中在 `nacosdiscovery` 和 `demos/nacosdiscovery*`。
 - 新增配置优先写入 `application.yml`，端口等简单开关可保留在 `application.properties`。
 
@@ -212,6 +242,7 @@ src/test/java/com/example/website/WebsiteApplicationTests.java
 测试要求：
 
 - 新增 Controller 时补充 Spring MVC 或 context 测试。
+- 新增 DAO/Mapper SQL 时覆盖成功路径、空结果和主要失败路径。
 - 修改 Nacos 示例时，测试中不要依赖真实 Nacos 服务。
 - 修改数据库相关配置时，测试中不要连接远程 MySQL。
 - 修改静态页面后，启动服务并访问 `http://localhost:8080/` 手动验证。
@@ -237,6 +268,7 @@ mvn -pl website -am spring-boot:run
 检查清单：
 
 - **关键**：不要把正式业务代码继续放进 `demos` 包。
+- **关键**：新增或修改数据库 CRUD 时同步更新 DAO、Mapper XML、模型和测试。
 - **关键**：静态资源路径必须能从 `classpath:/static/` 加载。
 - **关键**：数据库密码和 Nacos 密码使用环境变量。
 - ⚠️ 不要在单元测试中连接真实 Nacos、真实 MySQL 或外部 OSS。
