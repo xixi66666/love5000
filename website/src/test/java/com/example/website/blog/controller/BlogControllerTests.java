@@ -1,6 +1,7 @@
 package com.example.website.blog.controller;
 
-import com.example.common.auth.dto.AuthRequest;
+import com.example.common.auth.dto.AuthLoginRequest;
+import com.example.common.auth.dto.AuthRegisterRequest;
 import com.example.common.auth.model.AuthUserPrincipal;
 import com.example.common.auth.service.AuthService;
 import com.example.website.blog.dto.BlogArticleCreateRequest;
@@ -121,12 +122,12 @@ class BlogControllerTests {
     private static class FakeAuthService implements AuthService {
 
         @Override
-        public AuthUserPrincipal register(AuthRequest authRequest, HttpServletRequest request) {
+        public AuthUserPrincipal register(AuthRegisterRequest authRequest, HttpServletRequest request) {
             return user();
         }
 
         @Override
-        public AuthUserPrincipal login(AuthRequest authRequest, HttpServletRequest request) {
+        public AuthUserPrincipal login(AuthLoginRequest authRequest, HttpServletRequest request) {
             return user();
         }
 

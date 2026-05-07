@@ -312,16 +312,19 @@ document.addEventListener('DOMContentLoaded', function () {
     authForm.addEventListener('submit', function (event) {
         event.preventDefault();
         authMessage.textContent = '';
+        var payload = {
+            username: authUsername.value,
+            password: authPassword.value
+        };
+        if (authMode === 'register') {
+            payload.displayName = authDisplayName.value;
+        }
         fetch(authMode === 'register' ? '/api/auth/register' : '/api/auth/login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                username: authUsername.value,
-                password: authPassword.value,
-                displayName: authDisplayName.value
-            })
+            body: JSON.stringify(payload)
         }).then(function (response) {
             if (!response.ok) {
                 throw new Error('auth failed');

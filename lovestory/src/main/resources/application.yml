@@ -23,3 +23,9 @@ love530:
     bucket-name: ${LOVE530_OSS_BUCKET_NAME:lovestory5000}
     url-prefix: ${LOVE530_OSS_URL_PREFIX:}
     base-dir: ${LOVE530_OSS_BASE_DIR:love530/lovestory/photos}
+
+mybatis:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.ycxandwuqian.love.model
+  configuration:
+    map-underscore-to-camel-case: true

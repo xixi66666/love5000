@@ -187,6 +187,16 @@ spring:
 - 所有数据库 CRUD 都使用 MyBatis DAO 接口 + XML Mapper 映射器。
 - DAO 接口放在对应业务包的 `dao` 子包中，类名以 `Dao` 结尾。
 - Mapper XML 放在 `src/main/resources/mapper` 下，文件名以 `Mapper.xml` 结尾。
+- 必须在 `application.yml` 显式配置 XML Mapper 扫描路径：
+
+```yaml
+mybatis:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.example.website.blog.model,com.example.common.auth.model
+  configuration:
+    map-underscore-to-camel-case: true
+```
+
 - SQL 不写在 Controller、Service 或普通 Java 类里。
 - 不再新增 `JdbcTemplate`、`PreparedStatement`、JPA Repository 或 Java 内联 SQL。
 - 数据库表由开发者或运维提前创建，Java 启动流程不负责建表、补字段或写种子数据。

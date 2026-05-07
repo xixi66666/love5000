@@ -1,6 +1,7 @@
 package com.example.common.auth.service;
 
-import com.example.common.auth.dto.AuthRequest;
+import com.example.common.auth.dto.AuthLoginRequest;
+import com.example.common.auth.dto.AuthRegisterRequest;
 import com.example.common.auth.model.AuthUserPrincipal;
 
 import javax.servlet.http.HttpServletRequest;
@@ -9,9 +10,9 @@ import java.util.Optional;
 
 public interface AuthService {
 
-    AuthUserPrincipal register(AuthRequest authRequest, HttpServletRequest request);
+    AuthUserPrincipal register(AuthRegisterRequest authRequest, HttpServletRequest request);
 
-    AuthUserPrincipal login(AuthRequest authRequest, HttpServletRequest request);
+    AuthUserPrincipal login(AuthLoginRequest authRequest, HttpServletRequest request);
 
     void logout(HttpServletRequest request, HttpServletResponse response);
 

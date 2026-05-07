@@ -275,6 +275,8 @@ GET  /api/auth/me
 - 业务规则放到 Service。
 - DAO 接口放在 `dao` 包，类名以 `Dao` 结尾，例如 `BlogArticleDao`、`PhotoDao`。
 - Mapper XML 放在模块 `src/main/resources/mapper` 下，文件名以 `Mapper.xml` 结尾，并与 DAO namespace 对齐。
+- 每个使用 MyBatis 的 Web 模块都必须在 `application.yml` 显式配置 `mybatis.mapper-locations: classpath*:mapper/**/*.xml`。
+- 推荐同时配置 `mybatis.type-aliases-package` 指向当前模块的模型包，并开启 `mybatis.configuration.map-underscore-to-camel-case: true`。
 - Java 代码中不要直接使用 `JdbcTemplate`、手写 `PreparedStatement` 或把 SQL 拼在 Service/Controller 中。
 - 不引入 JPA 风格 Repository。只有为了适配 `common` 既有接口时才保留 Repository，且 Repository 不直接写 SQL。
 - `common` 模块的自动配置必须保持可选：使用 `@ConditionalOnProperty`、`@ConditionalOnClass`、`@ConditionalOnMissingBean`。

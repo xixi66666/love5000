@@ -194,6 +194,16 @@ webp
 
 当前使用 MySQL，配置在 `src/main/resources/application.yml`。
 
+MyBatis 必须显式配置 XML Mapper 扫描路径：
+
+```yaml
+mybatis:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.ycxandwuqian.love.model
+  configuration:
+    map-underscore-to-camel-case: true
+```
+
 `PhotoDao` 通过 `src/main/resources/mapper/PhotoMapper.xml` 依赖 `photo` 表字段：
 
 ```sql
@@ -261,6 +271,7 @@ Spring 约定：
 - Controller 只处理 HTTP 参数、响应和异常边界。
 - 数据库访问统一通过 MyBatis DAO 接口完成。
 - SQL 统一写在 `src/main/resources/mapper` 下的 XML Mapper 中。
+- 每个 MyBatis Mapper XML 都必须能被 `application.yml` 中的 `mybatis.mapper-locations: classpath*:mapper/**/*.xml` 扫描到。
 - 业务规则优先放入 Service。
 - 不在 Controller、Service 或普通 Java 类中硬编码数据库 SQL。
 - 不再新增 `JdbcTemplate`、`PreparedStatement`、JPA Repository 或 Java 内联 SQL。

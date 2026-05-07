@@ -1,7 +1,8 @@
 package com.example.common.auth.service;
 
 import com.example.common.auth.config.AuthProperties;
-import com.example.common.auth.dto.AuthRequest;
+import com.example.common.auth.dto.AuthLoginRequest;
+import com.example.common.auth.dto.AuthRegisterRequest;
 import com.example.common.auth.exception.AuthException;
 import com.example.common.auth.model.AuthUser;
 import com.example.common.auth.model.AuthUserPrincipal;
@@ -36,7 +37,7 @@ class AuthServiceImplTests {
         FakeAuthUserRepository repository = new FakeAuthUserRepository();
         AuthServiceImpl service = new AuthServiceImpl(repository, new AuthPasswordService(), new AuthProperties());
         MockHttpServletRequest request = new MockHttpServletRequest();
-        AuthRequest authRequest = new AuthRequest();
+        AuthRegisterRequest authRequest = new AuthRegisterRequest();
         authRequest.setUsername("Caleb_01");
         authRequest.setPassword("password123");
         authRequest.setDisplayName("Caleb");
@@ -54,7 +55,7 @@ class AuthServiceImplTests {
         AuthPasswordService passwordService = new AuthPasswordService();
         repository.save("caleb", passwordService.hash("password123"), "Caleb", "USER");
         AuthServiceImpl service = new AuthServiceImpl(repository, passwordService, new AuthProperties());
-        AuthRequest authRequest = new AuthRequest();
+        AuthLoginRequest authRequest = new AuthLoginRequest();
         authRequest.setUsername("caleb");
         authRequest.setPassword("wrong-password");
 
@@ -64,7 +65,7 @@ class AuthServiceImplTests {
     @Test
     void shouldRejectInvalidRegistrationInputWithDetails() {
         AuthServiceImpl service = new AuthServiceImpl(new FakeAuthUserRepository(), new AuthPasswordService(), new AuthProperties());
-        AuthRequest badUsernameRequest = new AuthRequest();
+        AuthRegisterRequest badUsernameRequest = new AuthRegisterRequest();
         badUsernameRequest.setUsername("bad name");
         badUsernameRequest.setPassword("password123");
 
@@ -73,7 +74,7 @@ class AuthServiceImplTests {
         assertEquals("USERNAME_INVALID", usernameException.getCode());
         assertTrue(usernameException.getDetails().size() >= 3);
 
-        AuthRequest badPasswordRequest = new AuthRequest();
+        AuthRegisterRequest badPasswordRequest = new AuthRegisterRequest();
         badPasswordRequest.setUsername("xixi");
         badPasswordRequest.setPassword("password");
 

@@ -1,7 +1,8 @@
 package com.example.common.auth.service;
 
 import com.example.common.auth.config.AuthProperties;
-import com.example.common.auth.dto.AuthRequest;
+import com.example.common.auth.dto.AuthLoginRequest;
+import com.example.common.auth.dto.AuthRegisterRequest;
 import com.example.common.auth.exception.AuthException;
 import com.example.common.auth.model.AuthUser;
 import com.example.common.auth.model.AuthUserPrincipal;
@@ -43,7 +44,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public AuthUserPrincipal register(AuthRequest authRequest, HttpServletRequest request) {
+    public AuthUserPrincipal register(AuthRegisterRequest authRequest, HttpServletRequest request) {
         String username = normalizeUsername(authRequest.getUsername());
         validateUsername(username);
         validatePassword(authRequest.getPassword());
@@ -63,7 +64,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public AuthUserPrincipal login(AuthRequest authRequest, HttpServletRequest request) {
+    public AuthUserPrincipal login(AuthLoginRequest authRequest, HttpServletRequest request) {
         String username = normalizeUsername(authRequest.getUsername());
         AuthUser authUser = authUserRepository.findByUsername(username)
                 .orElseThrow(() -> new AuthException(HttpStatus.UNAUTHORIZED, "Invalid username or password"));

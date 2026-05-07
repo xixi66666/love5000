@@ -285,10 +285,10 @@ async function submitAuth(event) {
     setFormMessage(elements.authMessage, "", "");
     const payload = {
         username: elements.authUsername.value,
-        password: elements.authPassword.value,
-        displayName: elements.authDisplayName.value
+        password: elements.authPassword.value
     };
     if (state.authMode === "register") {
+        payload.displayName = elements.authDisplayName.value;
         const issues = validateRegistration(payload.username, payload.password);
         if (issues.length) {
             setFormMessage(elements.authMessage, issues.concat(["完整注册规范："]).concat(AUTH_RULES), "error");

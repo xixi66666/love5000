@@ -1,6 +1,7 @@
 package com.example.common.auth.controller;
 
-import com.example.common.auth.dto.AuthRequest;
+import com.example.common.auth.dto.AuthLoginRequest;
+import com.example.common.auth.dto.AuthRegisterRequest;
 import com.example.common.auth.model.AuthUserPrincipal;
 import com.example.common.auth.service.AuthService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -27,13 +28,13 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public Map<String, Object> register(@RequestBody AuthRequest authRequest, HttpServletRequest request) {
+    public Map<String, Object> register(@RequestBody AuthRegisterRequest authRequest, HttpServletRequest request) {
         AuthUserPrincipal user = authService.register(authRequest, request);
         return userResponse("Register succeeded", user);
     }
 
     @PostMapping("/login")
-    public Map<String, Object> login(@RequestBody AuthRequest authRequest, HttpServletRequest request) {
+    public Map<String, Object> login(@RequestBody AuthLoginRequest authRequest, HttpServletRequest request) {
         AuthUserPrincipal user = authService.login(authRequest, request);
         return userResponse("Login succeeded", user);
     }

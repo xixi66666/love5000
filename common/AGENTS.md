@@ -113,6 +113,8 @@ common/
 - 后续所有业务数据库 CRUD 都使用 MyBatis DAO 接口 + XML Mapper 映射器。
 - `common` 只定义公共接口、模型、服务契约和自动配置，不直接维护业务表 SQL。
 - 具体模块的 DAO 接口放在对应模块的 `dao` 包中，Mapper XML 放在对应模块 `src/main/resources/mapper` 下。
+- 每个使用 MyBatis 的 Web 模块都必须在自己的 `application.yml` 显式配置 `mybatis.mapper-locations: classpath*:mapper/**/*.xml`。
+- 推荐同时配置 `mybatis.type-aliases-package` 和 `mybatis.configuration.map-underscore-to-camel-case: true`。
 - 不在 `common` 中新增 `JdbcTemplate`、`PreparedStatement`、JPA Repository 或 Java 内联 SQL。
 
 ## 配置约定
