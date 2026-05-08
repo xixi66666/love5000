@@ -1,0 +1,416 @@
+[
+  {
+    "id": "figure-3d-model",
+    "title": "上传图片转 3D 手办模型",
+    "category": "角色与人像",
+    "categorySlug": "character",
+    "summary": "将角色、宠物或物体参考图转换成可展示的商业级 3D 手办渲染。",
+    "tags": ["3D", "手办", "角色", "参考图", "模型"],
+    "sourceUrl": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#section-templates",
+    "jsonTemplate": {
+      "image_reference": "<上传的角色或物体图片>",
+      "output_type": "3D 手办渲染图",
+      "scale": "1/7",
+      "material": "PVC / 树脂",
+      "pose": "保持参考图的主要动作、表情和识别特征",
+      "base": "透明亚克力圆形底座",
+      "scene": "桌面展示场景，柔和摄影棚灯光",
+      "details": ["高精度面部特征", "服装纹理清晰", "可添加包装盒或说明牌背景"]
+    },
+    "promptTemplate": "基于上传参考图生成一张商业级 3D 手办产品渲染，保留主体身份、造型、比例、服装和关键细节，使用真实材质、干净灯光、浅景深和可售卖的产品摄影构图。"
+  },
+  {
+    "id": "character-consistency",
+    "title": "角色一致性生成",
+    "category": "角色与人像",
+    "categorySlug": "character",
+    "summary": "在不同场景、姿态和表情中保持同一角色的稳定外观。",
+    "tags": ["角色设定", "一致性", "表情", "多场景", "IP"],
+    "sourceUrl": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#section-templates",
+    "jsonTemplate": {
+      "character_name": "<角色名>",
+      "reference_images": ["<正面参考>", "<侧面参考>", "<表情参考>"],
+      "consistency_rules": {
+        "face": "保持五官比例、脸型和识别特征",
+        "hair": "保持发型、发色和长度",
+        "outfit": "保持标志性服装元素",
+        "palette": "沿用主色和辅助色"
+      },
+      "scene": "<新场景>",
+      "pose": "<新动作>",
+      "style": "<目标风格>",
+      "output": "单张高质量角色图或角色设定图"
+    },
+    "promptTemplate": "把参考角色作为同一个固定角色处理，在新场景中生成高质量角色图；不要改变年龄、脸型、发型、服装标识和主色，只调整动作、表情、机位和环境。"
+  },
+  {
+    "id": "text-poster",
+    "title": "生成精准文字海报",
+    "category": "视觉设计",
+    "categorySlug": "visual-design",
+    "summary": "为活动、品牌或社媒内容生成文字准确、排版稳定的海报。",
+    "tags": ["海报", "文字", "排版", "品牌", "Typography"],
+    "sourceUrl": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#section-templates",
+    "jsonTemplate": {
+      "title": "<主标题，需逐字准确>",
+      "subtitle": "<副标题>",
+      "body_text": "<辅助文案>",
+      "typography": "现代无衬线，层级清晰",
+      "layout": "中心构图或三分法构图",
+      "color_palette": "<品牌色或指定色>",
+      "visual_theme": "<活动主题>",
+      "format": "竖版 4:5 或 16:9",
+      "constraints": ["所有文字必须拼写准确", "不要添加未提供的额外文字", "留出安全边距"]
+    },
+    "promptTemplate": "生成一张干净、有设计感的文字海报，严格使用给定文案，保证字形清晰、拼写准确、行距和层级合理，画面不要出现未指定的额外文字。"
+  },
+  {
+    "id": "image-to-sticker",
+    "title": "图片变 Sticker",
+    "category": "修复与转换",
+    "categorySlug": "editing",
+    "summary": "把人物、宠物或物体变成透明背景贴纸、聊天表情或贴纸包素材。",
+    "tags": ["贴纸", "透明背景", "表情包", "可爱", "轮廓"],
+    "sourceUrl": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#section-templates",
+    "jsonTemplate": {
+      "image_reference": "<上传图片>",
+      "sticker_style": "Q 版 / 扁平插画 / 轻 3D",
+      "outline": "白色粗描边",
+      "background": "透明背景",
+      "expression": "<保留或指定表情>",
+      "props": "<可选小道具>",
+      "output": "单个 sticker 或一组 4-8 个表情"
+    },
+    "promptTemplate": "把参考主体转成高辨识度 sticker，保留核心特征，简化细节，添加干净描边和透明背景，整体适合聊天贴纸、社交媒体或贴纸包。"
+  },
+  {
+    "id": "logo-brand-visual",
+    "title": "Logo / 品牌视觉生成",
+    "category": "视觉设计",
+    "categorySlug": "visual-design",
+    "summary": "生成品牌 logo、视觉方向和可延展的品牌图形系统。",
+    "tags": ["Logo", "品牌", "VI", "标志", "视觉系统"],
+    "sourceUrl": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#section-templates",
+    "jsonTemplate": {
+      "brand_name": "<品牌名称>",
+      "industry": "<行业>",
+      "brand_traits": ["可靠", "现代", "有记忆点"],
+      "symbol_concept": "<图形隐喻>",
+      "logo_type": "字标 / 图标 / 组合标",
+      "color_palette": "<主色与辅助色>",
+      "usage_scene": "网站、App 图标、名片、包装",
+      "constraints": ["简洁", "可缩放", "避免复杂渐变", "不要使用侵权元素"]
+    },
+    "promptTemplate": "为指定品牌生成专业 logo 和品牌视觉方案，图形要简洁可识别，适合多尺寸使用，文字需准确，整体风格与行业和品牌性格一致。"
+  },
+  {
+    "id": "ui-web-design",
+    "title": "UI / 网页设计生成",
+    "category": "视觉设计",
+    "categorySlug": "visual-design",
+    "summary": "生成网页、App、仪表盘或工具界面的高保真界面概念。",
+    "tags": ["UI", "网页", "App", "仪表盘", "产品设计"],
+    "sourceUrl": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#section-templates",
+    "jsonTemplate": {
+      "product_name": "<产品名>",
+      "screen_type": "首页 / 仪表盘 / 编辑器 / 设置页",
+      "audience": "<目标用户>",
+      "layout": "<导航、主内容、侧栏或工具栏结构>",
+      "components": ["导航", "表格", "筛选器", "按钮", "状态"],
+      "visual_style": "清爽、专业、信息层级明确",
+      "color_palette": "<产品色板>",
+      "constraints": ["真实可实现", "不要 lorem ipsum", "控件文字清晰"]
+    },
+    "promptTemplate": "生成一个真实可落地的高保真产品界面，包含清晰的信息架构、组件状态、按钮、表单或数据区域，文案自然准确，视觉风格专业统一。"
+  },
+  {
+    "id": "commerce-product-poster",
+    "title": "商品海报 / 电商图生成",
+    "category": "商业与广告",
+    "categorySlug": "commerce",
+    "summary": "为电商商品生成主图、详情页首屏或促销海报。",
+    "tags": ["电商", "商品图", "促销", "海报", "主图"],
+    "sourceUrl": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#section-templates",
+    "jsonTemplate": {
+      "product_image": "<商品参考图>",
+      "product_name": "<商品名>",
+      "selling_points": ["卖点 1", "卖点 2", "卖点 3"],
+      "campaign_text": "<促销文字>",
+      "scene": "<使用场景>",
+      "lighting": "商业摄影棚灯光",
+      "layout": "商品主体突出，卖点信息分区明确",
+      "constraints": ["商品外形不能变", "文字准确", "不添加未授权品牌"]
+    },
+    "promptTemplate": "基于商品参考图生成高转化电商视觉，突出商品本体、质感、卖点和促销信息，整体像专业商业摄影和电商设计稿。"
+  },
+  {
+    "id": "interior-architecture",
+    "title": "室内 / 建筑设计可视化",
+    "category": "空间与产品",
+    "categorySlug": "space-product",
+    "summary": "把空间需求、户型或建筑概念转成室内、建筑或景观可视化图。",
+    "tags": ["室内设计", "建筑", "空间", "渲染", "家装"],
+    "sourceUrl": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#section-templates",
+    "jsonTemplate": {
+      "space_type": "客厅 / 卧室 / 咖啡店 / 展厅 / 建筑外立面",
+      "style": "<现代、日式、工业风等>",
+      "materials": ["木材", "石材", "玻璃", "织物"],
+      "layout_requirements": "<空间布局要求>",
+      "lighting": "自然光与暖色辅助灯光",
+      "camera": "广角室内摄影，视线高度自然",
+      "constraints": ["比例真实", "动线清晰", "不要不合理结构"]
+    },
+    "promptTemplate": "生成真实、可落地的空间设计可视化，保持结构合理、材质准确、灯光自然、家具比例正确，画面像专业室内或建筑摄影。"
+  },
+  {
+    "id": "id-photo-headshot",
+    "title": "证件照 / 职业头像生成",
+    "category": "角色与人像",
+    "categorySlug": "character",
+    "summary": "生成合规、自然、专业的人像照片、证件照或职场头像。",
+    "tags": ["证件照", "头像", "职场", "人像", "摄影"],
+    "sourceUrl": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#section-templates",
+    "jsonTemplate": {
+      "person_reference": "<人像参考图>",
+      "photo_type": "证件照 / LinkedIn 头像 / 简历头像",
+      "background": "纯色或浅灰专业背景",
+      "clothing": "商务正装或指定服装",
+      "expression": "自然微笑",
+      "lighting": "柔和正面光",
+      "constraints": ["保留身份特征", "肤色自然", "不要过度磨皮", "不要改变脸型"]
+    },
+    "promptTemplate": "基于参考人像生成专业头像，保持真实身份和自然五官，使用合规构图、干净背景和职业化灯光，避免夸张修饰。"
+  },
+  {
+    "id": "hand-drawn-illustration",
+    "title": "手绘 / 插画风格转换",
+    "category": "插画与叙事",
+    "categorySlug": "illustration-story",
+    "summary": "把照片或概念转换成水彩、铅笔、扁平、儿童绘本等插画风格。",
+    "tags": ["插画", "手绘", "风格转换", "水彩", "绘本"],
+    "sourceUrl": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#section-templates",
+    "jsonTemplate": {
+      "image_reference": "<参考图或场景描述>",
+      "illustration_style": "水彩 / 彩铅 / 扁平矢量 / 儿童绘本",
+      "linework": "干净、有手绘感",
+      "color": "柔和协调",
+      "composition": "<保留或重构构图>",
+      "mood": "<温暖、治愈、幽默等>",
+      "constraints": ["主体可识别", "风格统一", "不要照片质感"]
+    },
+    "promptTemplate": "把参考内容转换为统一手绘插画风格，保留主体与构图重点，使用自然线条、协调色彩和明确情绪，避免混杂多种画风。"
+  },
+  {
+    "id": "image-repair-outpaint-bg",
+    "title": "图片修复 / 扩图 / 背景替换",
+    "category": "修复与转换",
+    "categorySlug": "editing",
+    "summary": "用于缺陷修复、画面扩展、背景替换、抠图和局部编辑。",
+    "tags": ["修复", "扩图", "背景替换", "局部编辑", "抠图"],
+    "sourceUrl": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#section-templates",
+    "jsonTemplate": {
+      "image_reference": "<待编辑图片>",
+      "edit_type": "修复 / 扩图 / 背景替换 / 删除物体",
+      "target_area": "<需要处理的位置>",
+      "new_background": "<新背景描述>",
+      "preserve": ["主体身份", "原始光线方向", "透视关系", "边缘自然"],
+      "output": "自然无痕编辑后的图片"
+    },
+    "promptTemplate": "对参考图进行自然编辑，只改变指定区域，保持主体、光线、透视、清晰度和画面风格一致，编辑痕迹不可见。"
+  },
+  {
+    "id": "comic-storyboard",
+    "title": "漫画分镜 / 故事板生成",
+    "category": "插画与叙事",
+    "categorySlug": "illustration-story",
+    "summary": "把剧情片段拆成漫画页、故事板或广告分镜。",
+    "tags": ["漫画", "分镜", "故事板", "镜头", "叙事"],
+    "sourceUrl": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#section-templates",
+    "jsonTemplate": {
+      "story": "<剧情摘要>",
+      "panel_count": "4 / 6 / 8",
+      "characters": ["角色 A", "角色 B"],
+      "scene": "<发生地点>",
+      "camera_plan": ["远景建立场景", "中景对话", "特写情绪", "动作收束"],
+      "style": "黑白漫画 / 彩色漫画 / 广告故事板",
+      "constraints": ["角色一致", "动作连贯", "分镜顺序清楚"]
+    },
+    "promptTemplate": "生成一页清晰的漫画分镜或故事板，面板顺序明确，角色保持一致，镜头语言有节奏，动作和情绪能连贯讲述剧情。"
+  },
+  {
+    "id": "children-picture-book",
+    "title": "AI 绘本 / 儿童插画生成",
+    "category": "插画与叙事",
+    "categorySlug": "illustration-story",
+    "summary": "生成儿童绘本场景、角色和跨页插画，强调温和、清晰和叙事。",
+    "tags": ["绘本", "儿童插画", "故事", "跨页", "角色"],
+    "sourceUrl": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#section-templates",
+    "jsonTemplate": {
+      "book_title": "<绘本标题>",
+      "page_scene": "<当前页场景>",
+      "characters": ["主角", "配角"],
+      "age_group": "3-6 岁 / 6-9 岁",
+      "style": "温暖儿童绘本插画",
+      "color_palette": "柔和、明亮、低刺激",
+      "page_format": "横向跨页或单页",
+      "constraints": ["友好安全", "角色连续", "画面不拥挤", "适合儿童阅读"]
+    },
+    "promptTemplate": "生成一张温暖、清晰、适合儿童阅读的绘本插画，角色表情友好，色彩柔和，场景服务当前页故事，不出现惊吓或成人化元素。"
+  },
+  {
+    "id": "fashion-jewelry-tryon",
+    "title": "服装 / 珠宝虚拟试穿",
+    "category": "角色与人像",
+    "categorySlug": "character",
+    "summary": "将服装、鞋包、眼镜或珠宝自然叠加到模特或用户照片上。",
+    "tags": ["试穿", "服装", "珠宝", "模特", "电商"],
+    "sourceUrl": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#section-templates",
+    "jsonTemplate": {
+      "person_reference": "<模特或用户图片>",
+      "product_reference": "<服装或配饰图片>",
+      "try_on_area": "上衣 / 裙装 / 鞋 / 项链 / 眼镜",
+      "fit": "符合身体姿态与尺寸",
+      "material": "保留商品材质、纹理和颜色",
+      "lighting": "与原图光照一致",
+      "constraints": ["不改变人物身份", "商品结构准确", "遮挡和褶皱自然"]
+    },
+    "promptTemplate": "把商品自然试穿到人物身上，保持人物身份、姿态和背景，同时保留商品版型、材质、颜色和细节，光影与遮挡关系真实。"
+  },
+  {
+    "id": "map-infographic-knowledge",
+    "title": "地图 / 信息图 / 知识图谱",
+    "category": "信息与游戏",
+    "categorySlug": "info-game",
+    "summary": "生成结构化地图、流程图、知识图谱和数据解释类信息图。",
+    "tags": ["信息图", "地图", "知识图谱", "流程", "可视化"],
+    "sourceUrl": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#section-templates",
+    "jsonTemplate": {
+      "topic": "<主题>",
+      "data_points": ["要点 1", "要点 2", "要点 3"],
+      "structure": "时间线 / 流程图 / 地图标注 / 节点关系图",
+      "visual_style": "清晰、现代、可读性优先",
+      "labels": "<需要准确出现的标签>",
+      "color_palette": "<分类色或品牌色>",
+      "constraints": ["标签准确", "层级清晰", "不要捏造数据", "避免过密"]
+    },
+    "promptTemplate": "把给定信息整理成清晰的信息图或知识图谱，结构、标签和层级必须可读，使用一致的视觉编码，不添加未提供的数据。"
+  },
+  {
+    "id": "cinematic-storyboard",
+    "title": "电影剧照 / 分镜头美术",
+    "category": "插画与叙事",
+    "categorySlug": "illustration-story",
+    "summary": "生成电影感剧照、概念镜头、分镜头美术和视觉预演。",
+    "tags": ["电影", "剧照", "分镜", "概念美术", "镜头"],
+    "sourceUrl": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#section-templates",
+    "jsonTemplate": {
+      "scene": "<场景描述>",
+      "characters": "<角色与关系>",
+      "shot_type": "远景 / 中景 / 特写 / 过肩镜头",
+      "lens": "35mm / 50mm / anamorphic",
+      "lighting": "电影级布光",
+      "mood": "<悬疑、浪漫、史诗等>",
+      "color_grading": "<冷暖、胶片、霓虹等>",
+      "constraints": ["构图电影化", "情绪明确", "不要多余文字"]
+    },
+    "promptTemplate": "生成电影剧照级画面，使用明确镜头语言、光线方向、色彩分级和场景调度，让画面像真实电影中的一帧。"
+  },
+  {
+    "id": "art-style-transfer",
+    "title": "艺术风格迁移 / 名画再创作",
+    "category": "修复与转换",
+    "categorySlug": "editing",
+    "summary": "把主题或参考图迁移到指定艺术风格中，同时控制构图和材质。",
+    "tags": ["风格迁移", "艺术", "名画", "再创作", "材质"],
+    "sourceUrl": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#section-templates",
+    "jsonTemplate": {
+      "subject": "<主体或参考图>",
+      "art_direction": "<艺术时期、媒介或风格>",
+      "composition": "<保留或指定构图>",
+      "brushwork": "<笔触、纹理、颜料质感>",
+      "palette": "<色彩倾向>",
+      "mood": "<情绪>",
+      "constraints": ["不直接复制在世艺术家风格", "主体清晰", "风格统一"]
+    },
+    "promptTemplate": "以指定艺术方向重新创作主体，强调媒介、笔触、色彩和构图特征，保留主体可识别性，避免直接复制具体在世艺术家的个人风格。"
+  },
+  {
+    "id": "game-assets-pixel-art",
+    "title": "游戏资产 / 像素美术生成",
+    "category": "信息与游戏",
+    "categorySlug": "info-game",
+    "summary": "生成角色精灵、道具、场景 tile、UI 图标和像素美术资产。",
+    "tags": ["游戏资产", "像素", "Sprite", "Tile", "道具"],
+    "sourceUrl": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#section-templates",
+    "jsonTemplate": {
+      "asset_type": "角色 sprite / 道具 / 地图 tile / UI 图标",
+      "game_genre": "<游戏类型>",
+      "style": "像素美术 / 手绘 / 低多边形",
+      "view": "正交 / 侧视 / 俯视",
+      "animation_states": ["idle", "walk", "attack"],
+      "palette": "<限制色板>",
+      "background": "透明背景或 tile sheet",
+      "constraints": ["尺寸统一", "轮廓清楚", "适合游戏引擎切图"]
+    },
+    "promptTemplate": "生成可用于游戏开发的资产图，保持视角、尺寸、色板和轮廓一致，角色或道具要便于切图、动画和引擎导入。"
+  },
+  {
+    "id": "ad-social-creative",
+    "title": "广告创意 / 社交媒体图",
+    "category": "商业与广告",
+    "categorySlug": "commerce",
+    "summary": "为广告投放、社交媒体和营销活动生成多版创意视觉。",
+    "tags": ["广告", "社交媒体", "营销", "创意", "投放"],
+    "sourceUrl": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#section-templates",
+    "jsonTemplate": {
+      "campaign_goal": "<转化、曝光、招募或活动报名>",
+      "brand": "<品牌或产品>",
+      "audience": "<目标人群>",
+      "message": "<核心卖点或口号>",
+      "format": "小红书封面 / Instagram 方图 / 横幅广告",
+      "visual_hook": "<第一眼吸引点>",
+      "call_to_action": "<行动号召>",
+      "constraints": ["品牌一致", "文字准确", "信息不要过载"]
+    },
+    "promptTemplate": "生成适合广告和社交媒体传播的创意图，第一眼有明确吸引点，品牌、卖点和行动号召清楚，构图适合指定平台尺寸。"
+  },
+  {
+    "id": "industrial-product-prototype",
+    "title": "产品原型 / 工业设计",
+    "category": "空间与产品",
+    "categorySlug": "space-product",
+    "summary": "生成硬件产品、包装、设备、交通工具或工业设计概念图。",
+    "tags": ["工业设计", "产品原型", "硬件", "CMF", "包装"],
+    "sourceUrl": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#section-templates",
+    "jsonTemplate": {
+      "product_type": "<产品类型>",
+      "use_case": "<使用场景>",
+      "form_language": "简洁、功能导向、有品牌识别",
+      "materials": ["金属", "玻璃", "塑料", "织物"],
+      "features": ["核心功能 1", "核心功能 2"],
+      "views": ["三分之四视角", "正视图", "细节特写"],
+      "constraints": ["结构可信", "比例真实", "适合制造", "避免无意义装饰"]
+    },
+    "promptTemplate": "生成可信的工业设计产品原型图，明确结构、材质、功能和使用场景，画面像专业产品设计评审中的渲染稿。"
+  },
+  {
+    "id": "social-avatar",
+    "title": "个性头像 / 社交媒体头像",
+    "category": "角色与人像",
+    "categorySlug": "character",
+    "summary": "为个人品牌、社交账号或社区身份生成个性头像。",
+    "tags": ["头像", "社交媒体", "个人品牌", "动漫", "插画"],
+    "sourceUrl": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#section-templates",
+    "jsonTemplate": {
+      "personality": "<性格或账号定位>",
+      "reference": "<可选人物或符号参考>",
+      "avatar_style": "写实 / 赛博 / 二次元 / 扁平插画 / 3D",
+      "background": "<简洁背景或品牌图案>",
+      "expression": "<表情>",
+      "color_palette": "<主色>",
+      "format": "方形头像，中心构图",
+      "constraints": ["小尺寸可识别", "轮廓清楚", "不要复杂文字"]
+    },
+    "promptTemplate": "生成适合社交媒体展示的个性头像，中心构图、轮廓清晰、小尺寸仍可识别，风格与账号定位一致。"
+  }
+]

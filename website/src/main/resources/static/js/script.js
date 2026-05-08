@@ -236,7 +236,10 @@ document.addEventListener('DOMContentLoaded', function () {
     var registerButton = document.querySelector('.auth-register-button');
     var logoutButton = document.querySelector('.auth-logout-button');
     var closeButton = document.querySelector('.auth-pop-up-close');
+    var guardedProjectLinks = document.querySelectorAll('.projectItem[data-auth-required="true"]');
     var authMode = 'login';
+    var currentUser = null;
+    var pendingProtectedLink = null;
 
     if (!authPopup || !authForm) {
         return;
@@ -244,6 +247,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function setAuthState(user) {
         var loggedIn = !!user;
+        currentUser = user || null;
         if (loginButton) {
             loginButton.style.display = loggedIn ? 'none' : 'flex';
         }
@@ -263,6 +267,49 @@ document.addEventListener('DOMContentLoaded', function () {
         authMessage.textContent = '';
         authForm.reset();
         authPopup.classList.add('active');
+    }
+
+    function openProtectedLink(link) {
+        if (!link || !link.href) {
+            return;
+        }
+        window.open(link.href, link.target || '_blank', 'noopener');
+    }
+
+    function requireLoginForLink(event, link) {
+        event.preventDefault();
+        if (currentUser) {
+            openProtectedLink(link);
+            return;
+        }
+        fetch('/api/auth/me')
+            .then(function (response) {
+                if (!response.ok) {
+                    return null;
+                }
+                return response.json();
+            })
+            .then(function (payload) {
+                if (payload && payload.user) {
+                    setAuthState(payload.user);
+                    openProtectedLink(link);
+                    return;
+                }
+                pendingProtectedLink = {
+                    href: link.href,
+                    target: link.target
+                };
+                openAuth('login');
+                authMessage.textContent = 'Login required for ' + (link.getAttribute('data-auth-target-name') || 'this project');
+            })
+            .catch(function () {
+                pendingProtectedLink = {
+                    href: link.href,
+                    target: link.target
+                };
+                openAuth('login');
+                authMessage.textContent = 'Login required';
+            });
     }
 
     function closeAuth() {
@@ -308,6 +355,11 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
     }
+    guardedProjectLinks.forEach(function (link) {
+        link.addEventListener('click', function (event) {
+            requireLoginForLink(event, link);
+        });
+    });
 
     authForm.addEventListener('submit', function (event) {
         event.preventDefault();
@@ -333,6 +385,10 @@ document.addEventListener('DOMContentLoaded', function () {
         }).then(function (payload) {
             setAuthState(payload.user);
             closeAuth();
+            if (pendingProtectedLink) {
+                openProtectedLink(pendingProtectedLink);
+                pendingProtectedLink = null;
+            }
         }).catch(function () {
             authMessage.textContent = 'Login or register failed';
         });

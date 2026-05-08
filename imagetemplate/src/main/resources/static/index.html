@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Prompt Templates</title>
+    <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="app-shell">
+    <header class="topbar">
+        <a class="brand" href="/">
+            <span class="brand-mark">IP</span>
+            <span>Image Prompt Templates</span>
+        </a>
+        <div class="topbar-actions">
+            <a class="source-link" target="_blank" rel="noopener" href="https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#section-templates">Source</a>
+        </div>
+    </header>
+
+    <main class="workspace">
+        <section class="library-panel">
+            <div class="library-header">
+                <div>
+                    <h1>GPT Image 模板库</h1>
+                    <p>21 套 JSON 模板与常规模板</p>
+                </div>
+                <div class="template-count" id="templateCount">0</div>
+            </div>
+
+            <div class="search-row">
+                <input id="keywordInput" type="search" placeholder="搜索模板、标签或场景" autocomplete="off">
+            </div>
+
+            <div class="category-tabs" id="categoryTabs"></div>
+            <div class="template-list" id="templateList"></div>
+        </section>
+
+        <section class="detail-panel">
+            <div class="detail-header">
+                <div>
+                    <p id="detailCategory" class="detail-category">请选择模板</p>
+                    <h2 id="detailTitle">模板详情</h2>
+                </div>
+                <button class="copy-button" id="copyPromptButton" type="button">Copy</button>
+            </div>
+
+            <p id="detailSummary" class="detail-summary"></p>
+
+            <div class="detail-grid">
+                <div class="field-block">
+                    <div class="field-title">JSON 模板</div>
+                    <pre id="jsonTemplate" class="code-block">{}</pre>
+                </div>
+                <div class="field-block">
+                    <div class="field-title">常规模板</div>
+                    <div id="promptTemplate" class="prompt-template"></div>
+                </div>
+            </div>
+
+            <div class="prompt-builder">
+                <div class="builder-head">
+                    <div>
+                        <h3>Prompt Builder</h3>
+                        <p>将变量覆盖到 JSON 模板，再由 Java 生成 prompt 字段内容</p>
+                    </div>
+                    <button id="renderPromptButton" type="button">生成 Prompt</button>
+                </div>
+                <label for="variablesInput">变量 JSON</label>
+                <textarea id="variablesInput" spellcheck="false">{}</textarea>
+                <label for="extraInstructionInput">补充要求</label>
+                <input id="extraInstructionInput" type="text" placeholder="例如：竖版 4:5，画面更高级，保留品牌主色">
+                <label for="renderedPrompt">生成结果</label>
+                <textarea id="renderedPrompt" spellcheck="false" readonly></textarea>
+                <div id="statusLine" class="status-line"></div>
+            </div>
+
+            <div class="generation-panel">
+                <div class="builder-head">
+                    <div>
+                        <h3>Image Generation</h3>
+                        <p>调用服务端配置的 OpenAI API Key，使用 gpt-image-2 生成图片</p>
+                    </div>
+                    <button id="generateImageButton" type="button">生成图片</button>
+                </div>
+                <div class="api-key-box">
+                    <label for="openAiApiKeyInput">
+                        <span>OpenAI API Key</span>
+                        <input id="openAiApiKeyInput" type="password" autocomplete="off" placeholder="留空则使用服务端 OPENAI_API_KEY">
+                    </label>
+                    <label class="remember-key-row">
+                        <input id="rememberApiKeyCheckbox" type="checkbox">
+                        <span>本会话记住</span>
+                    </label>
+                </div>
+                <p class="api-key-note">API Key 只用于本次图片生成；勾选后仅保存到当前浏览器会话。</p>
+                <div class="option-grid">
+                    <label>
+                        <span>尺寸</span>
+                        <select id="imageSizeSelect">
+                            <option value="1024x1024">1024 x 1024</option>
+                            <option value="1024x1536">1024 x 1536</option>
+                            <option value="1536x1024">1536 x 1024</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>质量</span>
+                        <select id="imageQualitySelect">
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>格式</span>
+                        <select id="imageFormatSelect">
+                            <option value="png">PNG</option>
+                            <option value="jpeg">JPEG</option>
+                            <option value="webp">WebP</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>背景</span>
+                        <select id="imageBackgroundSelect">
+                            <option value="auto">Auto</option>
+                            <option value="transparent">Transparent</option>
+                            <option value="opaque">Opaque</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="image-result" id="imageResult">
+                    <div class="empty-image-state" id="emptyImageState">生成后的图片会显示在这里</div>
+                    <img id="generatedImage" alt="Generated image" hidden>
+                </div>
+                <div class="generation-actions">
+                    <a id="downloadImageButton" href="#" download="generated-image.png" aria-disabled="true">下载图片</a>
+                </div>
+                <div id="imageStatusLine" class="status-line"></div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
