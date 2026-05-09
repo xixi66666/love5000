@@ -71,7 +71,7 @@
                 <label for="extraInstructionInput">补充要求</label>
                 <input id="extraInstructionInput" type="text" placeholder="例如：竖版 4:5，画面更高级，保留品牌主色">
                 <label for="renderedPrompt">生成结果</label>
-                <textarea id="renderedPrompt" spellcheck="false" readonly></textarea>
+                <textarea id="renderedPrompt" spellcheck="false" placeholder="生成后可在这里继续编辑 prompt，再点击生成图片"></textarea>
                 <div id="statusLine" class="status-line"></div>
             </div>
 
@@ -94,6 +94,19 @@
                     </label>
                 </div>
                 <p class="api-key-note">API Key 只用于本次图片生成；勾选后仅保存到当前浏览器会话。</p>
+                <div class="reference-upload">
+                    <div class="reference-upload-head">
+                        <div>
+                            <label for="referenceImageInput">参考图片</label>
+                            <p>可上传角色、商品或风格参考图，最多 16 张。</p>
+                        </div>
+                        <button id="clearReferenceImagesButton" type="button" disabled>清空</button>
+                    </div>
+                    <input id="referenceImageInput" type="file" accept="image/png,image/jpeg,image/webp" multiple>
+                    <div id="referenceImagePreview" class="reference-preview">
+                        <span>未选择参考图片</span>
+                    </div>
+                </div>
                 <div class="option-grid">
                     <label>
                         <span>尺寸</span>

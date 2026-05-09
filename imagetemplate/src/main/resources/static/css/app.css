@@ -176,7 +176,9 @@ button {
 
 .search-row input:focus,
 .prompt-builder textarea:focus,
-.prompt-builder input:focus {
+.prompt-builder input:focus,
+.generation-panel input:focus,
+.generation-panel select:focus {
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
 }
@@ -428,6 +430,93 @@ button {
     color: var(--muted);
     font-size: 13px;
     line-height: 1.5;
+}
+
+.reference-upload {
+    margin-top: 18px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fbfdff;
+}
+
+.reference-upload-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.reference-upload label {
+    display: block;
+    margin: 0;
+    color: #40506a;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.reference-upload p {
+    margin: 5px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.reference-upload button {
+    min-height: 32px;
+    padding: 0 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.reference-upload button:disabled {
+    cursor: default;
+    opacity: 0.48;
+}
+
+.reference-upload input[type="file"] {
+    height: auto;
+    margin-top: 12px;
+    padding: 10px;
+    background: #fff;
+}
+
+.reference-preview {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-height: 34px;
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.reference-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 100%;
+    padding: 7px 9px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--text);
+}
+
+.reference-chip span {
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.reference-chip small {
+    color: var(--muted);
+    font-size: 12px;
 }
 
 .option-grid {

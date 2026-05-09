@@ -16,10 +16,10 @@ spring:
 
 openai:
   api-key: ${OPENAI_API_KEY:}
-  base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+  base-url: ${OPENAI_BASE_URL:https://nimabo.cn/v1}
   image-model: ${OPENAI_IMAGE_MODEL:gpt-image-2}
-  connect-timeout-ms: ${OPENAI_CONNECT_TIMEOUT_MS:30000}
-  read-timeout-ms: ${OPENAI_READ_TIMEOUT_MS:180000}
+  connect-timeout-ms: ${OPENAI_CONNECT_TIMEOUT_MS:300000}
+  read-timeout-ms: ${OPENAI_READ_TIMEOUT_MS:1800000}
   proxy:
     type: ${OPENAI_PROXY_TYPE:HTTP}
     host: ${OPENAI_PROXY_HOST:}

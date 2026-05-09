@@ -4,7 +4,9 @@
         keyword: '',
         templates: [],
         categories: [],
-        selected: null
+        selected: null,
+        renderedPromptEdited: false,
+        referenceImages: []
     };
 
     var elements = {
@@ -27,6 +29,9 @@
         imageQualitySelect: document.getElementById('imageQualitySelect'),
         imageFormatSelect: document.getElementById('imageFormatSelect'),
         imageBackgroundSelect: document.getElementById('imageBackgroundSelect'),
+        referenceImageInput: document.getElementById('referenceImageInput'),
+        referenceImagePreview: document.getElementById('referenceImagePreview'),
+        clearReferenceImagesButton: document.getElementById('clearReferenceImagesButton'),
         openAiApiKeyInput: document.getElementById('openAiApiKeyInput'),
         rememberApiKeyCheckbox: document.getElementById('rememberApiKeyCheckbox'),
         generateImageButton: document.getElementById('generateImageButton'),
@@ -38,6 +43,9 @@
     };
 
     var SESSION_API_KEY_STORAGE = 'imagetemplate.openaiApiKey';
+    var MAX_REFERENCE_IMAGE_COUNT = 16;
+    var MAX_REFERENCE_IMAGE_SIZE = 50 * 1024 * 1024;
+    var SUPPORTED_REFERENCE_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 
     function fetchJson(url, options) {
         return fetch(url, options).then(function (response) {
@@ -137,6 +145,7 @@
         elements.promptTemplate.textContent = '';
         elements.variablesInput.value = '{}';
         elements.renderedPrompt.value = '';
+        state.renderedPromptEdited = false;
         resetGeneratedImage();
         return;
     }
@@ -147,6 +156,7 @@
         elements.promptTemplate.textContent = template.promptTemplate;
         elements.variablesInput.value = buildVariableSeed(template.jsonTemplate);
         elements.renderedPrompt.value = '';
+        state.renderedPromptEdited = false;
         resetGeneratedImage();
     }
 
@@ -190,6 +200,7 @@
             })
         }).then(function (payload) {
             elements.renderedPrompt.value = payload.prompt || '';
+            state.renderedPromptEdited = false;
             elements.statusLine.textContent = 'Prompt 已生成。';
         }).catch(function () {
             elements.statusLine.textContent = 'Prompt 生成失败。';
@@ -202,6 +213,91 @@
         } catch (error) {
             return null;
         }
+    }
+
+    function getReferenceImageFiles() {
+        if (!elements.referenceImageInput || !elements.referenceImageInput.files) {
+            return [];
+        }
+        return Array.prototype.slice.call(elements.referenceImageInput.files);
+    }
+
+    function validateReferenceImageFiles(files) {
+        if (files.length > MAX_REFERENCE_IMAGE_COUNT) {
+            return '最多只能上传 16 张参考图片。';
+        }
+        for (var i = 0; i < files.length; i++) {
+            if (SUPPORTED_REFERENCE_IMAGE_TYPES.indexOf(files[i].type) === -1) {
+                return '参考图片仅支持 PNG、JPEG 或 WebP。';
+            }
+            if (files[i].size > MAX_REFERENCE_IMAGE_SIZE) {
+                return '单张参考图片不能超过 50MB。';
+            }
+        }
+        return '';
+    }
+
+    function formatFileSize(size) {
+        if (size >= 1024 * 1024) {
+            return (size / 1024 / 1024).toFixed(1) + ' MB';
+        }
+        return Math.max(1, Math.round(size / 1024)) + ' KB';
+    }
+
+    function renderReferenceImagePreview() {
+        var files = getReferenceImageFiles();
+        state.referenceImages = files;
+        if (!elements.referenceImagePreview || !elements.clearReferenceImagesButton) {
+            return;
+        }
+        elements.clearReferenceImagesButton.disabled = files.length === 0;
+        if (!files.length) {
+            elements.referenceImagePreview.innerHTML = '<span>未选择参考图片</span>';
+            return;
+        }
+        elements.referenceImagePreview.innerHTML = files.map(function (file) {
+            return '<div class="reference-chip">' +
+                '<span>' + escapeHtml(file.name) + '</span>' +
+                '<small>' + escapeHtml(formatFileSize(file.size)) + '</small>' +
+                '</div>';
+        }).join('');
+    }
+
+    function clearReferenceImages() {
+        if (elements.referenceImageInput) {
+            elements.referenceImageInput.value = '';
+        }
+        renderReferenceImagePreview();
+        if (elements.imageStatusLine) {
+            elements.imageStatusLine.textContent = '';
+        }
+    }
+
+    function buildGenerationPayload(variables) {
+        return {
+            variables: variables,
+            extraInstruction: elements.extraInstructionInput.value,
+            prompt: elements.renderedPrompt.value,
+            size: elements.imageSizeSelect.value,
+            quality: elements.imageQualitySelect.value,
+            outputFormat: elements.imageFormatSelect.value,
+            background: elements.imageBackgroundSelect.value
+        };
+    }
+
+    function buildMultipartPayload(variables, files) {
+        var formData = new FormData();
+        formData.append('variables', JSON.stringify(variables));
+        formData.append('extraInstruction', elements.extraInstructionInput.value);
+        formData.append('prompt', elements.renderedPrompt.value);
+        formData.append('size', elements.imageSizeSelect.value);
+        formData.append('quality', elements.imageQualitySelect.value);
+        formData.append('outputFormat', elements.imageFormatSelect.value);
+        formData.append('background', elements.imageBackgroundSelect.value);
+        files.forEach(function (file) {
+            formData.append('referenceImages', file, file.name);
+        });
+        return formData;
     }
 
     function resetGeneratedImage() {
@@ -259,6 +355,7 @@
         elements.downloadImageButton.setAttribute('aria-disabled', 'false');
         if (payload.prompt) {
             elements.renderedPrompt.value = payload.prompt;
+            state.renderedPromptEdited = false;
         }
         elements.imageStatusLine.textContent = '图片已生成，可预览或下载。';
     }
@@ -272,28 +369,31 @@
             elements.imageStatusLine.textContent = '变量 JSON 格式不正确。';
             return;
         }
+        var referenceFiles = getReferenceImageFiles();
+        var referenceFileError = validateReferenceImageFiles(referenceFiles);
+        if (referenceFileError) {
+            elements.imageStatusLine.textContent = referenceFileError;
+            return;
+        }
         setGenerating(true);
         elements.imageStatusLine.textContent = '';
         persistSessionApiKey();
-        var headers = {
-            'Content-Type': 'application/json'
-        };
+        var headers = {};
         var userApiKey = readUserApiKey();
         if (userApiKey) {
             headers['X-OpenAI-Api-Key'] = userApiKey;
         }
+        var requestBody;
+        if (referenceFiles.length) {
+            requestBody = buildMultipartPayload(variables, referenceFiles);
+        } else {
+            headers['Content-Type'] = 'application/json';
+            requestBody = JSON.stringify(buildGenerationPayload(variables));
+        }
         fetchJson('/api/image-templates/' + encodeURIComponent(state.selected.id) + '/generate', {
             method: 'POST',
             headers: headers,
-            body: JSON.stringify({
-                variables: variables,
-                extraInstruction: elements.extraInstructionInput.value,
-                prompt: elements.renderedPrompt.value,
-                size: elements.imageSizeSelect.value,
-                quality: elements.imageQualitySelect.value,
-                outputFormat: elements.imageFormatSelect.value,
-                background: elements.imageBackgroundSelect.value
-            })
+            body: requestBody
         }).then(function (payload) {
             showGeneratedImage(payload);
         }).catch(function (error) {
@@ -377,6 +477,20 @@
     elements.renderPromptButton.addEventListener('click', renderPrompt);
     elements.copyPromptButton.addEventListener('click', copyPrompt);
     elements.generateImageButton.addEventListener('click', generateImage);
+    elements.renderedPrompt.addEventListener('input', function () {
+        state.renderedPromptEdited = true;
+        if (elements.renderedPrompt.value.trim()) {
+            elements.statusLine.textContent = '已手动编辑，生成图片时会使用当前内容。';
+        }
+    });
+    elements.referenceImageInput.addEventListener('change', function () {
+        var files = getReferenceImageFiles();
+        var referenceFileError = validateReferenceImageFiles(files);
+        renderReferenceImagePreview();
+        elements.imageStatusLine.textContent = referenceFileError || (files.length ? '已选择 ' + files.length + ' 张参考图片。' : '');
+    });
+    elements.clearReferenceImagesButton.addEventListener('click', clearReferenceImages);
+    renderReferenceImagePreview();
     loadSessionApiKey();
 
     Promise.all([loadCategories(), loadTemplates()]).catch(function () {

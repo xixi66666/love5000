@@ -1,6 +1,8 @@
 package com.example.imagetemplate.dto;
 
 import java.util.LinkedHashMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 public class ImageGenerationRequest {
@@ -18,6 +20,8 @@ public class ImageGenerationRequest {
     private String outputFormat = "png";
 
     private String background = "auto";
+
+    private List<ReferenceImageInput> referenceImages = new ArrayList<ReferenceImageInput>();
 
     public Map<String, Object> getVariables() {
         return variables;
@@ -73,5 +77,13 @@ public class ImageGenerationRequest {
 
     public void setBackground(String background) {
         this.background = background;
+    }
+
+    public List<ReferenceImageInput> getReferenceImages() {
+        return referenceImages;
+    }
+
+    public void setReferenceImages(List<ReferenceImageInput> referenceImages) {
+        this.referenceImages = referenceImages;
     }
 }
