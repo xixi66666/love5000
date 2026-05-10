@@ -54,7 +54,7 @@ public class OpenAiImageGenerationService {
         this.imageModel = environment.getProperty("openai.image-model", "gpt-image-2");
 
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(readInt(environment, "openai.connect-timeout-ms", 30000));
+        requestFactory.setConnectTimeout(readInt(environment, "openai.connect-timeout-ms", 300000));
         requestFactory.setReadTimeout(readInt(environment, "openai.read-timeout-ms", 180000));
         configureProxy(requestFactory, environment);
         this.restTemplate = new RestTemplate(requestFactory);
