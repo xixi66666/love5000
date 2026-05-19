@@ -1126,9 +1126,12 @@ footer {
     display: none;
     align-items: center;
     justify-content: center;
-    flex-direction: column;
-    padding: 20px;
-    background: rgba(0, 0, 0, 0.45);
+    padding: 24px;
+    font-family: "SF Pro Text", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #1d1d1f;
+    background: rgba(245, 245, 247, 0.72);
+    backdrop-filter: saturate(180%) blur(24px);
+    -webkit-backdrop-filter: saturate(180%) blur(24px);
 }
 
 .auth-pop-up.active {
@@ -1136,46 +1139,158 @@ footer {
 }
 
 .auth-pop-up-main {
+    position: relative;
     display: grid;
-    gap: 12px;
-    width: min(100%, 360px);
-    padding: 22px;
-    border-radius: 8px;
-    background: var(--project-item-bg-color);
-    box-shadow: 0 4px 16px var(--pop-up-box-shadow);
+    gap: 14px;
+    width: min(100%, 430px);
+    padding: 34px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: none;
+    overflow: hidden;
 }
 
 .auth-pop-up-title {
-    font-size: 22px;
-    font-weight: 800;
+    margin-top: 2px;
+    color: #1d1d1f;
+    font-family: "SF Pro Display", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 34px;
+    font-weight: 600;
+    line-height: 1.12;
+    letter-spacing: 0;
+}
+
+.auth-pop-up-kicker {
+    width: fit-content;
+    max-width: 100%;
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 14px;
+    border-radius: 9999px;
+    color: #333333;
+    background: #f5f5f7;
+    font-size: 14px;
+    line-height: 1.29;
+    letter-spacing: 0;
+}
+
+.auth-pop-up-copy {
+    margin: 0 0 4px;
+    color: #7a7a7a;
+    font-size: 17px;
+    font-weight: 400;
+    line-height: 1.47;
+    letter-spacing: 0;
 }
 
 .auth-pop-up-main input {
-    min-height: 42px;
-    border: 1px solid var(--text-bg-color);
-    border-radius: 7px;
-    padding: 0 12px;
-    color: var(--main-text-color);
-    background: var(--main-bg-color);
+    width: 100%;
+    min-height: 48px;
+    border: 1px solid #e0e0e0;
+    border-radius: 9999px;
+    padding: 0 18px;
+    color: #1d1d1f;
+    background: #ffffff;
+    font: inherit;
+    font-size: 17px;
+    line-height: 1.47;
+    letter-spacing: 0;
+    outline: none;
+    transition: border-color 0.16s ease, background-color 0.16s ease;
+}
+
+.auth-pop-up-main input::placeholder {
+    color: #7a7a7a;
+}
+
+.auth-pop-up-main input:focus {
+    border-color: #0071e3;
+    background: #fafafc;
 }
 
 .auth-pop-up-main button,
 .auth-pop-up-close {
-    min-height: 40px;
     border: 0;
-    border-radius: 7px;
-    color: #fff;
-    background: var(--purple-text-color);
+    font: inherit;
     cursor: pointer;
+    transition: transform 0.16s ease, background-color 0.16s ease;
+}
+
+.auth-pop-up-main button:active,
+.auth-pop-up-close:active {
+    transform: scale(0.95);
 }
 
 .auth-pop-up-close {
-    margin-top: 14px;
-    padding: 0 18px;
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    color: #1d1d1f;
+    background: rgba(210, 210, 215, 0.64);
+    font-size: 24px;
+    line-height: 1;
+}
+
+.auth-pop-up-close:hover {
+    background: rgba(210, 210, 215, 0.86);
+}
+
+.auth-submit-button {
+    min-height: 48px;
+    margin-top: 2px;
+    padding: 11px 22px;
+    border-radius: 9999px;
+    color: #ffffff;
+    background: #0066cc;
+    font-size: 17px;
+    font-weight: 400;
+    line-height: 1.47;
+    letter-spacing: 0;
+}
+
+.auth-submit-button:hover {
+    background: #0071e3;
+}
+
+.auth-submit-button:focus-visible,
+.auth-pop-up-close:focus-visible,
+.auth-pop-up-main input:focus-visible {
+    outline: 2px solid #0071e3;
+    outline-offset: 3px;
 }
 
 .auth-message {
     min-height: 20px;
-    color: var(--project-item-left-text-color);
-    font-size: 13px;
+    color: #7a7a7a;
+    font-size: 14px;
+    line-height: 1.43;
+    letter-spacing: 0;
+}
+
+@media (max-width: 520px) {
+    .auth-pop-up {
+        padding: 16px;
+    }
+
+    .auth-pop-up-main {
+        padding: 28px 20px 22px;
+        border-radius: 18px;
+    }
+
+    .auth-pop-up-title {
+        padding-right: 44px;
+        font-size: 28px;
+    }
+
+    .auth-pop-up-copy {
+        font-size: 16px;
+    }
 }

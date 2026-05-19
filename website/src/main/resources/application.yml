@@ -23,3 +23,12 @@ mybatis:
   type-aliases-package: com.example.website.blog.model,com.example.common.auth.model
   configuration:
     map-underscore-to-camel-case: true
+
+python-a:
+  auto-start:
+    enabled: true
+    work-dir: python-a
+    command: python
+    port: 5174
+    health-path: /api/health
+    startup-timeout-seconds: 20

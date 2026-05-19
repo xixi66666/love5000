@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="A 股自选股 AI 研究台：围绕少量自选股做实时数据跟踪、多维度分析、AI 盘后总结和 Obsidian 长期记忆。"
+    />
+    <title>A 股自选股 AI 研究台</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark">研</div>
+          <div>
+            <h1>A 股自选股 AI 研究台</h1>
+            <p>少量自选股 · 每股复盘 · Obsidian 长期记忆</p>
+          </div>
+        </div>
+        <div class="market-strip" aria-label="大盘基本信息">
+          <div>
+            <span>自选股数据</span>
+            <strong id="sourceStatus">正在连接真实行情</strong>
+          </div>
+          <div>
+            <span>上涨 / 下跌</span>
+            <strong id="marketBreadth">-- / --</strong>
+          </div>
+          <div>
+            <span>平均换手</span>
+            <strong id="avgTurnover">--</strong>
+          </div>
+          <button id="refreshBtn" class="primary-button" type="button">刷新数据</button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="watch-panel panel">
+          <div class="panel-head">
+            <div>
+              <h2>我的自选股</h2>
+              <p>只维护真正需要跟踪的股票</p>
+            </div>
+          </div>
+
+          <form id="addStockForm" class="add-stock-form">
+            <label>
+              <span>股票代码</span>
+              <input id="newStockCode" name="code" inputmode="numeric" maxlength="6" placeholder="例如 300750" required />
+            </label>
+            <div class="form-grid">
+              <label>
+                <span>分组</span>
+                <select id="newStockPool" name="pool">
+                  <option>核心自选</option>
+                  <option>持仓股</option>
+                  <option>买入候选</option>
+                  <option>风险观察</option>
+                  <option>失败案例</option>
+                </select>
+              </label>
+              <label>
+                <span>行业</span>
+                <input id="newStockIndustry" name="industry" placeholder="可选" />
+              </label>
+            </div>
+            <label>
+              <span>关注原因</span>
+              <textarea id="newStockNote" name="note" rows="2" placeholder="为什么把它放进自选？"></textarea>
+            </label>
+            <button class="secondary-button" type="submit">加入自选并建档</button>
+          </form>
+
+          <div class="watch-tabs" role="tablist" aria-label="自选股分组">
+            <button class="watch-tab active" data-filter="全部" type="button">全部</button>
+            <button class="watch-tab" data-filter="持仓股" type="button">持仓</button>
+            <button class="watch-tab" data-filter="买入候选" type="button">候选</button>
+            <button class="watch-tab" data-filter="风险观察" type="button">风险</button>
+          </div>
+
+          <div id="selfStockList" class="stock-list" aria-live="polite"></div>
+        </aside>
+
+        <section class="research-panel panel">
+          <div class="selected-header">
+            <div>
+              <div class="stock-title-row">
+                <h2 id="selectedName">等待加载</h2>
+                <span id="selectedCode">------</span>
+                <span id="stockPool" class="pool-chip">核心自选</span>
+              </div>
+              <p id="stockNote">从自选股清单中选择一只股票，查看实时数据和历史复盘入口。</p>
+            </div>
+            <button id="deleteStockBtn" class="danger-button" type="button">移出自选</button>
+          </div>
+
+          <div class="quote-board">
+            <div class="price-card">
+              <span>最新价</span>
+              <strong id="latestPrice">--</strong>
+              <em id="pctChange">--</em>
+            </div>
+            <div>
+              <span>今开</span>
+              <strong id="quoteOpen">--</strong>
+            </div>
+            <div>
+              <span>最高 / 最低</span>
+              <strong><span id="quoteHigh">--</span> / <span id="quoteLow">--</span></strong>
+            </div>
+            <div>
+              <span>昨收</span>
+              <strong id="quotePrev">--</strong>
+            </div>
+            <div>
+              <span>成交额</span>
+              <strong id="quoteAmount">--</strong>
+            </div>
+            <div>
+              <span>换手率</span>
+              <strong id="quoteTurnover">--</strong>
+            </div>
+          </div>
+
+          <div class="analysis-grid">
+            <section class="chart-card">
+              <div class="section-title">
+                <h3>技术结构</h3>
+                <span id="latestTradeDate">最新交易日 --</span>
+              </div>
+              <div class="ma-strip">
+                <span>MA5 <strong id="ma5Value">--</strong></span>
+                <span>MA10 <strong id="ma10Value">--</strong></span>
+                <span>MA30 <strong id="ma30Value">--</strong></span>
+              </div>
+              <svg id="maChart" viewBox="0 0 720 260" preserveAspectRatio="none"></svg>
+            </section>
+
+            <section class="factor-card">
+              <div class="section-title">
+                <h3>AI 盘后观察</h3>
+                <span id="confidenceBadge">置信度 --</span>
+              </div>
+              <div class="factor-list">
+                <div><span>趋势</span><strong id="maState">--</strong></div>
+                <div><span>换手分位</span><strong id="turnoverState">--</strong></div>
+                <div><span>趋势评分</span><strong id="trendScore">--</strong></div>
+                <div><span>风险等级</span><strong id="riskLevel">--</strong></div>
+              </div>
+              <p id="aiConclusion" class="ai-copy">等待真实行情加载。</p>
+            </section>
+          </div>
+
+          <section class="memory-panel-inline">
+            <div class="section-title">
+              <h3>该股票的长期记忆文件</h3>
+              <span id="stockMemoryPath">Obsidian/股票/--.md</span>
+            </div>
+            <p>
+              每次保存每日复盘时，系统都会把 AI 盘后总结和操作评估追加到这只股票自己的文件中，后续分析优先读取它的历史行为。
+            </p>
+          </section>
+
+        </section>
+
+        <aside class="review-panel panel">
+          <div class="panel-head">
+            <div>
+              <h2>多维度股票分析</h2>
+              <p>记录当前股票的技术、量能、基本面、风险和计划</p>
+            </div>
+          </div>
+
+          <form id="reviewForm" class="review-form">
+            <div class="form-grid">
+              <label>
+                <span>日期</span>
+                <input id="reviewDate" type="date" />
+              </label>
+              <label>
+                <span>分析重点</span>
+                <select id="analysisFocus">
+                  <option>综合复盘</option>
+                  <option>技术结构</option>
+                  <option>量能换手</option>
+                  <option>基本面与板块</option>
+                  <option>风险排查</option>
+                  <option>交易计划</option>
+                </select>
+              </label>
+            </div>
+            <button id="generateAnalysisBtn" class="secondary-button" type="button">AI 生成维度分析</button>
+
+            <label>
+              <span>技术结构</span>
+              <textarea id="technicalNotes" rows="3" placeholder="趋势、均线、关键位置、形态、有效/无效信号。"></textarea>
+            </label>
+            <label>
+              <span>量能与换手</span>
+              <textarea id="volumeNotes" rows="3" placeholder="成交额、换手分位、放量/缩量、承接和抛压。"></textarea>
+            </label>
+            <label>
+              <span>基本面与板块</span>
+              <textarea id="fundamentalNotes" rows="3" placeholder="行业景气度、板块共振、公司事件、估值和叙事变化。"></textarea>
+            </label>
+            <label>
+              <span>风险与反证</span>
+              <textarea id="riskNotes" rows="3" placeholder="失效条件、潜在利空、交易分歧、需要继续核验的信息。"></textarea>
+            </label>
+            <label>
+              <span>观察计划</span>
+              <textarea id="planNotes" rows="3" placeholder="下一步观察点、触发条件、需要补充的数据和决策边界。"></textarea>
+            </label>
+
+            <section class="ai-review-box">
+              <h3>维度分析</h3>
+              <p id="dimensionAnalysis">填写各维度后自动生成。</p>
+            </section>
+            <section class="ai-review-box">
+              <h3>研究结论</h3>
+              <p id="researchConclusion">等待分析记录。</p>
+            </section>
+
+            <section class="ai-chat-panel">
+              <div class="section-title">
+                <h3>AI 对话分析</h3>
+                <span id="aiChatStatus">本地上下文</span>
+              </div>
+              <div id="aiChatLog" class="ai-chat-log" aria-live="polite"></div>
+              <div id="aiChatForm" class="ai-chat-form">
+                <textarea id="aiChatInput" rows="3" placeholder="向 AI 提问当前股票的技术、量能、基本面、风险或交易计划"></textarea>
+                <div class="ai-chat-actions">
+                  <button id="appendAiMemoryBtn" class="secondary-button" type="button">加入复盘草稿</button>
+                  <button id="sendAiChatBtn" class="primary-button" type="button">发送</button>
+                </div>
+              </div>
+            </section>
+
+            <label class="memory-field">
+              <span>将写入 Obsidian 的每股复盘</span>
+              <textarea id="memoryPreview" class="memory-preview" rows="9" spellcheck="false"></textarea>
+            </label>
+
+            <button id="saveReviewBtn" class="primary-button full" type="submit">保存到该股票长期记忆</button>
+          </form>
+        </aside>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="./app.js"></script>
+  </body>
+</html>

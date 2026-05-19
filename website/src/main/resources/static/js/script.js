@@ -228,10 +228,12 @@ document.addEventListener('DOMContentLoaded', function () {
     var authPopup = document.querySelector('.auth-pop-up');
     var authForm = document.querySelector('.auth-pop-up-main');
     var authTitle = document.querySelector('.auth-pop-up-title');
+    var authCopy = document.querySelector('.auth-pop-up-copy');
     var authUsername = document.querySelector('.auth-username');
     var authDisplayName = document.querySelector('.auth-display-name');
     var authPassword = document.querySelector('.auth-password');
     var authMessage = document.querySelector('.auth-message');
+    var authSubmitButton = document.querySelector('.auth-submit-button');
     var loginButton = document.querySelector('.auth-login-button');
     var registerButton = document.querySelector('.auth-register-button');
     var logoutButton = document.querySelector('.auth-logout-button');
@@ -262,6 +264,14 @@ document.addEventListener('DOMContentLoaded', function () {
     function openAuth(mode) {
         authMode = mode;
         authTitle.textContent = mode === 'register' ? 'Register' : 'Login';
+        if (authCopy) {
+            authCopy.textContent = mode === 'register'
+                ? 'Create your account to keep protected projects available across this workspace.'
+                : 'Sign in to unlock protected projects and keep your workspace connected.';
+        }
+        if (authSubmitButton) {
+            authSubmitButton.textContent = mode === 'register' ? 'Create account' : 'Continue';
+        }
         authDisplayName.style.display = mode === 'register' ? 'block' : 'none';
         authPassword.setAttribute('autocomplete', mode === 'register' ? 'new-password' : 'current-password');
         authMessage.textContent = '';

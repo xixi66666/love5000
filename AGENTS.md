@@ -8,6 +8,7 @@
 - `lovestory`：恋爱相册 Web 应用，提供静态页面、照片上传、照片列表、删除接口和留言板功能。
 - `website`：个人主页/展示站点 Web 应用，包含主页静态资源、Web Demo、OSS Demo、Nacos Discovery 示例和个人博客微应用。
 - `imagetemplate`：图片提示词模板 Web 服务，提供模板库检索、prompt 渲染和 OpenAI 图片生成能力。
+- `python-a`：A 股自选股 AI 研究台，作为独立 Python 微应用接入，不加入 Maven 聚合模块。
 
 核心技术栈：
 
@@ -20,10 +21,13 @@
 - 连接池：Alibaba Druid
 - 对象存储：Aliyun OSS SDK
 - 图片生成：OpenAI Images API
+- Python 微应用：Python 3.9+ / ThreadingHTTPServer / DeepSeek Chat Completions API / 东方财富公开行情接口 / Obsidian Markdown
 - 测试：JUnit 5 + Spring Boot Test + Maven Surefire 2.22.2
 - 前端：原生 HTML / CSS / JavaScript
 
 **关键**：根目录 `pom.xml` 只负责模块聚合、公共版本和依赖管理。业务代码必须放在对应模块内；跨模块公共能力优先放入 `common`。
+
+**关键**：`python-a` 是独立 Python 微应用，不是 Java Maven 模块，不要把它加入父 `pom.xml` 的 `<modules>`。Java 侧只负责入口链接、反向代理或接口转发，不把 Python 业务逻辑改写进 Controller。
 
 ## 开发命令
 
@@ -72,6 +76,20 @@ mvn -pl lovestory -am spring-boot:run -Dspring-boot.run.main-class=com.ycxandwuq
 mvn -pl website -am spring-boot:run
 ```
 
+`website` 启动时会默认自动检查并启动 `python-a`。如果本机 `http://127.0.0.1:5174/api/health` 已可用，则直接复用已有 Python 服务，不重复启动。
+
+统一启动 `python-a` + `website`：
+
+```powershell
+.\scripts\start-love5000.ps1
+```
+
+指定 Java 模块或 Python 端口：
+
+```powershell
+.\scripts\start-love5000.ps1 -JavaModule website -PythonPort 5174
+```
+
 启动 `imagetemplate`，默认端口 `8082`：
 
 ```bash
@@ -85,12 +103,46 @@ set OPENAI_API_KEY=sk-your-key
 mvn -pl imagetemplate -am spring-boot:run
 ```
 
+启动 `python-a`，默认端口 `5174`：
+
+```bash
+cd python-a
+npm run start
+```
+
+也可以直接启动 Python 服务：
+
+```bash
+cd python-a
+python server.py
+```
+
+指定端口启动：
+
+```bash
+cd python-a
+set PORT=5174
+python server.py
+```
+
+配置 DeepSeek Key 后启动：
+
+```bash
+cd python-a
+set DEEPSEEK_API_KEY=your-key
+python server.py
+```
+
+日常本地联调优先使用根目录统一启动脚本，避免忘记先启动 Python 微应用。
+
 ## 项目结构
 
 ```text
 love5000/
 ├── pom.xml
 ├── AGENTS.md
+├── scripts/
+│   └── start-love5000.ps1
 ├── common/
 │   ├── AGENTS.md
 │   └── src/main/java/com/example/common/
@@ -100,21 +152,43 @@ love5000/
 ├── website/
 │   ├── AGENTS.md
 │   └── src/main/
-└── imagetemplate/
-    ├── AGENTS.md
-    └── src/
-        ├── main/java/com/example/imagetemplate/
-        │   ├── controller/
-        │   ├── dto/
-        │   ├── model/
-        │   └── service/
-        └── main/resources/
-            ├── application.yml
-            ├── static/
-            │   ├── index.html
-            │   ├── css/app.css
-            │   └── js/app.js
-            └── templates/image-prompt-templates.json
+├── imagetemplate/
+│   ├── AGENTS.md
+│   └── src/
+│       ├── main/java/com/example/imagetemplate/
+│       │   ├── controller/
+│       │   ├── dto/
+│       │   ├── model/
+│       │   └── service/
+│       └── main/resources/
+│           ├── application.yml
+│           ├── static/
+│           │   ├── index.html
+│           │   ├── css/app.css
+│           │   └── js/app.js
+│           └── templates/image-prompt-templates.json
+└── python-a/
+    ├── README.md
+    ├── package.json
+    ├── server.py
+    ├── index.html
+    ├── app.js
+    ├── styles.css
+    └── obsidian-vault/
+```
+
+`python-a` 不参与 Maven 构建，下面结构只表示其独立应用边界：
+
+```text
+python-a/
+    ├── README.md
+    ├── package.json
+    ├── server.py
+    ├── index.html
+    ├── app.js
+    ├── styles.css
+    ├── deepseek.local.json      # 本地私有配置，禁止提交
+    └── obsidian-vault/A股AI/
 ```
 
 ## 模块职责
@@ -133,6 +207,22 @@ love5000/
 - `imagetemplate/service`：模板加载、prompt 渲染、OpenAI 图片生成服务。
 - `imagetemplate/src/main/resources/templates`：图片提示词模板 JSON 数据源。
 - `imagetemplate/src/main/resources/static`：图片模板库单页前端。
+- `python-a/server.py`：Python 微应用后端，负责静态页面服务、东方财富行情网关、DeepSeek 调用和 Obsidian 写入。
+- `python-a/index.html`、`python-a/app.js`、`python-a/styles.css`：A 股自选股 AI 研究台前端页面、交互和样式。
+- `python-a/obsidian-vault/A股AI`：Python 微应用默认写入的 Obsidian 研究记录和自选股数据目录。
+
+## Python 微应用入口方式
+
+`python-a` 以独立服务方式接入 `love5000`：
+
+- 推荐本地统一入口：在根目录执行 `.\scripts\start-love5000.ps1`，脚本会先启动或复用 `python-a`，健康检查通过后再启动 `website`。
+- 本地开发入口：启动 `python-a` 后访问 `http://127.0.0.1:5174/`。
+- 健康检查入口：`GET http://127.0.0.1:5174/api/health`。
+- `website` 内置 `PythonAAutoStartRunner`，默认配置为 `python-a.auto-start.enabled=true`。直接启动 `website` 时会自动拉起 `python-a`。
+- `website` 如需提供统一首页入口，只添加跳转链接，例如“ A 股自选股 AI 研究台 -> http://127.0.0.1:5174/ ”。
+- 生产部署如需统一域名，使用 Nginx、网关或 Spring 反向代理把 `/python-a/` 转发到 `127.0.0.1:5174`。
+- `python-a` 的 `/api/**` 默认由 Python 服务自己处理。没有明确需求时，不要在 Java Controller 中重复实现这些接口。
+- `python-a` 不是 Maven 模块，不执行 `mvn -pl python-a ...`。
 
 ## 配置约定
 
@@ -141,12 +231,14 @@ love5000/
 - `website`：`8080`
 - `lovestory`：`8081`
 - `imagetemplate`：`8082`
+- `python-a`：`5174`
 
 ### 数据库
 
 - `lovestory` 使用 MySQL 数据库 `lovestory`。
 - `website` 使用 MySQL 数据库 `ycx_pms`。
 - `imagetemplate` 不使用数据库。
+- `python-a` 不使用 MySQL；默认写入本地 `python-a/obsidian-vault/A股AI/`。
 
 ⚠️ **严重警告**：不要提交真实数据库密码、OSS AccessKey、OpenAI API Key。新增配置优先使用环境变量，例如 `${OPENAI_API_KEY:}`、`${LOVE530_OSS_ACCESS_KEY_ID:}`。
 
@@ -233,6 +325,19 @@ POST /api/image-templates/{id}/prompt
 POST /api/image-templates/{id}/generate
 ```
 
+`python-a` A 股研究台接口：
+
+```text
+GET    /api/health
+GET    /api/watchlist
+POST   /api/watchlist
+DELETE /api/watchlist?code={code}
+GET    /api/stock?code={code}
+POST   /api/ai/dimension-analysis
+POST   /api/obsidian/stock-daily-review
+POST   /api/obsidian/daily-review
+```
+
 新增接口响应至少包含：
 
 ```json
@@ -256,6 +361,7 @@ POST /api/image-templates/{id}/generate
 - `website` 主页资源放在 `website/src/main/resources/static/css`、`static/js`、`static/img`。
 - `website` 博客资源放在 `website/src/main/resources/static/blog`。
 - `imagetemplate` 页面放在 `imagetemplate/src/main/resources/static`，模板 JSON 放在 `imagetemplate/src/main/resources/templates`。
+- `python-a` 页面放在 `python-a/index.html`、`python-a/app.js`、`python-a/styles.css`，由 `python-a/server.py` 直接提供静态访问。
 - 静态资源使用相对路径或明确的外部 URL，不引用本机绝对路径。
 - 不修改 `target/` 下的构建产物。
 
@@ -283,6 +389,15 @@ Spring 约定：
 - 外部 API 调用封装在独立 Service，例如 `OpenAiImageGenerationService`。
 - `common` 自动配置必须保持可选，使用 `@ConditionalOnProperty`、`@ConditionalOnClass`、`@ConditionalOnMissingBean`。
 
+Python 约定：
+
+- `python-a` 优先保持轻量，不引入 Django、Flask、FastAPI，除非有明确功能收益。
+- DeepSeek Key 优先使用环境变量 `DEEPSEEK_API_KEY`；本地私有配置文件只能使用 `deepseek.local.json`，禁止提交真实 Key。
+- `PORT`、`DEEPSEEK_API_BASE`、`DEEPSEEK_MODEL` 等运行配置优先使用环境变量。
+- `website` 自动启动 `python-a` 的配置位于 `website/src/main/resources/application.yml` 的 `python-a.auto-start`。单元测试必须关闭该开关，避免测试启动外部进程。
+- 股票研究输出必须保留风险提示和非投资建议边界，避免确定性买卖结论。
+- 涉及网络请求、文件写入和 Obsidian 写入时要保留异常处理，不能因为单个外部接口失败导致页面整体不可用。
+
 ## 测试策略
 
 当前测试框架：
@@ -300,6 +415,20 @@ mvn -pl common test
 mvn -pl lovestory -am test
 mvn -pl website -am test
 mvn -pl imagetemplate -am test
+```
+
+`python-a` 当前没有单元测试框架。修改后至少执行：
+
+```bash
+cd python-a
+python server.py
+```
+
+再访问：
+
+```text
+http://127.0.0.1:5174/
+http://127.0.0.1:5174/api/health
 ```
 
 测试要求：
@@ -339,6 +468,7 @@ mvn -pl imagetemplate -am test
 - **关键**：新增公共能力优先放入 `common`。
 - **关键**：修改数据库字段时，同步更新 Mapper XML、DAO、模型类和测试。
 - **关键**：修改 `imagetemplate` 模板 JSON 时，同步更新模板数量、分类断言和前端展示。
+- **关键**：修改 `python-a` 时不要提交 `deepseek.local.json`、`.env`、`__pycache__/`、`server.err.log`、`server.out.log`。
 - ⚠️ 不依赖远程生产 MySQL、真实 OSS、真实 OpenAI API 来通过单元测试。
 
 ## 常见任务指南
@@ -378,11 +508,31 @@ mvn -pl imagetemplate -am test
 mvn -pl common test
 ```
 
+### 修改 python-a 微应用
+
+1. 修改 `python-a/server.py`、`python-a/app.js`、`python-a/index.html` 或 `python-a/styles.css`。
+2. 保持 `python-a` 作为独立 Python 服务，不加入父 `pom.xml`。
+3. 如果新增配置，优先使用环境变量，并同步更新 `python-a/README.md` 和根 `AGENTS.md`。
+4. 如果新增 API，同步更新本文件的 `python-a` 接口列表。
+5. 运行：
+
+```bash
+cd python-a
+python server.py
+```
+
+6. 验证：
+
+```text
+GET http://127.0.0.1:5174/api/health
+```
+
 ## 代理协作原则
 
 - 先读根 `pom.xml` 和目标模块 `pom.xml`，确认模块边界后再改代码。
 - 优先使用已有包结构、命名和配置前缀。
 - 小改动只跑相关模块测试；跨模块改动跑 `mvn test`。
+- 只改 `python-a` 时，不需要跑 Maven 测试；优先启动 Python 服务并验证 `/api/health` 和主要页面流程。
 - 修改配置文件时检查是否包含密钥，能改成环境变量就改成环境变量。
 - 不修改 `.idea/`、`target/`、运行时生成文件，除非任务明确要求。
 - 后续数据库 CRUD 使用 MyBatis DAO + XML Mapper，不新增 `JdbcTemplate`、JPA Repository 或 Java 内联 SQL。

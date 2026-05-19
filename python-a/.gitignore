@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.env
+.claude/
+deepseek.local.json
+.codex-replace-git/
+server.err.log
+server.out.log
+obsidian-vault/**/.obsidian/

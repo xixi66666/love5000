@@ -1,0 +1,175 @@
+﻿# A 股自选股 AI 研究台
+
+> 当前版本：2026-05-12
+> 定位：围绕用户自己维护的少量 A 股自选股，做行情跟踪、多维度股票分析、AI 研究辅助和 Obsidian 长期记忆写入。
+> 边界：本项目只做研究辅助、信息整理、风险提示和复盘沉淀，不构成投资建议，不承诺收益，也不替代人工判断。
+
+## 当前状态
+
+这是一个轻量级本地 Web 应用。用户先维护自己的自选股池，系统从东方财富公开接口抓取行情和日 K 数据，再通过 DeepSeek 生成多维度分析草稿，并可写入 Obsidian 长期记忆。
+
+当前默认自选股为空，不再内置示例股票。首次使用时请在左侧手动加入股票代码。
+
+## 功能
+
+- 自选股池维护：新增、删除、按分组筛选。
+- 实时行情：最新价、涨跌幅、今开、最高/最低、昨收、成交额、换手率。
+- 技术图表：5/10/30 日均线和换手柱状图。
+- 量化指标：趋势评分、换手分位、风险等级、派发风险提示。
+- DeepSeek 多维分析：自动生成技术结构、量能与换手、基本面与板块、风险与反证、观察计划。
+- AI 对话分析：围绕当前股票继续提问，结果可加入复盘草稿。
+- Obsidian 写入：保存当前股票的多维度分析到 `obsidian-vault/A股AI/`。
+- 响应式布局：桌面和移动端都可使用。
+
+## 技术栈
+
+```text
+HTML
+CSS
+原生 JavaScript
+Python 3.9+
+ThreadingHTTPServer
+东方财富公开行情接口
+DeepSeek Chat Completions API
+Obsidian Markdown
+```
+
+## 文件结构
+
+```text
+index.html                         页面入口
+styles.css                         页面样式
+app.js                             前端交互、图表渲染、AI 生成按钮、Obsidian 草稿
+server.py                          本地后端：行情网关、DeepSeek 调用、Obsidian 写入
+package.json                       启动脚本
+deepseek.local.json                本地 DeepSeek API key 配置，已被 .gitignore 忽略
+obsidian-vault/A股AI/data/          自选股数据
+obsidian-vault/A股AI/股票/          单股长期记忆
+obsidian-vault/A股AI/操作记录/      每次保存生成的多维度分析记录
+```
+
+## 运行
+
+在项目目录执行：
+
+```bash
+npm run start
+```
+
+然后访问：
+
+```text
+http://127.0.0.1:5174
+```
+
+也可以直接打开 `index.html`，但离线打开时无法联网取数、无法调用 DeepSeek，也无法写入 Obsidian。
+
+## DeepSeek 配置
+
+后端优先读取环境变量：
+
+```text
+DEEPSEEK_API_KEY
+DEEPSEEK_API_BASE
+DEEPSEEK_MODEL
+```
+
+默认配置：
+
+```text
+DEEPSEEK_API_BASE=https://api.deepseek.com
+DEEPSEEK_MODEL=deepseek-v4-pro
+```
+
+也可以使用本地私有配置文件 `deepseek.local.json`：
+
+```json
+{
+  "DEEPSEEK_API_KEY": "你的 key"
+}
+```
+
+`deepseek.local.json` 已加入 `.gitignore`，不要把 API key 提交到仓库。
+
+## 使用流程
+
+1. 启动服务并打开页面。
+2. 在左侧加入需要研究的股票代码。
+3. 选择股票后查看行情、均线、换手分位和风险提示。
+4. 在右侧选择分析重点。
+5. 点击 `AI 生成维度分析`，系统会调用 DeepSeek 自动填写五个分析维度。
+6. 如需继续追问，在中间下方的 AI 对话框提问。
+7. 确认草稿后点击保存，写入该股票的 Obsidian 长期记忆。
+
+## 多维度分析字段
+
+DeepSeek 会生成以下字段：
+
+- 技术结构：趋势、均线、关键位置、形态、有效/无效信号。
+- 量能与换手：成交额、换手分位、放量/缩量、承接和抛压。
+- 基本面与板块：行业、板块共振、公司事件、估值和叙事变化。
+- 风险与反证：失效条件、潜在利空、交易分歧、待核验信息。
+- 观察计划：下一步观察点、触发条件、需要补充的数据和决策边界。
+
+提示词要求模型只输出严格 JSON，不输出确定性买卖指令，不编造未提供的公告、新闻或财务数据。
+
+## 本地 API
+
+```text
+GET  /api/health
+GET  /api/watchlist
+GET  /api/stock?code=002580
+POST /api/watchlist
+DELETE /api/watchlist?code=002580
+POST /api/ai/dimension-analysis
+POST /api/obsidian/stock-daily-review
+POST /api/obsidian/daily-review
+```
+
+## 数据来源
+
+行情数据来自东方财富公开网络接口：
+
+```text
+实时行情：push2.eastmoney.com/api/qt/stock/get
+历史日 K：push2his.eastmoney.com/api/qt/stock/kline/get
+```
+
+后端会记录数据来源、抓取时间和最新交易日。交易前仍应与交易软件、交易所公告和上市公司公告交叉核对。
+
+## Obsidian 写入
+
+默认写入目录：
+
+```text
+obsidian-vault/A股AI/
+```
+
+主要输出：
+
+```text
+股票/{股票代码}-{股票名称}.md
+操作记录/{日期}-{股票代码}-{股票名称}.md
+```
+
+保存内容包括行情快照、分析重点、技术结构、量能与换手、基本面与板块、风险与反证、观察计划、AI 维度分析、研究结论和 AI 对话记录。
+
+## 安全与合规边界
+
+系统应使用概率化、证据化、可验证的表述：
+
+```text
+建议：换手率处于高分位，且高位放量滞涨，需要观察次日承接。
+建议：当前技术结构仍强，但风险等级偏高，必须写清失效条件。
+建议：基本面信息不足，需要补充公告、财报和行业景气度数据。
+```
+
+避免确定性表述：
+
+```text
+错误：主力明天一定拉升。
+错误：这只股票必然出货。
+错误：现在可以买入。
+```
+
+所有结论都应包含证据、置信度、反证条件和后续验证窗口。

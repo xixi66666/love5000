@@ -1,0 +1,10 @@
+{
+  "name": "a-share-ai-research-desk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A-share AI stock research dashboard with watchlist, technical analysis, turnover review, and Obsidian memory draft.",
+  "scripts": {
+    "start": "python server.py",
+    "serve": "python server.py"
+  }
+}
