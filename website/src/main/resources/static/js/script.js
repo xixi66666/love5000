@@ -59,11 +59,11 @@ function setupAuth() {
 
     function openAuth(mode) {
         authMode = mode;
-        authTitle.textContent = mode === "register" ? "Register" : "Login";
+        authTitle.textContent = mode === "register" ? "Create Account" : "Login";
         authCopy.textContent = mode === "register"
-            ? "创建账号后，可以访问受保护项目。"
+            ? "创建账号后，可以访问需要鉴权的服务入口。"
             : "登录后可以访问受保护项目，并保持当前工作区连接。";
-        authSubmitButton.textContent = mode === "register" ? "Create account" : "Continue";
+        authSubmitButton.textContent = mode === "register" ? "创建账号" : "继续";
         authDisplayNameWrap.style.display = mode === "register" ? "grid" : "none";
         authDisplayName.required = mode === "register";
         authPassword.setAttribute("autocomplete", mode === "register" ? "new-password" : "current-password");
@@ -108,7 +108,7 @@ function setupAuth() {
                     target: link.target
                 };
                 openAuth("login");
-                authMessage.textContent = "需要登录后访问 " + (link.getAttribute("data-auth-target-name") || "该项目");
+                authMessage.textContent = "需要登录后访问 " + (link.getAttribute("data-auth-target-name") || "该项目") + "。";
             })
             .catch(function () {
                 pendingProtectedLink = {
