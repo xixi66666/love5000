@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>月面静栖站</title>
+    <title>西西小屋</title>
     <link rel="icon" type="image/png" sizes="1024x1024" href="img/moon-icon.png?v=5.5">
     <link rel="shortcut icon" href="favicon.ico?v=5.5">
     <meta name="description" content="西西小子的个人微服务静夜入口，连接博客、恋爱相册、AI 图片模板和 A 股 AI 研究台。">
@@ -48,16 +48,14 @@
 <main>
     <section class="hero" id="home" aria-labelledby="hero-title">
         <div class="hero-copy">
-            <div class="status-row">
-                <span class="status-dot"></span>
-                <span>跟夜风一样的声音</span>
-                <span>Spring Boot 2.6.13 / Java 8</span>
-            </div>
-            <h1 id="hero-title">月面静栖站</h1>
-            <div class="hero-actions">
-                <a class="primary-action" href="#main-nav">看看服务</a>
-            </div>
-
+            <h1 id="hero-title">西西小屋</h1>
+            <p class="hero-statement">我需要，最狂的风，和最静的海。</p>
+            <nav class="service-stack" aria-label="微服务入口">
+                <a href="http://localhost:8081/login.html" target="_blank" rel="noopener">恋爱相册</a>
+                <a href="http://localhost:8082/index.html" target="_blank" rel="noopener" data-auth-required="true" data-auth-target-name="图片模板">图片模板</a>
+                <a href="blog/index.html">技术日志</a>
+                <a href="http://127.0.0.1:5174/" target="_blank" rel="noopener">A 股研究台</a>
+            </nav>
             <aside class="mission-panel" aria-label="系统状态">
                 <div class="panel-header">
                     <span>静夜遥测</span>
