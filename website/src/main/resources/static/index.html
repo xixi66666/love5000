@@ -4,37 +4,39 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>Caleb XXY | AI Innovation Hub</title>
+    <title>Caleb XXY | Lunar Command</title>
     <link rel="icon" href="favicon.ico">
-    <meta name="description" content="Caleb XXY 的个人主页、项目入口、AI 工具与技术博客。">
-    <meta name="keywords" content="XXY, Caleb, Personal Website, Spring Boot, AI, Blog">
+    <meta name="description" content="Caleb XXY 的个人微服务月面指挥台，连接博客、恋爱相册、AI 图片模板和 A 股 AI 研究台。">
+    <meta name="keywords" content="XXY, Caleb, Spring Boot, AI, Blog, Microservice">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="css/style.css?v=3.0">
+    <link rel="stylesheet" href="css/style.css?v=4.7">
 </head>
 
 <body>
-<a class="skip-link" href="#projects">跳到项目入口</a>
+<a class="skip-link" href="#services">跳到微服务入口</a>
 
-<div class="cinematic-bg" aria-hidden="true">
-    <video class="hero-video" autoplay muted loop playsinline poster="media/hero-blackhole-poster.webp">
-        <source src="media/hero-blackhole.webm" type="video/webm">
-        <source src="media/hero-blackhole.mp4" type="video/mp4">
+<div class="cinematic-bg moon-bg" aria-hidden="true">
+    <video class="hero-video" autoplay muted loop playsinline poster="media/moon-wallpaper-poster.jpg">
+        <source src="media/moon-wallpaper.mp4" type="video/mp4">
     </video>
-    <canvas id="fallback-canvas"></canvas>
-    <div class="hero-gradient"></div>
+    <div class="moon-glow"></div>
+    <div class="hero-vignette"></div>
     <div class="hero-grain"></div>
     <div class="hero-scanline"></div>
 </div>
 
 <header class="site-header">
     <a class="brand" href="#home" aria-label="返回首页">
-        <span class="brand-symbol"></span>
-        <span>Caleb XXY</span>
+        <span class="brand-mark"></span>
+        <span>
+            <strong>LOVE530</strong>
+            <small>LUNAR COMMAND</small>
+        </span>
     </a>
     <nav class="nav-links" aria-label="主导航">
-        <a href="#projects">Projects</a>
+        <a href="#services">Services</a>
         <a href="blog/index.html">Blog</a>
-        <a href="http://127.0.0.1:5174/" target="_blank">A-Stock AI</a>
+        <a href="http://127.0.0.1:5174/" target="_blank" rel="noopener">A-Stock AI</a>
         <a class="auth-login-button" href="javascript:void(0)">Login</a>
         <a class="auth-register-button" href="javascript:void(0)">Register</a>
         <a class="auth-logout-button" href="javascript:void(0)" style="display: none;">Logout</a>
@@ -42,64 +44,109 @@
 </header>
 
 <main>
-    <section class="hero" id="home">
-        <div class="hero-content">
-            <div class="hero-pill">
-                <span></span>
-                Personal AI workspace available from May 1, 2026
+    <section class="hero" id="home" aria-labelledby="hero-title">
+        <div class="hero-copy">
+            <div class="status-row">
+                <span class="status-dot"></span>
+                <span>LUNAR GATEWAY ONLINE</span>
+                <span>Spring Boot 2.6.13 / Java 8</span>
             </div>
-            <h1>AI at the Pace of New Innovation</h1>
+            <h1 id="hero-title">月面之上，管理你的个人微服务基地</h1>
             <p>
-                连接博客、AI 图片模板、恋爱相册和 A 股研究台，把灵感、代码和实验沉淀成可以持续运行的个人数字宇宙。
+                博客、恋爱相册、图片提示词模板和 A 股 AI 研究台被整理成一组清晰入口。
+                像任务控制台一样安静、克制，但每个坐标都可以立刻抵达。
             </p>
             <div class="hero-actions">
-                <a class="primary-action" href="#projects">View Projects</a>
-                <a class="secondary-action" href="mailto:contact@xuxiny.top">Contact</a>
+                <a class="primary-action" href="#services">Launch Services</a>
+                <a class="secondary-action" href="mailto:contact@xuxiny.top">Contact Caleb</a>
             </div>
         </div>
+
+        <aside class="mission-panel" aria-label="系统状态">
+            <div class="panel-header">
+                <span>BASE TELEMETRY</span>
+                <strong>LIVE</strong>
+            </div>
+            <div class="telemetry-grid">
+                <div>
+                    <span>Modules</span>
+                    <strong>04</strong>
+                </div>
+                <div>
+                    <span>Website</span>
+                    <strong>8080</strong>
+                </div>
+                <div>
+                    <span>Python Node</span>
+                    <strong>5174</strong>
+                </div>
+                <div>
+                    <span>Auth Core</span>
+                    <strong>READY</strong>
+                </div>
+            </div>
+            <div class="signal-lines">
+                <span style="--level: 84%"></span>
+                <span style="--level: 62%"></span>
+                <span style="--level: 74%"></span>
+                <span style="--level: 48%"></span>
+            </div>
+        </aside>
+
     </section>
 
-    <section class="project-section" id="projects" aria-labelledby="projects-title">
+    <section class="service-section" id="services" aria-labelledby="services-title">
         <div class="section-heading">
-            <span>Mission Selector</span>
-            <h2 id="projects-title">项目入口</h2>
+            <span>MISSION CHANNELS</span>
+            <h2 id="services-title">选择你的下一条航线</h2>
         </div>
 
-        <div class="project-grid">
-            <a class="project-card" href="blog/index.html">
-                <span class="project-index">01</span>
+        <div class="service-grid">
+            <a class="service-card" href="blog/index.html">
+                <span class="service-index">01</span>
                 <h3>Blog 技术日志</h3>
-                <p>记录技术文章、项目复盘和长期思考。</p>
-                <span class="project-state">ONLINE</span>
+                <p>沉淀技术文章、项目复盘和长期思考，作为知识档案站持续在线。</p>
+                <span class="service-state">ONLINE</span>
             </a>
 
-            <a class="project-card" href="http://localhost:8081/login.html" target="_blank">
-                <span class="project-index">02</span>
+            <a class="service-card" href="http://localhost:8081/login.html" target="_blank" rel="noopener">
+                <span class="service-index">02</span>
                 <h3>xixi&5000 恋爱相册</h3>
-                <p>照片墙、留言板和属于两个人的时间胶囊。</p>
-                <span class="project-state">PORT 8081</span>
+                <p>照片墙、留言板和小游戏，保存属于两个人的时间胶囊。</p>
+                <span class="service-state port">PORT 8081</span>
             </a>
 
-            <a class="project-card" href="http://localhost:8082/index.html" target="_blank" data-auth-required="true" data-auth-target-name="Image Prompt Templates">
-                <span class="project-index">03</span>
+            <a class="service-card" href="http://localhost:8082/index.html" target="_blank" rel="noopener" data-auth-required="true" data-auth-target-name="Image Prompt Templates">
+                <span class="service-index">03</span>
                 <h3>Image Prompt Templates</h3>
-                <p>图片提示词模板库、变量渲染和 OpenAI 图片生成。</p>
-                <span class="project-state auth">AUTH</span>
+                <p>图片提示词模板库、变量渲染和 OpenAI 图片生成引擎。</p>
+                <span class="service-state auth">AUTH</span>
             </a>
 
-            <a class="project-card" href="http://127.0.0.1:5174/" target="_blank">
-                <span class="project-index">04</span>
+            <a class="service-card" href="http://127.0.0.1:5174/" target="_blank" rel="noopener">
+                <span class="service-index">04</span>
                 <h3>A 股自选股 AI 研究台</h3>
-                <p>Python 微应用，连接行情、AI 分析和 Obsidian 记录。</p>
-                <span class="project-state local">LOCAL</span>
+                <p>独立 Python 微应用，连接行情、DeepSeek 分析和 Obsidian 研究记录。</p>
+                <span class="service-state local">LOCAL</span>
             </a>
+        </div>
+
+        <div class="timeline-bar" aria-label="服务航线">
+            <span>BOOT</span>
+            <i></i>
+            <span>AUTH</span>
+            <i></i>
+            <span>AI</span>
+            <i></i>
+            <span>RESEARCH</span>
+            <strong>NOW</strong>
         </div>
     </section>
 </main>
 
 <footer class="site-footer">
     <span>© 2024-2026 Caleb XXY</span>
-    <a href="https://github.com/xxynet/HomePage" target="_blank">SourceCode</a>
+    <a href="https://github.com/xxynet/HomePage" target="_blank" rel="noopener">SourceCode</a>
 </footer>
 
 <div class="auth-pop-up">
@@ -124,7 +171,7 @@
     </form>
 </div>
 
-<script src="js/script.js?v=3.0"></script>
+<script src="js/script.js?v=4.7"></script>
 </body>
 
 </html>
