@@ -70,3 +70,19 @@ def test_universe_liquidity_uses_available_date(tmp_path):
     )
 
     assert universe == []
+
+
+def test_universe_tradability_uses_available_date(tmp_path):
+    repository = build_repository(tmp_path)
+    service = UniverseService(repository)
+
+    universe = service.build_universe(
+        trade_date="2024-01-02",
+        index_codes=["CSI300"],
+        min_listed_days=120,
+        min_avg_amount_20d=0,
+        include_st=False,
+        exclude_suspended=True,
+    )
+
+    assert universe == []

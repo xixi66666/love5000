@@ -42,8 +42,14 @@ class UniverseService:
             ),
             latest_bar as (
                 select code, suspend_flag
-                from daily_bar
-                where trade_date = ?
+                from (
+                    select code, suspend_flag,
+                           row_number() over (partition by code order by trade_date desc) as rn
+                    from daily_bar
+                    where trade_date <= ?
+                      and available_date <= ?
+                )
+                where rn = 1
             )
             select s.code, s.name, s.exchange, s.list_date, s.industry, s.is_st,
                    coalesce(a.avg_amount_20d, 0) as avg_amount_20d,
@@ -54,7 +60,7 @@ class UniverseService:
             left join latest_bar b on s.code = b.code
             order by s.exchange, s.code
             """.format(placeholders=", ".join(["?"] * len(index_codes))),
-            [*index_codes, trade_date, trade_date, trade_date, trade_date],
+            [*index_codes, trade_date, trade_date, trade_date, trade_date, trade_date],
         )
         trade_day = date.fromisoformat(trade_date)
         result = []
