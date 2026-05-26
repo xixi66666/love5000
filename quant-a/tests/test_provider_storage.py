@@ -1,4 +1,8 @@
+from pathlib import Path
+
 from quant.providers.mock_provider import MockProvider
+from quant.services.pipeline import QuantPipeline
+from quant.storage.repository import QuantRepository
 
 
 def test_mock_provider_returns_trade_calendar():
@@ -45,3 +49,18 @@ def test_mock_provider_returns_financial_and_valuation_data():
 
     assert any(item.code == "600001" and item.roe > 0 for item in financials)
     assert any(item.code == "600001" and item.pb > 0 for item in valuations)
+
+
+def test_repository_syncs_mock_data(tmp_path: Path):
+    db_path = tmp_path / "quant.duckdb"
+    repository = QuantRepository(db_path)
+    pipeline = QuantPipeline(repository=repository, provider=MockProvider())
+
+    result = pipeline.sync_data("2024-01-02", "2024-03-31", ["CSI300"])
+
+    assert result["data_version"] == "mock-2024-q1"
+    assert result["stock_count"] == 6
+    assert result["daily_bar_count"] > 200
+    assert repository.count_rows("stock_basic") == 6
+    assert repository.count_rows("daily_bar") == result["daily_bar_count"]
+    assert repository.latest_data_version() == "mock-2024-q1"

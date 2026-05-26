@@ -1,0 +1,60 @@
+from dataclasses import asdict, is_dataclass
+from pathlib import Path
+from typing import Iterable, List, Mapping
+
+import duckdb
+
+
+class QuantRepository:
+    def __init__(self, db_path: Path):
+        self.db_path = Path(db_path)
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self.connection = duckdb.connect(str(self.db_path))
+        self.initialize_schema()
+
+    def initialize_schema(self) -> None:
+        self.connection.execute("""
+            create table if not exists data_versions (
+                data_version varchar primary key,
+                provider varchar,
+                start_date varchar,
+                end_date varchar,
+                created_at timestamp default current_timestamp
+            )
+        """)
+        self.connection.execute("create table if not exists stock_basic as select * from (select '' as code, '' as \"name\", '' as exchange, '' as list_date, null::varchar as delist_date, '' as status, '' as industry, false as is_st) where false")
+        self.connection.execute("create table if not exists trade_calendar as select * from (select '' as trade_date, true as is_open, null::varchar as prev_trade_date, null::varchar as next_trade_date, false as is_month_end) where false")
+        self.connection.execute("create table if not exists daily_bar as select * from (select '' as trade_date, '' as code, 0.0::double as open, 0.0::double as high, 0.0::double as low, 0.0::double as close, 0.0::double as pre_close, 0.0::double as volume, 0.0::double as amount, 0.0::double as turnover_rate, 0.0::double as adj_factor, 0.0::double as limit_up, 0.0::double as limit_down, false as suspend_flag, '' as available_date, '' as data_version) where false")
+        self.connection.execute("create table if not exists valuation as select * from (select '' as trade_date, '' as code, 0.0::double as pe_ttm, 0.0::double as pb, 0.0::double as ps_ttm, 0.0::double as pcf_ttm, 0.0::double as dividend_yield, 0.0::double as total_market_value, 0.0::double as float_market_value, '' as available_date, '' as data_version) where false")
+        self.connection.execute("create table if not exists financial as select * from (select '' as code, '' as report_period, '' as announce_date, '' as available_date, 0.0::double as revenue, 0.0::double as net_profit, 0.0::double as deducted_net_profit, 0.0::double as operating_cash_flow, 0.0::double as roe, 0.0::double as roa, 0.0::double as gross_margin, 0.0::double as net_margin, 0.0::double as debt_ratio, '' as data_version) where false")
+        self.connection.execute("create table if not exists index_member as select * from (select '' as index_code, '' as code, '' as effective_date, null::varchar as expire_date, '' as data_version) where false")
+
+    def replace_table(self, table: str, rows: Iterable[object]) -> int:
+        items = [asdict(row) if is_dataclass(row) else dict(row) for row in rows]
+        self.connection.execute(f"delete from {table}")
+        if not items:
+            return 0
+        columns = list(items[0].keys())
+        placeholders = ", ".join(["?"] * len(columns))
+        column_sql = ", ".join(f'"{column}"' for column in columns)
+        values = [tuple(item[column] for column in columns) for item in items]
+        self.connection.executemany(f"insert into {table} ({column_sql}) values ({placeholders})", values)
+        return len(items)
+
+    def record_data_version(self, data_version: str, provider: str, start_date: str, end_date: str) -> None:
+        self.connection.execute(
+            "insert or replace into data_versions (data_version, provider, start_date, end_date) values (?, ?, ?, ?)",
+            [data_version, provider, start_date, end_date],
+        )
+
+    def count_rows(self, table: str) -> int:
+        return self.connection.execute(f"select count(*) from {table}").fetchone()[0]
+
+    def latest_data_version(self) -> str:
+        row = self.connection.execute("select data_version from data_versions order by created_at desc limit 1").fetchone()
+        return row[0] if row else ""
+
+    def fetch_dicts(self, query: str, params: List[object] = None) -> List[Mapping[str, object]]:
+        cursor = self.connection.execute(query, params or [])
+        columns = [column[0] for column in cursor.description]
+        return [dict(zip(columns, row)) for row in cursor.fetchall()]
