@@ -4,6 +4,8 @@ from typing import List, Optional, Protocol
 
 @dataclass(frozen=True)
 class TradeCalendarRow:
+    """Open trading day within an inclusive provider date range."""
+
     trade_date: str
     is_open: bool
     prev_trade_date: Optional[str]
@@ -25,6 +27,8 @@ class StockBasicRow:
 
 @dataclass(frozen=True)
 class DailyBarRow:
+    """Daily market data; available_date should be the next open trading day when possible."""
+
     trade_date: str
     code: str
     open: float
@@ -86,7 +90,10 @@ class IndexMemberRow:
 
 
 class DataProvider(Protocol):
+    """Provider contract using inclusive start/end date ranges."""
+
     def get_trade_calendar(self, start_date: str, end_date: str) -> List[TradeCalendarRow]:
+        """Return open trading days only for the inclusive date range."""
         raise NotImplementedError
 
     def get_stock_basic(self) -> List[StockBasicRow]:

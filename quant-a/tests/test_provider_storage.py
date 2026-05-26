@@ -24,6 +24,19 @@ def test_mock_provider_returns_index_members_and_daily_bars():
     assert all(bar.available_date > bar.trade_date for bar in bars)
 
 
+def test_mock_provider_available_date_skips_closed_dates():
+    provider = MockProvider()
+
+    bars = provider.get_daily_bars("2023-12-29", "2023-12-29")
+
+    assert any(
+        bar.code == "600001"
+        and bar.trade_date == "2023-12-29"
+        and bar.available_date == "2024-01-02"
+        for bar in bars
+    )
+
+
 def test_mock_provider_returns_financial_and_valuation_data():
     provider = MockProvider()
 

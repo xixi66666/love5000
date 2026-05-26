@@ -133,6 +133,6 @@ class MockProvider:
             return calendar_row.next_trade_date
 
         current = date.fromisoformat(calendar_row.trade_date) + timedelta(days=1)
-        while current.weekday() >= 5:
+        while current.weekday() >= 5 or current.isoformat() in self.closed_dates:
             current += timedelta(days=1)
         return current.isoformat()
