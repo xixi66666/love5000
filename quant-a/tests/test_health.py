@@ -28,3 +28,17 @@ def test_workbench_page_is_served():
     assert response.status_code == 200
     assert "quant-a" in response.text
     assert "多因子量化研究工作台" in response.text
+
+
+def test_status_exposes_configured_versions():
+    client = TestClient(app)
+
+    response = client.get("/api/status")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["data"]["service"] == "quant-a"
+    assert payload["data"]["model_version"] == "v0.1"
+    assert payload["data"]["provider"] == "mock"
+    assert payload["data"]["storage"]["duckdb_path"].endswith("data/quant.duckdb")

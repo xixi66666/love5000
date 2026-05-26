@@ -1,0 +1,10 @@
+universe:
+  type: index_members
+  indexes:
+    - CSI300
+    - CSI500
+  filters:
+    include_st: false
+    min_listed_days: 120
+    min_avg_amount_20d: 50000000
+    exclude_suspended: true

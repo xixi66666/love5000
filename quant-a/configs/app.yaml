@@ -1,0 +1,12 @@
+app:
+  name: quant-a
+  host: 127.0.0.1
+  port: 5175
+provider:
+  active: mock
+storage:
+  duckdb_path: data/quant.duckdb
+  parquet_root: data
+versions:
+  model_version: v0.1
+  config_version: app-v0.1

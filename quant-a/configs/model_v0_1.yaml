@@ -1,0 +1,12 @@
+model:
+  name: Value-Quality-Momentum
+  version: v0.1
+  weights:
+    value: 0.30
+    quality: 0.35
+    momentum: 0.25
+  risk_penalty:
+    max_points: 10.0
+  top_n: 30
+  industry_weight_limit: 0.30
+  single_stock_weight_limit: 0.05
