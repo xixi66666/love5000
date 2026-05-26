@@ -4,11 +4,137 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>quant-a 多因子量化研究工作台</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="/static/app.js" defer></script>
 </head>
 <body>
-    <main>
-        <h1>quant-a 多因子量化研究工作台</h1>
-        <p>专业 A 股多因子研究、评分、回测和风险披露。</p>
+    <main class="workbench">
+        <header class="topbar">
+            <div>
+                <p class="eyebrow">quant-a</p>
+                <h1>多因子量化研究工作台</h1>
+            </div>
+            <section class="status-strip" aria-label="服务状态">
+                <div class="status-item">
+                    <span>服务</span>
+                    <strong id="serviceStatus">加载中</strong>
+                </div>
+                <div class="status-item">
+                    <span>数据源</span>
+                    <strong id="providerStatus">-</strong>
+                </div>
+                <div class="status-item">
+                    <span>模型版本</span>
+                    <strong id="modelStatus">-</strong>
+                </div>
+            </section>
+        </header>
+
+        <section class="control-panel" aria-label="研究参数">
+            <label>
+                <span>开始日期</span>
+                <input id="startDate" type="date" value="2024-01-02">
+            </label>
+            <label>
+                <span>结束日期</span>
+                <input id="endDate" type="date" value="2024-03-31">
+            </label>
+            <label>
+                <span>评分日期</span>
+                <input id="scoreDate" type="date" value="2024-03-29">
+            </label>
+            <label>
+                <span>指数池</span>
+                <input id="indexCodes" type="text" value="CSI300" placeholder="CSI300, CSI500">
+            </label>
+            <label>
+                <span>初始资金</span>
+                <input id="initialCash" type="number" min="10000" step="10000" value="1000000">
+            </label>
+            <div class="actions" aria-label="主要动作">
+                <button id="syncButton" type="button">同步数据</button>
+                <button id="scoreButton" type="button">运行评分</button>
+                <button id="backtestButton" type="button">运行回测</button>
+            </div>
+        </section>
+
+        <div id="notice" class="notice" role="status" aria-live="polite">等待操作。</div>
+
+        <section class="result-grid">
+            <section class="section-block scores-block" aria-labelledby="scoresTitle">
+                <div class="section-heading">
+                    <h2 id="scoresTitle">评分表</h2>
+                    <span id="scoreMeta">尚未运行</span>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>排名</th>
+                                <th>代码</th>
+                                <th>名称</th>
+                                <th>行业</th>
+                                <th>综合评分</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scoreTableBody">
+                            <tr>
+                                <td colspan="5" class="empty">运行评分后显示股票池排序结果。</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="section-block metrics-block" aria-labelledby="metricsTitle">
+                <div class="section-heading">
+                    <h2 id="metricsTitle">回测指标</h2>
+                    <span id="backtestMeta">尚未运行</span>
+                </div>
+                <dl id="metricsList" class="metrics-list">
+                    <div>
+                        <dt>起始净值</dt>
+                        <dd>-</dd>
+                    </div>
+                    <div>
+                        <dt>结束净值</dt>
+                        <dd>-</dd>
+                    </div>
+                    <div>
+                        <dt>区间收益</dt>
+                        <dd>-</dd>
+                    </div>
+                    <div>
+                        <dt>最大回撤</dt>
+                        <dd>-</dd>
+                    </div>
+                    <div>
+                        <dt>订单数</dt>
+                        <dd>-</dd>
+                    </div>
+                </dl>
+            </section>
+
+            <section class="section-block disclosure-block" aria-labelledby="riskTitle">
+                <div class="section-heading">
+                    <h2 id="riskTitle">风险/偏差披露</h2>
+                    <span>研究用途</span>
+                </div>
+                <ul id="biasList" class="bias-list">
+                    <li>回测结果仅用于验证研究流程，不构成任何投资建议。</li>
+                </ul>
+            </section>
+
+            <section class="section-block summary-block" aria-labelledby="summaryTitle">
+                <div class="section-heading">
+                    <h2 id="summaryTitle">订单与 NAV 摘要</h2>
+                    <span id="summaryMeta">可选摘要</span>
+                </div>
+                <div id="summaryContent" class="summary-content">
+                    <p>运行回测后显示最近 NAV、订单数量和成交状态摘要。</p>
+                </div>
+            </section>
+        </section>
     </main>
 </body>
 </html>

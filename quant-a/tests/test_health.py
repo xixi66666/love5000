@@ -28,6 +28,15 @@ def test_workbench_page_is_served():
     assert response.status_code == 200
     assert "quant-a" in response.text
     assert "多因子量化研究工作台" in response.text
+    assert "运行回测" in response.text
+    assert 'href="/static/styles.css"' in response.text
+    assert 'src="/static/app.js"' in response.text
+
+    css_response = client.get("/static/styles.css")
+    js_response = client.get("/static/app.js")
+
+    assert css_response.status_code == 200
+    assert js_response.status_code == 200
 
 
 def test_status_exposes_configured_versions():
