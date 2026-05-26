@@ -1,12 +1,13 @@
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from quant.providers.base import DataProvider
 from quant.providers.mock_provider import MockProvider
 from quant.storage.repository import QuantRepository
 
 
 class QuantPipeline:
-    def __init__(self, repository: Optional[QuantRepository] = None, provider: Optional[MockProvider] = None):
+    def __init__(self, repository: Optional[QuantRepository] = None, provider: Optional[DataProvider] = None):
         self.repository = repository or QuantRepository(Path("data/quant.duckdb"))
         self.provider = provider or MockProvider()
 

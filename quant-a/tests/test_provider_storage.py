@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from quant.providers.mock_provider import MockProvider
 from quant.services.pipeline import QuantPipeline
 from quant.storage.repository import QuantRepository
@@ -64,3 +66,22 @@ def test_repository_syncs_mock_data(tmp_path: Path):
     assert repository.count_rows("stock_basic") == 6
     assert repository.count_rows("daily_bar") == result["daily_bar_count"]
     assert repository.latest_data_version() == "mock-2024-q1"
+
+
+def test_repository_rejects_invalid_table_names(tmp_path: Path):
+    repository = QuantRepository(tmp_path / "quant.duckdb")
+
+    with pytest.raises(ValueError):
+        repository.replace_table("stock_basic; drop table trade_calendar; --", [])
+
+    assert repository.count_rows("trade_calendar") == 0
+
+
+def test_repository_rejects_invalid_columns_and_preserves_existing_rows(tmp_path: Path):
+    repository = QuantRepository(tmp_path / "quant.duckdb")
+    repository.replace_table("stock_basic", [MockProvider().get_stock_basic()[0]])
+
+    with pytest.raises(ValueError):
+        repository.replace_table("stock_basic", [{"code": "600001", "unexpected": "bad"}])
+
+    assert repository.count_rows("stock_basic") == 1
