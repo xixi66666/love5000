@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from quant.common.config import load_app_config
@@ -8,7 +8,6 @@ from quant.common.response import success
 from quant.services.pipeline import QuantPipeline
 
 router = APIRouter(prefix="/api")
-pipeline = QuantPipeline()
 
 
 class SyncRequest(BaseModel):
@@ -27,6 +26,10 @@ class BacktestRequest(BaseModel):
     end_date: str
     index_codes: List[str]
     initial_cash: float
+
+
+def get_pipeline() -> QuantPipeline:
+    return QuantPipeline()
 
 
 @router.get("/health")
@@ -51,17 +54,17 @@ def status():
 
 
 @router.post("/data/sync")
-def sync_data(request: SyncRequest):
+def sync_data(request: SyncRequest, pipeline: QuantPipeline = Depends(get_pipeline)):
     return success(pipeline.sync_data(request.start_date, request.end_date, request.index_codes))
 
 
 @router.post("/scores/run")
-def run_scores(request: ScoreRequest):
+def run_scores(request: ScoreRequest, pipeline: QuantPipeline = Depends(get_pipeline)):
     return success(pipeline.run_scores(request.trade_date, request.index_codes))
 
 
 @router.post("/backtests/run")
-def run_backtest(request: BacktestRequest):
+def run_backtest(request: BacktestRequest, pipeline: QuantPipeline = Depends(get_pipeline)):
     return success(pipeline.run_backtest(
         request.start_date,
         request.end_date,

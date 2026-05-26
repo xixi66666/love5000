@@ -3,6 +3,7 @@ from typing import Dict, List, Optional
 
 from quant.backtest.service import BacktestService
 from quant.calendar.service import TradingCalendarService
+from quant.common.config import load_app_config, load_model_config, load_universe_config
 from quant.factors.engine import FactorEngine
 from quant.portfolio.service import PortfolioService
 from quant.providers.mock_provider import MockProvider
@@ -15,7 +16,9 @@ from quant.universe.service import UniverseService
 
 class QuantPipeline:
     def __init__(self, repository: Optional[QuantRepository] = None, provider: Optional[MockProvider] = None):
-        self.repository = repository or QuantRepository(Path("data/quant.duckdb"))
+        app_config = load_app_config()
+        duckdb_path = app_config["storage"]["duckdb_path"]
+        self.repository = repository or QuantRepository(Path(duckdb_path))
         self.provider = provider or MockProvider()
 
     def sync_data(self, start_date: str, end_date: str, index_codes: List[str]) -> Dict[str, object]:
@@ -42,9 +45,23 @@ class QuantPipeline:
         }
 
     def run_scores(self, trade_date: str, index_codes: List[str]) -> Dict[str, object]:
-        universe = UniverseService(self.repository).build_universe(trade_date, index_codes, 120, 50000000, False, True)
+        universe_filters = load_universe_config()["universe"]["filters"]
+        model_config = load_model_config()["model"]
+        universe = UniverseService(self.repository).build_universe(
+            trade_date,
+            index_codes,
+            universe_filters["min_listed_days"],
+            universe_filters["min_avg_amount_20d"],
+            universe_filters["include_st"],
+            universe_filters["exclude_suspended"],
+        )
         factors = FactorEngine(self.repository).calculate(trade_date, universe)
-        scores = ScoringService().score(trade_date, factors, self.repository.latest_data_version(), "v0.1")
+        scores = ScoringService().score(
+            trade_date,
+            factors,
+            self.repository.latest_data_version(),
+            model_config["version"],
+        )
         return {
             "trade_date": trade_date,
             "scores": scores,
@@ -64,7 +81,15 @@ class QuantPipeline:
                     "reason": str(exc),
                 })
 
-        backtest = BacktestService(self.repository, calendar, PortfolioService(top_n=3, single_stock_weight_limit=0.05))
+        model_config = load_model_config()["model"]
+        backtest = BacktestService(
+            self.repository,
+            calendar,
+            PortfolioService(
+                top_n=model_config["top_n"],
+                single_stock_weight_limit=model_config["single_stock_weight_limit"],
+            ),
+        )
         result = backtest.run(start_date, end_date, scores_by_date, initial_cash)
         report = ReportService(RiskService()).build_report(result["experiment_id"], result)
         return {
