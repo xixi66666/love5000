@@ -1,0 +1,34 @@
+from quant.providers.mock_provider import MockProvider
+
+
+def test_mock_provider_returns_trade_calendar():
+    provider = MockProvider()
+
+    calendar = provider.get_trade_calendar("2024-01-01", "2024-03-31")
+
+    assert len(calendar) >= 40
+    assert calendar[0].trade_date == "2024-01-02"
+    assert calendar[0].is_open is True
+    assert calendar[-1].next_trade_date is None
+
+
+def test_mock_provider_returns_index_members_and_daily_bars():
+    provider = MockProvider()
+
+    members = provider.get_index_members(["CSI300"], "2024-01-31")
+    bars = provider.get_daily_bars("2024-01-02", "2024-03-31")
+
+    assert {member.index_code for member in members} == {"CSI300"}
+    assert len(members) == 6
+    assert any(bar.code == "600001" and bar.trade_date == "2024-01-02" for bar in bars)
+    assert all(bar.available_date > bar.trade_date for bar in bars)
+
+
+def test_mock_provider_returns_financial_and_valuation_data():
+    provider = MockProvider()
+
+    financials = provider.get_financials()
+    valuations = provider.get_valuation("2024-01-02", "2024-03-31")
+
+    assert any(item.code == "600001" and item.roe > 0 for item in financials)
+    assert any(item.code == "600001" and item.pb > 0 for item in valuations)
