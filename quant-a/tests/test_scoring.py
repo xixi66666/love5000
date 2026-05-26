@@ -1,6 +1,8 @@
 from pathlib import Path
 
-from quant.factors.engine import FactorEngine
+import pytest
+
+from quant.factors.engine import FactorEngine, rank_percentile
 from quant.providers.mock_provider import MockProvider
 from quant.scoring.service import ScoringService
 from quant.services.pipeline import QuantPipeline
@@ -27,6 +29,69 @@ def test_factor_engine_calculates_vqm_factors(tmp_path):
     assert 0 <= first["value_score"] <= 100
     assert 0 <= first["quality_score"] <= 100
     assert 0 <= first["momentum_score"] <= 100
+
+
+def test_rank_percentile_assigns_equal_score_to_ties():
+    scores = rank_percentile([1.0, 1.0, 0.0])
+
+    assert scores[0] == scores[1]
+    assert scores[0] > scores[2]
+
+
+def test_factor_engine_rejects_invalid_valuation_metric(tmp_path):
+    repository = build_repository(tmp_path)
+    repository.connection.execute("update valuation set pb = 0 where code = '600001'")
+    universe = UniverseService(repository).build_universe("2024-03-29", ["CSI300"], 120, 50000000, False, True)
+
+    with pytest.raises(ValueError, match="600001.*pb"):
+        FactorEngine(repository).calculate("2024-03-29", universe)
+
+
+def test_factor_engine_rejects_invalid_financial_profit(tmp_path):
+    repository = build_repository(tmp_path)
+    repository.connection.execute("update financial set net_profit = 0 where code = '600001'")
+    universe = UniverseService(repository).build_universe("2024-03-29", ["CSI300"], 120, 50000000, False, True)
+
+    with pytest.raises(ValueError, match="600001.*net_profit"):
+        FactorEngine(repository).calculate("2024-03-29", universe)
+
+
+def test_factor_engine_reports_missing_valuation_inputs(tmp_path):
+    repository = build_repository(tmp_path)
+    repository.connection.execute("delete from valuation where code = '600001'")
+    universe = UniverseService(repository).build_universe("2024-03-29", ["CSI300"], 120, 50000000, False, True)
+
+    with pytest.raises(ValueError, match="600001.*valuation"):
+        FactorEngine(repository).calculate("2024-03-29", universe)
+
+
+def test_factor_engine_reports_missing_financial_inputs(tmp_path):
+    repository = build_repository(tmp_path)
+    repository.connection.execute("delete from financial where code = '600001'")
+    universe = UniverseService(repository).build_universe("2024-03-29", ["CSI300"], 120, 50000000, False, True)
+
+    with pytest.raises(ValueError, match="600001.*financial"):
+        FactorEngine(repository).calculate("2024-03-29", universe)
+
+
+def test_factor_engine_reports_missing_momentum_inputs(tmp_path):
+    repository = build_repository(tmp_path)
+    repository.connection.execute("delete from daily_bar where code = '600001'")
+    universe = UniverseService(repository).build_universe("2024-03-29", ["CSI300"], 120, 50000000, False, True)
+    universe.append({
+        "code": "600001",
+        "name": "mock",
+        "exchange": "SH",
+        "list_date": "2010-01-01",
+        "industry": "mock",
+        "is_st": False,
+        "avg_amount_20d": 100000000,
+        "suspend_flag": False,
+        "listed_days": 5000,
+    })
+
+    with pytest.raises(ValueError, match="600001.*daily_bar"):
+        FactorEngine(repository).calculate("2024-03-29", universe)
 
 
 def test_scoring_service_ranks_total_score(tmp_path):

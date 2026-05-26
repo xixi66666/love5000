@@ -9,8 +9,15 @@ def rank_percentile(values: List[float], higher_is_better: bool = True) -> List[
     if len(indexed) == 1:
         return [100.0]
     scores = [0.0] * len(indexed)
-    for rank, (index, _value) in enumerate(indexed):
-        scores[index] = round(100.0 * (len(indexed) - rank - 1) / (len(indexed) - 1), 4)
+    rank = 0
+    while rank < len(indexed):
+        end_rank = rank
+        while end_rank + 1 < len(indexed) and indexed[end_rank + 1][1] == indexed[rank][1]:
+            end_rank += 1
+        percentile = 100.0 * (len(indexed) - ((rank + end_rank) / 2.0) - 1) / (len(indexed) - 1)
+        for tied_rank in range(rank, end_rank + 1):
+            scores[indexed[tied_rank][0]] = round(percentile, 4)
+        rank = end_rank + 1
     return scores
 
 
@@ -30,14 +37,17 @@ class FactorEngine:
         raw_rows = []
         for stock in universe:
             code = str(stock["code"])
+            validation_errors = self._validate_inputs(code, valuations, financials, returns)
+            if validation_errors:
+                raise ValueError(f"Missing factor inputs for codes: {'; '.join(validation_errors)}")
             valuation = valuations[code]
             financial = financials[code]
             raw = {
-                "pb_inverse": 1.0 / max(float(valuation["pb"]), 0.01),
-                "pe_ttm_inverse": 1.0 / max(float(valuation["pe_ttm"]), 0.01),
-                "ps_ttm_inverse": 1.0 / max(float(valuation["ps_ttm"]), 0.01),
+                "pb_inverse": 1.0 / float(valuation["pb"]),
+                "pe_ttm_inverse": 1.0 / float(valuation["pe_ttm"]),
+                "ps_ttm_inverse": 1.0 / float(valuation["ps_ttm"]),
                 "roe": float(financial["roe"]),
-                "operating_cash_flow_to_profit": float(financial["operating_cash_flow"]) / max(float(financial["net_profit"]), 1.0),
+                "operating_cash_flow_to_profit": float(financial["operating_cash_flow"]) / float(financial["net_profit"]),
                 "gross_margin": float(financial["gross_margin"]),
                 "debt_ratio_inverse": 1.0 - float(financial["debt_ratio"]),
                 "return_60d_exclude_5d": returns[code]["return_60d_exclude_5d"],
@@ -62,6 +72,32 @@ class FactorEngine:
             row["risk_penalty"] = 0.0
             row["liquidity_flag"] = "ok"
         return raw_rows
+
+    def _validate_inputs(
+        self,
+        code: str,
+        valuations: Dict[str, Dict[str, object]],
+        financials: Dict[str, Dict[str, object]],
+        returns: Dict[str, Dict[str, float]],
+    ) -> List[str]:
+        errors = []
+        valuation = valuations.get(code)
+        if valuation is None:
+            errors.append(f"{code}: valuation")
+        else:
+            for field in ["pe_ttm", "pb", "ps_ttm"]:
+                if float(valuation[field]) <= 0:
+                    errors.append(f"{code}: {field}")
+
+        financial = financials.get(code)
+        if financial is None:
+            errors.append(f"{code}: financial")
+        elif float(financial["net_profit"]) <= 0:
+            errors.append(f"{code}: net_profit")
+
+        if code not in returns:
+            errors.append(f"{code}: daily_bar")
+        return errors
 
     def _latest_valuations(self, trade_date: str, codes: List[str]) -> Dict[str, Dict[str, object]]:
         placeholders = ", ".join(["?"] * len(codes))
@@ -128,6 +164,8 @@ class FactorEngine:
             by_code[str(row["code"])].append(dict(row))
         result = {}
         for code, series in by_code.items():
+            if not series:
+                continue
             closes = [float(row["close"]) for row in series]
             latest_index = max(0, len(closes) - 6)
             start_60 = max(0, latest_index - 60)
