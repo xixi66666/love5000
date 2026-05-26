@@ -38,4 +38,6 @@ def test_scoring_service_ranks_total_score(tmp_path):
     assert len(scores) == 6
     assert scores[0]["rank"] == 1
     assert scores[0]["total_score"] >= scores[-1]["total_score"]
+    total_scores = [item["total_score"] for item in scores]
+    assert total_scores == sorted(total_scores, reverse=True)
     assert scores[0]["model_version"] == "v0.1"
