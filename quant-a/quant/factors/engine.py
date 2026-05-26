@@ -39,7 +39,7 @@ class FactorEngine:
             code = str(stock["code"])
             validation_errors = self._validate_inputs(code, valuations, financials, returns)
             if validation_errors:
-                raise ValueError(f"Missing factor inputs for codes: {'; '.join(validation_errors)}")
+                raise ValueError(f"Invalid or missing factor inputs for codes: {'; '.join(validation_errors)}")
             valuation = valuations[code]
             financial = financials[code]
             raw = {
@@ -73,6 +73,24 @@ class FactorEngine:
             row["liquidity_flag"] = "ok"
         return raw_rows
 
+    def _require_present_number(
+        self,
+        row: Dict[str, object],
+        code: str,
+        field: str,
+        errors: List[str],
+        positive: bool = False,
+    ) -> None:
+        try:
+            value = row[field]
+            numeric_value = float(value)
+        except (KeyError, TypeError, ValueError):
+            errors.append(f"{code}: {field}")
+            return
+
+        if positive and numeric_value <= 0:
+            errors.append(f"{code}: {field}")
+
     def _validate_inputs(
         self,
         code: str,
@@ -86,14 +104,15 @@ class FactorEngine:
             errors.append(f"{code}: valuation")
         else:
             for field in ["pe_ttm", "pb", "ps_ttm"]:
-                if float(valuation[field]) <= 0:
-                    errors.append(f"{code}: {field}")
+                self._require_present_number(valuation, code, field, errors, positive=True)
 
         financial = financials.get(code)
         if financial is None:
             errors.append(f"{code}: financial")
-        elif float(financial["net_profit"]) <= 0:
-            errors.append(f"{code}: net_profit")
+        else:
+            for field in ["roe", "operating_cash_flow", "gross_margin", "debt_ratio"]:
+                self._require_present_number(financial, code, field, errors)
+            self._require_present_number(financial, code, "net_profit", errors, positive=True)
 
         if code not in returns:
             errors.append(f"{code}: daily_bar")
