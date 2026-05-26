@@ -10,7 +10,7 @@
     <meta name="description" content="西西小子的个人微服务静夜入口，连接博客、恋爱相册、AI 图片模板和 A 股 AI 研究台。">
     <meta name="keywords" content="Spring Boot, AI, Blog, Microservice">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="css/style.css?v=5.5">
+    <link rel="stylesheet" href="css/style.css?v=5.8">
 </head>
 
 <body>
@@ -35,10 +35,11 @@
     </a>
     <nav class="nav-links" id="main-nav" aria-label="主导航">
         <a href="#home">首页</a>
-        <a href="http://localhost:8081/login.html" target="_blank" rel="noopener">5000</a>
-        <a href="http://localhost:8082/index.html" target="_blank" rel="noopener" data-auth-required="true" data-auth-target-name="Image Prompt Templates">Photo</a>
-        <a href="blog/index.html">技术日志</a>
-        <a href="http://127.0.0.1:5174/" target="_blank" rel="noopener">A 股研究台</a>
+        <a href="http://localhost:8081/login.html" target="_blank" rel="noopener">xixi & 5000</a>
+        <a href="http://localhost:8082/index.html" target="_blank" rel="noopener" data-auth-required="true" data-auth-target-name="图片模板">Photo</a>
+        <a href="blog/index.html">Blog</a>
+        <a href="http://127.0.0.1:5174/" target="_blank" rel="noopener">股票分析台</a>
+        <a href="http://127.0.0.1:5175/" target="_blank" rel="noopener">Quant</a>
         <a class="auth-login-button" href="javascript:void(0)">Login</a>
         <a class="auth-register-button" href="javascript:void(0)">Register</a>
         <a class="auth-logout-button" href="javascript:void(0)" style="display: none;">Logout</a>
@@ -50,37 +51,28 @@
         <div class="hero-copy">
             <h1 id="hero-title">西西小屋</h1>
             <p class="hero-statement">我需要，最狂的风，和最静的海。</p>
-            <nav class="service-stack" aria-label="微服务入口">
-                <a href="http://localhost:8081/login.html" target="_blank" rel="noopener">恋爱相册</a>
-                <a href="http://localhost:8082/index.html" target="_blank" rel="noopener" data-auth-required="true" data-auth-target-name="图片模板">图片模板</a>
-                <a href="blog/index.html">技术日志</a>
-                <a href="http://127.0.0.1:5174/" target="_blank" rel="noopener">A 股研究台</a>
+            <nav class="service-grid" aria-label="微服务入口">
+                <a class="service-card service-card-love" href="http://localhost:8081/login.html" target="_blank" rel="noopener" data-health-url="http://localhost:8081/login.html" data-health-mode="no-cors">
+                    <strong>xixi & 5000 · 8081</strong>
+                    <span class="service-status" aria-label="检测中" title="检测中"></span>
+                </a>
+                <a class="service-card service-card-image" href="http://localhost:8082/index.html" target="_blank" rel="noopener" data-auth-required="true" data-auth-target-name="图片模板" data-health-url="http://localhost:8082/index.html" data-health-mode="no-cors">
+                    <strong>Photo · 8082</strong>
+                    <span class="service-status" aria-label="检测中" title="检测中"></span>
+                </a>
+                <a class="service-card service-card-blog" href="blog/index.html" data-health-url="/blog/index.html">
+                    <strong>Blog · 8080</strong>
+                    <span class="service-status" aria-label="检测中" title="检测中"></span>
+                </a>
+                <a class="service-card service-card-stock" href="http://127.0.0.1:5174/" target="_blank" rel="noopener" data-health-url="http://127.0.0.1:5174/api/health" data-health-mode="no-cors">
+                    <strong>Fuck Quantitative Trading · 5174</strong>
+                    <span class="service-status" aria-label="检测中" title="检测中"></span>
+                </a>
+                <a class="service-card service-card-quant" href="http://127.0.0.1:5175/" target="_blank" rel="noopener" data-health-url="http://127.0.0.1:5175/api/health" data-health-mode="no-cors">
+                    <strong>Quant 研究台 · 5175</strong>
+                    <span class="service-status" aria-label="检测中" title="检测中"></span>
+                </a>
             </nav>
-            <aside class="mission-panel" aria-label="系统状态">
-                <div class="panel-header">
-                    <span>静夜遥测</span>
-                    <strong>在线</strong>
-                </div>
-                <div class="telemetry-grid">
-                    <div>
-                        <span>服务</span>
-                        <strong>04</strong>
-                    </div>
-                    <div>
-                        <span>主页</span>
-                        <strong>8080</strong>
-                    </div>
-                    <div>
-                        <span>研究台</span>
-                        <strong>5174</strong>
-                    </div>
-                    <div>
-                        <span>鉴权</span>
-                        <strong>READY</strong>
-                    </div>
-                </div>
-                <p class="mission-note">各处入口轻声守候，需要时再被点亮。</p>
-            </aside>
         </div>
 
     </section>
@@ -112,7 +104,7 @@
     </form>
 </div>
 
-<script src="js/script.js?v=5.5"></script>
+<script src="js/script.js?v=5.8"></script>
 </body>
 
 </html>

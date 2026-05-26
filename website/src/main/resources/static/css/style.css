@@ -15,6 +15,7 @@
     --green: #9ef4cc;
     --rose: #ff91b7;
     --shadow: 0 26px 100px rgba(0, 0, 0, 0.56);
+    --accent: var(--blue);
 }
 
 * {
@@ -292,14 +293,14 @@ main {
     position: relative;
     min-height: 92svh;
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     width: 100%;
     margin: 0;
-    padding: 120px 180px 92px clamp(28px, 5vw, 72px);
+    padding: 118px clamp(34px, 7vw, 132px) 92px clamp(28px, 5vw, 72px);
 }
 
 .hero-copy {
-    max-width: 360px;
+    width: min(420px, 100%);
     padding: 0 0 8px;
 }
 
@@ -445,167 +446,161 @@ main {
     transform: translateY(-2px);
 }
 
-.service-stack {
-    position: relative;
+.service-grid {
+    position: absolute;
+    top: 50%;
+    right: clamp(34px, 8vw, 150px);
+    transform: translateY(-50%);
     display: grid;
-    gap: 11px;
-    width: min(286px, 100%);
-    margin-top: 28px;
-    padding-left: 0;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    width: min(140px, 100%);
+    margin-top: 0;
 }
 
-.service-stack::before {
+.service-grid::before {
     content: "";
     position: absolute;
-    inset: -10px -12px;
+    inset: -10px;
     z-index: -1;
-    border-radius: 18px;
+    border-radius: 16px;
     background:
-        radial-gradient(circle at 16% 12%, rgba(220, 233, 247, 0.1), transparent 28%),
-        linear-gradient(180deg, rgba(158, 244, 204, 0.055), transparent 58%);
-    filter: blur(0.2px);
+        radial-gradient(circle at 14% 18%, rgba(220, 233, 247, 0.08), transparent 32%),
+        linear-gradient(180deg, rgba(3, 6, 10, 0.12), rgba(3, 6, 10, 0.04));
     pointer-events: none;
 }
 
-.service-stack a {
+.service-card {
+    --accent-rgb: 159, 208, 255;
     position: relative;
-    min-height: 46px;
+    min-height: 40px;
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    gap: 8px;
     overflow: hidden;
-    padding: 0 18px 0 20px;
-    border: 1px solid rgba(220, 233, 247, 0.18);
-    border-radius: 999px;
-    color: rgba(244, 248, 251, 0.74);
+    padding: 0 10px 0 12px;
+    border: 1px solid rgba(var(--accent-rgb), 0.24);
+    border-radius: 8px;
+    color: rgba(244, 248, 251, 0.82);
     background:
-        radial-gradient(circle at 88% 50%, rgba(158, 244, 204, 0.1), transparent 30%),
-        linear-gradient(100deg, rgba(226, 239, 255, 0.13), rgba(8, 12, 17, 0.54) 34%, rgba(8, 12, 17, 0.2));
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055), inset 0 -1px 0 rgba(158, 244, 204, 0.05), 0 12px 34px rgba(0, 0, 0, 0.18);
-    backdrop-filter: blur(12px) saturate(1.05);
-    font-size: 13px;
-    font-weight: 740;
-    letter-spacing: 0;
-    transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+        radial-gradient(circle at 92% 20%, rgba(var(--accent-rgb), 0.12), transparent 32%),
+        linear-gradient(100deg, rgba(14, 19, 26, 0.64), rgba(4, 8, 13, 0.34));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.065),
+        inset 0 -1px 0 rgba(var(--accent-rgb), 0.06),
+        0 12px 34px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(12px) saturate(1.08);
+    transition: transform 0.22s ease, border-color 0.22s ease, background 0.22s ease, box-shadow 0.22s ease;
 }
 
-.service-stack a::before {
+.service-card::before {
     content: "";
     position: absolute;
-    left: 10px;
-    top: 9px;
-    bottom: 9px;
-    width: 2px;
-    border-radius: 999px;
-    background: linear-gradient(180deg, rgba(220, 233, 247, 0.62), rgba(158, 244, 204, 0.36));
-    box-shadow: 0 0 12px rgba(158, 244, 204, 0.16);
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(100deg, rgba(255, 255, 255, 0.08), transparent 34%);
+    opacity: 0.46;
+    pointer-events: none;
 }
 
-.service-stack a::after {
+.service-card::after {
     content: "";
     position: absolute;
-    left: -44%;
-    top: 0;
-    width: 42%;
-    height: 100%;
-    transform: skewX(-18deg);
-    background: linear-gradient(90deg, transparent, rgba(220, 233, 247, 0.14), transparent);
-    transition: left 0.42s ease;
+    left: 12px;
+    right: 12px;
+    bottom: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(var(--accent-rgb), 0.62), transparent);
+    opacity: 0.5;
+    pointer-events: none;
 }
 
-.service-stack a:hover,
-.service-stack a:focus-visible {
-    color: rgba(255, 255, 255, 0.92);
-    border-color: rgba(220, 233, 247, 0.42);
+.service-card-love {
+    --accent-rgb: 255, 145, 183;
+}
+
+.service-card-image {
+    --accent-rgb: 159, 208, 255;
+}
+
+.service-card-blog {
+    --accent-rgb: 220, 233, 247;
+}
+
+.service-card-stock {
+    --accent-rgb: 158, 244, 204;
+}
+
+.service-card-quant {
+    --accent-rgb: 246, 196, 83;
+}
+
+.service-card strong {
+    position: relative;
+    z-index: 1;
+    min-width: 0;
+    color: rgba(255, 255, 255, 0.9);
+    overflow: hidden;
+    font-size: 12px;
+    font-weight: 720;
+    line-height: 1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.service-status {
+    position: relative;
+    z-index: 1;
+    flex: 0 0 auto;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(220, 233, 247, 0.34);
+    box-shadow: 0 0 0 3px rgba(220, 233, 247, 0.06);
+}
+
+.service-card.is-online .service-status {
+    background: rgba(158, 244, 204, 0.95);
+    box-shadow: 0 0 0 3px rgba(158, 244, 204, 0.1), 0 0 16px rgba(158, 244, 204, 0.36);
+}
+
+.service-card.is-offline .service-status {
+    background: rgba(255, 112, 122, 0.92);
+    box-shadow: 0 0 0 3px rgba(255, 112, 122, 0.1), 0 0 16px rgba(255, 112, 122, 0.26);
+}
+
+.service-card:hover,
+.service-card:focus-visible {
+    border-color: rgba(var(--accent-rgb), 0.52);
     background:
-        radial-gradient(circle at 88% 50%, rgba(158, 244, 204, 0.17), transparent 32%),
-        linear-gradient(100deg, rgba(226, 239, 255, 0.2), rgba(14, 23, 24, 0.66) 38%, rgba(8, 12, 17, 0.26));
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 -1px 0 rgba(158, 244, 204, 0.1), 0 0 24px rgba(159, 208, 255, 0.12), 0 14px 42px rgba(0, 0, 0, 0.24);
+        radial-gradient(circle at 92% 20%, rgba(var(--accent-rgb), 0.18), transparent 34%),
+        linear-gradient(100deg, rgba(18, 25, 34, 0.74), rgba(5, 9, 15, 0.42));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.085),
+        inset 0 -1px 0 rgba(var(--accent-rgb), 0.1),
+        0 0 0 1px rgba(var(--accent-rgb), 0.08),
+        0 16px 44px rgba(0, 0, 0, 0.26),
+        0 0 28px rgba(var(--accent-rgb), 0.09);
     outline: none;
     transform: translateX(3px);
 }
 
-.service-stack a:hover::after,
-.service-stack a:focus-visible::after {
-    left: 102%;
+.service-card:focus-visible {
+    box-shadow:
+        0 0 0 3px rgba(var(--accent-rgb), 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.085),
+        0 16px 44px rgba(0, 0, 0, 0.26);
 }
 
-.mission-panel {
-    margin-top: 18px;
-    width: 260px;
-    padding: 12px;
-    border: 1px solid var(--line-quiet);
-    border-radius: 8px;
-    background: linear-gradient(145deg, rgba(8, 12, 17, 0.32), rgba(3, 6, 10, 0.16));
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.028), 0 14px 44px rgba(0, 0, 0, 0.18);
-    backdrop-filter: blur(8px) saturate(1.02);
+.service-card:active {
+    transform: translateX(1px);
 }
 
-.panel-header,
 .site-footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
-}
-
-.panel-header {
-    margin-bottom: 10px;
-    color: rgba(244, 248, 251, 0.48);
-    font-size: 11px;
-    font-weight: 760;
-}
-
-.panel-header strong {
-    color: rgba(158, 244, 204, 0.68);
-}
-
-.telemetry-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 7px;
-}
-
-.telemetry-grid div {
-    min-height: 42px;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    padding: 8px 9px;
-    border: 1px solid rgba(255, 255, 255, 0.065);
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.016);
-}
-
-.telemetry-grid span {
-    color: rgba(244, 248, 251, 0.42);
-    font-size: 11px;
-    line-height: 1.4;
-}
-
-.telemetry-grid strong {
-    color: rgba(244, 248, 251, 0.58);
-    font-size: 13px;
-    line-height: 1;
-}
-
-.mission-note {
-    margin-top: 10px;
-    color: rgba(244, 248, 251, 0.38);
-    font-size: 11px;
-    line-height: 1.65;
-}
-
-.signal-lines {
-    display: grid;
-    gap: 6px;
-    margin-top: 10px;
-}
-
-.signal-lines span {
-    height: 3px;
-    border-radius: 999px;
-    background: linear-gradient(90deg, rgba(159, 208, 255, 0.56) var(--level), rgba(255, 255, 255, 0.055) var(--level));
 }
 
 .site-footer {
@@ -712,13 +707,10 @@ main {
         padding-top: 128px;
     }
 
-    .mission-panel {
-        width: min(100%, 520px);
+    .service-grid {
+        right: clamp(24px, 5vw, 54px);
     }
 
-    .telemetry-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
 }
 
 @media (max-width: 720px) {
@@ -747,6 +739,8 @@ main {
     .hero {
         width: 100%;
         min-height: auto;
+        display: flex;
+        align-items: stretch;
         padding: 178px 20px 132px;
     }
 
@@ -756,17 +750,31 @@ main {
     }
 
     .hero-copy {
+        width: 100%;
         padding-bottom: 0;
     }
 
-    .service-stack {
-        width: min(280px, 100%);
-        gap: 10px;
+    .service-grid {
+        position: relative;
+        top: auto;
+        right: auto;
+        transform: none;
+        width: min(140px, 100%);
+        gap: 8px;
+        margin-top: 18px;
     }
 
-    .service-stack a {
-        min-height: 42px;
-        padding: 0 14px;
+    .service-grid::before {
+        inset: -10px;
+        border-radius: 18px;
+    }
+
+    .service-card {
+        min-height: 40px;
+        padding: 0 10px 0 12px;
+    }
+
+    .service-card strong {
         font-size: 12px;
     }
 
@@ -793,10 +801,6 @@ main {
     .primary-action,
     .secondary-action {
         width: min(240px, 100%);
-    }
-
-    .telemetry-grid {
-        grid-template-columns: 1fr;
     }
 
     .site-footer {
@@ -829,7 +833,8 @@ main {
 
     .primary-action,
     .secondary-action,
-    .nav-links a {
+    .nav-links a,
+    .service-card {
         transition: none;
     }
 }

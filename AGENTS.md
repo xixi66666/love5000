@@ -9,6 +9,7 @@
 - `website`：个人主页/展示站点 Web 应用，包含主页静态资源、Web Demo、OSS Demo、Nacos Discovery 示例和个人博客微应用。
 - `imagetemplate`：图片提示词模板 Web 服务，提供模板库检索、prompt 渲染和 OpenAI 图片生成能力。
 - `python-a`：A 股自选股 AI 研究台，作为独立 Python 微应用接入，不加入 Maven 聚合模块。
+- `quant-a`：A 股量化研究台，作为独立 FastAPI 微服务接入，不加入 Maven 聚合模块，不写入 `python-a` 的 Obsidian 目录。
 
 核心技术栈：
 
@@ -21,13 +22,15 @@
 - 连接池：Alibaba Druid
 - 对象存储：Aliyun OSS SDK
 - 图片生成：OpenAI Images API
-- Python 微应用：Python 3.9+ / ThreadingHTTPServer / DeepSeek Chat Completions API / 东方财富公开行情接口 / Obsidian Markdown
+- Python 微应用：Python 3.9+ / ThreadingHTTPServer / FastAPI / Uvicorn / DeepSeek Chat Completions API / 东方财富公开行情接口 / Obsidian Markdown
 - 测试：JUnit 5 + Spring Boot Test + Maven Surefire 2.22.2
 - 前端：原生 HTML / CSS / JavaScript
 
 **关键**：根目录 `pom.xml` 只负责模块聚合、公共版本和依赖管理。业务代码必须放在对应模块内；跨模块公共能力优先放入 `common`。
 
 **关键**：`python-a` 是独立 Python 微应用，不是 Java Maven 模块，不要把它加入父 `pom.xml` 的 `<modules>`。Java 侧只负责入口链接、反向代理或接口转发，不把 Python 业务逻辑改写进 Controller。
+
+**关键**：`quant-a` 是独立 FastAPI 微服务，不是 Java Maven 模块，不要把它加入父 `pom.xml` 的 `<modules>`。它的数据、配置和测试保持在 `quant-a/` 内，不写入 `python-a/obsidian-vault/`。
 
 ## 开发命令
 
@@ -90,6 +93,18 @@ mvn -pl website -am spring-boot:run
 .\scripts\start-love5000.ps1 -JavaModule website -PythonPort 5174
 ```
 
+可选启动 `quant-a` + `python-a` + `website`：
+
+```powershell
+.\scripts\start-love5000.ps1 -StartQuant
+```
+
+指定 Quant 端口：
+
+```powershell
+.\scripts\start-love5000.ps1 -StartQuant -QuantPort 5175
+```
+
 启动 `imagetemplate`，默认端口 `8082`：
 
 ```bash
@@ -133,6 +148,20 @@ set DEEPSEEK_API_KEY=your-key
 python server.py
 ```
 
+启动 `quant-a`，默认端口 `5175`：
+
+```bash
+cd quant-a
+python -m uvicorn main:app --host 127.0.0.1 --port 5175
+```
+
+运行 `quant-a` 测试：
+
+```bash
+cd quant-a
+python -m pytest
+```
+
 日常本地联调优先使用根目录统一启动脚本，避免忘记先启动 Python 微应用。
 
 ## 项目结构
@@ -167,7 +196,7 @@ love5000/
 │           │   ├── css/app.css
 │           │   └── js/app.js
 │           └── templates/image-prompt-templates.json
-└── python-a/
+├── python-a/
     ├── README.md
     ├── package.json
     ├── server.py
@@ -175,6 +204,13 @@ love5000/
     ├── app.js
     ├── styles.css
     └── obsidian-vault/
+└── quant-a/
+    ├── main.py
+    ├── requirements.txt
+    ├── configs/
+    ├── quant/
+    ├── tests/
+    └── web/
 ```
 
 `python-a` 不参与 Maven 构建，下面结构只表示其独立应用边界：
@@ -189,6 +225,24 @@ python-a/
     ├── styles.css
     ├── deepseek.local.json      # 本地私有配置，禁止提交
     └── obsidian-vault/A股AI/
+```
+
+`quant-a` 不参与 Maven 构建，下面结构只表示其独立 FastAPI 微服务边界：
+
+```text
+quant-a/
+    ├── main.py
+    ├── requirements.txt
+    ├── configs/
+    ├── quant/
+    │   ├── api/
+    │   ├── backtest/
+    │   ├── factors/
+    │   ├── portfolio/
+    │   ├── providers/
+    │   └── services/
+    ├── tests/
+    └── web/
 ```
 
 ## 模块职责
@@ -210,6 +264,10 @@ python-a/
 - `python-a/server.py`：Python 微应用后端，负责静态页面服务、东方财富行情网关、DeepSeek 调用和 Obsidian 写入。
 - `python-a/index.html`、`python-a/app.js`、`python-a/styles.css`：A 股自选股 AI 研究台前端页面、交互和样式。
 - `python-a/obsidian-vault/A股AI`：Python 微应用默认写入的 Obsidian 研究记录和自选股数据目录。
+- `quant-a/main.py`：Quant FastAPI 应用入口，挂载前端静态资源并注册 `/api/**` 路由。
+- `quant-a/quant`：量化研究核心代码，包含 API、因子、回测、组合、行情提供方、服务编排和存储。
+- `quant-a/tests`：Quant 微服务测试，使用 pytest 和 FastAPI TestClient。
+- `quant-a/web`：Quant 研究台前端页面和静态资源。
 
 ## Python 微应用入口方式
 
@@ -224,6 +282,27 @@ python-a/
 - `python-a` 的 `/api/**` 默认由 Python 服务自己处理。没有明确需求时，不要在 Java Controller 中重复实现这些接口。
 - `python-a` 不是 Maven 模块，不执行 `mvn -pl python-a ...`。
 
+## Quant 微服务入口方式
+
+`quant-a` 以独立 FastAPI 服务方式接入 `love5000`：
+
+- 默认不随 `.\scripts\start-love5000.ps1` 启动，避免影响原有本地联调流程；需要时显式传入 `-StartQuant`。
+- 本地开发入口：启动 `quant-a` 后访问 `http://127.0.0.1:5175/`。
+- 健康检查入口：`GET http://127.0.0.1:5175/api/health`，响应中的 `success` 必须为 `true`。
+- 推荐命令：`python -m uvicorn main:app --host 127.0.0.1 --port 5175`，工作目录为 `quant-a/`。
+- `website` 只提供入口链接和健康检测，不把 `quant-a` 业务逻辑改写进 Java Controller。
+- 生产部署如需统一域名，使用 Nginx、网关或 Spring 反向代理把 `/quant-a/` 转发到 `127.0.0.1:5175`。
+- `quant-a` 的 `/api/**` 默认由 FastAPI 服务自己处理。没有明确需求时，不要在 Java Controller 中重复实现这些接口。
+- `quant-a` 不是 Maven 模块，不执行 `mvn -pl quant-a ...`，也不要写入 `python-a/obsidian-vault/`。
+
+## 微服务主页入口约定
+
+- 新增任何 Java 模块、Python 微应用或独立微服务时，必须同步更新 `website/src/main/resources/static/index.html` 的主页面入口。
+- 主页面入口需要包含服务名称、端口或访问标识，并配置实时可用性检测地址。
+- 入口样式和状态点维护在 `website/src/main/resources/static/css/style.css`，健康检测逻辑维护在 `website/src/main/resources/static/js/script.js`。
+- 如果新增服务没有专门健康检查接口，优先使用其首页或登录页作为检测地址；跨端口检测可使用前端 `no-cors` 方式，只把网络失败视为不可用。
+- 新增入口后同步检查顶部导航是否需要增加跳转链接，避免主页入口和导航信息不一致。
+
 ## 配置约定
 
 ### 端口
@@ -232,6 +311,7 @@ python-a/
 - `lovestory`：`8081`
 - `imagetemplate`：`8082`
 - `python-a`：`5174`
+- `quant-a`：`5175`
 
 ### 数据库
 
@@ -239,6 +319,7 @@ python-a/
 - `website` 使用 MySQL 数据库 `ycx_pms`。
 - `imagetemplate` 不使用数据库。
 - `python-a` 不使用 MySQL；默认写入本地 `python-a/obsidian-vault/A股AI/`。
+- `quant-a` 不使用 MySQL；默认使用 `quant-a/` 内部数据、配置和存储目录，不写入 `python-a` 的 Obsidian 目录。
 
 ⚠️ **严重警告**：不要提交真实数据库密码、OSS AccessKey、OpenAI API Key。新增配置优先使用环境变量，例如 `${OPENAI_API_KEY:}`、`${LOVE530_OSS_ACCESS_KEY_ID:}`。
 
@@ -338,6 +419,16 @@ POST   /api/obsidian/stock-daily-review
 POST   /api/obsidian/daily-review
 ```
 
+`quant-a` Quant 研究台接口：
+
+```text
+GET  /api/health
+GET  /api/status
+POST /api/data/sync
+POST /api/scores/run
+POST /api/backtests/run
+```
+
 新增接口响应至少包含：
 
 ```json
@@ -362,6 +453,7 @@ POST   /api/obsidian/daily-review
 - `website` 博客资源放在 `website/src/main/resources/static/blog`。
 - `imagetemplate` 页面放在 `imagetemplate/src/main/resources/static`，模板 JSON 放在 `imagetemplate/src/main/resources/templates`。
 - `python-a` 页面放在 `python-a/index.html`、`python-a/app.js`、`python-a/styles.css`，由 `python-a/server.py` 直接提供静态访问。
+- `quant-a` 页面放在 `quant-a/web`，由 `quant-a/main.py` 通过 FastAPI 静态资源能力提供访问。
 - 静态资源使用相对路径或明确的外部 URL，不引用本机绝对路径。
 - 不修改 `target/` 下的构建产物。
 
@@ -397,6 +489,8 @@ Python 约定：
 - `website` 自动启动 `python-a` 的配置位于 `website/src/main/resources/application.yml` 的 `python-a.auto-start`。单元测试必须关闭该开关，避免测试启动外部进程。
 - 股票研究输出必须保留风险提示和非投资建议边界，避免确定性买卖结论。
 - 涉及网络请求、文件写入和 Obsidian 写入时要保留异常处理，不能因为单个外部接口失败导致页面整体不可用。
+- `quant-a` 使用 FastAPI + Uvicorn，运行配置优先使用环境变量或 `quant-a/configs` 内配置文件；不要把 `quant-a` 加入 Maven modules，不要复用或写入 `python-a/obsidian-vault/`。
+- `quant-a` 的量化评分、回测和报告输出必须保留风险提示和非投资建议边界，避免确定性买卖结论。
 
 ## 测试策略
 
@@ -431,6 +525,21 @@ http://127.0.0.1:5174/
 http://127.0.0.1:5174/api/health
 ```
 
+`quant-a` 修改后至少执行：
+
+```bash
+cd quant-a
+python -m pytest
+python -m uvicorn main:app --host 127.0.0.1 --port 5175
+```
+
+再访问：
+
+```text
+http://127.0.0.1:5175/
+http://127.0.0.1:5175/api/health
+```
+
 测试要求：
 
 - `common` 工具类写纯单元测试，不依赖真实 OSS。
@@ -438,6 +547,7 @@ http://127.0.0.1:5174/api/health
 - `website/blog` 新增 controller/service/dao 逻辑必须覆盖成功路径和主要失败路径。
 - `imagetemplate` 模板渲染测试必须覆盖分类、关键词、变量替换和模板不存在。
 - OpenAI 图片生成测试不得真实调用外部 API；使用 mock 或可注入 HTTP 客户端。
+- `quant-a` 新增 API、因子、回测、组合或服务编排逻辑时，使用 pytest 覆盖成功路径和主要失败路径，不依赖真实外部行情接口。
 
 覆盖率目标：
 
@@ -469,6 +579,7 @@ mvn -pl imagetemplate -am test
 - **关键**：修改数据库字段时，同步更新 Mapper XML、DAO、模型类和测试。
 - **关键**：修改 `imagetemplate` 模板 JSON 时，同步更新模板数量、分类断言和前端展示。
 - **关键**：修改 `python-a` 时不要提交 `deepseek.local.json`、`.env`、`__pycache__/`、`server.err.log`、`server.out.log`。
+- **关键**：修改 `quant-a` 时不要提交 `.env`、`__pycache__/`、`.pytest_cache/`、运行时数据库、缓存或生成报告；不要写入 `python-a/obsidian-vault/`。
 - ⚠️ 不依赖远程生产 MySQL、真实 OSS、真实 OpenAI API 来通过单元测试。
 
 ## 常见任务指南
