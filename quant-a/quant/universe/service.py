@@ -27,7 +27,7 @@ class UniverseService:
                   and (expire_date is null or expire_date > ?)
             ),
             amount_20d as (
-                select code, avg(amount * 100) as avg_amount_20d
+                select code, avg(amount) as avg_amount_20d
                 from (
                     select code, amount,
                            row_number() over (partition by code order by trade_date desc) as rn
