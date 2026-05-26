@@ -38,3 +38,35 @@ def test_universe_builds_filtered_index_pool(tmp_path):
     assert len(universe) == 6
     assert universe[0]["code"] == "600001"
     assert all(item["avg_amount_20d"] >= 50000000 for item in universe)
+
+
+def test_universe_returns_empty_for_empty_index_codes(tmp_path):
+    repository = build_repository(tmp_path)
+    service = UniverseService(repository)
+
+    universe = service.build_universe(
+        trade_date="2024-01-31",
+        index_codes=[],
+        min_listed_days=120,
+        min_avg_amount_20d=50000000,
+        include_st=False,
+        exclude_suspended=True,
+    )
+
+    assert universe == []
+
+
+def test_universe_liquidity_uses_available_date(tmp_path):
+    repository = build_repository(tmp_path)
+    service = UniverseService(repository)
+
+    universe = service.build_universe(
+        trade_date="2024-01-02",
+        index_codes=["CSI300"],
+        min_listed_days=120,
+        min_avg_amount_20d=50000000,
+        include_st=False,
+        exclude_suspended=True,
+    )
+
+    assert universe == []

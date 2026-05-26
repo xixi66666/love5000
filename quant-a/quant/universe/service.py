@@ -17,6 +17,9 @@ class UniverseService:
         include_st: bool,
         exclude_suspended: bool,
     ) -> List[Dict[str, object]]:
+        if not index_codes:
+            return []
+
         rows = self.repository.fetch_dicts(
             """
             with member_pool as (
@@ -32,7 +35,7 @@ class UniverseService:
                     select code, amount,
                            row_number() over (partition by code order by trade_date desc) as rn
                     from daily_bar
-                    where trade_date <= ?
+                    where available_date <= ?
                 )
                 where rn <= 20
                 group by code
@@ -44,7 +47,7 @@ class UniverseService:
             )
             select s.code, s.name, s.exchange, s.list_date, s.industry, s.is_st,
                    coalesce(a.avg_amount_20d, 0) as avg_amount_20d,
-                   coalesce(b.suspend_flag, false) as suspend_flag
+                   b.suspend_flag as suspend_flag
             from stock_basic s
             join member_pool m on s.code = m.code
             left join amount_20d a on s.code = a.code
@@ -61,7 +64,7 @@ class UniverseService:
                 continue
             if not include_st and row["is_st"]:
                 continue
-            if exclude_suspended and row["suspend_flag"]:
+            if exclude_suspended and (row["suspend_flag"] is None or row["suspend_flag"]):
                 continue
             if float(row["avg_amount_20d"]) < min_avg_amount_20d:
                 continue
