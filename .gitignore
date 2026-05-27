@@ -32,3 +32,16 @@ build/
 ### VS Code ###
 .vscode/
 out/
+
+### Python runtime artifacts ###
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.env
+*.log
+
+### Local microservice data ###
+quant-a/data/
+python-a/deepseek.local.json
+python-a/server.out.log
+python-a/server.err.log
