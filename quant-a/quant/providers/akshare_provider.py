@@ -74,12 +74,15 @@ class AkShareProvider:
             ))
         return rows
 
-    def get_daily_bars(self, start_date: str, end_date: str) -> List[DailyBarRow]:
+    def get_daily_bars(self, start_date: str, end_date: str, codes: Optional[List[str]] = None) -> List[DailyBarRow]:
         ak = self._akshare()
         self.errors = []
         calendar_by_date = {row.trade_date: row for row in self.get_trade_calendar(start_date, end_date)}
+        code_filter = set(codes or [])
         rows = []
         for stock in self.get_stock_basic():
+            if code_filter and stock.code not in code_filter:
+                continue
             try:
                 df = ak.stock_zh_a_hist(
                     symbol=stock.code,
@@ -118,9 +121,9 @@ class AkShareProvider:
                 ))
         return rows
 
-    def get_valuation(self, start_date: str, end_date: str) -> List[ValuationRow]:
+    def get_valuation(self, start_date: str, end_date: str, codes: Optional[List[str]] = None) -> List[ValuationRow]:
         rows = []
-        for bar in self.get_daily_bars(start_date, end_date):
+        for bar in self.get_daily_bars(start_date, end_date, codes=codes):
             rows.append(ValuationRow(
                 trade_date=bar.trade_date,
                 code=bar.code,

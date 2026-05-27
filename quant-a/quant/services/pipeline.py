@@ -66,12 +66,73 @@ class QuantPipeline:
             **result,
         }
 
+    def sync_data_daily_fast(
+        self,
+        start_date: str,
+        end_date: str,
+        index_codes: List[str],
+        sync_date: Optional[str] = None,
+        force: bool = False,
+    ) -> Dict[str, object]:
+        today = sync_date or date.today().isoformat()
+        cached_snapshot = self.repository.latest_data_snapshot_for_day(self.provider_name, today)
+        if cached_snapshot and not force:
+            return self._daily_sync_result("cached", True, cached_snapshot)
+
+        calendar = self.provider.get_trade_calendar(start_date, end_date)
+        stocks = self.provider.get_stock_basic()
+        financials = self.provider.get_financials()
+        members = self.provider.get_index_members(index_codes, end_date)
+        data_version = self.provider.data_version
+
+        counts = {
+            "calendar_count": self.repository.replace_table("trade_calendar", calendar),
+            "stock_count": self.repository.replace_table("stock_basic", stocks),
+            "daily_bar_count": self.repository.replace_table("daily_bar", []),
+            "valuation_count": self.repository.replace_table("valuation", []),
+            "financial_count": self.repository.replace_table("financial", financials),
+            "index_member_count": self.repository.replace_table("index_member", members),
+        }
+        self.repository.record_data_version(data_version, self.provider_name, start_date, end_date)
+        return {
+            "status": "stock_pool_synced",
+            "cache_hit": False,
+            "data_version": data_version,
+            **counts,
+        }
+
+    def sync_market_data_batch(self, start_date: str, end_date: str, batch_size: int = 100) -> Dict[str, object]:
+        pending_codes = self._pending_market_data_codes()
+        batch_codes = pending_codes[:batch_size]
+        daily_bars = self.provider.get_daily_bars(start_date, end_date, codes=batch_codes)
+        valuations = self.provider.get_valuation(start_date, end_date, codes=batch_codes)
+
+        self.repository.delete_rows_for_codes("daily_bar", "code", batch_codes)
+        self.repository.delete_rows_for_codes("valuation", "code", batch_codes)
+        daily_bar_count = self.repository.append_rows("daily_bar", daily_bars)
+        valuation_count = self.repository.append_rows("valuation", valuations)
+
+        return {
+            "status": "market_batch_synced",
+            "batch_size": batch_size,
+            "processed_count": len(batch_codes),
+            "remaining_count": max(0, len(pending_codes) - len(batch_codes)),
+            "daily_bar_count": daily_bar_count,
+            "valuation_count": valuation_count,
+        }
+
     def daily_sync_snapshot(self, sync_date: Optional[str] = None) -> Optional[Dict[str, object]]:
         today = sync_date or date.today().isoformat()
         cached_snapshot = self.repository.latest_data_snapshot_for_day(self.provider_name, today)
         if not cached_snapshot:
             return None
-        return self._daily_sync_result("cached", True, cached_snapshot)
+        total_stocks = self.repository.count_rows("stock_basic")
+        market_synced_count = self._market_synced_count()
+        status = "cached" if total_stocks > 0 and market_synced_count >= total_stocks else "stock_pool_synced"
+        result = self._daily_sync_result(status, True, cached_snapshot)
+        result["market_synced_count"] = market_synced_count
+        result["market_remaining_count"] = max(0, total_stocks - market_synced_count)
+        return result
 
     def run_scores(self, trade_date: str, index_codes: List[str]) -> Dict[str, object]:
         universe_filters = load_universe_config()["universe"]["filters"]
@@ -135,6 +196,22 @@ class QuantPipeline:
         if class_name.endswith("Provider"):
             class_name = class_name[:-len("Provider")]
         return class_name.lower()
+
+    def _pending_market_data_codes(self) -> List[str]:
+        rows = self.repository.fetch_dicts("""
+            select s.code
+            from stock_basic s
+            left join (
+                select distinct code from daily_bar
+            ) d on s.code = d.code
+            where d.code is null
+            order by s.exchange, s.code
+        """)
+        return [str(row["code"]) for row in rows]
+
+    def _market_synced_count(self) -> int:
+        row = self.repository.fetch_dicts("select count(distinct code) as count from daily_bar")
+        return int(row[0]["count"]) if row else 0
 
     def _daily_sync_result(self, status: str, cache_hit: bool, snapshot: Dict[str, object]) -> Dict[str, object]:
         return {

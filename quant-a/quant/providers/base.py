@@ -99,10 +99,10 @@ class DataProvider(Protocol):
     def get_stock_basic(self) -> List[StockBasicRow]:
         raise NotImplementedError
 
-    def get_daily_bars(self, start_date: str, end_date: str) -> List[DailyBarRow]:
+    def get_daily_bars(self, start_date: str, end_date: str, codes: Optional[List[str]] = None) -> List[DailyBarRow]:
         raise NotImplementedError
 
-    def get_valuation(self, start_date: str, end_date: str) -> List[ValuationRow]:
+    def get_valuation(self, start_date: str, end_date: str, codes: Optional[List[str]] = None) -> List[ValuationRow]:
         raise NotImplementedError
 
     def get_financials(self) -> List[FinancialRow]:

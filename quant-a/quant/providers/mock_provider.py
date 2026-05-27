@@ -60,10 +60,13 @@ class MockProvider:
                 rows.append(IndexMemberRow(index_code, code, "2024-01-01", None, self.data_version))
         return rows
 
-    def get_daily_bars(self, start_date: str, end_date: str) -> List[DailyBarRow]:
+    def get_daily_bars(self, start_date: str, end_date: str, codes: List[str] = None) -> List[DailyBarRow]:
         calendar = self.get_trade_calendar(start_date, end_date)
+        code_filter = set(codes or [])
         rows = []
         for code_index, (code, *_rest) in enumerate(self.codes):
+            if code_filter and code not in code_filter:
+                continue
             base = 10.0 + code_index * 3
             for day_index, cal in enumerate(calendar):
                 close = round(base + day_index * (0.05 + code_index * 0.01), 2)
@@ -88,10 +91,13 @@ class MockProvider:
                 ))
         return rows
 
-    def get_valuation(self, start_date: str, end_date: str) -> List[ValuationRow]:
+    def get_valuation(self, start_date: str, end_date: str, codes: List[str] = None) -> List[ValuationRow]:
         calendar = self.get_trade_calendar(start_date, end_date)
+        code_filter = set(codes or [])
         rows = []
         for code_index, (code, *_rest) in enumerate(self.codes):
+            if code_filter and code not in code_filter:
+                continue
             for cal in calendar:
                 rows.append(ValuationRow(
                     trade_date=cal.trade_date,

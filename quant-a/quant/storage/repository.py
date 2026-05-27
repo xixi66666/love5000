@@ -101,6 +101,30 @@ class QuantRepository:
             self.connection.execute("rollback")
             raise
 
+    def append_rows(self, table: str, rows: Iterable[object]) -> int:
+        table_name = self._table_name(table)
+        items = [asdict(row) if is_dataclass(row) else dict(row) for row in rows]
+        columns = self._column_names(table, items)
+        if not items:
+            return 0
+        placeholders = ", ".join(["?"] * len(columns))
+        column_sql = ", ".join(f'"{column}"' for column in columns)
+        values = [tuple(item[column] for column in columns) for item in items]
+        self.connection.executemany(f"insert into {table_name} ({column_sql}) values ({placeholders})", values)
+        return len(items)
+
+    def delete_rows_for_codes(self, table: str, code_column: str, codes: List[str]) -> None:
+        if not codes:
+            return
+        table_name = self._table_name(table)
+        if code_column not in TABLE_COLUMNS[table]:
+            raise ValueError(f"Unknown column for {table}: {code_column}")
+        placeholders = ", ".join(["?"] * len(codes))
+        self.connection.execute(
+            f'delete from {table_name} where "{code_column}" in ({placeholders})',
+            codes,
+        )
+
     def record_data_version(self, data_version: str, provider: str, start_date: str, end_date: str) -> None:
         self.connection.execute(
             "insert or replace into data_versions (data_version, provider, start_date, end_date) values (?, ?, ?, ?)",

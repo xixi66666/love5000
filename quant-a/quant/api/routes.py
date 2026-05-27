@@ -16,6 +16,7 @@ class SyncRequest(BaseModel):
     start_date: str
     end_date: str
     index_codes: List[str]
+    force: bool = False
 
 
 class ScoreRequest(BaseModel):
@@ -40,7 +41,16 @@ def run_daily_sync_task():
 
 def _run_daily_sync(pipeline: QuantPipeline, request: SyncRequest) -> None:
     try:
-        pipeline.sync_data_daily(request.start_date, request.end_date, request.index_codes)
+        pipeline.sync_data_daily_fast(
+            request.start_date,
+            request.end_date,
+            request.index_codes,
+            force=request.force,
+        )
+        while True:
+            result = pipeline.sync_market_data_batch(request.start_date, request.end_date)
+            if result["remaining_count"] == 0:
+                break
     finally:
         daily_sync_lock.release()
 
@@ -79,7 +89,7 @@ def sync_data_daily(
     daily_sync_task=Depends(run_daily_sync_task),
 ):
     cached_snapshot = pipeline.daily_sync_snapshot()
-    if cached_snapshot:
+    if cached_snapshot and not request.force:
         return success(cached_snapshot)
 
     if not daily_sync_lock.acquire(blocking=False):
