@@ -32,3 +32,12 @@ python-a:
     port: 5174
     health-path: /api/health
     startup-timeout-seconds: 20
+
+quant-a:
+  auto-start:
+    enabled: true
+    work-dir: quant-a
+    command: "C:\\Users\\xixixiaozi\\AppData\\Local\\Programs\\Python\\Python311\\python.exe"
+    port: 5175
+    health-path: /api/health
+    startup-timeout-seconds: 30

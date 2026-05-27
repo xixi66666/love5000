@@ -277,6 +277,7 @@ quant-a/
 - 本地开发入口：启动 `python-a` 后访问 `http://127.0.0.1:5174/`。
 - 健康检查入口：`GET http://127.0.0.1:5174/api/health`。
 - `website` 内置 `PythonAAutoStartRunner`，默认配置为 `python-a.auto-start.enabled=true`。直接启动 `website` 时会自动拉起 `python-a`。
+- `website` 内置 `QuantAAutoStartRunner`，默认配置为 `quant-a.auto-start.enabled=true`。直接启动 `website` 时会自动拉起或复用 `quant-a`。
 - `website` 如需提供统一首页入口，只添加跳转链接，例如“ A 股自选股 AI 研究台 -> http://127.0.0.1:5174/ ”。
 - 生产部署如需统一域名，使用 Nginx、网关或 Spring 反向代理把 `/python-a/` 转发到 `127.0.0.1:5174`。
 - `python-a` 的 `/api/**` 默认由 Python 服务自己处理。没有明确需求时，不要在 Java Controller 中重复实现这些接口。
@@ -286,7 +287,8 @@ quant-a/
 
 `quant-a` 以独立 FastAPI 服务方式接入 `love5000`：
 
-- 默认不随 `.\scripts\start-love5000.ps1` 启动，避免影响原有本地联调流程；需要时显式传入 `-StartQuant`。
+- 直接启动 `website` 时会默认自动检查并启动 `quant-a`。如果本机 `http://127.0.0.1:5175/api/health` 已可用，则直接复用已有 Quant 服务，不重复启动。
+- 根目录脚本 `.\scripts\start-love5000.ps1` 仍保留显式 `-StartQuant` 参数，用于不经过 Java 自动启动器时手动拉起 Quant 服务。
 - 本地开发入口：启动 `quant-a` 后访问 `http://127.0.0.1:5175/`。
 - 健康检查入口：`GET http://127.0.0.1:5175/api/health`，响应中的 `success` 必须为 `true`。
 - 推荐命令：`python -m uvicorn main:app --host 127.0.0.1 --port 5175`，工作目录为 `quant-a/`。
@@ -487,6 +489,7 @@ Python 约定：
 - DeepSeek Key 优先使用环境变量 `DEEPSEEK_API_KEY`；本地私有配置文件只能使用 `deepseek.local.json`，禁止提交真实 Key。
 - `PORT`、`DEEPSEEK_API_BASE`、`DEEPSEEK_MODEL` 等运行配置优先使用环境变量。
 - `website` 自动启动 `python-a` 的配置位于 `website/src/main/resources/application.yml` 的 `python-a.auto-start`。单元测试必须关闭该开关，避免测试启动外部进程。
+- `website` 自动启动 `quant-a` 的配置位于 `website/src/main/resources/application.yml` 的 `quant-a.auto-start`。单元测试必须关闭该开关，避免测试启动外部进程。
 - 股票研究输出必须保留风险提示和非投资建议边界，避免确定性买卖结论。
 - 涉及网络请求、文件写入和 Obsidian 写入时要保留异常处理，不能因为单个外部接口失败导致页面整体不可用。
 - `quant-a` 使用 FastAPI + Uvicorn，运行配置优先使用环境变量或 `quant-a/configs` 内配置文件；不要把 `quant-a` 加入 Maven modules，不要复用或写入 `python-a/obsidian-vault/`。
