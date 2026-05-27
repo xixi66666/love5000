@@ -107,6 +107,23 @@ class QuantRepository:
             [data_version, provider, start_date, end_date],
         )
 
+    def latest_data_snapshot(self) -> Optional[Mapping[str, object]]:
+        rows = self.fetch_dicts(
+            "select data_version, provider, start_date, end_date, created_at "
+            "from data_versions order by created_at desc limit 1"
+        )
+        return rows[0] if rows else None
+
+    def latest_data_snapshot_for_day(self, provider: str, sync_date: str) -> Optional[Mapping[str, object]]:
+        rows = self.fetch_dicts(
+            "select data_version, provider, start_date, end_date, created_at "
+            "from data_versions "
+            "where provider = ? and cast(created_at as date) = cast(? as date) "
+            "order by created_at desc limit 1",
+            [provider, sync_date],
+        )
+        return rows[0] if rows else None
+
     def count_rows(self, table: str) -> int:
         table_name = self._table_name(table)
         return self.connection.execute(f"select count(*) from {table_name}").fetchone()[0]

@@ -1,4 +1,5 @@
 from pathlib import Path
+from datetime import date
 from typing import Dict, List, Optional
 
 from quant.backtest.service import BacktestService
@@ -6,7 +7,8 @@ from quant.calendar.service import TradingCalendarService
 from quant.common.config import load_app_config, load_model_config, load_universe_config
 from quant.factors.engine import FactorEngine
 from quant.portfolio.service import PortfolioService
-from quant.providers.mock_provider import MockProvider
+from quant.providers.base import DataProvider
+from quant.providers.factory import create_provider
 from quant.reports.service import ReportService
 from quant.risk.service import RiskService
 from quant.scoring.service import ScoringService
@@ -15,11 +17,12 @@ from quant.universe.service import UniverseService
 
 
 class QuantPipeline:
-    def __init__(self, repository: Optional[QuantRepository] = None, provider: Optional[MockProvider] = None):
+    def __init__(self, repository: Optional[QuantRepository] = None, provider: Optional[DataProvider] = None):
         app_config = load_app_config()
         duckdb_path = app_config["storage"]["duckdb_path"]
         self.repository = repository or QuantRepository(Path(duckdb_path))
-        self.provider = provider or MockProvider()
+        self.provider = provider or create_provider(app_config)
+        self.provider_name = self._provider_name(self.provider)
 
     def sync_data(self, start_date: str, end_date: str, index_codes: List[str]) -> Dict[str, object]:
         calendar = self.provider.get_trade_calendar(start_date, end_date)
@@ -38,11 +41,37 @@ class QuantPipeline:
             "financial_count": self.repository.replace_table("financial", financials),
             "index_member_count": self.repository.replace_table("index_member", members),
         }
-        self.repository.record_data_version(data_version, "mock", start_date, end_date)
+        self.repository.record_data_version(data_version, self.provider_name, start_date, end_date)
         return {
             "data_version": data_version,
             **counts,
         }
+
+    def sync_data_daily(
+        self,
+        start_date: str,
+        end_date: str,
+        index_codes: List[str],
+        sync_date: Optional[str] = None,
+    ) -> Dict[str, object]:
+        today = sync_date or date.today().isoformat()
+        cached_snapshot = self.repository.latest_data_snapshot_for_day(self.provider_name, today)
+        if cached_snapshot:
+            return self._daily_sync_result("cached", True, cached_snapshot)
+
+        result = self.sync_data(start_date, end_date, index_codes)
+        return {
+            "status": "synced",
+            "cache_hit": False,
+            **result,
+        }
+
+    def daily_sync_snapshot(self, sync_date: Optional[str] = None) -> Optional[Dict[str, object]]:
+        today = sync_date or date.today().isoformat()
+        cached_snapshot = self.repository.latest_data_snapshot_for_day(self.provider_name, today)
+        if not cached_snapshot:
+            return None
+        return self._daily_sync_result("cached", True, cached_snapshot)
 
     def run_scores(self, trade_date: str, index_codes: List[str]) -> Dict[str, object]:
         universe_filters = load_universe_config()["universe"]["filters"]
@@ -96,4 +125,28 @@ class QuantPipeline:
             "backtest": result,
             "report": report,
             "skipped_score_dates": skipped_score_dates,
+        }
+
+    def _provider_name(self, provider: DataProvider) -> str:
+        name = getattr(provider, "name", None)
+        if name:
+            return name
+        class_name = provider.__class__.__name__
+        if class_name.endswith("Provider"):
+            class_name = class_name[:-len("Provider")]
+        return class_name.lower()
+
+    def _daily_sync_result(self, status: str, cache_hit: bool, snapshot: Dict[str, object]) -> Dict[str, object]:
+        return {
+            "status": status,
+            "cache_hit": cache_hit,
+            "data_version": snapshot.get("data_version", ""),
+            "provider": snapshot.get("provider", ""),
+            "start_date": snapshot.get("start_date", ""),
+            "end_date": snapshot.get("end_date", ""),
+            "stock_count": self.repository.count_rows("stock_basic"),
+            "daily_bar_count": self.repository.count_rows("daily_bar"),
+            "valuation_count": self.repository.count_rows("valuation"),
+            "financial_count": self.repository.count_rows("financial"),
+            "index_member_count": self.repository.count_rows("index_member"),
         }

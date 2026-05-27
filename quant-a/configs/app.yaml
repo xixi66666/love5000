@@ -3,7 +3,12 @@ app:
   host: 127.0.0.1
   port: 5175
 provider:
-  active: mock
+  active: akshare
+  akshare:
+    timeout_seconds: 15
+  tushare:
+    token_env: TUSHARE_TOKEN
+    timeout_seconds: 15
 storage:
   duckdb_path: data/quant.duckdb
   parquet_root: data

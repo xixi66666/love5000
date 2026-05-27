@@ -29,6 +29,8 @@ def test_workbench_page_is_served():
     assert "quant-a" in response.text
     assert "多因子量化研究工作台" in response.text
     assert "运行回测" in response.text
+    assert "操作流水" in response.text
+    assert 'id="orderTableBody"' in response.text
     assert 'href="/static/styles.css"' in response.text
     assert 'src="/static/app.js"' in response.text
 
@@ -49,5 +51,5 @@ def test_status_exposes_configured_versions():
     assert payload["success"] is True
     assert payload["data"]["service"] == "quant-a"
     assert payload["data"]["model_version"] == "v0.1"
-    assert payload["data"]["provider"] == "mock"
+    assert payload["data"]["provider"] == "akshare"
     assert payload["data"]["storage"]["duckdb_path"].endswith("data/quant.duckdb")

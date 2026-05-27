@@ -134,6 +134,34 @@
                     <p>运行回测后显示最近 NAV、订单数量和成交状态摘要。</p>
                 </div>
             </section>
+
+            <section class="section-block orders-block" aria-labelledby="ordersTitle">
+                <div class="section-heading">
+                    <h2 id="ordersTitle">操作流水</h2>
+                    <span id="ordersMeta">尚未运行</span>
+                </div>
+                <div class="table-wrap">
+                    <table class="orders-table">
+                        <thead>
+                            <tr>
+                                <th>信号日</th>
+                                <th>执行日</th>
+                                <th>代码</th>
+                                <th>方向</th>
+                                <th>成交数量</th>
+                                <th>成交价格</th>
+                                <th>状态</th>
+                                <th>拒绝原因</th>
+                            </tr>
+                        </thead>
+                        <tbody id="orderTableBody">
+                            <tr>
+                                <td colspan="8" class="empty">运行回测后显示逐笔买入、卖出和拒单记录。</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
         </section>
     </main>
 </body>

@@ -22,6 +22,8 @@ const els = {
     biasList: document.querySelector("#biasList"),
     summaryMeta: document.querySelector("#summaryMeta"),
     summaryContent: document.querySelector("#summaryContent"),
+    ordersMeta: document.querySelector("#ordersMeta"),
+    orderTableBody: document.querySelector("#orderTableBody"),
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -63,8 +65,8 @@ async function runAction(type) {
     setBusy(true);
     try {
         if (type === "sync") {
-            showNotice("正在同步研究数据...", "loading");
-            const payload = await requestJson("/api/data/sync", {
+            showNotice("正在检查今日数据快照...", "loading");
+            const payload = await requestJson("/api/data/sync-daily", {
                 method: "POST",
                 body: JSON.stringify({
                     start_date: params.startDate,
@@ -73,7 +75,7 @@ async function runAction(type) {
                 }),
             });
             renderSyncResult(payload.data || {});
-            showNotice("数据同步完成，可以继续运行评分或回测。", "success");
+            showDailySyncNotice(payload.data || {});
         }
 
         if (type === "score") {
@@ -166,6 +168,7 @@ async function requestJson(url, options = {}) {
 function renderSyncResult(data) {
     const parts = [
         ["数据版本", data.data_version],
+        ["状态", renderSyncStatus(data.status, data.cache_hit)],
         ["交易日", data.calendar_count],
         ["股票", data.stock_count],
         ["行情", data.daily_bar_count],
@@ -173,6 +176,31 @@ function renderSyncResult(data) {
     ].map(([label, value]) => `${label}: ${value ?? "-"}`);
     els.summaryMeta.textContent = "数据同步";
     els.summaryContent.innerHTML = `<p>${parts.join(" / ")}</p>`;
+}
+
+function showDailySyncNotice(data) {
+    if (data.status === "syncing") {
+        showNotice(data.message || "今日数据同步正在执行，请稍后查看。", "loading");
+        return;
+    }
+    if (data.cache_hit) {
+        showNotice("今日数据已同步，已直接复用本地快照。", "success");
+        return;
+    }
+    showNotice("今日数据同步完成，可继续运行评分或回测。", "success");
+}
+
+function renderSyncStatus(status, cacheHit) {
+    if (status === "syncing") {
+        return "同步中";
+    }
+    if (cacheHit || status === "cached") {
+        return "今日缓存";
+    }
+    if (status === "synced") {
+        return "刚刚同步";
+    }
+    return status || "-";
 }
 
 function renderScores(data) {
@@ -213,6 +241,7 @@ function renderBacktest(data) {
 
     renderBiases(biases, skipped);
     renderSummary(nav, orders);
+    renderOrders(orders);
 }
 
 function renderBiases(biases, skipped) {
@@ -243,6 +272,55 @@ function renderSummary(nav, orders) {
         <p>订单：${orders.length} 条，成交 ${filledOrders} 条，未成交 ${rejectedOrders} 条。</p>
         <p>最近持仓市值：${latestNav ? formatCurrency(latestNav.market_value) : "-"}</p>
     `;
+}
+
+function renderOrders(orders) {
+    if (!els.orderTableBody) {
+        return;
+    }
+
+    const recentOrders = orders.slice(-20).reverse();
+    els.ordersMeta.textContent = orders.length > 0
+        ? `共 ${orders.length} 条，显示最近 ${recentOrders.length} 条`
+        : "无操作记录";
+
+    if (recentOrders.length === 0) {
+        els.orderTableBody.innerHTML = '<tr><td colspan="8" class="empty">本次回测没有产生操作流水。</td></tr>';
+        return;
+    }
+
+    els.orderTableBody.innerHTML = recentOrders.map((order) => `
+        <tr>
+            <td>${escapeHtml(order.signal_date)}</td>
+            <td>${escapeHtml(order.trade_date)}</td>
+            <td>${escapeHtml(order.code)}</td>
+            <td>${renderSide(order.side)}</td>
+            <td>${formatNumber(order.filled_quantity, 0)}</td>
+            <td>${formatNumber(order.filled_price, 4)}</td>
+            <td>${renderOrderStatus(order.order_status)}</td>
+            <td>${escapeHtml(order.reject_reason || "-")}</td>
+        </tr>
+    `).join("");
+}
+
+function renderSide(side) {
+    if (side === "buy") {
+        return '<span class="side-badge side-buy">买入</span>';
+    }
+    if (side === "sell") {
+        return '<span class="side-badge side-sell">卖出</span>';
+    }
+    return `<span class="side-badge">${escapeHtml(side || "-")}</span>`;
+}
+
+function renderOrderStatus(status) {
+    if (status === "filled") {
+        return '<span class="status-badge status-filled">已成交</span>';
+    }
+    if (status === "rejected") {
+        return '<span class="status-badge status-rejected">已拒绝</span>';
+    }
+    return `<span class="status-badge">${escapeHtml(status || "-")}</span>`;
 }
 
 function metricHtml(label, value) {

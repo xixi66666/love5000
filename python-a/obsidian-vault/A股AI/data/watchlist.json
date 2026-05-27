@@ -19,5 +19,19 @@
     "board": "A股",
     "pool": "持仓股",
     "note": ""
+  },
+  {
+    "code": "600726",
+    "industry": "待映射",
+    "board": "A股",
+    "pool": "核心自选",
+    "note": ""
+  },
+  {
+    "code": "600578",
+    "industry": "待映射",
+    "board": "A股",
+    "pool": "核心自选",
+    "note": ""
   }
 ]

@@ -21,6 +21,26 @@ python -m pip install -r requirements.txt
 
 主要依赖包括 FastAPI、Uvicorn、Pydantic、DuckDB、Pandas、PyYAML、Requests、Pytest 和 HTTPX。
 
+## 真实行情源配置
+
+第一阶段推荐继续使用 `provider.active=akshare` 作为真实行情源验证入口；`mock` 仍用于单元测试和离线演示。Tushare 已保留 Provider 接口位，后续在 token 和权限到位后，可以把配置切换为：
+
+```yaml
+provider:
+  active: tushare
+  tushare:
+    token_env: TUSHARE_TOKEN
+    timeout_seconds: 15
+```
+
+Tushare 使用环境变量读取 token：
+
+```powershell
+$env:TUSHARE_TOKEN="your-token"
+```
+
+不要把 `TUSHARE_TOKEN` 写入代码、配置文件、README 示例之外的真实值或 Git 提交记录。当前 `TushareProvider` 只实现股票基础信息、交易日历、日行情和估值数据的接口骨架；财务数据和指数成分需要对应 Tushare 权限后再扩展映射。测试使用 mock 的 `tushare` 模块和环境变量，不会真实联网。
+
 ## 本地运行
 
 ```bash
@@ -81,7 +101,7 @@ cd quant-a
 
 第一版以可验证、可替换、可隔离为目标：
 
-- 数据 Provider：默认使用 `mock_provider`，用于稳定测试和本地演示，避免单元测试依赖真实外部行情接口。
+- 数据 Provider：运行配置默认使用 `akshare` 接入真实全市场行情；`mock_provider` 保留给稳定测试和离线演示，避免单元测试依赖真实外部行情接口。
 - 存储：使用 DuckDB 保存本地研究数据，运行时数据库和缓存不提交到 Git。
 - 配置：使用 `quant-a/configs/` 下的本地配置，运行参数优先支持环境变量或配置文件覆盖。
 - 因子模型：`Value-Quality-Momentum v0.1`，先覆盖价值、质量、动量三个基础维度。

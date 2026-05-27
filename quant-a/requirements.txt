@@ -7,3 +7,5 @@ pyyaml
 requests
 pytest
 httpx
+tushare
+akshare

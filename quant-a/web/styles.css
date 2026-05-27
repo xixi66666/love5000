@@ -212,6 +212,10 @@ label span {
     grid-column: span 1;
 }
 
+.orders-block {
+    grid-column: 1 / -1;
+}
+
 .table-wrap {
     overflow-x: auto;
 }
@@ -220,6 +224,10 @@ table {
     width: 100%;
     min-width: 620px;
     border-collapse: collapse;
+}
+
+.orders-table {
+    min-width: 880px;
 }
 
 th,
@@ -291,6 +299,40 @@ dd {
     display: grid;
     gap: 8px;
     color: var(--text);
+}
+
+.side-badge,
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    border-radius: 6px;
+    padding: 0 8px;
+    background: var(--panel-alt);
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.side-buy {
+    background: rgba(47, 115, 82, 0.12);
+    color: var(--success);
+}
+
+.side-sell {
+    background: rgba(163, 58, 58, 0.11);
+    color: var(--danger);
+}
+
+.status-filled {
+    background: rgba(29, 122, 120, 0.12);
+    color: var(--accent-strong);
+}
+
+.status-rejected {
+    background: rgba(154, 91, 18, 0.12);
+    color: var(--warning);
 }
 
 @media (max-width: 1100px) {

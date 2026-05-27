@@ -218,7 +218,60 @@ function setupAuth() {
     loadMe();
 }
 
+function setupServiceHealth() {
+    var serviceCards = Array.prototype.slice.call(document.querySelectorAll(".service-card[data-health-url]"));
+    if (!serviceCards.length) {
+        return;
+    }
+
+    function setServiceState(card, state) {
+        var status = card.querySelector(".service-status");
+        var message = state === "online" ? "可用" : state === "offline" ? "不可用" : "检测中";
+        card.classList.toggle("is-online", state === "online");
+        card.classList.toggle("is-offline", state === "offline");
+        if (status) {
+            status.setAttribute("aria-label", message);
+            status.setAttribute("title", message);
+        }
+    }
+
+    function checkService(card) {
+        var healthUrl = card.getAttribute("data-health-url");
+        var healthMode = card.getAttribute("data-health-mode");
+        if (!healthUrl) {
+            return;
+        }
+        setServiceState(card, "checking");
+        var options = {
+            method: "GET",
+            cache: "no-store"
+        };
+        if (healthMode === "no-cors") {
+            options.mode = "no-cors";
+        }
+        fetch(healthUrl, options)
+            .then(function (response) {
+                if (response.type === "opaque" || response.ok) {
+                    setServiceState(card, "online");
+                    return;
+                }
+                setServiceState(card, "offline");
+            })
+            .catch(function () {
+                setServiceState(card, "offline");
+            });
+    }
+
+    function checkAllServices() {
+        serviceCards.forEach(checkService);
+    }
+
+    checkAllServices();
+    window.setInterval(checkAllServices, 30000);
+}
+
 document.addEventListener("DOMContentLoaded", function () {
     setupHeroVideo();
     setupAuth();
+    setupServiceHealth();
 });

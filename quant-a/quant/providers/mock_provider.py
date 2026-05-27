@@ -12,6 +12,7 @@ from quant.providers.base import (
 
 
 class MockProvider:
+    name = "mock"
     data_version = "mock-2024-q1"
     closed_dates = {"2024-01-01"}
 
