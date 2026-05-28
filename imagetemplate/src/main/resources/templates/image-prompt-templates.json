@@ -412,5 +412,93 @@
       "constraints": ["小尺寸可识别", "轮廓清楚", "不要复杂文字"]
     },
     "promptTemplate": "生成适合社交媒体展示的个性头像，中心构图、轮廓清晰、小尺寸仍可识别，风格与账号定位一致。"
+  },
+  {
+    "id": "direct-cinematic-4k-scene",
+    "title": "电影感 4K 场景直出",
+    "category": "直接提示词",
+    "categorySlug": "direct-prompt",
+    "summary": "无需结构化变量，直接生成电影剧照质感的 4K 场景图。",
+    "tags": ["直接提示词", "4K", "电影感", "场景", "写实"],
+    "sourceUrl": "https://github.com/ZeroLu/awesome-gpt-image",
+    "jsonTemplate": {},
+    "promptTemplate": "生成一张 4K 超清电影剧照风格图片：清晨雨后的城市天桥上，一位穿深色风衣的年轻设计师停下脚步看向远处霓虹广告牌，地面有自然反光，背景包含柔和车流和浅景深。使用真实摄影质感、35mm 镜头、自然肤色、细腻织物纹理、电影级布光和青橙色调，构图稳定，主体清晰，画面不要出现乱码文字、商标、水印或多余手指。"
+  },
+  {
+    "id": "direct-product-hero-4k",
+    "title": "高端产品主视觉直出",
+    "category": "直接提示词",
+    "categorySlug": "direct-prompt",
+    "summary": "直接生成高端消费品发布会或电商主视觉。",
+    "tags": ["直接提示词", "产品摄影", "电商", "主视觉", "4K"],
+    "sourceUrl": "https://github.com/ZeroLu/awesome-gpt-image",
+    "jsonTemplate": {},
+    "promptTemplate": "生成一张 4K 高端产品摄影主视觉：一台极简银白色智能音箱放置在深灰色石材台面中央，旁边有一束柔和侧光穿过磨砂玻璃，背景是现代客厅的虚化轮廓。突出金属网孔、圆润倒角、细腻阴影和真实反射，整体风格克制、干净、昂贵，适合新品发布海报。画面不添加任何未指定品牌标志、价格文字、水印或夸张装饰。"
+  },
+  {
+    "id": "direct-editorial-portrait-4k",
+    "title": "杂志封面人像直出",
+    "category": "直接提示词",
+    "categorySlug": "direct-prompt",
+    "summary": "直接生成杂志封面级写实人像。",
+    "tags": ["直接提示词", "人像", "杂志", "摄影", "4K"],
+    "sourceUrl": "https://github.com/f/awesome-chatgpt-prompts",
+    "jsonTemplate": {},
+    "promptTemplate": "生成一张 4K 杂志封面级写实人像：一位自信的亚洲女性创业者站在简洁白色摄影棚中，穿米白色西装，表情自然坚定，眼神看向镜头。使用柔和主光、轻微轮廓光、真实皮肤纹理、干净背景和高级时尚摄影构图，保留自然瑕疵，避免过度磨皮。画面不出现标题文字、杂志刊名、品牌 logo、水印或不自然肢体。"
+  },
+  {
+    "id": "direct-children-book-spread",
+    "title": "儿童绘本跨页直出",
+    "category": "直接提示词",
+    "categorySlug": "direct-prompt",
+    "summary": "直接生成温暖、安全、适合儿童阅读的绘本跨页插画。",
+    "tags": ["直接提示词", "绘本", "儿童插画", "跨页", "温暖"],
+    "sourceUrl": "https://github.com/f/awesome-chatgpt-prompts",
+    "jsonTemplate": {},
+    "promptTemplate": "生成一张温暖儿童绘本跨页插画：黄昏的小镇图书馆里，一个戴红色围巾的小女孩坐在窗边读书，窗外有柔和灯光和飘落树叶，室内书架整齐、色彩明亮、氛围安静。使用手绘水彩质感、柔和线条、低刺激配色和清晰叙事构图，适合 4 到 8 岁儿童阅读。画面不要出现恐怖元素、成人化内容、复杂文字或混乱背景。"
+  },
+  {
+    "id": "direct-ui-dashboard-mockup",
+    "title": "SaaS 仪表盘概念直出",
+    "category": "直接提示词",
+    "categorySlug": "direct-prompt",
+    "summary": "直接生成专业 SaaS 仪表盘界面概念图。",
+    "tags": ["直接提示词", "UI", "SaaS", "仪表盘", "产品设计"],
+    "sourceUrl": "https://github.com/ai-boost/awesome-prompts",
+    "jsonTemplate": {},
+    "promptTemplate": "生成一张专业 SaaS 数据仪表盘界面概念图：页面包含左侧深色导航栏、顶部筛选区、核心指标卡片、趋势折线图、任务列表和异常告警表格。整体视觉安静、信息密度合理、组件边界清晰、适合企业运营团队长期使用；使用中性色背景、蓝绿色强调色和一致的 8px 圆角。界面文字使用清晰可读的中文占位内容，不要出现乱码、重叠、夸张渐变或装饰性漂浮元素。"
+  },
+  {
+    "id": "direct-food-commercial-4k",
+    "title": "商业美食摄影直出",
+    "category": "直接提示词",
+    "categorySlug": "direct-prompt",
+    "summary": "直接生成可用于餐饮宣传的商业美食图。",
+    "tags": ["直接提示词", "美食", "商业摄影", "餐饮", "4K"],
+    "sourceUrl": "https://github.com/ai-boost/awesome-prompts",
+    "jsonTemplate": {},
+    "promptTemplate": "生成一张 4K 商业美食摄影图片：一碗热气腾腾的番茄牛腩面放在深色木桌上，汤面有自然油光，牛腩块纹理清晰，旁边有少量香菜、筷子和陶瓷小碟。使用真实餐厅侧逆光、浅景深、温暖色温和高食欲构图，突出汤汁质感和食材新鲜度。画面不要添加品牌、价格、菜单文字、水印或不真实的塑料质感。"
+  },
+  {
+    "id": "direct-travel-poster-landscape",
+    "title": "旅行风景海报直出",
+    "category": "直接提示词",
+    "categorySlug": "direct-prompt",
+    "summary": "直接生成旅行宣传风景海报底图。",
+    "tags": ["直接提示词", "风景", "旅行", "海报", "摄影"],
+    "sourceUrl": "https://github.com/ZeroLu/awesome-gpt-image",
+    "jsonTemplate": {},
+    "promptTemplate": "生成一张旅行宣传海报风格的 4K 风景图片：清晨的高山湖泊被薄雾覆盖，远处雪山被第一缕阳光照亮，前景有木质栈道和少量野花，湖面倒影清晰。使用真实自然摄影、广角构图、丰富层次、干净空气透视和柔和日出色彩，适合旅游官网首屏背景。画面不要出现游客拥挤、商业标牌、文字、水印或过度饱和。"
+  },
+  {
+    "id": "direct-architecture-interior-4k",
+    "title": "现代室内空间直出",
+    "category": "直接提示词",
+    "categorySlug": "direct-prompt",
+    "summary": "直接生成室内设计方案级空间可视化。",
+    "tags": ["直接提示词", "室内设计", "建筑", "空间", "4K"],
+    "sourceUrl": "https://github.com/ai-boost/awesome-prompts",
+    "jsonTemplate": {},
+    "promptTemplate": "生成一张 4K 现代室内设计可视化图片：开放式客厅连接餐厨区，浅木色地板、白色墙面、低饱和绿色单椅、隐藏式灯带和大面积落地窗形成通透空间。家具比例真实，动线清楚，材质包含木材、亚麻、哑光金属和石材，光线来自午后自然光。画面保持建筑结构合理，不出现漂浮家具、错误透视、杂乱装饰、文字或水印。"
   }
 ]

@@ -26,6 +26,9 @@
         copyPromptButton: document.getElementById('copyPromptButton'),
         statusLine: document.getElementById('statusLine'),
         imageSizeSelect: document.getElementById('imageSizeSelect'),
+        customImageSizeField: document.getElementById('customImageSizeField'),
+        customImageSizeInput: document.getElementById('customImageSizeInput'),
+        imageSizeHint: document.getElementById('imageSizeHint'),
         imageQualitySelect: document.getElementById('imageQualitySelect'),
         imageFormatSelect: document.getElementById('imageFormatSelect'),
         imageBackgroundSelect: document.getElementById('imageBackgroundSelect'),
@@ -46,6 +49,13 @@
     var MAX_REFERENCE_IMAGE_COUNT = 16;
     var MAX_REFERENCE_IMAGE_SIZE = 50 * 1024 * 1024;
     var SUPPORTED_REFERENCE_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+    var MIN_IMAGE_PIXELS = 655360;
+    var MAX_IMAGE_PIXELS = 8294400;
+    var MAX_IMAGE_SIDE = 3840;
+    var MAX_IMAGE_RATIO = 3;
+    var EXPERIMENTAL_IMAGE_PIXELS = 2560 * 1440;
+    var DEFAULT_SIZE_HINT = '尺寸需为宽x高，宽高为 16 的倍数，单边不超过 3840。';
+    var CUSTOM_SIZE_HINT = DEFAULT_SIZE_HINT + ' 总像素 655360 到 8294400，最长边/最短边不超过 3。';
 
     function fetchJson(url, options) {
         return fetch(url, options).then(function (response) {
@@ -154,8 +164,13 @@
         elements.detailSummary.textContent = template.summary;
         elements.jsonTemplate.textContent = JSON.stringify(template.jsonTemplate, null, 2);
         elements.promptTemplate.textContent = template.promptTemplate;
-        elements.variablesInput.value = buildVariableSeed(template.jsonTemplate);
-        elements.renderedPrompt.value = '';
+        if (template.categorySlug === 'direct-prompt') {
+            elements.variablesInput.value = '{}';
+            elements.renderedPrompt.value = template.promptTemplate || '';
+        } else {
+            elements.variablesInput.value = buildVariableSeed(template.jsonTemplate);
+            elements.renderedPrompt.value = '';
+        }
         state.renderedPromptEdited = false;
         resetGeneratedImage();
     }
@@ -237,6 +252,93 @@
         return '';
     }
 
+    function parseImageSizeValue(value) {
+        var normalized = String(value || '').trim().toLowerCase();
+        var match = normalized.match(/^(\d+)x(\d+)$/);
+        if (!match) {
+            return null;
+        }
+        return {
+            width: Number(match[1]),
+            height: Number(match[2]),
+            size: Number(match[1]) + 'x' + Number(match[2])
+        };
+    }
+
+    function validateImageSize(sizeValue) {
+        var parsed = parseImageSizeValue(sizeValue);
+        if (!parsed) {
+            return {
+                valid: false,
+                message: '尺寸格式不正确，请使用宽x高，例如 3840x2160。'
+            };
+        }
+        if (!Number.isInteger(parsed.width) || !Number.isInteger(parsed.height) || parsed.width <= 0 || parsed.height <= 0) {
+            return {
+                valid: false,
+                message: '尺寸宽高必须是正整数。'
+            };
+        }
+        if (parsed.width % 16 !== 0 || parsed.height % 16 !== 0) {
+            return {
+                valid: false,
+                message: '尺寸宽高都必须是 16 的倍数。'
+            };
+        }
+        if (parsed.width > MAX_IMAGE_SIDE || parsed.height > MAX_IMAGE_SIDE) {
+            return {
+                valid: false,
+                message: '尺寸单边不能超过 3840。'
+            };
+        }
+        var longSide = Math.max(parsed.width, parsed.height);
+        var shortSide = Math.min(parsed.width, parsed.height);
+        if (longSide / shortSide > MAX_IMAGE_RATIO) {
+            return {
+                valid: false,
+                message: '最长边/最短边不能超过 3。'
+            };
+        }
+        var pixels = parsed.width * parsed.height;
+        if (pixels < MIN_IMAGE_PIXELS || pixels > MAX_IMAGE_PIXELS) {
+            return {
+                valid: false,
+                message: '总像素必须在 655360 到 8294400 之间。'
+            };
+        }
+        return {
+            valid: true,
+            size: parsed.size,
+            experimental: pixels >= EXPERIMENTAL_IMAGE_PIXELS,
+            message: pixels >= EXPERIMENTAL_IMAGE_PIXELS ? '当前为 4K/大尺寸实验尺寸，生成可能更慢或受服务端限制。' : ''
+        };
+    }
+
+    function resolveImageSize() {
+        var selectedSize = elements.imageSizeSelect.value;
+        return validateImageSize(selectedSize === 'custom' ? elements.customImageSizeInput.value : selectedSize);
+    }
+
+    function updateImageSizeUi() {
+        var isCustom = elements.imageSizeSelect.value === 'custom';
+        if (elements.customImageSizeField) {
+            elements.customImageSizeField.hidden = !isCustom;
+        }
+        if (!elements.imageSizeHint) {
+            return;
+        }
+        var validation = resolveImageSize();
+        if (!validation.valid) {
+            elements.imageSizeHint.textContent = isCustom ? validation.message : DEFAULT_SIZE_HINT;
+            elements.imageSizeHint.classList.remove('is-warning');
+            elements.imageSizeHint.classList.toggle('is-error', isCustom);
+            return;
+        }
+        elements.imageSizeHint.textContent = validation.message || (isCustom ? CUSTOM_SIZE_HINT : DEFAULT_SIZE_HINT);
+        elements.imageSizeHint.classList.toggle('is-warning', validation.experimental);
+        elements.imageSizeHint.classList.remove('is-error');
+    }
+
     function formatFileSize(size) {
         if (size >= 1024 * 1024) {
             return (size / 1024 / 1024).toFixed(1) + ' MB';
@@ -273,24 +375,24 @@
         }
     }
 
-    function buildGenerationPayload(variables) {
+    function buildGenerationPayload(variables, imageSize) {
         return {
             variables: variables,
             extraInstruction: elements.extraInstructionInput.value,
             prompt: elements.renderedPrompt.value,
-            size: elements.imageSizeSelect.value,
+            size: imageSize,
             quality: elements.imageQualitySelect.value,
             outputFormat: elements.imageFormatSelect.value,
             background: elements.imageBackgroundSelect.value
         };
     }
 
-    function buildMultipartPayload(variables, files) {
+    function buildMultipartPayload(variables, files, imageSize) {
         var formData = new FormData();
         formData.append('variables', JSON.stringify(variables));
         formData.append('extraInstruction', elements.extraInstructionInput.value);
         formData.append('prompt', elements.renderedPrompt.value);
-        formData.append('size', elements.imageSizeSelect.value);
+        formData.append('size', imageSize);
         formData.append('quality', elements.imageQualitySelect.value);
         formData.append('outputFormat', elements.imageFormatSelect.value);
         formData.append('background', elements.imageBackgroundSelect.value);
@@ -375,8 +477,14 @@
             elements.imageStatusLine.textContent = referenceFileError;
             return;
         }
+        var imageSizeValidation = resolveImageSize();
+        updateImageSizeUi();
+        if (!imageSizeValidation.valid) {
+            elements.imageStatusLine.textContent = imageSizeValidation.message;
+            return;
+        }
         setGenerating(true);
-        elements.imageStatusLine.textContent = '';
+        elements.imageStatusLine.textContent = imageSizeValidation.message || '';
         persistSessionApiKey();
         var headers = {};
         var userApiKey = readUserApiKey();
@@ -385,10 +493,10 @@
         }
         var requestBody;
         if (referenceFiles.length) {
-            requestBody = buildMultipartPayload(variables, referenceFiles);
+            requestBody = buildMultipartPayload(variables, referenceFiles, imageSizeValidation.size);
         } else {
             headers['Content-Type'] = 'application/json';
-            requestBody = JSON.stringify(buildGenerationPayload(variables));
+            requestBody = JSON.stringify(buildGenerationPayload(variables, imageSizeValidation.size));
         }
         fetchJson('/api/image-templates/' + encodeURIComponent(state.selected.id) + '/generate', {
             method: 'POST',
@@ -477,6 +585,8 @@
     elements.renderPromptButton.addEventListener('click', renderPrompt);
     elements.copyPromptButton.addEventListener('click', copyPrompt);
     elements.generateImageButton.addEventListener('click', generateImage);
+    elements.imageSizeSelect.addEventListener('change', updateImageSizeUi);
+    elements.customImageSizeInput.addEventListener('input', updateImageSizeUi);
     elements.renderedPrompt.addEventListener('input', function () {
         state.renderedPromptEdited = true;
         if (elements.renderedPrompt.value.trim()) {
@@ -491,6 +601,7 @@
     });
     elements.clearReferenceImagesButton.addEventListener('click', clearReferenceImages);
     renderReferenceImagePreview();
+    updateImageSizeUi();
     loadSessionApiKey();
 
     Promise.all([loadCategories(), loadTemplates()]).catch(function () {

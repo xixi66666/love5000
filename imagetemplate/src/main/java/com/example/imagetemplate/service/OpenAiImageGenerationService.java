@@ -37,6 +37,14 @@ public class OpenAiImageGenerationService {
 
     private static final long MAX_REFERENCE_IMAGE_BYTES = 50L * 1024L * 1024L;
 
+    private static final String DEFAULT_IMAGE_SIZE = "1024x1024";
+
+    private static final int MAX_IMAGE_SIDE = 3840;
+
+    private static final int MIN_IMAGE_PIXELS = 655360;
+
+    private static final int MAX_IMAGE_PIXELS = 8294400;
+
     private final ImagePromptTemplateService imagePromptTemplateService;
 
     private final RestTemplate restTemplate;
@@ -67,6 +75,7 @@ public class OpenAiImageGenerationService {
     public ImageGenerationResponse generate(String templateId, ImageGenerationRequest request, String userApiKey) {
         String effectiveApiKey = resolveApiKey(userApiKey);
         ImageGenerationRequest generationRequest = request == null ? new ImageGenerationRequest() : request;
+        String imageSize = normalizeImageSize(generationRequest.getSize());
         String prompt = resolvePrompt(templateId, generationRequest);
         String outputFormat = normalizeOption(generationRequest.getOutputFormat(), "png");
         String mimeType = mimeType(outputFormat);
@@ -77,19 +86,19 @@ public class OpenAiImageGenerationService {
                     templateId,
                     imageModel,
                     "/images/edits",
-                    normalizeOption(generationRequest.getSize(), "1024x1024"),
+                    imageSize,
                     normalizeOption(generationRequest.getQuality(), "low"),
                     outputFormat,
                     normalizeOption(generationRequest.getBackground(), "auto"),
                     referenceImages.size());
-            return generateFromReferenceImages(templateId, prompt, generationRequest, referenceImages, outputFormat, mimeType, effectiveApiKey);
+            return generateFromReferenceImages(templateId, prompt, generationRequest, referenceImages, outputFormat, mimeType, imageSize, effectiveApiKey);
         }
 
         LOGGER.info("Generating image. templateId={}, model={}, endpoint={}, size={}, quality={}, outputFormat={}, background={}",
                 templateId,
                 imageModel,
                 "/images/generations",
-                normalizeOption(generationRequest.getSize(), "1024x1024"),
+                imageSize,
                 normalizeOption(generationRequest.getQuality(), "low"),
                 outputFormat,
                 normalizeOption(generationRequest.getBackground(), "auto"));
@@ -97,7 +106,7 @@ public class OpenAiImageGenerationService {
         Map<String, Object> requestBody = new HashMap<String, Object>();
         requestBody.put("model", imageModel);
         requestBody.put("prompt", prompt);
-        requestBody.put("size", normalizeOption(generationRequest.getSize(), "1024x1024"));
+        requestBody.put("size", imageSize);
         requestBody.put("quality", normalizeOption(generationRequest.getQuality(), "low"));
         requestBody.put("output_format", outputFormat);
         requestBody.put("background", normalizeOption(generationRequest.getBackground(), "auto"));
@@ -133,11 +142,12 @@ public class OpenAiImageGenerationService {
                                                                 List<ReferenceImageInput> referenceImages,
                                                                 String outputFormat,
                                                                 String mimeType,
+                                                                String imageSize,
                                                                 String effectiveApiKey) {
         MultiValueMap<String, Object> requestBody = new LinkedMultiValueMap<String, Object>();
         requestBody.add("model", imageModel);
         requestBody.add("prompt", prompt);
-        requestBody.add("size", normalizeOption(generationRequest.getSize(), "1024x1024"));
+        requestBody.add("size", imageSize);
         requestBody.add("quality", normalizeOption(generationRequest.getQuality(), "low"));
         requestBody.add("output_format", outputFormat);
         requestBody.add("background", normalizeOption(generationRequest.getBackground(), "auto"));
@@ -337,6 +347,44 @@ public class OpenAiImageGenerationService {
         return hasText(value) ? value.trim().toLowerCase(Locale.ROOT) : fallback;
     }
 
+    private static String normalizeImageSize(String value) {
+        String size = hasTextStatic(value) ? value.trim().toLowerCase(Locale.ROOT) : DEFAULT_IMAGE_SIZE;
+        if (!size.matches("\\d+x\\d+")) {
+            throw new ImageGenerationException("Image size must use WIDTHxHEIGHT format, for example 3840x2160.");
+        }
+        String[] parts = size.split("x");
+        int width = parseImageSide(parts[0], "width");
+        int height = parseImageSide(parts[1], "height");
+        if (width % 16 != 0 || height % 16 != 0) {
+            throw new ImageGenerationException("Image width and height must both be multiples of 16.");
+        }
+        if (width > MAX_IMAGE_SIDE || height > MAX_IMAGE_SIDE) {
+            throw new ImageGenerationException("Image width and height must be 3840px or smaller.");
+        }
+        int longest = Math.max(width, height);
+        int shortest = Math.min(width, height);
+        if (longest > shortest * 3) {
+            throw new ImageGenerationException("Image aspect ratio must not exceed 3:1.");
+        }
+        int pixels = width * height;
+        if (pixels < MIN_IMAGE_PIXELS || pixels > MAX_IMAGE_PIXELS) {
+            throw new ImageGenerationException("Image total pixels must be between 655360 and 8294400.");
+        }
+        return width + "x" + height;
+    }
+
+    private static int parseImageSide(String value, String name) {
+        try {
+            int side = Integer.parseInt(value);
+            if (side <= 0) {
+                throw new NumberFormatException("non-positive");
+            }
+            return side;
+        } catch (NumberFormatException exception) {
+            throw new ImageGenerationException("Image " + name + " must be a positive integer.", exception);
+        }
+    }
+
     private String mimeType(String outputFormat) {
         if ("jpeg".equals(outputFormat) || "jpg".equals(outputFormat)) {
             return "image/jpeg";
@@ -348,6 +396,10 @@ public class OpenAiImageGenerationService {
     }
 
     private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
+    }
+
+    private static boolean hasTextStatic(String value) {
         return value != null && !value.trim().isEmpty();
     }
 

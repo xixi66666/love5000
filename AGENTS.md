@@ -5,9 +5,9 @@
 `love5000` 是一个 Java 8 + Spring Boot 2.6.13 的 Maven 多模块项目，父工程 artifactId 为 `love530`。当前模块：
 
 - `common`：公共能力模块，提供 OSS 自动配置、上传工具，以及通用登录/注册/Session 鉴权能力。
-- `lovestory`：恋爱相册 Web 应用，提供静态页面、照片上传、照片列表、删除接口和留言板功能。
+- `lovestory`：恋爱相册 Web 应用，提供静态页面、照片上传、照片列表、删除接口、留言板功能和吉他视频卡片模块。
 - `website`：个人主页/展示站点 Web 应用，包含主页静态资源、Web Demo、OSS Demo、Nacos Discovery 示例和个人博客微应用。
-- `imagetemplate`：图片提示词模板 Web 服务，提供模板库检索、prompt 渲染和 OpenAI 图片生成能力。
+- `imagetemplate`：图片提示词模板 Web 服务，提供模板库检索、prompt 渲染、直接提示词模板和 OpenAI 图片生成能力。
 - `python-a`：A 股自选股 AI 研究台，作为独立 Python 微应用接入，不加入 Maven 聚合模块。
 - `quant-a`：A 股量化研究台，作为独立 FastAPI 微服务接入，不加入 Maven 聚合模块，不写入 `python-a` 的 Obsidian 目录。
 
@@ -250,10 +250,11 @@ quant-a/
 - `common/src/main/java/com/example/common/config`：公共配置和自动装配，例如 OSS 自动配置。
 - `common/src/main/java/com/example/common/util`：公共工具类，例如 `OssUtil`。
 - `common/src/main/java/com/example/common/auth`：公共认证能力，包含 BCrypt 密码哈希、Session 登录状态、`/api/auth` 控制器、`@AuthRequired` 和拦截器。
-- `lovestory/controller`：恋爱相册 REST API，照片接口集中在 `/api/photos`，留言接口集中在 `/api/messages`。
-- `lovestory/dao`：MyBatis DAO 接口层，照片表访问集中在 `PhotoDao`。
+- `lovestory/controller`：恋爱相册 REST API，照片接口集中在 `/api/photos`，留言接口集中在 `/api/messages`，吉他视频接口集中在 `/api/guitar-videos`。
+- `lovestory/dao`：MyBatis DAO 接口层，照片表访问集中在 `PhotoDao`，吉他视频表访问集中在 `GuitarVideoDao`。
+- `lovestory/service`：业务逻辑层，吉他视频上传、封面上传、OSS 删除和响应组装集中在 `GuitarVideoService` / `GuitarVideoServiceImpl`。
 - `lovestory/src/main/resources/mapper`：MyBatis XML Mapper，SQL 写在这里。
-- `lovestory/src/main/resources/static`：恋爱相册、小游戏、留言板、照片墙静态页面。
+- `lovestory/src/main/resources/static`：恋爱相册、小游戏、留言板、照片墙和吉他视频卡片静态页面。
 - `website/blog`：个人博客微应用后端，按 Controller、Service、DAO、Model、DTO 分层。
 - `website/src/main/resources/static/blog`：博客前端页面和资源。
 - `website/demos`：示例性质的 Web、OSS、Nacos Discovery 代码。
@@ -351,6 +352,16 @@ openai:
   read-timeout-ms: ${OPENAI_READ_TIMEOUT_MS:180000}
 ```
 
+`imagetemplate` 的 `gpt-image-2` 图片尺寸支持自定义合法尺寸，前后端必须使用同一套校验规则：
+
+- `size` 使用 `宽x高` 格式，例如 `1024x1024`、`3840x2160`、`2160x3840`。
+- 宽高必须是正整数，且都必须是 16 的倍数。
+- 单边最大不超过 `3840px`。
+- 最长边与最短边比例不能超过 `3:1`。
+- 总像素必须在 `655360` 到 `8294400` 之间。
+- `2560x1440` 及以上属于 2K/4K 实验尺寸，前端需要提示生成可能更慢或稳定性略低。
+- 非法尺寸必须在真实调用 OpenAI 前被后端拦截，前端也要提前阻止提交。
+
 代理配置：
 
 ```yaml
@@ -378,6 +389,28 @@ GET    /api/messages
 POST   /api/messages
 DELETE /api/messages
 ```
+
+`lovestory` 吉他视频接口：
+
+```text
+GET    /api/guitar-videos
+POST   /api/guitar-videos/upload
+POST   /api/guitar-videos/{id}/cover
+DELETE /api/guitar-videos/{id}
+```
+
+`/api/guitar-videos/upload` 上传字段：
+
+```text
+file         MultipartFile，必填，视频文件
+cover        MultipartFile，可选，封面图；前端未选择时可自动从视频截帧生成
+title        string，必填
+description  string，可选
+tag          string，可选
+sortOrder    int，可选
+```
+
+视频文件后缀限制为 `mp4`、`webm`、`mov`。封面图后缀限制为 `jpg`、`jpeg`、`png`、`webp`。
 
 `website` 博客接口：
 
@@ -451,6 +484,7 @@ POST /api/backtests/run
 ## 静态资源约定
 
 - `lovestory` 页面放在 `lovestory/src/main/resources/static`。
+- `lovestory` 吉他视频卡片模块维护在 `lovestory/src/main/resources/static/index.html`，替代原 `甜蜜回忆 · Memory Cards` 模块；视频卡片数据来自 `/api/guitar-videos`，不要再硬编码视频 URL。
 - `website` 主页资源放在 `website/src/main/resources/static/css`、`static/js`、`static/img`。
 - `website` 博客资源放在 `website/src/main/resources/static/blog`。
 - `imagetemplate` 页面放在 `imagetemplate/src/main/resources/static`，模板 JSON 放在 `imagetemplate/src/main/resources/templates`。
@@ -547,8 +581,10 @@ http://127.0.0.1:5175/api/health
 
 - `common` 工具类写纯单元测试，不依赖真实 OSS。
 - `lovestory` 数据库相关测试 mock DAO 或使用隔离测试配置，不连接远程 MySQL。
+- `lovestory` 吉他视频新增或修改逻辑时，覆盖上传成功、标题为空、非法视频后缀、封面上传、删除和 OSS 不可用等主要分支。
 - `website/blog` 新增 controller/service/dao 逻辑必须覆盖成功路径和主要失败路径。
 - `imagetemplate` 模板渲染测试必须覆盖分类、关键词、变量替换和模板不存在。
+- `imagetemplate` 图片尺寸测试必须覆盖合法 4K、非法格式、非 16 倍数、单边超限、像素过少、像素过多和比例超限。
 - OpenAI 图片生成测试不得真实调用外部 API；使用 mock 或可注入 HTTP 客户端。
 - `quant-a` 新增 API、因子、回测、组合或服务编排逻辑时，使用 pytest 覆盖成功路径和主要失败路径，不依赖真实外部行情接口。
 
@@ -580,7 +616,9 @@ mvn -pl imagetemplate -am test
 - **关键**：不提交 `target/`、IDE 缓存、真实密钥、真实数据库密码、生成图片 base64 文件。
 - **关键**：新增公共能力优先放入 `common`。
 - **关键**：修改数据库字段时，同步更新 Mapper XML、DAO、模型类和测试。
-- **关键**：修改 `imagetemplate` 模板 JSON 时，同步更新模板数量、分类断言和前端展示。
+- **关键**：修改 `lovestory` 吉他视频表字段时，同步更新 `GuitarVideoRecord`、`GuitarVideoDao`、`GuitarVideoMapper.xml`、`GuitarVideoServiceImplTests` 和前端展示字段。
+- **关键**：修改 `imagetemplate` 模板 JSON 时，同步更新模板数量、分类断言和前端展示；当前模板库包含 `direct-prompt` / “直接提示词”分类。
+- **关键**：修改 `imagetemplate` 图片尺寸选项或规则时，同步更新前端校验、后端校验和 `OpenAiImageGenerationServiceTest`。
 - **关键**：修改 `python-a` 时不要提交 `deepseek.local.json`、`.env`、`__pycache__/`、`server.err.log`、`server.out.log`。
 - **关键**：修改 `quant-a` 时不要提交 `.env`、`__pycache__/`、`.pytest_cache/`、运行时数据库、缓存或生成报告；不要写入 `python-a/obsidian-vault/`。
 - ⚠️ 不依赖远程生产 MySQL、真实 OSS、真实 OpenAI API 来通过单元测试。
@@ -591,8 +629,9 @@ mvn -pl imagetemplate -am test
 
 1. 修改 `imagetemplate/src/main/resources/templates/image-prompt-templates.json`。
 2. 保证 `id` 唯一、`categorySlug` 稳定。
-3. 更新 `ImagePromptTemplateServiceTest` 的数量或分类断言。
-4. 运行：
+3. 如新增 `direct-prompt` 直接提示词模板，`category` 固定为 `直接提示词`，`categorySlug` 固定为 `direct-prompt`，`jsonTemplate` 使用 `{}`，`promptTemplate` 必须是可直接用于图片生成的完整中文提示词，不使用 `<...>` 占位符。
+4. 更新 `ImagePromptTemplateServiceTest` 的数量或分类断言。
+5. 运行：
 
 ```bash
 mvn -pl imagetemplate test
@@ -603,8 +642,9 @@ mvn -pl imagetemplate test
 1. 修改 `ImageGenerationRequest` 或 `ImageGenerationResponse`。
 2. 修改 `OpenAiImageGenerationService` 的请求体或响应解析。
 3. 修改 `imagetemplate/src/main/resources/static/js/app.js`。
-4. 补充无 API Key、OpenAI 错误、空图片数据响应测试。
-5. 运行：
+4. 如果修改 `size`，必须保持前端和后端尺寸规则一致，并补充 `OpenAiImageGenerationServiceTest` 边界测试。
+5. 补充无 API Key、OpenAI 错误、空图片数据响应测试。
+6. 运行：
 
 ```bash
 mvn -pl imagetemplate -am test
@@ -620,6 +660,20 @@ mvn -pl imagetemplate -am test
 
 ```bash
 mvn -pl common test
+```
+
+### 修改 lovestory 吉他视频模块
+
+1. 后端接口集中在 `lovestory/src/main/java/com/ycxandwuqian/love/controller/GuitarVideoController.java`。
+2. 业务逻辑集中在 `GuitarVideoService` / `GuitarVideoServiceImpl`，Controller 不写上传校验、OSS 删除等复杂逻辑。
+3. 数据库访问使用 `GuitarVideoDao` + `lovestory/src/main/resources/mapper/GuitarVideoMapper.xml`，不要新增 `JdbcTemplate`、JPA Repository 或 Java 内联 SQL。
+4. 表名为 `guitar_video`，核心字段为 `title`、`description`、`tag`、`video_url`、`cover_url`、`duration_seconds`、`sort_order`、`status`、`create_time`、`update_time`。
+5. 视频上传到 OSS 目录 `love530/lovestory/videos`，封面上传到 `love530/lovestory/videos/covers`。
+6. 前端上传视频时，如果用户没有选择封面，可以从本地视频自动截帧生成封面并通过 `cover` 字段一起上传。
+7. 修改后运行：
+
+```bash
+mvn -pl lovestory -am test
 ```
 
 ### 修改 python-a 微应用

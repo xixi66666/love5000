@@ -1,11 +1,13 @@
 package com.example.imagetemplate.service;
 
 import com.example.imagetemplate.dto.PromptRenderRequest;
+import com.example.imagetemplate.model.ImagePromptTemplate;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -22,9 +24,25 @@ class ImagePromptTemplateServiceTest {
 
     @Test
     void listTemplatesLoadsAllCuratedTemplates() {
-        assertThat(imagePromptTemplateService.listTemplates(null, null)).hasSize(21);
+        assertThat(imagePromptTemplateService.listTemplates(null, null)).hasSize(29);
         assertThat(imagePromptTemplateService.listCategories()).extracting("slug")
-                .contains("character", "visual-design", "commerce", "editing");
+                .contains("character", "visual-design", "commerce", "editing", "direct-prompt");
+    }
+
+    @Test
+    void listTemplatesLoadsDirectPromptTemplatesWithEmptyJsonTemplate() {
+        List<ImagePromptTemplate> templates = imagePromptTemplateService.listTemplates("direct-prompt", null);
+
+        assertThat(templates).hasSize(8);
+        assertThat(templates).allSatisfy(template -> {
+            assertThat(template.getCategory()).isEqualTo("直接提示词");
+            assertThat(template.getCategorySlug()).isEqualTo("direct-prompt");
+            assertThat(template.getJsonTemplate()).isEmpty();
+            assertThat(template.getPromptTemplate()).contains("生成");
+            assertThat(template.getPromptTemplate()).doesNotContain("<");
+            assertThat(template.getPromptTemplate().length()).isGreaterThan(80);
+            assertThat(template.getSourceUrl()).startsWith("https://github.com/");
+        });
     }
 
     @Test

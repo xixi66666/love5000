@@ -11,11 +11,11 @@ C:/Code/Java_Code/love5000/imagetemplate
 核心功能：
 
 - 提供 GPT Image 提示词模板库页面。
-- 从 `templates/image-prompt-templates.json` 加载 21 个图片生成模板。
+- 从 `templates/image-prompt-templates.json` 加载 29 个图片生成模板，其中包含 `direct-prompt` 直接提示词分类。
 - 支持按分类、关键词检索模板。
-- 支持将模板 JSON 和用户变量渲染为可直接传给图片生成接口的 prompt。
+- 支持将模板 JSON 和用户变量渲染为可直接传给图片生成接口的 prompt；直接提示词模板选中后可直接使用 `promptTemplate`。
 - 支持调用 OpenAI 图片生成接口，返回 base64 图片和 data URL。
-- 前端提供模板选择、变量编辑、prompt 复制、图片生成和下载能力。
+- 前端提供模板选择、变量编辑、自定义尺寸校验、prompt 复制、图片生成和下载能力。
 
 技术栈：
 
@@ -245,12 +245,22 @@ keyword
     "product_name": "月光玻璃杯"
   },
   "extraInstruction": "电商海报，干净背景。",
-  "size": "1024x1024",
+  "size": "3840x2160",
   "quality": "low",
   "outputFormat": "png",
   "background": "auto"
 }
 ```
+
+图片尺寸规则：
+
+- `size` 使用 `宽x高` 格式，例如 `1024x1024`、`3840x2160`、`2160x3840`。
+- 宽高必须是正整数，且都必须是 16 的倍数。
+- 单边最大不超过 `3840px`。
+- 最长边与最短边比例不能超过 `3:1`。
+- 总像素必须在 `655360` 到 `8294400` 之间。
+- `2560x1440` 及以上属于 2K/4K 实验尺寸，前端需要提示生成可能更慢或稳定性略低。
+- 前端和后端必须保持同一套尺寸校验；非法尺寸要在真实调用 OpenAI 前拦截。
 
 图片生成可选请求头：
 
@@ -305,6 +315,7 @@ src/main/resources/templates/image-prompt-templates.json
 - `categorySlug` 使用小写英文，前端分类筛选依赖该字段。
 - `jsonTemplate` 是结构化模板，字段名要稳定；用户变量通过同名 key 覆盖默认值。
 - `promptTemplate` 是自然语言模板，用于展示和渲染 prompt。
+- `direct-prompt` 分类用于直接提示词模板：`category` 固定为 `直接提示词`，`categorySlug` 固定为 `direct-prompt`，`jsonTemplate` 使用 `{}`，`promptTemplate` 必须是可直接用于图片生成的完整中文提示词，不使用 `<...>` 占位符。
 - 新增模板后必须更新测试中模板数量断言。
 
 ## 代码规范
@@ -363,13 +374,16 @@ mvn -pl imagetemplate -am test
 
 ```text
 src/test/java/com/example/imagetemplate/service/ImagePromptTemplateServiceTest.java
+src/test/java/com/example/imagetemplate/service/OpenAiImageGenerationServiceTest.java
 ```
 
 测试要求：
 
 - 新增模板时，更新 `listTemplatesLoadsAllCuratedTemplates` 的数量断言。
 - 新增分类时，测试必须覆盖 `categorySlug`。
+- 新增 `direct-prompt` 模板时，测试必须覆盖分类名、分类 slug、模板数量、空 `jsonTemplate`、GitHub `sourceUrl` 和可直接使用的中文 `promptTemplate`。
 - 修改 prompt 渲染规则时，必须覆盖变量替换、嵌套 JSON、列表字段和 `extraInstruction`。
+- 修改图片尺寸规则时，必须覆盖合法 4K、非法格式、非 16 倍数、单边超限、像素过少、像素过多、比例超限，以及生成入口在触网前拦截非法尺寸。
 - OpenAI 图片生成测试不得真实调用外部 API；需要 mock `RestTemplate` 或拆出可注入 HTTP 客户端后再测。
 - 配置代理、超时或模型名逻辑变更时，至少补充服务构造或配置解析测试。
 
@@ -406,6 +420,7 @@ http://localhost:8082/
 - **关键**：不要提交 `target/`、IDE 缓存、真实 OpenAI API Key。
 - **关键**：模板 JSON 必须保持合法 JSON，不能有注释或尾逗号。
 - **关键**：新增模板字段时，同步更新 `ImagePromptTemplate`、前端渲染和测试。
+- **关键**：新增或修改图片尺寸选项时，必须同步更新前端校验、后端校验和 `OpenAiImageGenerationServiceTest`。
 - **关键**：生成图片接口失败时必须返回可读 `message`，不要吞掉 OpenAI 错误。
 - ⚠️ 不要让单元测试依赖真实 OpenAI API、真实代理或外网。
 - ⚠️ 不要把生成图片的 base64 结果写入源码目录或提交到仓库。
@@ -430,7 +445,8 @@ mvn -pl imagetemplate test
 2. 修改 `OpenAiImageGenerationService` 将字段写入请求体。
 3. 修改 `static/js/app.js` 增加前端控件和请求参数。
 4. 修改 `ImageGenerationResponse`，仅在确实需要返回新字段时添加。
-5. 补充无 API Key、请求失败、响应缺字段测试。
+5. 如果修改 `size`，保持前后端规则一致，并补充尺寸边界测试。
+6. 补充无 API Key、请求失败、响应缺字段测试。
 
 ### 调整前端交互
 

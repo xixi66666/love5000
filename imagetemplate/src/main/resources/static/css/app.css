@@ -531,12 +531,32 @@ button {
     margin: 0;
 }
 
+.option-grid .custom-size-field {
+    min-width: 0;
+}
+
 .option-grid span {
     display: block;
     margin-bottom: 8px;
     color: #40506a;
     font-size: 13px;
     font-weight: 800;
+}
+
+.size-hint {
+    grid-column: 1 / -1;
+    margin: -2px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.size-hint.is-warning {
+    color: var(--warning);
+}
+
+.size-hint.is-error {
+    color: #b91c1c;
 }
 
 .image-result {
