@@ -500,5 +500,257 @@
     "sourceUrl": "https://github.com/ai-boost/awesome-prompts",
     "jsonTemplate": {},
     "promptTemplate": "生成一张 4K 现代室内设计可视化图片：开放式客厅连接餐厨区，浅木色地板、白色墙面、低饱和绿色单椅、隐藏式灯带和大面积落地窗形成通透空间。家具比例真实，动线清楚，材质包含木材、亚麻、哑光金属和石材，光线来自午后自然光。画面保持建筑结构合理，不出现漂浮家具、错误透视、杂乱装饰、文字或水印。"
+  },
+  {
+    "id": "direct-yumind-neon-alley",
+    "title": "雨夜霓虹街巷直出",
+    "category": "直接提示词",
+    "categorySlug": "direct-prompt",
+    "summary": "生成赛博但克制的雨夜街巷摄影图。",
+    "tags": ["直接提示词", "街景", "霓虹", "电影感", "夜景"],
+    "sourceUrl": "https://github.com/YouMind-OpenLab/awesome-gpt-image-2",
+    "jsonTemplate": {},
+    "promptTemplate": "生成一张电影摄影风格的雨夜城市街巷图片：狭窄街道两侧有小店灯箱和湿润墙面，地面积水反射蓝紫色霓虹，一辆出租车停在远处，画面前景有模糊雨滴和轻微镜头眩光。使用真实摄影质感、低机位、35mm 镜头、自然雨雾、克制赛博色彩和清晰纵深。不要出现乱码招牌、夸张科幻道具、水印或多余人物。"
+  },
+  {
+    "id": "direct-yumind-cozy-workspace",
+    "title": "温暖工作台直出",
+    "category": "直接提示词",
+    "categorySlug": "direct-prompt",
+    "summary": "生成适合博客、产品页或效率工具的温暖桌面图。",
+    "tags": ["直接提示词", "工作台", "生活方式", "摄影", "博客"],
+    "sourceUrl": "https://github.com/YouMind-OpenLab/awesome-gpt-image-2",
+    "jsonTemplate": {},
+    "promptTemplate": "生成一张温暖真实的创作者工作台照片：木质桌面上有打开的笔记本电脑、手写便签、陶瓷咖啡杯、一本摊开的设计书和柔和台灯，窗外是傍晚城市轮廓。画面采用自然暖光、轻微浅景深、整洁但有生活痕迹的构图，适合作为效率工具或个人博客配图。不要出现可识别品牌 logo、凌乱电线、乱码文字或过度摆拍感。"
+  },
+  {
+    "id": "direct-yumind-minimal-wallpaper",
+    "title": "极简手机壁纸直出",
+    "category": "直接提示词",
+    "categorySlug": "direct-prompt",
+    "summary": "直接生成 9:16 极简壁纸背景。",
+    "tags": ["直接提示词", "壁纸", "极简", "手机", "抽象"],
+    "sourceUrl": "https://github.com/YouMind-OpenLab/awesome-gpt-image-2",
+    "jsonTemplate": {},
+    "promptTemplate": "生成一张 9:16 手机壁纸：深色背景中有柔和的银白色丝绸状曲面从左下延展到右上，局部带细腻高光和微弱颗粒纹理，整体留出充足负空间，适合放置锁屏时间。画面风格极简、高级、干净，色彩控制在黑、银、淡蓝灰之间。不要出现文字、图标、水印、人物、复杂图案或突兀边框。"
+  },
+  {
+    "id": "direct-yumind-watercolor-market",
+    "title": "水彩市集插画直出",
+    "category": "直接提示词",
+    "categorySlug": "direct-prompt",
+    "summary": "生成轻松明亮的城市市集水彩插画。",
+    "tags": ["直接提示词", "水彩", "市集", "插画", "治愈"],
+    "sourceUrl": "https://github.com/YouMind-OpenLab/awesome-gpt-image-2",
+    "jsonTemplate": {},
+    "promptTemplate": "生成一张明亮的水彩插画：周末上午的街角花市，摊位上摆满鲜花、柠檬、面包和手写小牌，几位行人轻松挑选，远处有浅色建筑和树荫。使用透明水彩质感、柔和线条、干净留白、低饱和暖色和轻快生活气息。画面需要层次清楚、人物比例自然，不要出现拥挤构图、乱码文字、沉重阴影或照片质感。"
+  },
+  {
+    "id": "direct-evolink-robot-companion",
+    "title": "家庭陪伴机器人直出",
+    "category": "直接提示词",
+    "categorySlug": "direct-prompt",
+    "summary": "直接生成温和可信的未来家庭机器人场景。",
+    "tags": ["直接提示词", "机器人", "未来生活", "产品概念", "家庭"],
+    "sourceUrl": "https://github.com/EvoLinkAI/awesome-gpt-image-2-prompts",
+    "jsonTemplate": {},
+    "promptTemplate": "生成一张未来家庭陪伴机器人概念图：一台圆润小型机器人站在明亮客厅地毯上，正在给孩子展示星空投影，旁边有家长微笑观看。机器人外观亲和、材质为哑光白塑料和柔和灯带，客厅家具真实简洁，光线来自大窗户。整体要温暖可信、科技感适度，避免恐怖机械感、武器元素、品牌标识、文字水印或不自然人体。"
+  },
+  {
+    "id": "direct-evolink-fashion-flatlay",
+    "title": "时尚穿搭平铺直出",
+    "category": "直接提示词",
+    "categorySlug": "direct-prompt",
+    "summary": "生成社交媒体可用的服装配饰平铺图。",
+    "tags": ["直接提示词", "时尚", "穿搭", "平铺", "社媒"],
+    "sourceUrl": "https://github.com/EvoLinkAI/awesome-gpt-image-2-prompts",
+    "jsonTemplate": {},
+    "promptTemplate": "生成一张时尚穿搭平铺摄影图：米色针织衫、深蓝直筒牛仔裤、棕色皮带、白色帆布鞋、银色手表和帆布托特包整齐摆放在浅灰背景上，旁边有一枝干花作为点缀。使用自然顶部柔光、真实布料纹理、轻微阴影和干净社媒构图，适合小红书封面。不要出现品牌 logo、价格吊牌、文字、水印或变形配饰。"
+  },
+  {
+    "id": "direct-evolink-futuristic-lab",
+    "title": "未来实验室直出",
+    "category": "直接提示词",
+    "categorySlug": "direct-prompt",
+    "summary": "生成可信的高科技实验室视觉。",
+    "tags": ["直接提示词", "实验室", "科技", "医疗", "未来"],
+    "sourceUrl": "https://github.com/EvoLinkAI/awesome-gpt-image-2-prompts",
+    "jsonTemplate": {},
+    "promptTemplate": "生成一张未来生物科技实验室图片：透明培养舱、白色工作台、显微设备和柔和蓝色状态灯组成干净空间，两名研究人员穿无标识实验服正在观察样本。画面要求真实可信、无菌感强、光线柔和、透视准确，适合作为科技医疗网站背景。不要出现危险血腥内容、夸张科幻武器、乱码界面文字、品牌 logo 或水印。"
+  },
+  {
+    "id": "direct-evolink-sports-poster",
+    "title": "运动能量海报直出",
+    "category": "直接提示词",
+    "categorySlug": "direct-prompt",
+    "summary": "生成无文字的运动品牌风格视觉。",
+    "tags": ["直接提示词", "运动", "海报", "能量", "广告"],
+    "sourceUrl": "https://github.com/EvoLinkAI/awesome-gpt-image-2-prompts",
+    "jsonTemplate": {},
+    "promptTemplate": "生成一张高能运动广告视觉：一名跑者在清晨城市桥面冲刺，背后有低角度阳光和轻微运动模糊，鞋底溅起细小水珠，画面突出速度、呼吸感和肌肉力量。使用真实商业摄影、低机位、强对角线构图、清爽冷暖对比和高动态范围。不要出现品牌文字、号码布乱码、夸张肌肉变形、多余肢体、水印或广告标语。"
+  },
+  {
+    "id": "direct-yumind-fantasy-library",
+    "title": "奇幻图书馆直出",
+    "category": "直接提示词",
+    "categorySlug": "direct-prompt",
+    "summary": "生成奇幻但清晰可读的宏大室内场景。",
+    "tags": ["直接提示词", "奇幻", "图书馆", "场景", "概念艺术"],
+    "sourceUrl": "https://github.com/YouMind-OpenLab/awesome-gpt-image-2",
+    "jsonTemplate": {},
+    "promptTemplate": "生成一张奇幻巨型图书馆概念图：高耸书架围成圆形大厅，中央有悬浮的发光星图仪，螺旋楼梯连接多个阅读平台，暖色烛光和冷色月光同时照亮空间。画面需要宏大但不混乱，建筑透视可信，书籍和木材质感丰富，适合作为奇幻游戏场景设定。不要出现乱码书名、现代电器、人物过多、水印或模糊主体。"
+  },
+  {
+    "id": "direct-evolink-packaging-mockup",
+    "title": "精品包装陈列直出",
+    "category": "直接提示词",
+    "categorySlug": "direct-prompt",
+    "summary": "生成适合品牌提案的包装 mockup 场景。",
+    "tags": ["直接提示词", "包装", "品牌", "Mockup", "产品"],
+    "sourceUrl": "https://github.com/EvoLinkAI/awesome-gpt-image-2-prompts",
+    "jsonTemplate": {},
+    "promptTemplate": "生成一张精品茶叶包装 mockup 陈列图：三只哑光纸盒和一只圆形茶罐放在浅石材台面上，包装使用留白、压纹纸质、淡金色细线和深绿色色块，旁边有茶叶、陶瓷杯和柔和阴影。画面要求像品牌设计提案展示，构图整齐、质感真实、细节高级。不要出现真实品牌名、可读文字、价格标签、水印或不合理透视。"
+  },
+  {
+    "id": "direct-yumind-clay-character",
+    "title": "黏土角色直出",
+    "category": "直接提示词",
+    "categorySlug": "direct-prompt",
+    "summary": "生成可爱但不幼稚的黏土风角色图。",
+    "tags": ["直接提示词", "角色", "黏土", "IP", "可爱"],
+    "sourceUrl": "https://github.com/YouMind-OpenLab/awesome-gpt-image-2",
+    "jsonTemplate": {},
+    "promptTemplate": "生成一个黏土材质原创角色：圆脸小探险家穿黄色雨衣、背小帆布包、手里拿着放大镜，站在一片微型蘑菇森林前。角色表情好奇友善，材质有手工黏土压痕和柔和指纹纹理，灯光像小型摄影棚，背景干净。画面适合 IP 形象首张设定图，不要出现文字、品牌、恐怖表情、过度塑料感或多余手指。"
+  },
+  {
+    "id": "direct-evolink-eco-city",
+    "title": "生态城市航拍直出",
+    "category": "直接提示词",
+    "categorySlug": "direct-prompt",
+    "summary": "生成绿色未来城市规划概念图。",
+    "tags": ["直接提示词", "城市", "生态", "建筑", "未来"],
+    "sourceUrl": "https://github.com/EvoLinkAI/awesome-gpt-image-2-prompts",
+    "jsonTemplate": {},
+    "promptTemplate": "生成一张生态未来城市航拍概念图：河流穿过城市中心，屋顶花园、太阳能板、步行桥、轻轨和低碳住宅区自然融合，远处有山体和清晨薄雾。画面要有城市规划可信度，建筑密度合理，道路和绿地关系清晰，色彩清新但不过饱和。不要出现漂浮建筑、灾难场景、密集文字标签、水印或不真实比例。"
+  },
+  {
+    "id": "brand-launch-key-visual",
+    "title": "品牌发布 Key Visual",
+    "category": "商业与广告",
+    "categorySlug": "commerce",
+    "summary": "为新品发布、品牌升级或活动主视觉生成可延展 KV。",
+    "tags": ["品牌", "KV", "发布会", "广告", "主视觉"],
+    "sourceUrl": "https://github.com/freestylefly/awesome-gpt-image-2",
+    "jsonTemplate": {
+      "brand_name": "<品牌名>",
+      "campaign_theme": "<发布主题>",
+      "product_or_offer": "<核心产品或服务>",
+      "visual_metaphor": "<核心视觉隐喻>",
+      "color_palette": "<品牌主色与辅助色>",
+      "layout": "主视觉主体居中，四周留出标题和延展安全区",
+      "usage": ["发布会背景", "官网首屏", "社交媒体封面"],
+      "constraints": ["不添加未提供文字", "品牌调性一致", "可横竖版延展"]
+    },
+    "promptTemplate": "生成品牌发布 Key Visual，围绕指定主题、产品和视觉隐喻构建统一主视觉，画面高级、聚焦、适合多渠道延展，不添加未授权品牌或额外文字。"
+  },
+  {
+    "id": "knowledge-card-explainer",
+    "title": "知识卡片解释图",
+    "category": "信息与游戏",
+    "categorySlug": "info-game",
+    "summary": "把复杂概念转成适合社交媒体传播的知识解释卡片。",
+    "tags": ["知识卡片", "信息图", "解释图", "教育", "社媒"],
+    "sourceUrl": "https://github.com/freestylefly/awesome-gpt-image-2",
+    "jsonTemplate": {
+      "topic": "<解释主题>",
+      "audience": "<目标读者>",
+      "core_points": ["要点 1", "要点 2", "要点 3"],
+      "visual_structure": "标题区、三段要点区、底部总结区",
+      "icon_style": "简洁线性图标",
+      "color_palette": "<分类色或品牌色>",
+      "format": "竖版社交媒体卡片",
+      "constraints": ["文字清晰", "不捏造数据", "层级明确", "留出安全边距"]
+    },
+    "promptTemplate": "生成一张清晰的知识解释卡片，把主题拆成易读层级和视觉模块，标签准确、图标简洁、适合社交媒体阅读。"
+  },
+  {
+    "id": "mobile-app-store-screenshot",
+    "title": "App 商店截图视觉",
+    "category": "视觉设计",
+    "categorySlug": "visual-design",
+    "summary": "生成 App Store 或应用市场截图宣传图。",
+    "tags": ["App", "商店截图", "UI", "产品营销", "移动端"],
+    "sourceUrl": "https://github.com/freestylefly/awesome-gpt-image-2",
+    "jsonTemplate": {
+      "app_name": "<应用名称>",
+      "screen_context": "<核心页面或功能>",
+      "headline": "<截图主文案>",
+      "device_frame": "现代智能手机边框",
+      "ui_elements": ["顶部导航", "核心操作区", "状态反馈"],
+      "background_style": "干净品牌色背景",
+      "audience": "<目标用户>",
+      "constraints": ["UI 文案清晰", "不要 lorem ipsum", "不要侵权系统界面"]
+    },
+    "promptTemplate": "生成应用商店截图宣传图，手机界面真实可信，核心功能一眼可见，主文案清楚，整体适合 App Store 或安卓应用市场展示。"
+  },
+  {
+    "id": "heritage-style-poster",
+    "title": "国风非遗海报",
+    "category": "插画与叙事",
+    "categorySlug": "illustration-story",
+    "summary": "生成传统文化、非遗活动或国风主题视觉。",
+    "tags": ["国风", "非遗", "海报", "插画", "传统文化"],
+    "sourceUrl": "https://github.com/freestylefly/awesome-gpt-image-2",
+    "jsonTemplate": {
+      "heritage_theme": "<非遗或传统文化主题>",
+      "main_subject": "<主体物或人物>",
+      "region": "<地域文化元素>",
+      "art_style": "现代国风插画，结合传统纹样",
+      "materials": ["宣纸肌理", "墨色层次", "矿物色"],
+      "composition": "主体明确，背景留白，层次雅致",
+      "color_palette": "<主色与点缀色>",
+      "constraints": ["文化元素准确", "避免刻板符号", "不添加乱码文字"]
+    },
+    "promptTemplate": "生成现代国风非遗主题海报，结合传统材质、地域元素和清晰主体，画面雅致可信，避免刻板化和无关文字。"
+  },
+  {
+    "id": "document-report-cover",
+    "title": "报告 / 白皮书封面",
+    "category": "视觉设计",
+    "categorySlug": "visual-design",
+    "summary": "为行业报告、白皮书或研究文档生成专业封面。",
+    "tags": ["报告封面", "白皮书", "商务", "文档", "设计"],
+    "sourceUrl": "https://github.com/freestylefly/awesome-gpt-image-2",
+    "jsonTemplate": {
+      "report_title": "<报告标题>",
+      "industry": "<行业领域>",
+      "visual_symbol": "<视觉符号或隐喻>",
+      "tone": "专业、可信、克制",
+      "layout": "上方标题区，中部视觉主体，下方机构信息区",
+      "color_palette": "<专业色板>",
+      "format": "A4 竖版封面",
+      "constraints": ["标题清晰", "不使用真实机构 logo", "适合打印和 PDF"]
+    },
+    "promptTemplate": "生成专业报告或白皮书封面，视觉克制、结构清晰、行业感明确，适合 PDF 首屏和打印封面使用。"
+  },
+  {
+    "id": "character-reference-sheet",
+    "title": "角色三视图设定卡",
+    "category": "角色与人像",
+    "categorySlug": "character",
+    "summary": "生成角色正面、侧面、背面和表情设定卡。",
+    "tags": ["角色设定", "三视图", "IP", "设定卡", "表情"],
+    "sourceUrl": "https://github.com/freestylefly/awesome-gpt-image-2",
+    "jsonTemplate": {
+      "character_name": "<角色名称>",
+      "role": "<角色定位>",
+      "appearance": "<外观特征>",
+      "outfit": "<服装与配饰>",
+      "personality": "<性格关键词>",
+      "views": ["正面", "侧面", "背面", "表情小格"],
+      "style": "<目标画风>",
+      "constraints": ["比例一致", "服装细节一致", "背景简洁", "不要额外角色"]
+    },
+    "promptTemplate": "生成角色设定卡，包含稳定一致的正面、侧面、背面和表情小格，服装与比例保持一致，适合 IP、游戏或动画前期设定。"
   }
 ]

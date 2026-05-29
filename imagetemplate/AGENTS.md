@@ -11,7 +11,7 @@ C:/Code/Java_Code/love5000/imagetemplate
 核心功能：
 
 - 提供 GPT Image 提示词模板库页面。
-- 从 `templates/image-prompt-templates.json` 加载 29 个图片生成模板，其中包含 `direct-prompt` 直接提示词分类。
+- 从 `templates/image-prompt-templates.json` 加载 47 个图片生成模板，其中包含 20 个 `direct-prompt` 直接提示词模板。
 - 支持按分类、关键词检索模板。
 - 支持将模板 JSON 和用户变量渲染为可直接传给图片生成接口的 prompt；直接提示词模板选中后可直接使用 `promptTemplate`。
 - 支持调用 OpenAI 图片生成接口，返回 base64 图片和 data URL。
@@ -316,6 +316,7 @@ src/main/resources/templates/image-prompt-templates.json
 - `jsonTemplate` 是结构化模板，字段名要稳定；用户变量通过同名 key 覆盖默认值。
 - `promptTemplate` 是自然语言模板，用于展示和渲染 prompt。
 - `direct-prompt` 分类用于直接提示词模板：`category` 固定为 `直接提示词`，`categorySlug` 固定为 `direct-prompt`，`jsonTemplate` 使用 `{}`，`promptTemplate` 必须是可直接用于图片生成的完整中文提示词，不使用 `<...>` 占位符。
+- 外部提示词来源优先使用 GitHub 仓库并保留 `sourceUrl`，当前已集成来源包括 `YouMind-OpenLab/awesome-gpt-image-2`、`EvoLinkAI/awesome-gpt-image-2-prompts`、`freestylefly/awesome-gpt-image-2`。
 - 新增模板后必须更新测试中模板数量断言。
 
 ## 代码规范

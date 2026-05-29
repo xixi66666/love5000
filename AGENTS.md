@@ -617,7 +617,7 @@ mvn -pl imagetemplate -am test
 - **关键**：新增公共能力优先放入 `common`。
 - **关键**：修改数据库字段时，同步更新 Mapper XML、DAO、模型类和测试。
 - **关键**：修改 `lovestory` 吉他视频表字段时，同步更新 `GuitarVideoRecord`、`GuitarVideoDao`、`GuitarVideoMapper.xml`、`GuitarVideoServiceImplTests` 和前端展示字段。
-- **关键**：修改 `imagetemplate` 模板 JSON 时，同步更新模板数量、分类断言和前端展示；当前模板库包含 `direct-prompt` / “直接提示词”分类。
+- **关键**：修改 `imagetemplate` 模板 JSON 时，同步更新模板数量、分类断言和前端展示；当前模板库包含 47 个模板，其中 20 个属于 `direct-prompt` / “直接提示词”分类。
 - **关键**：修改 `imagetemplate` 图片尺寸选项或规则时，同步更新前端校验、后端校验和 `OpenAiImageGenerationServiceTest`。
 - **关键**：修改 `python-a` 时不要提交 `deepseek.local.json`、`.env`、`__pycache__/`、`server.err.log`、`server.out.log`。
 - **关键**：修改 `quant-a` 时不要提交 `.env`、`__pycache__/`、`.pytest_cache/`、运行时数据库、缓存或生成报告；不要写入 `python-a/obsidian-vault/`。
@@ -630,8 +630,9 @@ mvn -pl imagetemplate -am test
 1. 修改 `imagetemplate/src/main/resources/templates/image-prompt-templates.json`。
 2. 保证 `id` 唯一、`categorySlug` 稳定。
 3. 如新增 `direct-prompt` 直接提示词模板，`category` 固定为 `直接提示词`，`categorySlug` 固定为 `direct-prompt`，`jsonTemplate` 使用 `{}`，`promptTemplate` 必须是可直接用于图片生成的完整中文提示词，不使用 `<...>` 占位符。
-4. 更新 `ImagePromptTemplateServiceTest` 的数量或分类断言。
-5. 运行：
+4. 外部提示词来源优先使用 GitHub 仓库并保留 `sourceUrl`，当前已集成来源包括 `YouMind-OpenLab/awesome-gpt-image-2`、`EvoLinkAI/awesome-gpt-image-2-prompts`、`freestylefly/awesome-gpt-image-2`。
+5. 更新 `ImagePromptTemplateServiceTest` 的数量或分类断言。
+6. 运行：
 
 ```bash
 mvn -pl imagetemplate test

@@ -24,7 +24,7 @@ class ImagePromptTemplateServiceTest {
 
     @Test
     void listTemplatesLoadsAllCuratedTemplates() {
-        assertThat(imagePromptTemplateService.listTemplates(null, null)).hasSize(29);
+        assertThat(imagePromptTemplateService.listTemplates(null, null)).hasSize(47);
         assertThat(imagePromptTemplateService.listCategories()).extracting("slug")
                 .contains("character", "visual-design", "commerce", "editing", "direct-prompt");
     }
@@ -33,7 +33,7 @@ class ImagePromptTemplateServiceTest {
     void listTemplatesLoadsDirectPromptTemplatesWithEmptyJsonTemplate() {
         List<ImagePromptTemplate> templates = imagePromptTemplateService.listTemplates("direct-prompt", null);
 
-        assertThat(templates).hasSize(8);
+        assertThat(templates).hasSize(20);
         assertThat(templates).allSatisfy(template -> {
             assertThat(template.getCategory()).isEqualTo("直接提示词");
             assertThat(template.getCategorySlug()).isEqualTo("direct-prompt");
@@ -43,6 +43,25 @@ class ImagePromptTemplateServiceTest {
             assertThat(template.getPromptTemplate().length()).isGreaterThan(80);
             assertThat(template.getSourceUrl()).startsWith("https://github.com/");
         });
+    }
+
+    @Test
+    void listTemplatesIncludesCuratedGithubPromptSources() {
+        List<ImagePromptTemplate> templates = imagePromptTemplateService.listTemplates(null, null);
+
+        assertThat(hasSourceUrlContaining(templates, "YouMind-OpenLab/awesome-gpt-image-2")).isTrue();
+        assertThat(hasSourceUrlContaining(templates, "EvoLinkAI/awesome-gpt-image-2-prompts")).isTrue();
+        assertThat(hasSourceUrlContaining(templates, "freestylefly/awesome-gpt-image-2")).isTrue();
+    }
+
+    @Test
+    void listTemplatesIncludesNewStructuredGithubTemplates() {
+        assertThat(imagePromptTemplateService.findById("brand-launch-key-visual").getJsonTemplate()).isNotEmpty();
+        assertThat(imagePromptTemplateService.findById("knowledge-card-explainer").getJsonTemplate()).isNotEmpty();
+        assertThat(imagePromptTemplateService.findById("mobile-app-store-screenshot").getJsonTemplate()).isNotEmpty();
+        assertThat(imagePromptTemplateService.findById("heritage-style-poster").getJsonTemplate()).isNotEmpty();
+        assertThat(imagePromptTemplateService.findById("document-report-cover").getJsonTemplate()).isNotEmpty();
+        assertThat(imagePromptTemplateService.findById("character-reference-sheet").getJsonTemplate()).isNotEmpty();
     }
 
     @Test
@@ -78,5 +97,14 @@ class ImagePromptTemplateServiceTest {
                 imagePromptTemplateService.findById("missing");
             }
         }).isInstanceOf(ImagePromptTemplateNotFoundException.class);
+    }
+
+    private boolean hasSourceUrlContaining(List<ImagePromptTemplate> templates, String value) {
+        for (ImagePromptTemplate template : templates) {
+            if (template.getSourceUrl() != null && template.getSourceUrl().contains(value)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
