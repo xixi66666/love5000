@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(netstat -ano)",
+      "Bash(findstr :8081)",
+      "Bash(taskkill *)",
+      "Bash(cmd *)",
+      "Bash(powershell *)"
+    ]
+  }
+}
