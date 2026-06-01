@@ -24,7 +24,13 @@ class QuantPipeline:
         self.provider = provider or create_provider(app_config)
         self.provider_name = self._provider_name(self.provider)
 
-    def sync_data(self, start_date: str, end_date: str, index_codes: List[str]) -> Dict[str, object]:
+    def sync_data(
+        self,
+        start_date: str,
+        end_date: str,
+        index_codes: List[str],
+        sync_date: Optional[str] = None,
+    ) -> Dict[str, object]:
         calendar = self.provider.get_trade_calendar(start_date, end_date)
         stocks = self.provider.get_stock_basic()
         daily_bars = self.provider.get_daily_bars(start_date, end_date)
@@ -41,7 +47,7 @@ class QuantPipeline:
             "financial_count": self.repository.replace_table("financial", financials),
             "index_member_count": self.repository.replace_table("index_member", members),
         }
-        self.repository.record_data_version(data_version, self.provider_name, start_date, end_date)
+        self.repository.record_data_version(data_version, self.provider_name, start_date, end_date, sync_date)
         return {
             "data_version": data_version,
             **counts,
@@ -59,7 +65,7 @@ class QuantPipeline:
         if cached_snapshot:
             return self._daily_sync_result("cached", True, cached_snapshot)
 
-        result = self.sync_data(start_date, end_date, index_codes)
+        result = self.sync_data(start_date, end_date, index_codes, sync_date=today)
         return {
             "status": "synced",
             "cache_hit": False,
@@ -93,7 +99,7 @@ class QuantPipeline:
             "financial_count": self.repository.replace_table("financial", financials),
             "index_member_count": self.repository.replace_table("index_member", members),
         }
-        self.repository.record_data_version(data_version, self.provider_name, start_date, end_date)
+        self.repository.record_data_version(data_version, self.provider_name, start_date, end_date, today)
         return {
             "status": "stock_pool_synced",
             "cache_hit": False,

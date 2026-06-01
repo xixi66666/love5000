@@ -29,7 +29,7 @@ class VideoAutoStartRunnerTest {
         ReflectionTestUtils.setField(runner, "command", "python");
         ReflectionTestUtils.setField(runner, "port", 5176);
         ReflectionTestUtils.setField(runner, "logToConsole", true);
-        File directory = new File("video");
+        File directory = new File("website/video");
 
         ProcessBuilder builder = runner.createProcessBuilder(directory);
 
@@ -45,6 +45,55 @@ class VideoAutoStartRunnerTest {
         assertThat(builder.environment()).containsEntry("PYTHONUNBUFFERED", "1");
         assertThat(builder.redirectOutput()).isEqualTo(ProcessBuilder.Redirect.INHERIT);
         assertThat(builder.redirectError()).isEqualTo(ProcessBuilder.Redirect.INHERIT);
+    }
+
+    @Test
+    void resolvesVideoUnderWebsiteWhenStartedFromRepositoryRoot() throws Exception {
+        String originalUserDir = System.getProperty("user.dir");
+        try {
+            System.setProperty("user.dir", resolveRepositoryRoot().getCanonicalPath());
+            VideoAutoStartRunner runner = new VideoAutoStartRunner();
+            ReflectionTestUtils.setField(runner, "workDir", "website/video");
+
+            File directory = runner.resolveWorkDir();
+
+            assertThat(directory).isDirectory();
+            assertThat(new File(directory, "web_server.py")).isFile();
+            assertThat(directory.getPath().replace('\\', '/')).endsWith("website/video");
+        } finally {
+            System.setProperty("user.dir", originalUserDir);
+        }
+    }
+
+    @Test
+    void resolvesVideoUnderWebsiteWhenStartedFromWebsiteDirectory() throws Exception {
+        String originalUserDir = System.getProperty("user.dir");
+        try {
+            System.setProperty("user.dir", resolveWebsiteDir().getCanonicalPath());
+            VideoAutoStartRunner runner = new VideoAutoStartRunner();
+            ReflectionTestUtils.setField(runner, "workDir", "website/video");
+
+            File directory = runner.resolveWorkDir();
+
+            assertThat(directory).isDirectory();
+            assertThat(new File(directory, "web_server.py")).isFile();
+            assertThat(directory.getPath().replace('\\', '/')).endsWith("website/video");
+        } finally {
+            System.setProperty("user.dir", originalUserDir);
+        }
+    }
+
+    private File resolveWebsiteDir() {
+        File currentDir = new File(System.getProperty("user.dir"));
+        if ("website".equals(currentDir.getName())) {
+            return currentDir;
+        }
+        return new File(currentDir, "website");
+    }
+
+    private File resolveRepositoryRoot() {
+        File websiteDir = resolveWebsiteDir();
+        return websiteDir.getParentFile();
     }
 
     @Test

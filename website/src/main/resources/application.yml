@@ -27,7 +27,7 @@ mybatis:
 python-a:
   auto-start:
     enabled: true
-    work-dir: python-a
+    work-dir: website/python-a
     command: python
     port: 5174
     health-path: /api/health
@@ -37,7 +37,7 @@ python-a:
 quant-a:
   auto-start:
     enabled: true
-    work-dir: quant-a
+    work-dir: website/quant-a
     command: "C:\\Users\\xixixiaozi\\AppData\\Local\\Programs\\Python\\Python311\\python.exe"
     port: 5175
     health-path: /api/health
@@ -47,7 +47,7 @@ quant-a:
 video:
   auto-start:
     enabled: true
-    work-dir: video
+    work-dir: website/video
     command: python
     port: 5176
     health-path: /api/health

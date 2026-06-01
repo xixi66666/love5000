@@ -12,8 +12,8 @@ param(
 $ErrorActionPreference = "Stop"
 
 $RootDir = Split-Path -Parent $PSScriptRoot
-$PythonDir = Join-Path $RootDir "python-a"
-$QuantDir = Join-Path $RootDir "quant-a"
+$PythonDir = Join-Path $RootDir "website\python-a"
+$QuantDir = Join-Path $RootDir "website\quant-a"
 $HealthUrl = "http://127.0.0.1:$PythonPort/api/health"
 $QuantHealthUrl = "http://127.0.0.1:$QuantPort/api/health"
 

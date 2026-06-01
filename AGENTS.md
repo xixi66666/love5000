@@ -1,4 +1,4 @@
-# AGENTS.md
+﻿# AGENTS.md
 
 ## 项目概述
 
@@ -9,7 +9,7 @@
 - `website`：个人主页/展示站点 Web 应用，包含主页静态资源、Web Demo、OSS Demo、Nacos Discovery 示例和个人博客微应用。
 - `imagetemplate`：图片提示词模板 Web 服务，提供模板库检索、prompt 渲染、直接提示词模板和 OpenAI 图片生成能力。
 - `python-a`：A 股自选股 AI 研究台，作为独立 Python 微应用接入，不加入 Maven 聚合模块。
-- `quant-a`：A 股量化研究台，作为独立 FastAPI 微服务接入，不加入 Maven 聚合模块，不写入 `python-a` 的 Obsidian 目录。
+- `quant-a`：A 股量化研究台，作为独立 FastAPI 微服务接入，不加入 Maven 聚合模块，不写入 `website/python-a` 的 Obsidian 目录。
 - `video`：AI 原创动漫短片生成工作台，作为独立 Python 微应用接入，不加入 Maven 聚合模块。
 
 核心技术栈：
@@ -29,11 +29,11 @@
 
 **关键**：根目录 `pom.xml` 只负责模块聚合、公共版本和依赖管理。业务代码必须放在对应模块内；跨模块公共能力优先放入 `common`。
 
-**关键**：`python-a` 是独立 Python 微应用，不是 Java Maven 模块，不要把它加入父 `pom.xml` 的 `<modules>`。Java 侧只负责入口链接、反向代理或接口转发，不把 Python 业务逻辑改写进 Controller。
+**关键**：`website/python-a` 是独立 Python 微应用，不是 Java Maven 模块，不要把它加入父 `pom.xml` 的 `<modules>`。Java 侧只负责入口链接、反向代理或接口转发，不把 Python 业务逻辑改写进 Controller。
 
-**关键**：`quant-a` 是独立 FastAPI 微服务，不是 Java Maven 模块，不要把它加入父 `pom.xml` 的 `<modules>`。它的数据、配置和测试保持在 `quant-a/` 内，不写入 `python-a/obsidian-vault/`。
+**关键**：`quant-a` 是独立 FastAPI 微服务，不是 Java Maven 模块，不要把它加入父 `pom.xml` 的 `<modules>`。它的数据、配置和测试保持在 `website/quant-a/` 内，不写入 `website/python-a/obsidian-vault/`。
 
-**关键**：`video` 是独立 Python 微应用，不是 Java Maven 模块，不要把它加入父 `pom.xml` 的 `<modules>`。Java 侧只负责入口链接、健康检测或反向代理，不把视频生成、FFmpeg 调用、OpenAI 调用等业务逻辑改写进 Controller。
+**关键**：`website/video` 是独立 Python 微应用，不是 Java Maven 模块，不要把它加入父 `pom.xml` 的 `<modules>`。Java 侧只负责入口链接、健康检测或反向代理，不把视频生成、FFmpeg 调用、OpenAI 调用等业务逻辑改写进 Controller。
 
 ## 开发命令
 
@@ -124,21 +124,21 @@ mvn -pl imagetemplate -am spring-boot:run
 启动 `python-a`，默认端口 `5174`：
 
 ```bash
-cd python-a
+cd website/python-a
 npm run start
 ```
 
 也可以直接启动 Python 服务：
 
 ```bash
-cd python-a
+cd website/python-a
 python server.py
 ```
 
 指定端口启动：
 
 ```bash
-cd python-a
+cd website/python-a
 set PORT=5174
 python server.py
 ```
@@ -146,7 +146,7 @@ python server.py
 配置 DeepSeek Key 后启动：
 
 ```bash
-cd python-a
+cd website/python-a
 set DEEPSEEK_API_KEY=your-key
 python server.py
 ```
@@ -154,28 +154,28 @@ python server.py
 启动 `quant-a`，默认端口 `5175`：
 
 ```bash
-cd quant-a
+cd website/quant-a
 python -m uvicorn main:app --host 127.0.0.1 --port 5175
 ```
 
 运行 `quant-a` 测试：
 
 ```bash
-cd quant-a
+cd website/quant-a
 python -m pytest
 ```
 
 启动 `video`，默认端口 `5176`：
 
 ```bash
-cd video
+cd website/video
 python web_server.py
 ```
 
 运行 `video` 测试：
 
 ```bash
-cd video
+cd website/video
 python -m unittest discover -s tests -v
 ```
 
@@ -213,7 +213,7 @@ love5000/
 │           │   ├── css/app.css
 │           │   └── js/app.js
 │           └── templates/image-prompt-templates.json
-├── python-a/
+├── website/python-a/
     ├── README.md
     ├── package.json
     ├── server.py
@@ -221,14 +221,14 @@ love5000/
     ├── app.js
     ├── styles.css
     └── obsidian-vault/
-├── quant-a/
+├── website/quant-a/
     ├── main.py
     ├── requirements.txt
     ├── configs/
     ├── quant/
     ├── tests/
     └── web/
-└── video/
+└── website/video/
     ├── anime_cli.py
     ├── web_server.py
     ├── anime_tools/
@@ -240,7 +240,7 @@ love5000/
 `python-a` 不参与 Maven 构建，下面结构只表示其独立应用边界：
 
 ```text
-python-a/
+website/python-a/
     ├── README.md
     ├── package.json
     ├── server.py
@@ -254,7 +254,7 @@ python-a/
 `quant-a` 不参与 Maven 构建，下面结构只表示其独立 FastAPI 微服务边界：
 
 ```text
-quant-a/
+website/quant-a/
     ├── main.py
     ├── requirements.txt
     ├── configs/
@@ -272,7 +272,7 @@ quant-a/
 `video` 不参与 Maven 构建，下面结构只表示其独立 Python 微应用边界：
 
 ```text
-video/
+website/video/
     ├── anime_cli.py
     ├── web_server.py
     ├── config.example.json
@@ -301,17 +301,17 @@ video/
 - `imagetemplate/service`：模板加载、prompt 渲染、OpenAI 图片生成服务。
 - `imagetemplate/src/main/resources/templates`：图片提示词模板 JSON 数据源。
 - `imagetemplate/src/main/resources/static`：图片模板库单页前端。
-- `python-a/server.py`：Python 微应用后端，负责静态页面服务、东方财富行情网关、DeepSeek 调用和 Obsidian 写入。
-- `python-a/index.html`、`python-a/app.js`、`python-a/styles.css`：A 股自选股 AI 研究台前端页面、交互和样式。
-- `python-a/obsidian-vault/A股AI`：Python 微应用默认写入的 Obsidian 研究记录和自选股数据目录。
-- `quant-a/main.py`：Quant FastAPI 应用入口，挂载前端静态资源并注册 `/api/**` 路由。
-- `quant-a/quant`：量化研究核心代码，包含 API、因子、回测、组合、行情提供方、服务编排和存储。
-- `quant-a/tests`：Quant 微服务测试，使用 pytest 和 FastAPI TestClient。
-- `quant-a/web`：Quant 研究台前端页面和静态资源。
-- `video/web_server.py`：Video 微应用本地 HTTP 服务入口，默认监听 `127.0.0.1:5176`。
-- `video/anime_tools`：视频生成核心代码，包含项目管理、OpenAI 兼容接口调用、FFmpeg 合成、任务管理和 Web API。
-- `video/web`：Video 工作台前端页面和静态资源。
-- `video/anime_projects`：Video 本地生成项目和视频产物目录，默认不提交。
+- `website/python-a/server.py`：Python 微应用后端，负责静态页面服务、东方财富行情网关、DeepSeek 调用和 Obsidian 写入。
+- `website/python-a/index.html`、`website/python-a/app.js`、`website/python-a/styles.css`：A 股自选股 AI 研究台前端页面、交互和样式。
+- `website/python-a/obsidian-vault/A股AI`：Python 微应用默认写入的 Obsidian 研究记录和自选股数据目录。
+- `website/quant-a/main.py`：Quant FastAPI 应用入口，挂载前端静态资源并注册 `/api/**` 路由。
+- `website/quant-a/quant`：量化研究核心代码，包含 API、因子、回测、组合、行情提供方、服务编排和存储。
+- `website/quant-a/tests`：Quant 微服务测试，使用 pytest 和 FastAPI TestClient。
+- `website/quant-a/web`：Quant 研究台前端页面和静态资源。
+- `website/video/web_server.py`：Video 微应用本地 HTTP 服务入口，默认监听 `127.0.0.1:5176`。
+- `website/video/anime_tools`：视频生成核心代码，包含项目管理、OpenAI 兼容接口调用、FFmpeg 合成、任务管理和 Web API。
+- `website/video/web`：Video 工作台前端页面和静态资源。
+- `website/video/anime_projects`：Video 本地生成项目和视频产物目录，默认不提交。
 
 ## Python 微应用入口方式
 
@@ -335,11 +335,11 @@ video/
 - 根目录脚本 `.\scripts\start-love5000.ps1` 仍保留显式 `-StartQuant` 参数，用于不经过 Java 自动启动器时手动拉起 Quant 服务。
 - 本地开发入口：启动 `quant-a` 后访问 `http://127.0.0.1:5175/`。
 - 健康检查入口：`GET http://127.0.0.1:5175/api/health`，响应中的 `success` 必须为 `true`。
-- 推荐命令：`python -m uvicorn main:app --host 127.0.0.1 --port 5175`，工作目录为 `quant-a/`。
+- 推荐命令：`python -m uvicorn main:app --host 127.0.0.1 --port 5175`，工作目录为 `website/quant-a/`。
 - `website` 只提供入口链接和健康检测，不把 `quant-a` 业务逻辑改写进 Java Controller。
 - 生产部署如需统一域名，使用 Nginx、网关或 Spring 反向代理把 `/quant-a/` 转发到 `127.0.0.1:5175`。
 - `quant-a` 的 `/api/**` 默认由 FastAPI 服务自己处理。没有明确需求时，不要在 Java Controller 中重复实现这些接口。
-- `quant-a` 不是 Maven 模块，不执行 `mvn -pl quant-a ...`，也不要写入 `python-a/obsidian-vault/`。
+- `quant-a` 不是 Maven 模块，不执行 `mvn -pl quant-a ...`，也不要写入 `website/python-a/obsidian-vault/`。
 
 ## Video 微应用入口方式
 
@@ -347,7 +347,7 @@ video/
 
 - 本地开发入口：启动 `video` 后访问 `http://127.0.0.1:5176/`。
 - 健康检查入口：`GET http://127.0.0.1:5176/api/health`，响应中的 `success` 必须为 `true`。
-- 推荐命令：`python web_server.py`，工作目录为 `video/`。
+- 推荐命令：`python web_server.py`，工作目录为 `website/video/`。
 - `website` 内置 `VideoAutoStartRunner`，默认配置为 `video.auto-start.enabled=true`。直接启动 `website` 时会自动拉起或复用 `video`。
 - `website` 只提供入口链接、自动启动和健康检测，不把 `video` 的视频生成、FFmpeg 调用或 OpenAI 调用逻辑改写进 Java Controller。
 - 生产部署如需统一域名，使用 Nginx、网关或 Spring 反向代理把 `/video/` 转发到 `127.0.0.1:5176`。
@@ -378,9 +378,9 @@ video/
 - `lovestory` 使用 MySQL 数据库 `lovestory`。
 - `website` 使用 MySQL 数据库 `ycx_pms`。
 - `imagetemplate` 不使用数据库。
-- `python-a` 不使用 MySQL；默认写入本地 `python-a/obsidian-vault/A股AI/`。
-- `quant-a` 不使用 MySQL；默认使用 `quant-a/` 内部数据、配置和存储目录，不写入 `python-a` 的 Obsidian 目录。
-- `video` 不使用 MySQL；默认使用 `video/anime_projects/` 保存本地生成项目和视频产物。
+- `python-a` 不使用 MySQL；默认写入本地 `website/python-a/obsidian-vault/A股AI/`。
+- `quant-a` 不使用 MySQL；默认使用 `website/quant-a/` 内部数据、配置和存储目录，不写入 `website/python-a` 的 Obsidian 目录。
+- `video` 不使用 MySQL；默认使用 `website/video/anime_projects/` 保存本地生成项目和视频产物。
 
 ⚠️ **严重警告**：不要提交真实数据库密码、OSS AccessKey、OpenAI API Key。新增配置优先使用环境变量，例如 `${OPENAI_API_KEY:}`、`${LOVE530_OSS_ACCESS_KEY_ID:}`。
 
@@ -563,9 +563,9 @@ GET  /api/assets/{project_name}/video/final
 - `website` 主页资源放在 `website/src/main/resources/static/css`、`static/js`、`static/img`。
 - `website` 博客资源放在 `website/src/main/resources/static/blog`。
 - `imagetemplate` 页面放在 `imagetemplate/src/main/resources/static`，模板 JSON 放在 `imagetemplate/src/main/resources/templates`。
-- `python-a` 页面放在 `python-a/index.html`、`python-a/app.js`、`python-a/styles.css`，由 `python-a/server.py` 直接提供静态访问。
-- `quant-a` 页面放在 `quant-a/web`，由 `quant-a/main.py` 通过 FastAPI 静态资源能力提供访问。
-- `video` 页面放在 `video/web`，由 `video/web_server.py` 通过 Python `http.server` 提供静态访问。
+- `python-a` 页面放在 `website/python-a/index.html`、`website/python-a/app.js`、`website/python-a/styles.css`，由 `website/python-a/server.py` 直接提供静态访问。
+- `quant-a` 页面放在 `website/quant-a/web`，由 `website/quant-a/main.py` 通过 FastAPI 静态资源能力提供访问。
+- `video` 页面放在 `website/video/web`，由 `website/video/web_server.py` 通过 Python `http.server` 提供静态访问。
 - 静态资源使用相对路径或明确的外部 URL，不引用本机绝对路径。
 - 不修改 `target/` 下的构建产物。
 
@@ -604,10 +604,10 @@ Python 约定：
 - 三个 Python 子服务的 `*.auto-start.log-to-console` 默认值为 `true`，会把子进程日志直接输出到 `website` 控制台；如需恢复文件日志，可设为 `false`，日志会写入各自目录下的 `server.out.log` 和 `server.err.log`。
 - 股票研究输出必须保留风险提示和非投资建议边界，避免确定性买卖结论。
 - 涉及网络请求、文件写入和 Obsidian 写入时要保留异常处理，不能因为单个外部接口失败导致页面整体不可用。
-- `quant-a` 使用 FastAPI + Uvicorn，运行配置优先使用环境变量或 `quant-a/configs` 内配置文件；不要把 `quant-a` 加入 Maven modules，不要复用或写入 `python-a/obsidian-vault/`。
+- `quant-a` 使用 FastAPI + Uvicorn，运行配置优先使用环境变量或 `website/quant-a/configs` 内配置文件；不要把 `quant-a` 加入 Maven modules，不要复用或写入 `website/python-a/obsidian-vault/`。
 - `quant-a` 的量化评分、回测和报告输出必须保留风险提示和非投资建议边界，避免确定性买卖结论。
-- `video` 使用 Python 标准库 `http.server` 提供本地工作台，运行配置优先使用 `video/config.local.json` 或命令行参数；不要把 `video` 加入 Maven modules。
-- `video/config.local.json` 禁止提交真实 API Key；`video/anime_projects/`、`.vendor/`、`__pycache__/` 和生成的视频、音频、图片产物默认不提交。
+- `video` 使用 Python 标准库 `http.server` 提供本地工作台，运行配置优先使用 `website/video/config.local.json` 或命令行参数；不要把 `video` 加入 Maven modules。
+- `website/video/config.local.json` 禁止提交真实 API Key；`website/video/anime_projects/`、`website/video/.vendor/`、`__pycache__/` 和生成的视频、音频、图片产物默认不提交。
 - `video` 的视频生成输出必须保留 AI 生成内容和非真实拍摄素材边界，避免误导为真实影像。
 
 ## 测试策略
@@ -632,7 +632,7 @@ mvn -pl imagetemplate -am test
 `python-a` 当前没有单元测试框架。修改后至少执行：
 
 ```bash
-cd python-a
+cd website/python-a
 python server.py
 ```
 
@@ -646,7 +646,7 @@ http://127.0.0.1:5174/api/health
 `quant-a` 修改后至少执行：
 
 ```bash
-cd quant-a
+cd website/quant-a
 python -m pytest
 python -m uvicorn main:app --host 127.0.0.1 --port 5175
 ```
@@ -661,7 +661,7 @@ http://127.0.0.1:5175/api/health
 `video` 修改后至少执行：
 
 ```bash
-cd video
+cd website/video
 python -m unittest discover -s tests -v
 python web_server.py
 ```
@@ -716,9 +716,9 @@ mvn -pl imagetemplate -am test
 - **关键**：修改 `lovestory` 吉他视频表字段时，同步更新 `GuitarVideoRecord`、`GuitarVideoDao`、`GuitarVideoMapper.xml`、`GuitarVideoServiceImplTests` 和前端展示字段。
 - **关键**：修改 `imagetemplate` 模板 JSON 时，同步更新模板数量、分类断言和前端展示；当前模板库包含 47 个模板，其中 20 个属于 `direct-prompt` / “直接提示词”分类。
 - **关键**：修改 `imagetemplate` 图片尺寸选项或规则时，同步更新前端校验、后端校验和 `OpenAiImageGenerationServiceTest`。
-- **关键**：修改 `python-a` 时不要提交 `deepseek.local.json`、`.env`、`__pycache__/`、`server.err.log`、`server.out.log`。
-- **关键**：修改 `quant-a` 时不要提交 `.env`、`__pycache__/`、`.pytest_cache/`、运行时数据库、缓存或生成报告；不要写入 `python-a/obsidian-vault/`。
-- **关键**：修改 `video` 时不要提交 `config.local.json`、`.vendor/`、`__pycache__/`、`.pytest_cache/`、`anime_projects/`、生成的视频、音频、图片产物或真实 API Key。
+- **关键**：修改 `website/python-a` 时不要提交 `deepseek.local.json`、`.env`、`__pycache__/`、`server.err.log`、`server.out.log`。
+- **关键**：修改 `website/quant-a` 时不要提交 `.env`、`__pycache__/`、`.pytest_cache/`、运行时数据库、缓存或生成报告；不要写入 `website/python-a/obsidian-vault/`。
+- **关键**：修改 `website/video` 时不要提交 `config.local.json`、`.vendor/`、`__pycache__/`、`.pytest_cache/`、`anime_projects/`、生成的视频、音频、图片产物或真实 API Key。
 - ⚠️ 不依赖远程生产 MySQL、真实 OSS、真实 OpenAI API 来通过单元测试。
 
 ## 常见任务指南
@@ -777,14 +777,14 @@ mvn -pl lovestory -am test
 
 ### 修改 python-a 微应用
 
-1. 修改 `python-a/server.py`、`python-a/app.js`、`python-a/index.html` 或 `python-a/styles.css`。
+1. 修改 `website/python-a/server.py`、`website/python-a/app.js`、`website/python-a/index.html` 或 `website/python-a/styles.css`。
 2. 保持 `python-a` 作为独立 Python 服务，不加入父 `pom.xml`。
-3. 如果新增配置，优先使用环境变量，并同步更新 `python-a/README.md` 和根 `AGENTS.md`。
+3. 如果新增配置，优先使用环境变量，并同步更新 `website/python-a/README.md` 和根 `AGENTS.md`。
 4. 如果新增 API，同步更新本文件的 `python-a` 接口列表。
 5. 运行：
 
 ```bash
-cd python-a
+cd website/python-a
 python server.py
 ```
 
@@ -796,14 +796,14 @@ GET http://127.0.0.1:5174/api/health
 
 ### 修改 video 微应用
 
-1. 修改 `video/web_server.py`、`video/anime_tools/`、`video/web/` 或 `video/anime_cli.py`。
+1. 修改 `website/video/web_server.py`、`website/video/anime_tools/`、`website/video/web/` 或 `website/video/anime_cli.py`。
 2. 保持 `video` 作为独立 Python 服务，不加入父 `pom.xml`。
-3. 如果新增配置，优先使用 `config.example.json` 模板和本地 `config.local.json`，并同步更新 `video/README.md` 和根 `AGENTS.md`。
+3. 如果新增配置，优先使用 `config.example.json` 模板和本地 `config.local.json`，并同步更新 `website/video/README.md` 和根 `AGENTS.md`。
 4. 如果新增 API，同步更新本文件的 `video` 接口列表。
 5. 运行：
 
 ```bash
-cd video
+cd website/video
 python -m unittest discover -s tests -v
 python web_server.py
 ```
@@ -838,3 +838,4 @@ Use the default five-label triage vocabulary: `needs-triage`, `needs-info`, `rea
 ### Domain docs
 
 Single-context layout: root `CONTEXT.md` and `docs/adr/`, created lazily when needed. See `docs/agents/domain.md`.
+

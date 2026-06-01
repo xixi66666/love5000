@@ -41,10 +41,10 @@ __pycache__/
 *.log
 
 ### Local microservice data ###
-quant-a/data/
-python-a/deepseek.local.json
-python-a/server.out.log
-python-a/server.err.log
-video/.vendor/
-video/config.local.json
-video/anime_projects/
+website/quant-a/data/
+website/python-a/deepseek.local.json
+website/python-a/server.out.log
+website/python-a/server.err.log
+website/video/.vendor/
+website/video/config.local.json
+website/video/anime_projects/

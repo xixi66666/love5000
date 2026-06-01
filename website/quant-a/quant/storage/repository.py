@@ -125,7 +125,22 @@ class QuantRepository:
             codes,
         )
 
-    def record_data_version(self, data_version: str, provider: str, start_date: str, end_date: str) -> None:
+    def record_data_version(
+        self,
+        data_version: str,
+        provider: str,
+        start_date: str,
+        end_date: str,
+        created_at: Optional[str] = None,
+    ) -> None:
+        if created_at:
+            self.connection.execute(
+                "insert or replace into data_versions "
+                "(data_version, provider, start_date, end_date, created_at) values (?, ?, ?, ?, cast(? as timestamp))",
+                [data_version, provider, start_date, end_date, created_at],
+            )
+            return
+
         self.connection.execute(
             "insert or replace into data_versions (data_version, provider, start_date, end_date) values (?, ?, ?, ?)",
             [data_version, provider, start_date, end_date],

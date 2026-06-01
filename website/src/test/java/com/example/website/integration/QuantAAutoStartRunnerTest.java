@@ -30,7 +30,7 @@ class QuantAAutoStartRunnerTest {
         ReflectionTestUtils.setField(runner, "command", "python");
         ReflectionTestUtils.setField(runner, "port", 5175);
         ReflectionTestUtils.setField(runner, "logToConsole", true);
-        File directory = new File("quant-a");
+        File directory = new File("website/quant-a");
 
         ProcessBuilder builder = runner.createProcessBuilder(directory);
 
@@ -51,6 +51,55 @@ class QuantAAutoStartRunnerTest {
         assertThat(command).doesNotContain("server.py");
         assertThat(builder.redirectOutput()).isEqualTo(ProcessBuilder.Redirect.INHERIT);
         assertThat(builder.redirectError()).isEqualTo(ProcessBuilder.Redirect.INHERIT);
+    }
+
+    @Test
+    void resolvesQuantAUnderWebsiteWhenStartedFromRepositoryRoot() throws Exception {
+        String originalUserDir = System.getProperty("user.dir");
+        try {
+            System.setProperty("user.dir", resolveRepositoryRoot().getCanonicalPath());
+            QuantAAutoStartRunner runner = new QuantAAutoStartRunner();
+            ReflectionTestUtils.setField(runner, "workDir", "website/quant-a");
+
+            File directory = runner.resolveWorkDir();
+
+            assertThat(directory).isDirectory();
+            assertThat(new File(directory, "main.py")).isFile();
+            assertThat(directory.getPath().replace('\\', '/')).endsWith("website/quant-a");
+        } finally {
+            System.setProperty("user.dir", originalUserDir);
+        }
+    }
+
+    @Test
+    void resolvesQuantAUnderWebsiteWhenStartedFromWebsiteDirectory() throws Exception {
+        String originalUserDir = System.getProperty("user.dir");
+        try {
+            System.setProperty("user.dir", resolveWebsiteDir().getCanonicalPath());
+            QuantAAutoStartRunner runner = new QuantAAutoStartRunner();
+            ReflectionTestUtils.setField(runner, "workDir", "website/quant-a");
+
+            File directory = runner.resolveWorkDir();
+
+            assertThat(directory).isDirectory();
+            assertThat(new File(directory, "main.py")).isFile();
+            assertThat(directory.getPath().replace('\\', '/')).endsWith("website/quant-a");
+        } finally {
+            System.setProperty("user.dir", originalUserDir);
+        }
+    }
+
+    private File resolveWebsiteDir() {
+        File currentDir = new File(System.getProperty("user.dir"));
+        if ("website".equals(currentDir.getName())) {
+            return currentDir;
+        }
+        return new File(currentDir, "website");
+    }
+
+    private File resolveRepositoryRoot() {
+        File websiteDir = resolveWebsiteDir();
+        return websiteDir.getParentFile();
     }
 
     @Test

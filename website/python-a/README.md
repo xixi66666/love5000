@@ -6,7 +6,7 @@
 
 ## 当前状态
 
-这是一个轻量级本地 Web 应用。用户先维护自己的自选股池，系统从东方财富公开接口抓取行情和日 K 数据，再通过 DeepSeek 生成多维度分析草稿，并可写入 Obsidian 长期记忆。
+这是 `love5000/website` 下的轻量级独立 Python 微应用。用户先维护自己的自选股池，系统从东方财富公开接口抓取行情和日 K 数据，再通过 DeepSeek 生成多维度分析草稿，并可写入 Obsidian 长期记忆。
 
 当前默认自选股为空，不再内置示例股票。首次使用时请在左侧手动加入股票代码。
 
@@ -58,9 +58,10 @@ obsidian-vault/A股AI/操作记录/      每次保存生成的多维度分析记
 
 ## 运行
 
-在项目目录执行：
+从仓库根目录进入当前服务目录后执行：
 
 ```bash
+cd website/python-a
 npm run start
 ```
 
@@ -71,6 +72,8 @@ http://127.0.0.1:5174
 ```
 
 也可以直接打开 `index.html`，但离线打开时无法联网取数、无法调用 DeepSeek，也无法写入 Obsidian。
+
+直接启动 `website` 时，Java 侧会自动检查 `http://127.0.0.1:5174/api/health`。如果 `python-a` 已经可用，会直接复用；如果不可用，会在 `website/python-a/` 目录下自动执行 `python server.py` 拉起服务。IDEA 中运行 `website` 时，`python-a` 的标准输出和错误输出默认会显示在 `website` 的同一个控制台。
 
 ## DeepSeek 配置
 
@@ -181,3 +184,4 @@ obsidian-vault/A股AI/
 ```
 
 所有结论都应包含证据、置信度、反证条件和后续验证窗口。
+

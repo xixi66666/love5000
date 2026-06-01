@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit;
 @ConditionalOnProperty(prefix = "video.auto-start", name = "enabled", havingValue = "true")
 public class VideoAutoStartRunner implements ApplicationRunner {
 
-    @Value("${video.auto-start.work-dir:video}")
+    @Value("${video.auto-start.work-dir:website/video}")
     private String workDir;
 
     @Value("${video.auto-start.command:python}")
@@ -83,14 +83,37 @@ public class VideoAutoStartRunner implements ApplicationRunner {
             return configured.getCanonicalFile();
         }
 
-        File currentDir = new File(System.getProperty("user.dir"));
+        File currentDir = new File(System.getProperty("user.dir")).getCanonicalFile();
         File fromCurrentDir = new File(currentDir, workDir);
         if (fromCurrentDir.exists()) {
             return fromCurrentDir.getCanonicalFile();
         }
 
-        File fromParentDir = new File(currentDir.getParentFile(), workDir);
+        File fromWebsiteModuleDir = resolveFromWebsiteModuleDir(currentDir);
+        if (fromWebsiteModuleDir != null && fromWebsiteModuleDir.exists()) {
+            return fromWebsiteModuleDir.getCanonicalFile();
+        }
+
+        File parentDir = currentDir.getParentFile();
+        if (parentDir == null) {
+            return fromCurrentDir.getCanonicalFile();
+        }
+
+        File fromParentDir = new File(parentDir, workDir);
         return fromParentDir.getCanonicalFile();
+    }
+
+    private File resolveFromWebsiteModuleDir(File currentDir) {
+        if (!"website".equals(currentDir.getName())) {
+            return null;
+        }
+
+        String normalizedWorkDir = workDir.replace('\\', '/');
+        if (!normalizedWorkDir.startsWith("website/")) {
+            return null;
+        }
+
+        return new File(currentDir, normalizedWorkDir.substring("website/".length()));
     }
 
     String buildHealthUrl() {
