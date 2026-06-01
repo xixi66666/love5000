@@ -17,25 +17,25 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
 @Component
-@ConditionalOnProperty(prefix = "quant-a.auto-start", name = "enabled", havingValue = "true")
-public class QuantAAutoStartRunner implements ApplicationRunner {
+@ConditionalOnProperty(prefix = "video.auto-start", name = "enabled", havingValue = "true")
+public class VideoAutoStartRunner implements ApplicationRunner {
 
-    @Value("${quant-a.auto-start.work-dir:quant-a}")
+    @Value("${video.auto-start.work-dir:video}")
     private String workDir;
 
-    @Value("${quant-a.auto-start.command:python}")
+    @Value("${video.auto-start.command:python}")
     private String command;
 
-    @Value("${quant-a.auto-start.port:5175}")
+    @Value("${video.auto-start.port:5176}")
     private int port;
 
-    @Value("${quant-a.auto-start.health-path:/api/health}")
+    @Value("${video.auto-start.health-path:/api/health}")
     private String healthPath;
 
-    @Value("${quant-a.auto-start.startup-timeout-seconds:30}")
+    @Value("${video.auto-start.startup-timeout-seconds:30}")
     private int startupTimeoutSeconds;
 
-    @Value("${quant-a.auto-start.log-to-console:true}")
+    @Value("${video.auto-start.log-to-console:true}")
     private boolean logToConsole;
 
     private Process process;
@@ -44,26 +44,26 @@ public class QuantAAutoStartRunner implements ApplicationRunner {
     public void run(ApplicationArguments args) throws Exception {
         String healthUrl = buildHealthUrl();
         if (isHealthy(healthUrl)) {
-            System.out.println("quant-a is already running: " + healthUrl);
+            System.out.println("video is already running: " + healthUrl);
             return;
         }
 
         File directory = resolveWorkDir();
         if (!directory.exists() || !directory.isDirectory()) {
-            throw new IllegalStateException("quant-a directory does not exist: " + directory.getAbsolutePath());
+            throw new IllegalStateException("video directory does not exist: " + directory.getAbsolutePath());
         }
 
         ProcessBuilder builder = createProcessBuilder(directory);
         process = builder.start();
-        System.out.println("quant-a started, pid=" + getPid(process) + ", health=" + healthUrl);
+        System.out.println("video started, pid=" + getPid(process) + ", health=" + healthUrl);
 
         if (!waitUntilHealthy(healthUrl)) {
-            throw new IllegalStateException("quant-a health check failed after startup: " + healthUrl);
+            throw new IllegalStateException("video health check failed after startup: " + healthUrl);
         }
     }
 
     @PreDestroy
-    public void stopQuantA() {
+    public void stopVideo() {
         if (process != null && process.isAlive()) {
             process.destroy();
             try {
@@ -101,9 +101,7 @@ public class QuantAAutoStartRunner implements ApplicationRunner {
     ProcessBuilder createProcessBuilder(File directory) {
         ProcessBuilder builder = new ProcessBuilder(
                 command,
-                "-m",
-                "uvicorn",
-                "main:app",
+                "web_server.py",
                 "--host",
                 "127.0.0.1",
                 "--port",

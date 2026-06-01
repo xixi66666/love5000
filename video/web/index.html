@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI 动漫生产工作台</title>
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">LOCAL WORKBENCH</p>
+          <h1>AI 动漫生产工作台</h1>
+        </div>
+        <div class="topbar-actions">
+          <span id="taskBadge" class="status-badge">空闲</span>
+          <button id="refreshButton" class="button secondary" type="button">刷新</button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="sidebar panel">
+          <section class="section">
+            <div class="section-heading">
+              <h2>新建生成</h2>
+            </div>
+            <label for="themeInput">主题</label>
+            <textarea id="themeInput" rows="5" placeholder="输入动画主题，例如：雨夜里，一个妖刀少女救下路人..."></textarea>
+            <label for="configPathInput">配置文件</label>
+            <input id="configPathInput" type="text" value="config.local.json" />
+            <label for="bgmPathInput">BGM 路径</label>
+            <input id="bgmPathInput" type="text" placeholder="留空使用配置默认值" />
+            <button id="autoButton" class="button primary full" type="button">生成项目</button>
+          </section>
+
+          <section class="section">
+            <div class="section-heading">
+              <h2>项目</h2>
+              <span id="projectCount" class="muted">0</span>
+            </div>
+            <input id="projectSearch" type="search" placeholder="搜索项目" />
+            <div id="projectList" class="project-list"></div>
+          </section>
+        </aside>
+
+        <section class="main-panel panel">
+          <div id="emptyState" class="empty-state">
+            <p class="eyebrow">SELECT PROJECT</p>
+            <h2>选择一个项目开始生产</h2>
+            <p>左侧选择已有项目，或输入主题创建新的自动生成任务。</p>
+          </div>
+
+          <div id="projectEditor" class="project-editor hidden">
+            <div class="editor-header">
+              <div>
+                <p class="eyebrow">STORYBOARD</p>
+                <h2 id="projectTitle">未选择项目</h2>
+                <p id="projectPath" class="path-text"></p>
+              </div>
+              <div class="editor-actions">
+                <button id="resumeButton" class="button secondary" type="button">续跑</button>
+                <button id="subtitlesButton" class="button secondary" type="button">生成字幕</button>
+                <button id="renderButton" class="button primary" type="button">重新合成</button>
+              </div>
+            </div>
+
+            <div class="form-grid">
+              <label class="field">
+                <span>标题</span>
+                <input id="titleInput" type="text" />
+              </label>
+              <label class="field">
+                <span>旁白</span>
+                <textarea id="narrationInput" rows="4"></textarea>
+              </label>
+            </div>
+
+            <div class="shot-toolbar">
+              <span id="shotCount" class="status-badge">0 个镜头</span>
+              <button id="saveStoryboardButton" class="button secondary" type="button">保存全部分镜</button>
+            </div>
+
+            <div id="shotList" class="shot-list"></div>
+          </div>
+        </section>
+
+        <aside class="preview-panel panel">
+          <section class="section">
+            <div class="section-heading">
+              <h2>预览</h2>
+              <span id="videoState" class="status-badge">未选择</span>
+            </div>
+            <div class="video-frame">
+              <video id="videoPreview" controls></video>
+              <p id="videoPlaceholder">暂无 final.mp4</p>
+            </div>
+          </section>
+
+          <section class="section">
+            <h2>素材状态</h2>
+            <div id="assetStatus" class="asset-status"></div>
+          </section>
+
+          <section class="section">
+            <h2>任务日志</h2>
+            <pre id="taskLog" class="task-log">暂无任务</pre>
+          </section>
+
+          <section class="section">
+            <h2>警告</h2>
+            <pre id="warningLog" class="task-log muted-log">暂无警告</pre>
+          </section>
+        </aside>
+      </main>
+    </div>
+    <script src="/app.js"></script>
+  </body>
+</html>

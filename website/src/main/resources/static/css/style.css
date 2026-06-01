@@ -454,7 +454,7 @@ main {
     display: grid;
     grid-template-columns: 1fr;
     gap: 8px;
-    width: min(140px, 100%);
+    width: min(172px, 100%);
     margin-top: 0;
 }
 
@@ -534,6 +534,10 @@ main {
 
 .service-card-quant {
     --accent-rgb: 246, 196, 83;
+}
+
+.service-card-video {
+    --accent-rgb: 196, 162, 255;
 }
 
 .service-card strong {

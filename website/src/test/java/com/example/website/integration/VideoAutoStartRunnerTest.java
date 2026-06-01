@@ -1,54 +1,48 @@
 package com.example.website.integration;
 
+import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import com.sun.net.httpserver.HttpServer;
 import java.io.File;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class QuantAAutoStartRunnerTest {
+class VideoAutoStartRunnerTest {
 
     @Test
-    void buildsQuantHealthUrlFromConfiguredPortAndPath() {
-        QuantAAutoStartRunner runner = new QuantAAutoStartRunner();
-        ReflectionTestUtils.setField(runner, "port", 5175);
+    void buildsVideoHealthUrlFromConfiguredPortAndPath() {
+        VideoAutoStartRunner runner = new VideoAutoStartRunner();
+        ReflectionTestUtils.setField(runner, "port", 5176);
         ReflectionTestUtils.setField(runner, "healthPath", "api/health");
 
         String healthUrl = runner.buildHealthUrl();
 
-        assertThat(healthUrl).isEqualTo("http://127.0.0.1:5175/api/health");
+        assertThat(healthUrl).isEqualTo("http://127.0.0.1:5176/api/health");
     }
 
     @Test
-    void createsUvicornProcessBuilderInQuantDirectory() {
-        QuantAAutoStartRunner runner = new QuantAAutoStartRunner();
+    void createsVideoWebServerProcessBuilderInVideoDirectory() {
+        VideoAutoStartRunner runner = new VideoAutoStartRunner();
         ReflectionTestUtils.setField(runner, "command", "python");
-        ReflectionTestUtils.setField(runner, "port", 5175);
+        ReflectionTestUtils.setField(runner, "port", 5176);
         ReflectionTestUtils.setField(runner, "logToConsole", true);
-        File directory = new File("quant-a");
+        File directory = new File("video");
 
         ProcessBuilder builder = runner.createProcessBuilder(directory);
 
         assertThat(builder.directory()).isEqualTo(directory);
         assertThat(builder.command()).containsExactly(
                 "python",
-                "-m",
-                "uvicorn",
-                "main:app",
+                "web_server.py",
                 "--host",
                 "127.0.0.1",
                 "--port",
-                "5175"
+                "5176"
         );
         assertThat(builder.environment()).containsEntry("PYTHONUNBUFFERED", "1");
-
-        List<String> command = builder.command();
-        assertThat(command).doesNotContain("server.py");
         assertThat(builder.redirectOutput()).isEqualTo(ProcessBuilder.Redirect.INHERIT);
         assertThat(builder.redirectError()).isEqualTo(ProcessBuilder.Redirect.INHERIT);
     }
@@ -66,7 +60,7 @@ class QuantAAutoStartRunnerTest {
         server.start();
 
         try {
-            QuantAAutoStartRunner runner = new QuantAAutoStartRunner();
+            VideoAutoStartRunner runner = new VideoAutoStartRunner();
 
             boolean healthy = runner.isHealthy("http://127.0.0.1:" + server.getAddress().getPort() + "/api/health");
 

@@ -9,7 +9,8 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 @SpringBootTest(properties = {
         "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration",
         "python-a.auto-start.enabled=false",
-        "quant-a.auto-start.enabled=false"
+        "quant-a.auto-start.enabled=false",
+        "video.auto-start.enabled=false"
 })
 class WebsiteApplicationTests {
 

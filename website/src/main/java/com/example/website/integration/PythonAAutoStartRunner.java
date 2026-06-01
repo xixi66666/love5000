@@ -32,6 +32,9 @@ public class PythonAAutoStartRunner implements ApplicationRunner {
     @Value("${python-a.auto-start.startup-timeout-seconds:20}")
     private int startupTimeoutSeconds;
 
+    @Value("${python-a.auto-start.log-to-console:true}")
+    private boolean logToConsole;
+
     private Process process;
 
     @Override
@@ -47,15 +50,7 @@ public class PythonAAutoStartRunner implements ApplicationRunner {
             throw new IllegalStateException("python-a directory does not exist: " + directory.getAbsolutePath());
         }
 
-        File outputLog = new File(directory, "server.out.log");
-        File errorLog = new File(directory, "server.err.log");
-
-        ProcessBuilder builder = new ProcessBuilder(command, "server.py");
-        builder.directory(directory);
-        builder.environment().put("PORT", String.valueOf(port));
-        builder.environment().put("PYTHONUNBUFFERED", "1");
-        builder.redirectOutput(ProcessBuilder.Redirect.appendTo(outputLog));
-        builder.redirectError(ProcessBuilder.Redirect.appendTo(errorLog));
+        ProcessBuilder builder = createProcessBuilder(directory);
 
         process = builder.start();
         System.out.println("python-a started, pid=" + getPid(process) + ", health=" + healthUrl);
@@ -80,7 +75,7 @@ public class PythonAAutoStartRunner implements ApplicationRunner {
         }
     }
 
-    private File resolveWorkDir() throws IOException {
+    File resolveWorkDir() throws IOException {
         File configured = new File(workDir);
         if (configured.isAbsolute()) {
             return configured.getCanonicalFile();
@@ -96,9 +91,30 @@ public class PythonAAutoStartRunner implements ApplicationRunner {
         return fromParentDir.getCanonicalFile();
     }
 
-    private String buildHealthUrl() {
+    String buildHealthUrl() {
         String normalizedPath = healthPath.startsWith("/") ? healthPath : "/" + healthPath;
         return "http://127.0.0.1:" + port + normalizedPath;
+    }
+
+    ProcessBuilder createProcessBuilder(File directory) {
+        ProcessBuilder builder = new ProcessBuilder(command, "server.py");
+        builder.directory(directory);
+        builder.environment().put("PORT", String.valueOf(port));
+        builder.environment().put("PYTHONUNBUFFERED", "1");
+        configureLogging(builder, directory);
+        return builder;
+    }
+
+    private void configureLogging(ProcessBuilder builder, File directory) {
+        if (logToConsole) {
+            builder.inheritIO();
+            return;
+        }
+
+        File outputLog = new File(directory, "server.out.log");
+        File errorLog = new File(directory, "server.err.log");
+        builder.redirectOutput(ProcessBuilder.Redirect.appendTo(outputLog));
+        builder.redirectError(ProcessBuilder.Redirect.appendTo(errorLog));
     }
 
     private boolean waitUntilHealthy(String healthUrl) {

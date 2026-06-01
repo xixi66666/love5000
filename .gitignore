@@ -45,3 +45,6 @@ quant-a/data/
 python-a/deepseek.local.json
 python-a/server.out.log
 python-a/server.err.log
+video/.vendor/
+video/config.local.json
+video/anime_projects/

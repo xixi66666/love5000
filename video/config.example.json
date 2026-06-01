@@ -1,0 +1,13 @@
+{
+  "openai": {
+    "base_url": "https://nimabo.cn",
+    "api_key": "请填写你的API_KEY",
+    "text_model": "gpt-5.5",
+    "image_model": "gpt-image-2",
+    "tts_model": "gpt-4o-mini-tts",
+    "tts_voice": "alloy"
+  },
+  "assets": {
+    "default_bgm": "assets/default_bgm.mp3"
+  }
+}

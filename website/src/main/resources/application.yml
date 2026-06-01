@@ -32,6 +32,7 @@ python-a:
     port: 5174
     health-path: /api/health
     startup-timeout-seconds: 20
+    log-to-console: true
 
 quant-a:
   auto-start:
@@ -41,3 +42,14 @@ quant-a:
     port: 5175
     health-path: /api/health
     startup-timeout-seconds: 30
+    log-to-console: true
+
+video:
+  auto-start:
+    enabled: true
+    work-dir: video
+    command: python
+    port: 5176
+    health-path: /api/health
+    startup-timeout-seconds: 30
+    log-to-console: true

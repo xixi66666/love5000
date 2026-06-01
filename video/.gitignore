@@ -1,0 +1,9 @@
+config.local.json
+.vendor/
+anime_projects/
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.log
+.pytest_cache/
