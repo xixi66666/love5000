@@ -38,6 +38,7 @@ body {
 
 button,
 input,
+select,
 textarea {
   font: inherit;
 }
@@ -60,6 +61,7 @@ label,
 }
 
 input,
+select,
 textarea {
   width: 100%;
   border: 1px solid var(--hairline);
@@ -75,10 +77,21 @@ textarea {
 }
 
 input:focus,
+select:focus,
 textarea:focus,
 button:focus-visible {
   border-color: var(--primary);
   box-shadow: 0 0 0 2px rgba(94, 106, 210, 0.28);
+}
+
+.config-grid {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.config-section {
+  border-top: 1px solid var(--hairline);
+  padding-top: var(--space-lg);
 }
 
 .app-shell {

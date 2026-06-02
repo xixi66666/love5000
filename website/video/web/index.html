@@ -28,10 +28,79 @@
             <label for="themeInput">主题</label>
             <textarea id="themeInput" rows="5" placeholder="输入动画主题，例如：雨夜里，一个妖刀少女救下路人..."></textarea>
             <label for="configPathInput">配置文件</label>
-            <input id="configPathInput" type="text" value="config.local.json" />
+            <input id="configPathInput" type="text" value="config/config.local.json" />
             <label for="bgmPathInput">BGM 路径</label>
             <input id="bgmPathInput" type="text" placeholder="留空使用配置默认值" />
             <button id="autoButton" class="button primary full" type="button">生成项目</button>
+          </section>
+
+          <section class="section config-section">
+            <div class="section-heading">
+              <h2>配置</h2>
+              <span id="configState" class="status-badge">未读取</span>
+            </div>
+            <div class="config-grid">
+              <label class="field">
+                <span>OpenAI Base URL</span>
+                <input id="openaiBaseUrlInput" type="text" />
+              </label>
+              <label class="field">
+                <span>OpenAI API Key</span>
+                <input id="openaiApiKeyInput" type="password" placeholder="留空则保留现有密钥" />
+              </label>
+              <label class="field">
+                <span>文本模型</span>
+                <input id="textModelInput" type="text" />
+              </label>
+              <label class="field">
+                <span>图片模型</span>
+                <input id="imageModelInput" type="text" />
+              </label>
+              <label class="field">
+                <span>OpenAI TTS 模型</span>
+                <input id="ttsModelInput" type="text" />
+              </label>
+              <label class="field">
+                <span>OpenAI TTS 音色</span>
+                <input id="ttsVoiceInput" type="text" />
+              </label>
+              <label class="field">
+                <span>TTS Provider</span>
+                <select id="ttsProviderInput">
+                  <option value="openai">openai</option>
+                  <option value="tencent">tencent</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>腾讯云 SecretId</span>
+                <input id="tencentSecretIdInput" type="password" placeholder="留空则保留现有密钥" />
+              </label>
+              <label class="field">
+                <span>腾讯云 SecretKey</span>
+                <input id="tencentSecretKeyInput" type="password" placeholder="留空则保留现有密钥" />
+              </label>
+              <label class="field">
+                <span>腾讯云地域</span>
+                <input id="tencentRegionInput" type="text" />
+              </label>
+              <label class="field">
+                <span>腾讯云音色</span>
+                <input id="tencentVoiceTypeInput" type="number" />
+              </label>
+              <label class="field">
+                <span>ModelScope API Key</span>
+                <input id="modelscopeApiKeyInput" type="password" placeholder="留空则保留现有密钥" />
+              </label>
+              <label class="field">
+                <span>ModelScope 模型</span>
+                <input id="modelscopeModelInput" type="text" />
+              </label>
+              <label class="field">
+                <span>默认 BGM</span>
+                <input id="defaultBgmInput" type="text" />
+              </label>
+            </div>
+            <button id="saveConfigButton" class="button secondary full" type="button">保存配置</button>
           </section>
 
           <section class="section">
@@ -48,7 +117,7 @@
           <div id="emptyState" class="empty-state">
             <p class="eyebrow">SELECT PROJECT</p>
             <h2>选择一个项目开始生产</h2>
-            <p>左侧选择已有项目，或输入主题创建新的自动生成任务。</p>
+            <p>从左侧选择已有项目，或输入主题创建新的自动生成任务。</p>
           </div>
 
           <div id="projectEditor" class="project-editor hidden">

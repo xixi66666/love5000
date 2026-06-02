@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from anime_tools.config import WORKSPACE_ROOT
 
-DEFAULT_PROJECTS_ROOT = Path(__file__).resolve().parent.parent / "anime_projects"
+DEFAULT_PROJECTS_ROOT = WORKSPACE_ROOT / "anime_projects"
 
 
 DEFAULT_STORYBOARD: dict[str, Any] = {
@@ -141,18 +144,20 @@ def build_render_command(project_dir: Path, subtitles_path: Path | None = None) 
     fade_out_start = max(total_duration - 0.35, 0)
 
     escaped_subtitles = _ffmpeg_path(subtitles)
-    command = ["ffmpeg", "-y"]
+    command = [_resolve_ffmpeg(), "-y"]
     for shot in shots:
         command.extend(["-i", str(project_dir / shot["video"])])
     command.extend(["-i", str(voice), "-i", str(bgm)])
 
     scaled_labels = []
     filters = []
-    for index, _shot in enumerate(shots):
+    for index, shot in enumerate(shots):
         label = f"v{index}"
         scaled_labels.append(f"[{label}]")
+        duration = float(shot["duration"])
         filters.append(
-            f"[{index}:v]scale=1080:1920:force_original_aspect_ratio=increase,"
+            f"[{index}:v]trim=duration={duration:.1f},setpts=PTS-STARTPTS,"
+            f"scale=1080:1920:force_original_aspect_ratio=increase,"
             f"crop=1080:1920,setsar=1[{label}]"
         )
 
@@ -166,7 +171,7 @@ def build_render_command(project_dir: Path, subtitles_path: Path | None = None) 
             f"subtitles='{escaped_subtitles}'[v]",
             f"[{voice_index}:a]volume=1.0[a1]",
             f"[{bgm_index}:a]volume=0.18[a2]",
-            "[a1][a2]amix=inputs=2:duration=first[a]",
+            "[a1][a2]amix=inputs=2:duration=longest[a]",
         ]
     )
 
@@ -178,7 +183,6 @@ def build_render_command(project_dir: Path, subtitles_path: Path | None = None) 
             "[v]",
             "-map",
             "[a]",
-            "-shortest",
             "-c:v",
             "libx264",
             "-pix_fmt",
@@ -308,3 +312,23 @@ def _ffmpeg_path(path: Path) -> str:
     if len(text) > 1 and text[1] == ":":
         text = text[0] + r"\:" + text[2:]
     return text.replace("'", r"\'")
+
+
+def _resolve_ffmpeg() -> str:
+    system_ffmpeg = shutil.which("ffmpeg")
+    if system_ffmpeg:
+        return system_ffmpeg
+    try:
+        import imageio_ffmpeg
+
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        vendor = Path(__file__).resolve().parent.parent / ".vendor"
+        if vendor.is_dir() and str(vendor) not in sys.path:
+            sys.path.insert(0, str(vendor))
+        try:
+            import imageio_ffmpeg
+
+            return imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception:
+            return "ffmpeg"

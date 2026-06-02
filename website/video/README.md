@@ -8,7 +8,7 @@
 主题输入
   -> AI 生成标题、旁白、4 镜头分镜、图片提示词
   -> AI 生成 4 张关键帧图片
-  -> 尝试 AI 配音
+  -> 腾讯云或 OpenAI TTS 生成旁白配音
   -> 自动生成字幕
   -> FFmpeg 合成 9:16 动态分镜视频
   -> 输出 output/final.mp4
@@ -81,6 +81,12 @@ ffmpeg -version
 python -m pip install --target .vendor imageio-ffmpeg
 ```
 
+如果使用腾讯云语音合成旁白，还需要安装腾讯云 TTS SDK：
+
+```bash
+python -m pip install --target .vendor tencentcloud-sdk-python-tts
+```
+
 如果以后扩展更多图片、视频、平台 SDK，再追加依赖。
 
 ## 二、配置文件
@@ -88,13 +94,13 @@ python -m pip install --target .vendor imageio-ffmpeg
 复制模板：
 
 ```bash
-copy config.example.json config.local.json
+copy config\config.example.json config\config.local.json
 ```
 
 然后编辑：
 
 ```text
-config.local.json
+config/config.local.json
 ```
 
 示例：
@@ -109,6 +115,29 @@ config.local.json
     "tts_model": "gpt-4o-mini-tts",
     "tts_voice": "alloy"
   },
+  "tts": {
+    "provider": "tencent"
+  },
+  "tencent_tts": {
+    "secret_id": "请填写你的腾讯云 SecretId",
+    "secret_key": "请填写你的腾讯云 SecretKey",
+    "region": "ap-guangzhou",
+    "voice_type": 101001,
+    "primary_language": 1,
+    "codec": "mp3",
+    "sample_rate": 16000,
+    "speed": 0,
+    "volume": 5
+  },
+  "modelscope_video": {
+    "api_key": "请填写你的 DashScope API Key",
+    "base_url": "https://dashscope.aliyuncs.com/api/v1",
+    "model": "wanx2.1-i2v-plus",
+    "duration": 5,
+    "resolution": "720P",
+    "poll_interval_seconds": 5,
+    "timeout_seconds": 600
+  },
   "assets": {
     "default_bgm": "assets/default_bgm.mp3"
   }
@@ -121,21 +150,33 @@ config.local.json
 - `api_key`：你的接口密钥。不要提交到 Git。
 - `text_model`：用于生成剧本、分镜、提示词。
 - `image_model`：用于生成关键帧图片。
-- `tts_model`：用于生成旁白配音。
-- `tts_voice`：TTS 音色。
+- `tts.provider`：旁白合成服务，支持 `tencent` 或 `openai`。
+- `tts_model` / `tts_voice`：当 `tts.provider` 为 `openai` 时使用。
+- `tencent_tts.secret_id` / `secret_key`：腾讯云访问密钥，只写入本地 `config/config.local.json`。
+- `tencent_tts.region`：腾讯云 TTS 地域，默认 `ap-guangzhou`。
+- `tencent_tts.voice_type`：腾讯云音色 ID，可在腾讯云语音合成控制台或文档中选择。
+- `tencent_tts.primary_language`：主语言类型，中文填 `1`，英文填 `2`；中文旁白建议显式保留 `1`。
+- `tencent_tts.codec`：音频格式，默认 `mp3`，也支持 `wav`、`pcm`。
+- `modelscope_video.api_key`：DashScope API Key，用于 ModelScope/Wan 图生视频 API 冒烟测试，只写入本地 `config/config.local.json`。
+- `modelscope_video.model`：图生视频模型，默认 `wanx2.1-i2v-plus`。
+- `modelscope_video.duration`：生成视频时长，默认 5 秒。
+- `modelscope_video.resolution`：生成分辨率，默认 `720P`。
 - `default_bgm`：默认背景音乐路径。
 
 安全要求：
 
 ```text
-config.local.json 不要提交到 Git
+config/config.local.json 不要提交到 Git
 不要把 API Key 写进 README、代码、日志或测试文件
+不要把腾讯云 SecretId / SecretKey 写进 README、代码、日志或测试文件
+不要把 DashScope API Key 写进 README、代码、日志或测试文件
 ```
 
 本项目 `.gitignore` 已忽略：
 
 ```text
 config.local.json
+config/config.local.json
 ```
 
 ## 三、默认 BGM
@@ -149,7 +190,7 @@ assets/default_bgm.mp3
 如果没有自己的 BGM，可以先生成一个占位氛围音：
 
 ```bash
-python scripts/create_default_bgm.py
+python python/scripts/create_default_bgm.py
 ```
 
 生成后会得到：
@@ -193,7 +234,7 @@ python anime_cli.py resume-auto "D:\Code\Java_Code\love5000\website\video\anime_
 ### 3. 指定配置文件
 
 ```bash
-python anime_cli.py auto "主题" --config D:\Code\Java_Code\love5000\website\video\config.local.json
+python anime_cli.py auto "主题" --config D:\Code\Java_Code\love5000\website\video\config\config.local.json
 ```
 
 ### 4. 指定 BGM
@@ -266,24 +307,23 @@ anime_projects/
 - `output/final.mp4`：最终视频。
 - `output/generation_warnings.md`：生成过程中的降级或警告。
 
-## 六、测试
+## 六、验证
 
-运行单元测试：
+当前 `tests/` 目录已删除，日常改动后使用手动验证：
 
 ```bash
-python -m unittest discover -s tests -v
+python web_server.py
 ```
 
-当前测试覆盖：
+然后访问：
 
-- 配置读取
-- 项目初始化
-- 素材检查
-- 字幕生成
-- OpenAI 兼容接口返回解析
-- 图片动态分镜 FFmpeg 命令构建
-- 自动生成管线
-- 续跑所需的核心行为
+```text
+http://127.0.0.1:5176/
+http://127.0.0.1:5176/api/health
+http://127.0.0.1:5176/api/config
+```
+
+涉及外部接口时，优先使用 `python/scripts/` 下的 `smoke_*.py` 脚本做单点冒烟验证。
 
 ## 七、常见问题
 
@@ -313,6 +353,45 @@ TTS 请求失败: HTTP 404 b'404 page not found'
 换一个支持 TTS 的接口
 或手动替换 assets/audio/voice.mp3
 然后运行 resume-auto 重新合成
+```
+
+### 1.1 腾讯云 TTS SDK 未安装
+
+现象：
+
+```text
+缺少腾讯云 TTS SDK，请先安装 tencentcloud-sdk-python-tts
+```
+
+解决：
+
+```bash
+python -m pip install --target .vendor tencentcloud-sdk-python-tts
+```
+
+然后确认 `config/config.local.json` 中：
+
+```json
+{
+  "tts": {
+    "provider": "tencent"
+  }
+}
+```
+
+### 1.2 腾讯云 TTS 密钥缺失
+
+现象：
+
+```text
+缺少腾讯云 TTS 配置: tencent_tts.secret_id
+```
+
+解决：
+
+```text
+在本地 config/config.local.json 填写 tencent_tts.secret_id 和 tencent_tts.secret_key。
+不要提交 config/config.local.json，也不要把真实密钥发到聊天、日志或代码仓库。
 ```
 
 ### 2. 找不到 FFmpeg
@@ -346,7 +425,7 @@ winget install --id Gyan.FFmpeg -e
 解决：
 
 ```bash
-python scripts/create_default_bgm.py
+python python/scripts/create_default_bgm.py
 ```
 
 ### 4. 生成图片很慢或命令超时
@@ -367,15 +446,37 @@ AI 关键帧图片 + FFmpeg 推拉镜头 = 动态分镜视频
 
 如果要让角色真正动起来，需要后续接入图生视频接口，例如可灵、即梦、Runway 或其他 image-to-video API。
 
+### 6. 先用 ModelScope / DashScope API 测试图生视频
+
+当前主流程还没有接入真正图生视频。可以先用独立冒烟脚本验证 API 是否可用：
+
+```bash
+python python/scripts/smoke_modelscope_i2v.py --image-url "https://example.com/shot_01.png" --prompt "镜头缓慢推进，衣袂被风吹动，国风动漫电影感"
+```
+
+输出默认写入：
+
+```text
+anime_projects/modelscope_i2v_tests/smoke_test.mp4
+```
+
+注意：
+
+```text
+--image-url 必须是 DashScope 服务可以访问的公网图片 URL。
+本地 assets/keyframes/shot_01.png 不能直接传给远端 API。
+如果要测试本地关键帧，需要先上传到 OSS、COS、图床或其它可公网访问地址。
+```
+
 ## 八、建议的新机器启动顺序
 
 ```bash
 python --version
 python -m pip --version
 python -m pip install --target .vendor imageio-ffmpeg
-copy config.example.json config.local.json
-python scripts/create_default_bgm.py
-python -m unittest discover -s tests -v
+copy config\config.example.json config\config.local.json
+python python/scripts/create_default_bgm.py
+python web_server.py
 python anime_cli.py auto "雨夜里，一个妖刀少女救下路人，但她才是真正的妖怪"
 ```
 

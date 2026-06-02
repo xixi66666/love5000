@@ -47,4 +47,5 @@ website/python-a/server.out.log
 website/python-a/server.err.log
 website/video/.vendor/
 website/video/config.local.json
+website/video/config/config.local.json
 website/video/anime_projects/

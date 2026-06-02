@@ -1,8 +1,11 @@
+const DEFAULT_CONFIG_PATH = "config/config.local.json";
+
 const state = {
   projects: [],
   currentProject: null,
   currentTaskId: null,
   pollingTimer: null,
+  config: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -15,8 +18,104 @@ document.addEventListener("DOMContentLoaded", () => {
   $("subtitlesButton").addEventListener("click", generateSubtitles);
   $("renderButton").addEventListener("click", renderProject);
   $("saveStoryboardButton").addEventListener("click", saveStoryboard);
+  $("saveConfigButton").addEventListener("click", saveConfig);
+  $("configPathInput").value = DEFAULT_CONFIG_PATH;
+  loadConfig();
   loadProjects();
 });
+
+async function loadConfig() {
+  const data = await apiGet("/api/config");
+  state.config = data.config || {};
+  $("configPathInput").value = data.config_path || DEFAULT_CONFIG_PATH;
+  fillConfigForm(state.config);
+  setConfigState("已读取", "success");
+}
+
+function fillConfigForm(config) {
+  const openai = config.openai || {};
+  const tts = config.tts || {};
+  const tencent = config.tencent_tts || {};
+  const modelscope = config.modelscope_video || {};
+  const assets = config.assets || {};
+
+  $("openaiBaseUrlInput").value = openai.base_url || "";
+  $("openaiApiKeyInput").value = "";
+  $("textModelInput").value = openai.text_model || "";
+  $("imageModelInput").value = openai.image_model || "";
+  $("ttsModelInput").value = openai.tts_model || "";
+  $("ttsVoiceInput").value = openai.tts_voice || "";
+  $("ttsProviderInput").value = tts.provider || "openai";
+  $("tencentSecretIdInput").value = "";
+  $("tencentSecretKeyInput").value = "";
+  $("tencentRegionInput").value = tencent.region || "ap-guangzhou";
+  $("tencentVoiceTypeInput").value = tencent.voice_type || 101001;
+  $("modelscopeApiKeyInput").value = "";
+  $("modelscopeModelInput").value = modelscope.model || "wanx2.1-i2v-plus";
+  $("defaultBgmInput").value = assets.default_bgm || "assets/default_bgm.mp3";
+}
+
+function collectConfigForm() {
+  const original = state.config || {};
+  const modelscope = original.modelscope_video || {};
+  const tencent = original.tencent_tts || {};
+  return {
+    openai: {
+      base_url: $("openaiBaseUrlInput").value.trim(),
+      api_key: $("openaiApiKeyInput").value.trim(),
+      text_model: $("textModelInput").value.trim(),
+      image_model: $("imageModelInput").value.trim(),
+      tts_model: $("ttsModelInput").value.trim(),
+      tts_voice: $("ttsVoiceInput").value.trim(),
+    },
+    tts: {
+      provider: $("ttsProviderInput").value,
+    },
+    tencent_tts: {
+      secret_id: $("tencentSecretIdInput").value.trim(),
+      secret_key: $("tencentSecretKeyInput").value.trim(),
+      region: $("tencentRegionInput").value.trim() || "ap-guangzhou",
+      voice_type: numberOrDefault($("tencentVoiceTypeInput").value, tencent.voice_type || 101001),
+      primary_language: numberOrDefault(tencent.primary_language, 1),
+      codec: tencent.codec || "mp3",
+      sample_rate: numberOrDefault(tencent.sample_rate, 16000),
+      speed: numberOrDefault(tencent.speed, 0),
+      volume: numberOrDefault(tencent.volume, 5),
+    },
+    modelscope_video: {
+      api_key: $("modelscopeApiKeyInput").value.trim(),
+      base_url: modelscope.base_url || "https://dashscope.aliyuncs.com/api/v1",
+      model: $("modelscopeModelInput").value.trim() || "wanx2.1-i2v-plus",
+      duration: numberOrDefault(modelscope.duration, 5),
+      resolution: modelscope.resolution || "720P",
+      poll_interval_seconds: numberOrDefault(modelscope.poll_interval_seconds, 5),
+      timeout_seconds: numberOrDefault(modelscope.timeout_seconds, 600),
+    },
+    assets: {
+      default_bgm: $("defaultBgmInput").value.trim() || "assets/default_bgm.mp3",
+    },
+  };
+}
+
+async function saveConfig() {
+  setBusy(true);
+  try {
+    const saved = await apiPost("/api/config", { config: collectConfigForm() });
+    state.config = saved.config || {};
+    $("configPathInput").value = saved.config_path || DEFAULT_CONFIG_PATH;
+    fillConfigForm(state.config);
+    setConfigState("已保存", "success");
+    setLog("配置已保存到 " + $("configPathInput").value);
+  } finally {
+    setBusy(false);
+  }
+}
+
+function setConfigState(text, type = "") {
+  const badge = $("configState");
+  badge.textContent = text;
+  badge.className = `status-badge ${type}`;
+}
 
 async function loadProjects() {
   const data = await apiGet("/api/projects");
@@ -30,7 +129,7 @@ function renderProjectList() {
   const list = $("projectList");
   list.innerHTML = "";
   state.projects
-    .filter((project) => !query || project.name.toLowerCase().includes(query) || project.title.toLowerCase().includes(query))
+    .filter((project) => !query || (project.name || "").toLowerCase().includes(query) || (project.title || "").toLowerCase().includes(query))
     .forEach((project) => {
       const button = document.createElement("button");
       button.type = "button";
@@ -155,7 +254,7 @@ async function regenerateKeyframe(shotId) {
   await saveStoryboard();
   const response = await apiPost(
     `/api/projects/${encodeURIComponent(state.currentProject.name)}/shots/${encodeURIComponent(shotId)}/regenerate-keyframe`,
-    { config_path: $("configPathInput").value.trim() || "config.local.json" }
+    { config_path: getConfigPath() }
   );
   watchTask(response.task.id);
 }
@@ -177,7 +276,7 @@ async function renderProject() {
 async function resumeProject() {
   ensureProject();
   const response = await apiPost(`/api/projects/${encodeURIComponent(state.currentProject.name)}/resume`, {
-    config_path: $("configPathInput").value.trim() || "config.local.json",
+    config_path: getConfigPath(),
     bgm_path: $("bgmPathInput").value.trim(),
   });
   watchTask(response.task.id);
@@ -186,7 +285,7 @@ async function resumeProject() {
 async function startAutoProject() {
   const response = await apiPost("/api/projects/auto", {
     theme: $("themeInput").value.trim(),
-    config_path: $("configPathInput").value.trim() || "config.local.json",
+    config_path: getConfigPath(),
     bgm_path: $("bgmPathInput").value.trim(),
   });
   watchTask(response.task.id);
@@ -265,6 +364,15 @@ function ensureProject() {
   if (!state.currentProject) {
     throw new Error("请先选择项目");
   }
+}
+
+function getConfigPath() {
+  return $("configPathInput").value.trim() || DEFAULT_CONFIG_PATH;
+}
+
+function numberOrDefault(value, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
 }
 
 async function apiGet(path) {

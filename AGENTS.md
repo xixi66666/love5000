@@ -172,12 +172,14 @@ cd website/video
 python web_server.py
 ```
 
-运行 `video` 测试：
+验证 `video`：
 
 ```bash
 cd website/video
-python -m unittest discover -s tests -v
+python web_server.py
 ```
+
+再访问 `http://127.0.0.1:5176/api/health` 和 `http://127.0.0.1:5176/api/config`。
 
 日常本地联调优先使用根目录统一启动脚本，避免忘记先启动 Python 微应用。
 
@@ -275,12 +277,16 @@ website/quant-a/
 website/video/
     ├── anime_cli.py
     ├── web_server.py
-    ├── config.example.json
-    ├── config.local.json      # 本地私有配置，禁止提交
-    ├── anime_tools/
+    ├── config/
+    │   ├── config.example.json
+    │   └── config.local.json  # 本地私有配置，禁止提交
+    ├── python/
+    │   ├── anime_tools/
+    │   ├── cli/
+    │   ├── server/
+    │   └── scripts/
     ├── anime_projects/        # 本地生成产物，禁止提交
     ├── assets/
-    ├── tests/
     └── web/
 ```
 
@@ -309,7 +315,10 @@ website/video/
 - `website/quant-a/tests`：Quant 微服务测试，使用 pytest 和 FastAPI TestClient。
 - `website/quant-a/web`：Quant 研究台前端页面和静态资源。
 - `website/video/web_server.py`：Video 微应用本地 HTTP 服务入口，默认监听 `127.0.0.1:5176`。
-- `website/video/anime_tools`：视频生成核心代码，包含项目管理、OpenAI 兼容接口调用、FFmpeg 合成、任务管理和 Web API。
+- `website/video/anime_cli.py`：Video 命令行兼容入口，转调 `website/video/python/cli/anime_cli.py`。
+- `website/video/python/anime_tools`：视频生成核心代码，包含项目管理、OpenAI 兼容接口调用、FFmpeg 合成、任务管理和 Web API。
+- `website/video/python/scripts`：手动验证和辅助脚本，外部接口冒烟脚本使用 `smoke_*.py` 命名。
+- `website/video/config`：Video 配置模板和本地私有配置目录，`config.local.json` 禁止提交。
 - `website/video/web`：Video 工作台前端页面和静态资源。
 - `website/video/anime_projects`：Video 本地生成项目和视频产物目录，默认不提交。
 
@@ -606,8 +615,8 @@ Python 约定：
 - 涉及网络请求、文件写入和 Obsidian 写入时要保留异常处理，不能因为单个外部接口失败导致页面整体不可用。
 - `quant-a` 使用 FastAPI + Uvicorn，运行配置优先使用环境变量或 `website/quant-a/configs` 内配置文件；不要把 `quant-a` 加入 Maven modules，不要复用或写入 `website/python-a/obsidian-vault/`。
 - `quant-a` 的量化评分、回测和报告输出必须保留风险提示和非投资建议边界，避免确定性买卖结论。
-- `video` 使用 Python 标准库 `http.server` 提供本地工作台，运行配置优先使用 `website/video/config.local.json` 或命令行参数；不要把 `video` 加入 Maven modules。
-- `website/video/config.local.json` 禁止提交真实 API Key；`website/video/anime_projects/`、`website/video/.vendor/`、`__pycache__/` 和生成的视频、音频、图片产物默认不提交。
+- `video` 使用 Python 标准库 `http.server` 提供本地工作台，运行配置优先使用 `website/video/config/config.local.json` 或命令行参数；不要把 `video` 加入 Maven modules。
+- `website/video/config/config.local.json` 和历史兼容位置 `website/video/config.local.json` 禁止提交真实 API Key；`website/video/anime_projects/`、`website/video/.vendor/`、`__pycache__/` 和生成的视频、音频、图片产物默认不提交。
 - `video` 的视频生成输出必须保留 AI 生成内容和非真实拍摄素材边界，避免误导为真实影像。
 
 ## 测试策略
@@ -662,7 +671,6 @@ http://127.0.0.1:5175/api/health
 
 ```bash
 cd website/video
-python -m unittest discover -s tests -v
 python web_server.py
 ```
 
@@ -671,6 +679,7 @@ python web_server.py
 ```text
 http://127.0.0.1:5176/
 http://127.0.0.1:5176/api/health
+http://127.0.0.1:5176/api/config
 ```
 
 测试要求：
@@ -718,7 +727,7 @@ mvn -pl imagetemplate -am test
 - **关键**：修改 `imagetemplate` 图片尺寸选项或规则时，同步更新前端校验、后端校验和 `OpenAiImageGenerationServiceTest`。
 - **关键**：修改 `website/python-a` 时不要提交 `deepseek.local.json`、`.env`、`__pycache__/`、`server.err.log`、`server.out.log`。
 - **关键**：修改 `website/quant-a` 时不要提交 `.env`、`__pycache__/`、`.pytest_cache/`、运行时数据库、缓存或生成报告；不要写入 `website/python-a/obsidian-vault/`。
-- **关键**：修改 `website/video` 时不要提交 `config.local.json`、`.vendor/`、`__pycache__/`、`.pytest_cache/`、`anime_projects/`、生成的视频、音频、图片产物或真实 API Key。
+- **关键**：修改 `website/video` 时不要提交 `config/config.local.json`、`config.local.json`、`.vendor/`、`__pycache__/`、`.pytest_cache/`、`anime_projects/`、生成的视频、音频、图片产物或真实 API Key。
 - ⚠️ 不依赖远程生产 MySQL、真实 OSS、真实 OpenAI API 来通过单元测试。
 
 ## 常见任务指南
@@ -796,15 +805,14 @@ GET http://127.0.0.1:5174/api/health
 
 ### 修改 video 微应用
 
-1. 修改 `website/video/web_server.py`、`website/video/anime_tools/`、`website/video/web/` 或 `website/video/anime_cli.py`。
+1. 修改 `website/video/web_server.py`、`website/video/anime_cli.py`、`website/video/python/anime_tools/`、`website/video/python/scripts/`、`website/video/config/` 或 `website/video/web/`。
 2. 保持 `video` 作为独立 Python 服务，不加入父 `pom.xml`。
-3. 如果新增配置，优先使用 `config.example.json` 模板和本地 `config.local.json`，并同步更新 `website/video/README.md` 和根 `AGENTS.md`。
+3. 如果新增配置，优先使用 `config/config.example.json` 模板和本地 `config/config.local.json`，并同步更新 `website/video/README.md` 和根 `AGENTS.md`。
 4. 如果新增 API，同步更新本文件的 `video` 接口列表。
 5. 运行：
 
 ```bash
 cd website/video
-python -m unittest discover -s tests -v
 python web_server.py
 ```
 
@@ -812,6 +820,7 @@ python web_server.py
 
 ```text
 GET http://127.0.0.1:5176/api/health
+GET http://127.0.0.1:5176/api/config
 ```
 
 ## 代理协作原则
@@ -820,7 +829,7 @@ GET http://127.0.0.1:5176/api/health
 - 优先使用已有包结构、命名和配置前缀。
 - 小改动只跑相关模块测试；跨模块改动跑 `mvn test`。
 - 只改 `python-a` 时，不需要跑 Maven 测试；优先启动 Python 服务并验证 `/api/health` 和主要页面流程。
-- 只改 `video` 时，不需要跑 Maven 测试；优先运行 `python -m unittest discover -s tests -v` 并验证 `/api/health` 和主要页面流程。
+- 只改 `video` 时，不需要跑 Maven 测试；当前 `video/tests` 已删除，优先启动 Python 服务并验证 `/api/health`、`/api/config` 和主要页面流程。
 - 修改配置文件时检查是否包含密钥，能改成环境变量就改成环境变量。
 - 不修改 `.idea/`、`target/`、运行时生成文件，除非任务明确要求。
 - 后续数据库 CRUD 使用 MyBatis DAO + XML Mapper，不新增 `JdbcTemplate`、JPA Repository 或 Java 内联 SQL。

@@ -1,4 +1,5 @@
 config.local.json
+config/config.local.json
 .vendor/
 __pycache__/
 **/__pycache__/

@@ -1,0 +1,36 @@
+{
+  "openai": {
+    "base_url": "https://nimabo.cn",
+    "api_key": "请填写你的API_KEY",
+    "text_model": "gpt-5.5",
+    "image_model": "gpt-image-2",
+    "tts_model": "gpt-4o-mini-tts",
+    "tts_voice": "alloy"
+  },
+  "tts": {
+    "provider": "tencent"
+  },
+  "tencent_tts": {
+    "secret_id": "请填写你的腾讯云 SecretId",
+    "secret_key": "请填写你的腾讯云 SecretKey",
+    "region": "ap-guangzhou",
+    "voice_type": 101001,
+    "primary_language": 1,
+    "codec": "mp3",
+    "sample_rate": 16000,
+    "speed": 0,
+    "volume": 5
+  },
+  "modelscope_video": {
+    "api_key": "请填写你的 DashScope API Key",
+    "base_url": "https://dashscope.aliyuncs.com/api/v1",
+    "model": "wanx2.1-i2v-plus",
+    "duration": 5,
+    "resolution": "720P",
+    "poll_interval_seconds": 5,
+    "timeout_seconds": 600
+  },
+  "assets": {
+    "default_bgm": "assets/default_bgm.mp3"
+  }
+}

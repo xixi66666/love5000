@@ -25,12 +25,14 @@ class AutoPipeline:
         self,
         projects_root: Path = DEFAULT_PROJECTS_ROOT,
         client: Any | None = None,
+        speech_client: Any | None = None,
         default_bgm_path: Path | None = None,
         command_runner: CommandRunner | None = None,
         timestamp_provider: Callable[[], str] | None = None,
     ):
         self.projects_root = projects_root
         self.client = client
+        self.speech_client = speech_client or client
         self.default_bgm_path = default_bgm_path or Path(__file__).resolve().parent.parent / "assets" / "default_bgm.mp3"
         self.command_runner = command_runner
         self.timestamp_provider = timestamp_provider or (lambda: datetime.now().strftime("%Y%m%d_%H%M%S"))
@@ -60,7 +62,7 @@ class AutoPipeline:
             image = self.client.generate_image(shot["image_prompt"])
             (project_dir / "assets" / "keyframes" / f"{shot['id']}.png").write_bytes(image)
 
-        speech = self.client.generate_speech(package["narration"])
+        speech = self.speech_client.generate_speech(package["narration"])
         (project_dir / "assets" / "audio" / "voice.mp3").write_bytes(speech)
         shutil.copyfile(self.default_bgm_path, project_dir / "assets" / "audio" / "bgm.mp3")
 
@@ -87,7 +89,7 @@ class AutoPipeline:
         voice_path = project_dir / "assets" / "audio" / "voice.mp3"
         if not voice_path.is_file():
             try:
-                voice_path.write_bytes(self.client.generate_speech(narration))
+                voice_path.write_bytes(self.speech_client.generate_speech(narration))
             except Exception as exc:
                 _write_silent_audio(voice_path, _storyboard_duration(storyboard))
                 _append_warning(project_dir, f"TTS 生成失败，已使用静音占位音频：{exc}")

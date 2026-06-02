@@ -10,11 +10,12 @@ from pathlib import Path
 from typing import Any, Callable
 
 from anime_tools.auto_pipeline import AutoPipeline
-from anime_tools.config import AppSettings
+from anime_tools.config import AppSettings, DEFAULT_CONFIG_PATH, load_editable_config, save_editable_config
 from anime_tools.openai_client import OpenAICompatibleClient
 from anime_tools.project import DEFAULT_PROJECTS_ROOT
 from anime_tools.project import generate_subtitles
 from anime_tools.render import CommandRunner, render_image_storyboard
+from anime_tools.speech import create_speech_client
 from anime_tools.task_manager import TaskBusyError, TaskManager
 
 
@@ -32,6 +33,12 @@ class WorkbenchService:
         self.projects_root = projects_root
         self.client_factory = client_factory or _default_client_factory
         self.command_runner = command_runner
+
+    def get_config(self) -> dict[str, Any]:
+        return load_editable_config()
+
+    def save_config(self, config_payload: dict[str, Any]) -> dict[str, Any]:
+        return save_editable_config(config_payload)
 
     def list_projects(self) -> list[dict[str, Any]]:
         if not self.projects_root.is_dir():
@@ -147,9 +154,11 @@ class WorkbenchService:
         project_dir = self._project_dir(project_name)
         settings = AppSettings.from_json(Path(config_path))
         client = OpenAICompatibleClient(settings.openai)
+        speech_client = create_speech_client(settings, openai_client=client)
         pipeline = AutoPipeline(
             projects_root=self.projects_root,
             client=client,
+            speech_client=speech_client,
             default_bgm_path=Path(bgm_path) if bgm_path else settings.default_bgm,
             command_runner=self.command_runner,
         )
@@ -165,9 +174,11 @@ class WorkbenchService:
 
         settings = AppSettings.from_json(Path(config_path))
         client = OpenAICompatibleClient(settings.openai)
+        speech_client = create_speech_client(settings, openai_client=client)
         pipeline = AutoPipeline(
             projects_root=self.projects_root,
             client=client,
+            speech_client=speech_client,
             default_bgm_path=Path(bgm_path) if bgm_path else settings.default_bgm,
             command_runner=self.command_runner,
         )
@@ -238,6 +249,9 @@ def create_handler(
             if path == "/api/health":
                 self._send_json({"success": True, "service": "video"})
                 return
+            if path == "/api/config":
+                self._send_json(workbench.get_config())
+                return
             if path == "/api/projects":
                 self._send_json({"projects": workbench.list_projects()})
                 return
@@ -260,6 +274,9 @@ def create_handler(
         def _handle_post(self) -> None:
             path = urllib.parse.unquote(urllib.parse.urlparse(self.path).path)
             body = self._read_json_body()
+            if path == "/api/config":
+                self._send_json(workbench.save_config(body))
+                return
             if path == "/api/projects/auto":
                 task = tasks.submit(
                     "auto",
@@ -269,7 +286,7 @@ def create_handler(
                         "开始自动生成项目",
                         lambda: workbench.auto_project(
                             body.get("theme", ""),
-                            body.get("config_path") or "config.local.json",
+                            body.get("config_path") or DEFAULT_CONFIG_PATH,
                             body.get("bgm_path") or None,
                         ),
                     ),
@@ -289,7 +306,7 @@ def create_handler(
                             "开始续跑项目",
                             lambda: workbench.resume_project(
                                 project_name,
-                                body.get("config_path") or "config.local.json",
+                                body.get("config_path") or DEFAULT_CONFIG_PATH,
                                 body.get("bgm_path") or None,
                             ),
                         ),
@@ -322,7 +339,7 @@ def create_handler(
                             lambda: workbench.regenerate_keyframe(
                                 project_name,
                                 shot_id,
-                                body.get("config_path") or "config.local.json",
+                                body.get("config_path") or DEFAULT_CONFIG_PATH,
                             ),
                         ),
                     )
