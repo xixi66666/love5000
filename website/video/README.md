@@ -161,6 +161,11 @@ config/config.local.json
 - `modelscope_video.model`：图生视频模型，默认 `wanx2.1-i2v-plus`。
 - `modelscope_video.duration`：生成视频时长，默认 5 秒。
 - `modelscope_video.resolution`：生成分辨率，默认 `720P`。
+- `image_to_video.enabled`：是否在关键帧之后启用图生视频阶段，默认 `false`，关闭时仍使用当前 FFmpeg 图片动效合成。
+- `image_to_video.provider`：图生视频 Provider，支持 `none`、`local_wan`、`dashscope`。
+- `local_wan_video.base_url`：本地 Wan/Wan2.2 图生视频服务地址，例如 `http://127.0.0.1:7860`。
+- `local_wan_video.endpoint`：本地 Wan 服务生成接口，默认 `/generate`。
+- `local_wan_video.timeout_seconds`：本地 Wan 单镜头生成超时时间。
 - `default_bgm`：默认背景音乐路径。
 
 安全要求：
@@ -306,6 +311,82 @@ anime_projects/
 - `output/subtitles.srt`：字幕文件。
 - `output/final.mp4`：最终视频。
 - `output/generation_warnings.md`：生成过程中的降级或警告。
+
+## 5.1 本地 Wan/Wan2.2 图生视频扩展
+
+当前项目已经预留本地图生视频扩展位。默认关闭，不影响原来的关键帧合成流程。
+
+开启方式：
+
+```json
+{
+  "image_to_video": {
+    "enabled": true,
+    "provider": "local_wan"
+  },
+  "local_wan_video": {
+    "base_url": "http://127.0.0.1:7860",
+    "endpoint": "/generate",
+    "timeout_seconds": 600
+  }
+}
+```
+
+本地 Wan 服务接口约定：
+
+```text
+POST http://127.0.0.1:7860/generate
+Content-Type: application/json
+```
+
+请求体：
+
+```json
+{
+  "shot_id": "shot_01",
+  "prompt": "镜头缓慢推进，衣袂被风吹动，国风动漫电影感",
+  "duration": 5,
+  "resolution": "720P",
+  "image": "data:image/png;base64,..."
+}
+```
+
+响应支持三种格式：
+
+```json
+{
+  "success": true,
+  "video_base64": "..."
+}
+```
+
+或：
+
+```json
+{
+  "success": true,
+  "video_url": "http://127.0.0.1:7860/files/shot_01.mp4"
+}
+```
+
+也可以直接返回 `video/mp4` 或 `application/octet-stream` 二进制。
+
+启用后自动生成流程会变成：
+
+```text
+主题
+  -> 生成 storyboard
+  -> 生成 assets/keyframes/shot_*.png
+  -> 调用本地 Wan 生成 assets/videos/shot_*.mp4
+  -> 生成 voice.mp3 / bgm.mp3 / subtitles.srt
+  -> FFmpeg 拼接镜头视频并输出 output/final.mp4
+```
+
+如果 `image_to_video.enabled=false`，流程保持为：
+
+```text
+关键帧图片 + zoompan 动效 + 音频 + 字幕 -> output/final.mp4
+```
 
 ## 六、验证
 

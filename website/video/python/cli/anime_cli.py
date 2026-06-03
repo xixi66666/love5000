@@ -10,6 +10,7 @@ if str(PYTHON_ROOT) not in sys.path:
 
 from anime_tools.auto_pipeline import AutoPipeline
 from anime_tools.config import AppSettings, DEFAULT_CONFIG_PATH
+from anime_tools.image_to_video import create_image_to_video_provider
 from anime_tools.openai_client import OpenAICompatibleClient
 from anime_tools.project import (
     DEFAULT_PROJECTS_ROOT,
@@ -78,6 +79,7 @@ def main(argv: list[str] | None = None) -> int:
                 client=client,
                 speech_client=speech_client,
                 default_bgm_path=default_bgm,
+                image_to_video_provider=create_image_to_video_provider(settings),
             )
             result = pipeline.run(args.theme)
             print(f"自动生成完成: {result.final_video}")
@@ -94,6 +96,7 @@ def main(argv: list[str] | None = None) -> int:
                 client=client,
                 speech_client=speech_client,
                 default_bgm_path=default_bgm,
+                image_to_video_provider=create_image_to_video_provider(settings),
             )
             result = pipeline.resume(Path(args.project_path))
             print(f"续跑完成: {result.final_video}")

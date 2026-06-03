@@ -195,14 +195,17 @@ def build_render_command(project_dir: Path, subtitles_path: Path | None = None) 
     return command
 
 
-def render_project(project_dir: Path) -> Path:
+def render_project(project_dir: Path, command_runner: Any | None = None) -> Path:
     check = check_project(project_dir)
     if not check.ok:
         raise FileNotFoundError("素材不完整，请先运行 check 查看 output/production_report.md")
 
     subtitles = generate_subtitles(project_dir)
     command = build_render_command(project_dir, subtitles)
-    subprocess.run(command, check=True)
+    if command_runner:
+        command_runner(command)
+    else:
+        subprocess.run(command, check=True)
     return project_dir / "output" / "preview.mp4"
 
 

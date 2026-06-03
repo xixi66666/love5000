@@ -96,6 +96,30 @@
                 <input id="modelscopeModelInput" type="text" />
               </label>
               <label class="field">
+                <span>图生视频</span>
+                <input id="imageToVideoEnabledInput" type="checkbox" />
+              </label>
+              <label class="field">
+                <span>图生视频 Provider</span>
+                <select id="imageToVideoProviderInput">
+                  <option value="none">none</option>
+                  <option value="local_wan">local_wan</option>
+                  <option value="dashscope">dashscope</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Local Wan URL</span>
+                <input id="localWanBaseUrlInput" type="text" />
+              </label>
+              <label class="field">
+                <span>Local Wan Endpoint</span>
+                <input id="localWanEndpointInput" type="text" />
+              </label>
+              <label class="field">
+                <span>Local Wan Timeout</span>
+                <input id="localWanTimeoutInput" type="number" min="1" />
+              </label>
+              <label class="field">
                 <span>默认 BGM</span>
                 <input id="defaultBgmInput" type="text" />
               </label>

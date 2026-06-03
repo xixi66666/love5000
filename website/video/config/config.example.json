@@ -30,6 +30,15 @@
     "poll_interval_seconds": 5,
     "timeout_seconds": 600
   },
+  "image_to_video": {
+    "enabled": false,
+    "provider": "none"
+  },
+  "local_wan_video": {
+    "base_url": "http://127.0.0.1:7860",
+    "endpoint": "/generate",
+    "timeout_seconds": 600
+  },
   "assets": {
     "default_bgm": "assets/default_bgm.mp3"
   }

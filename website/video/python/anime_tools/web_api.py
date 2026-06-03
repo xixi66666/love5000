@@ -11,9 +11,11 @@ from typing import Any, Callable
 
 from anime_tools.auto_pipeline import AutoPipeline
 from anime_tools.config import AppSettings, DEFAULT_CONFIG_PATH, load_editable_config, save_editable_config
+from anime_tools.image_to_video import create_image_to_video_provider
 from anime_tools.openai_client import OpenAICompatibleClient
 from anime_tools.project import DEFAULT_PROJECTS_ROOT
 from anime_tools.project import generate_subtitles
+from anime_tools.project import render_project
 from anime_tools.render import CommandRunner, render_image_storyboard
 from anime_tools.speech import create_speech_client
 from anime_tools.task_manager import TaskBusyError, TaskManager
@@ -147,7 +149,13 @@ class WorkbenchService:
         project_dir = self._project_dir(project_name)
         storyboard = _read_json(project_dir / "storyboard.json")
         generate_subtitles(project_dir)
-        final_video = render_image_storyboard(project_dir, storyboard, self.command_runner)
+        if _has_all_shot_videos(project_dir, storyboard):
+            preview = render_project(project_dir, self.command_runner)
+            final_video = project_dir / "output" / "final.mp4"
+            if preview.is_file() and preview != final_video:
+                final_video.write_bytes(preview.read_bytes())
+        else:
+            final_video = render_image_storyboard(project_dir, storyboard, self.command_runner)
         return {"final_video": str(final_video)}
 
     def resume_project(self, project_name: str, config_path: str | Path, bgm_path: str | Path | None = None) -> dict[str, str]:
@@ -160,6 +168,7 @@ class WorkbenchService:
             client=client,
             speech_client=speech_client,
             default_bgm_path=Path(bgm_path) if bgm_path else settings.default_bgm,
+            image_to_video_provider=create_image_to_video_provider(settings),
             command_runner=self.command_runner,
         )
         result = pipeline.resume(project_dir)
@@ -180,6 +189,7 @@ class WorkbenchService:
             client=client,
             speech_client=speech_client,
             default_bgm_path=Path(bgm_path) if bgm_path else settings.default_bgm,
+            image_to_video_provider=create_image_to_video_provider(settings),
             command_runner=self.command_runner,
         )
         result = pipeline.run(clean_theme)
@@ -432,6 +442,10 @@ def _find_shot(storyboard: dict[str, Any], shot_id: str) -> dict[str, Any]:
         if str(shot.get("id")) == shot_id:
             return shot
     raise ValueError(f"镜头不存在: {shot_id}")
+
+
+def _has_all_shot_videos(project_dir: Path, storyboard: dict[str, Any]) -> bool:
+    return all((project_dir / str(shot.get("video") or f"assets/videos/{shot['id']}.mp4")).is_file() for shot in _shots_from_storyboard(storyboard))
 
 
 def _validate_storyboard_payload(storyboard: dict[str, Any]) -> dict[str, Any]:

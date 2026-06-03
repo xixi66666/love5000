@@ -37,6 +37,8 @@ function fillConfigForm(config) {
   const tts = config.tts || {};
   const tencent = config.tencent_tts || {};
   const modelscope = config.modelscope_video || {};
+  const imageToVideo = config.image_to_video || {};
+  const localWan = config.local_wan_video || {};
   const assets = config.assets || {};
 
   $("openaiBaseUrlInput").value = openai.base_url || "";
@@ -52,6 +54,11 @@ function fillConfigForm(config) {
   $("tencentVoiceTypeInput").value = tencent.voice_type || 101001;
   $("modelscopeApiKeyInput").value = "";
   $("modelscopeModelInput").value = modelscope.model || "wanx2.1-i2v-plus";
+  $("imageToVideoEnabledInput").checked = Boolean(imageToVideo.enabled);
+  $("imageToVideoProviderInput").value = imageToVideo.provider || "none";
+  $("localWanBaseUrlInput").value = localWan.base_url || "http://127.0.0.1:7860";
+  $("localWanEndpointInput").value = localWan.endpoint || "/generate";
+  $("localWanTimeoutInput").value = localWan.timeout_seconds || 600;
   $("defaultBgmInput").value = assets.default_bgm || "assets/default_bgm.mp3";
 }
 
@@ -59,6 +66,7 @@ function collectConfigForm() {
   const original = state.config || {};
   const modelscope = original.modelscope_video || {};
   const tencent = original.tencent_tts || {};
+  const localWan = original.local_wan_video || {};
   return {
     openai: {
       base_url: $("openaiBaseUrlInput").value.trim(),
@@ -90,6 +98,15 @@ function collectConfigForm() {
       resolution: modelscope.resolution || "720P",
       poll_interval_seconds: numberOrDefault(modelscope.poll_interval_seconds, 5),
       timeout_seconds: numberOrDefault(modelscope.timeout_seconds, 600),
+    },
+    image_to_video: {
+      enabled: $("imageToVideoEnabledInput").checked,
+      provider: $("imageToVideoProviderInput").value,
+    },
+    local_wan_video: {
+      base_url: $("localWanBaseUrlInput").value.trim() || "http://127.0.0.1:7860",
+      endpoint: $("localWanEndpointInput").value.trim() || "/generate",
+      timeout_seconds: numberOrDefault($("localWanTimeoutInput").value, localWan.timeout_seconds || 600),
     },
     assets: {
       default_bgm: $("defaultBgmInput").value.trim() || "assets/default_bgm.mp3",

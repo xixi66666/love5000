@@ -10,7 +10,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
 
+from anime_tools.image_to_video import ImageToVideoProvider, ImageToVideoRequest
 from anime_tools.project import DEFAULT_PROJECTS_ROOT, generate_subtitles
+from anime_tools.project import render_project as render_video_storyboard
 from anime_tools.render import CommandRunner, render_image_storyboard
 
 
@@ -27,6 +29,7 @@ class AutoPipeline:
         client: Any | None = None,
         speech_client: Any | None = None,
         default_bgm_path: Path | None = None,
+        image_to_video_provider: ImageToVideoProvider | None = None,
         command_runner: CommandRunner | None = None,
         timestamp_provider: Callable[[], str] | None = None,
     ):
@@ -34,6 +37,7 @@ class AutoPipeline:
         self.client = client
         self.speech_client = speech_client or client
         self.default_bgm_path = default_bgm_path or Path(__file__).resolve().parent.parent / "assets" / "default_bgm.mp3"
+        self.image_to_video_provider = image_to_video_provider
         self.command_runner = command_runner
         self.timestamp_provider = timestamp_provider or (lambda: datetime.now().strftime("%Y%m%d_%H%M%S"))
 
@@ -62,12 +66,13 @@ class AutoPipeline:
             image = self.client.generate_image(shot["image_prompt"])
             (project_dir / "assets" / "keyframes" / f"{shot['id']}.png").write_bytes(image)
 
+        self._generate_shot_videos(project_dir, storyboard)
         speech = self.speech_client.generate_speech(package["narration"])
         (project_dir / "assets" / "audio" / "voice.mp3").write_bytes(speech)
         shutil.copyfile(self.default_bgm_path, project_dir / "assets" / "audio" / "bgm.mp3")
 
         generate_subtitles(project_dir)
-        final_video = render_image_storyboard(project_dir, storyboard, self.command_runner)
+        final_video = self._render_project(project_dir, storyboard)
         _write_generation_report(project_dir, theme, package)
         return AutoPipelineResult(project_dir=project_dir, final_video=final_video)
 
@@ -86,6 +91,7 @@ class AutoPipeline:
                 image = self.client.generate_image(shot["image_prompt"])
                 image_path.write_bytes(image)
 
+        self._generate_shot_videos(project_dir, storyboard, skip_existing=True)
         voice_path = project_dir / "assets" / "audio" / "voice.mp3"
         if not voice_path.is_file():
             try:
@@ -99,8 +105,43 @@ class AutoPipeline:
             shutil.copyfile(self.default_bgm_path, bgm_path)
 
         generate_subtitles(project_dir)
-        final_video = render_image_storyboard(project_dir, storyboard, self.command_runner)
+        final_video = self._render_project(project_dir, storyboard)
         return AutoPipelineResult(project_dir=project_dir, final_video=final_video)
+
+    def _generate_shot_videos(self, project_dir: Path, storyboard: dict[str, Any], skip_existing: bool = False) -> None:
+        if self.image_to_video_provider is None:
+            return
+
+        videos_dir = project_dir / "assets" / "videos"
+        videos_dir.mkdir(parents=True, exist_ok=True)
+        for shot in storyboard["shots"]:
+            shot_id = str(shot["id"])
+            video_path = videos_dir / f"{shot_id}.mp4"
+            if skip_existing and video_path.is_file():
+                continue
+            image_path = project_dir / "assets" / "keyframes" / f"{shot_id}.png"
+            video = self.image_to_video_provider.generate(
+                ImageToVideoRequest(
+                    project_dir=project_dir,
+                    shot_id=shot_id,
+                    image_path=image_path,
+                    prompt=str(shot.get("image_prompt", "")),
+                    duration=float(shot["duration"]),
+                )
+            )
+            video_path.write_bytes(video)
+
+    def _render_project(self, project_dir: Path, storyboard: dict[str, Any]) -> Path:
+        if self._has_all_shot_videos(project_dir, storyboard):
+            preview = render_video_storyboard(project_dir, self.command_runner)
+            final = project_dir / "output" / "final.mp4"
+            if preview.is_file() and preview != final:
+                shutil.copyfile(preview, final)
+            return final
+        return render_image_storyboard(project_dir, storyboard, self.command_runner)
+
+    def _has_all_shot_videos(self, project_dir: Path, storyboard: dict[str, Any]) -> bool:
+        return all((project_dir / "assets" / "videos" / f"{shot['id']}.mp4").is_file() for shot in storyboard["shots"])
 
 
 def build_project_name(title: str, timestamp: str | None = None) -> str:
@@ -114,6 +155,7 @@ def _create_auto_tree(project_dir: Path) -> None:
     for relative_dir in [
         "script",
         "assets/keyframes",
+        "assets/videos",
         "assets/audio",
         "output",
     ]:

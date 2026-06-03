@@ -107,12 +107,35 @@ class ModelScopeVideoSettings:
 
 
 @dataclass(frozen=True)
+class ImageToVideoSettings:
+    enabled: bool = False
+    provider: str = "none"
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "provider", self.provider.strip().lower() or "none")
+
+
+@dataclass(frozen=True)
+class LocalWanVideoSettings:
+    base_url: str = "http://127.0.0.1:7860"
+    endpoint: str = "/generate"
+    timeout_seconds: float = 600.0
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "base_url", self.base_url.rstrip("/"))
+        endpoint = self.endpoint.strip() or "/generate"
+        object.__setattr__(self, "endpoint", endpoint if endpoint.startswith("/") else f"/{endpoint}")
+
+
+@dataclass(frozen=True)
 class AppSettings:
     openai: OpenAISettings
     default_bgm: Path
     tts: TtsSettings = TtsSettings()
     tencent_tts: TencentCloudTtsSettings = TencentCloudTtsSettings()
     modelscope_video: ModelScopeVideoSettings = ModelScopeVideoSettings()
+    image_to_video: ImageToVideoSettings = ImageToVideoSettings()
+    local_wan_video: LocalWanVideoSettings = LocalWanVideoSettings()
 
     @classmethod
     def from_json(cls, config_path: Path) -> "AppSettings":
@@ -133,6 +156,8 @@ class AppSettings:
         tts_data = data.get("tts", {})
         tencent_data = data.get("tencent_tts", {})
         modelscope_video_data = data.get("modelscope_video", {})
+        image_to_video_data = data.get("image_to_video", {})
+        local_wan_video_data = data.get("local_wan_video", {})
 
         return cls(
             openai=OpenAISettings(
@@ -163,6 +188,15 @@ class AppSettings:
                 resolution=modelscope_video_data.get("resolution", "720P"),
                 poll_interval_seconds=float(modelscope_video_data.get("poll_interval_seconds", 5.0)),
                 timeout_seconds=float(modelscope_video_data.get("timeout_seconds", 600.0)),
+            ),
+            image_to_video=ImageToVideoSettings(
+                enabled=bool(image_to_video_data.get("enabled", False)),
+                provider=image_to_video_data.get("provider", "none"),
+            ),
+            local_wan_video=LocalWanVideoSettings(
+                base_url=local_wan_video_data.get("base_url", "http://127.0.0.1:7860"),
+                endpoint=local_wan_video_data.get("endpoint", "/generate"),
+                timeout_seconds=float(local_wan_video_data.get("timeout_seconds", 600.0)),
             ),
             default_bgm=default_bgm,
         )
@@ -272,6 +306,21 @@ def _validate_editable_config(data: dict) -> None:
     if "timeout_seconds" in modelscope and float(modelscope["timeout_seconds"]) <= 0:
         raise ValueError("modelscope_video.timeout_seconds 必须大于 0")
 
+    image_to_video = data.setdefault("image_to_video", {})
+    image_to_video["enabled"] = bool(image_to_video.get("enabled", False))
+    image_provider = str(image_to_video.get("provider", "none")).strip().lower() or "none"
+    if image_provider not in {"none", "local_wan", "dashscope"}:
+        raise ValueError("image_to_video.provider 只能是 none、local_wan 或 dashscope")
+    image_to_video["provider"] = image_provider
+
+    local_wan = data.setdefault("local_wan_video", {})
+    local_wan["base_url"] = str(local_wan.get("base_url", "http://127.0.0.1:7860")).rstrip("/")
+    endpoint = str(local_wan.get("endpoint", "/generate")).strip() or "/generate"
+    local_wan["endpoint"] = endpoint if endpoint.startswith("/") else f"/{endpoint}"
+    local_wan["timeout_seconds"] = float(local_wan.get("timeout_seconds", 600))
+    if float(local_wan["timeout_seconds"]) <= 0:
+        raise ValueError("local_wan_video.timeout_seconds 必须大于 0")
+
 
 def _atomic_write_json(path: Path, value: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -316,6 +365,15 @@ def _default_config() -> dict:
             "duration": 5,
             "resolution": "720P",
             "poll_interval_seconds": 5,
+            "timeout_seconds": 600,
+        },
+        "image_to_video": {
+            "enabled": False,
+            "provider": "none",
+        },
+        "local_wan_video": {
+            "base_url": "http://127.0.0.1:7860",
+            "endpoint": "/generate",
             "timeout_seconds": 600,
         },
         "assets": {"default_bgm": "assets/default_bgm.mp3"},
