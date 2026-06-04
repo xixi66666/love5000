@@ -114,6 +114,26 @@ class MockProvider:
                 ))
         return rows
 
+    def derive_valuation_from_daily_bars(self, daily_bars: List[DailyBarRow]) -> List[ValuationRow]:
+        rows = []
+        code_indexes = {code: index for index, (code, *_rest) in enumerate(self.codes)}
+        for bar in daily_bars:
+            code_index = code_indexes.get(bar.code, 0)
+            rows.append(ValuationRow(
+                trade_date=bar.trade_date,
+                code=bar.code,
+                pe_ttm=12.0 + code_index * 2,
+                pb=1.1 + code_index * 0.2,
+                ps_ttm=1.8 + code_index * 0.3,
+                pcf_ttm=9.0 + code_index,
+                dividend_yield=0.01 + code_index * 0.002,
+                total_market_value=20000000000 + code_index * 3000000000,
+                float_market_value=15000000000 + code_index * 2500000000,
+                available_date=bar.available_date,
+                data_version=self.data_version,
+            ))
+        return rows
+
     def get_financials(self) -> List[FinancialRow]:
         rows = []
         for code_index, (code, *_rest) in enumerate(self.codes):

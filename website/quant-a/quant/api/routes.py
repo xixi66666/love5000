@@ -2,10 +2,11 @@ from threading import Lock
 from typing import List
 
 from fastapi import APIRouter, BackgroundTasks, Depends
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from quant.common.config import load_app_config
-from quant.common.response import success
+from quant.common.response import failure, success
 from quant.services.pipeline import QuantPipeline
 
 router = APIRouter(prefix="/api")
@@ -65,7 +66,7 @@ def health():
 
 
 @router.get("/status")
-def status():
+def status(pipeline: QuantPipeline = Depends(get_pipeline)):
     config = load_app_config()
     return success({
         "service": config["app"]["name"],
@@ -73,6 +74,7 @@ def status():
         "model_version": config["versions"]["model_version"],
         "config_version": config["versions"]["config_version"],
         "storage": config["storage"],
+        "data_integrity": pipeline.data_integrity(),
     })
 
 
@@ -89,7 +91,7 @@ def sync_data_daily(
     daily_sync_task=Depends(run_daily_sync_task),
 ):
     cached_snapshot = pipeline.daily_sync_snapshot()
-    if cached_snapshot and not request.force:
+    if cached_snapshot and not request.force and cached_snapshot.get("status") == "cached":
         return success(cached_snapshot)
 
     if not daily_sync_lock.acquire(blocking=False):
@@ -100,6 +102,14 @@ def sync_data_daily(
         })
 
     background_tasks.add_task(daily_sync_task, pipeline, request)
+    if cached_snapshot and not request.force:
+        return success({
+            **cached_snapshot,
+            "status": "syncing",
+            "cache_hit": True,
+            "message": "本地快照存在，但行情或估值尚未补齐，已继续后台同步。",
+        })
+
     return success({
         "status": "syncing",
         "cache_hit": False,
@@ -109,7 +119,13 @@ def sync_data_daily(
 
 @router.post("/scores/run")
 def run_scores(request: ScoreRequest, pipeline: QuantPipeline = Depends(get_pipeline)):
-    return success(pipeline.run_scores(request.trade_date, request.index_codes))
+    try:
+        return success(pipeline.run_scores(request.trade_date, request.index_codes))
+    except ValueError as exc:
+        return JSONResponse(
+            status_code=400,
+            content=failure(str(exc)),
+        )
 
 
 @router.post("/backtests/run")

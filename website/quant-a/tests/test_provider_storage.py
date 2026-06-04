@@ -170,13 +170,32 @@ def test_pipeline_fast_daily_sync_writes_stock_pool_before_market_data(tmp_path:
     assert result["cache_hit"] is False
     assert result["stock_count"] == 6
     assert result["index_member_count"] == 6
-    assert result["daily_bar_count"] == 0
+    assert result["daily_bar_count"] > 0
+    assert result["valuation_count"] > 0
     assert repository.count_rows("stock_basic") == 6
     assert repository.count_rows("index_member") == 6
-    assert repository.count_rows("daily_bar") == 0
+    assert repository.count_rows("daily_bar") == result["daily_bar_count"]
+    assert repository.count_rows("valuation") == result["valuation_count"]
     assert provider.stock_basic_calls == 1
     assert provider.daily_bar_calls == 0
     assert provider.valuation_calls == 0
+
+
+def test_pipeline_market_batch_resyncs_codes_missing_valuation(tmp_path: Path):
+    repository = QuantRepository(tmp_path / "quant.duckdb")
+    provider = CountingMockProvider()
+    pipeline = QuantPipeline(repository=repository, provider=provider)
+    pipeline.sync_data_daily_fast("2024-01-02", "2024-03-31", ["CSI300"], sync_date="2026-05-27")
+    repository.replace_table("daily_bar", MockProvider().get_daily_bars("2024-01-02", "2024-03-31"))
+    repository.replace_table("valuation", [])
+
+    result = pipeline.sync_market_data_batch("2024-01-02", "2024-03-31", batch_size=2)
+
+    assert result["processed_count"] == 2
+    assert result["remaining_count"] == 4
+    assert result["daily_bar_count"] > 0
+    assert result["valuation_count"] > 0
+    assert repository.count_rows("valuation") == result["valuation_count"]
 
 
 def test_pipeline_market_data_batch_sync_limits_codes(tmp_path: Path):
@@ -194,7 +213,23 @@ def test_pipeline_market_data_batch_sync_limits_codes(tmp_path: Path):
     assert result["daily_bar_count"] > 0
     assert repository.count_rows("daily_bar") == result["daily_bar_count"]
     assert provider.daily_bar_calls == 1
-    assert provider.valuation_calls == 1
+    assert provider.valuation_calls == 0
+
+
+def test_pipeline_market_data_batch_derives_valuation_from_fetched_bars(tmp_path: Path):
+    repository = QuantRepository(tmp_path / "quant.duckdb")
+    provider = CountingMockProvider()
+    pipeline = QuantPipeline(repository=repository, provider=provider)
+    pipeline.sync_data_daily_fast("2024-01-02", "2024-03-31", ["FULL_MARKET"], sync_date="2026-05-27")
+
+    result = pipeline.sync_market_data_batch("2024-01-02", "2024-03-31", batch_size=1)
+
+    assert result["processed_count"] == 1
+    assert result["daily_bar_count"] > 0
+    assert result["valuation_count"] == result["daily_bar_count"]
+    assert repository.count_rows("valuation") == result["valuation_count"]
+    assert provider.daily_bar_calls == 1
+    assert provider.valuation_calls == 0
 
 
 def test_pipeline_daily_snapshot_reports_partial_market_data(tmp_path: Path):

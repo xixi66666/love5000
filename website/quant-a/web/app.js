@@ -44,6 +44,7 @@ async function loadStatus() {
         els.serviceStatus.textContent = `${data.service || "quant-a"} 正常`;
         els.providerStatus.textContent = data.provider || "-";
         els.modelStatus.textContent = data.model_version || "-";
+        renderDataIntegrity(data.data_integrity || {});
     } catch (error) {
         els.serviceStatus.textContent = "不可用";
         els.providerStatus.textContent = "-";
@@ -88,7 +89,9 @@ async function runAction(type) {
                 }),
             });
             renderScores(payload.data || {});
-            showNotice("评分运行完成。结果仅表示模型排序信号，不代表交易指令。", "success");
+            if ((payload.data?.scores || []).length > 0) {
+                showNotice("评分运行完成。结果仅表示模型排序信号，不代表交易指令。", "success");
+            }
         }
 
         if (type === "backtest") {
@@ -145,6 +148,26 @@ function readParams() {
     };
 }
 
+function renderDataIntegrity(integrity) {
+    if (integrity.latest_score_date) {
+        els.scoreDate.value = integrity.latest_score_date;
+        els.scoreMeta.textContent = `最新可评分日期 ${integrity.latest_score_date}`;
+    } else {
+        els.scoreDate.value = "";
+        els.scoreMeta.textContent = "暂无可评分日期";
+    }
+
+    if (integrity.score_ready) {
+        showNotice(`本地数据可评分，覆盖 ${integrity.score_ready_stock_count || 0} 只股票。`, "success");
+        return;
+    }
+
+    const reasons = Array.isArray(integrity.blocking_reasons) ? integrity.blocking_reasons : [];
+    if (reasons.length > 0) {
+        showNotice(`本地数据暂不可评分：${reasons.join("；")}`, "error");
+    }
+}
+
 async function requestJson(url, options = {}) {
     const response = await fetch(url, {
         headers: {
@@ -180,7 +203,8 @@ function renderSyncResult(data) {
 
 function showDailySyncNotice(data) {
     if (data.status === "syncing") {
-        showNotice(data.message || "今日数据同步正在执行，请稍后查看。", "loading");
+        const remaining = syncRemainingText(data);
+        showNotice(`${data.message || "今日数据同步正在执行，请稍后查看。"}${remaining}`, "loading");
         return;
     }
     if (data.cache_hit) {
@@ -188,6 +212,19 @@ function showDailySyncNotice(data) {
         return;
     }
     showNotice("今日数据同步完成，可继续运行评分或回测。", "success");
+}
+
+function syncRemainingText(data) {
+    const marketRemaining = Number(data.market_remaining_count);
+    const valuationRemaining = Number(data.valuation_remaining_count);
+    const parts = [];
+    if (Number.isFinite(marketRemaining) && marketRemaining > 0) {
+        parts.push(`行情剩余 ${marketRemaining} 只`);
+    }
+    if (Number.isFinite(valuationRemaining) && valuationRemaining > 0) {
+        parts.push(`估值剩余 ${valuationRemaining} 只`);
+    }
+    return parts.length > 0 ? `（${parts.join("，")}）` : "";
 }
 
 function renderSyncStatus(status, cacheHit) {
@@ -208,7 +245,7 @@ function renderScores(data) {
     els.scoreMeta.textContent = data.trade_date ? `评分日期 ${data.trade_date}` : "评分完成";
 
     if (scores.length === 0) {
-        els.scoreTableBody.innerHTML = '<tr><td colspan="5" class="empty">没有可展示的评分结果。</td></tr>';
+        els.scoreTableBody.innerHTML = '<tr><td colspan="5" class="empty">没有可展示的评分结果，请先确认本地行情、估值和财务数据完整。</td></tr>';
         return;
     }
 

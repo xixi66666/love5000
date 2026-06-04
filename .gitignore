@@ -33,6 +33,9 @@ build/
 .vscode/
 out/
 
+### Local design previews ###
+.superpowers/
+
 ### Python runtime artifacts ###
 __pycache__/
 *.py[cod]

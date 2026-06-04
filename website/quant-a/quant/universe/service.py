@@ -20,14 +20,15 @@ class UniverseService:
         if not index_codes:
             return []
 
+        normalized_codes = {str(code).upper() for code in index_codes}
+        use_full_market = bool(normalized_codes & {"FULL_MARKET", "ALL"})
+        member_pool_sql = self._member_pool_sql(len(index_codes), use_full_market)
+        member_params = [] if use_full_market else [*index_codes, trade_date, trade_date]
+
         rows = self.repository.fetch_dicts(
-            """
+            f"""
             with member_pool as (
-                select distinct code
-                from index_member
-                where index_code in ({placeholders})
-                  and effective_date <= ?
-                  and (expire_date is null or expire_date > ?)
+                {member_pool_sql}
             ),
             amount_20d as (
                 select code, avg(amount) as avg_amount_20d
@@ -59,8 +60,8 @@ class UniverseService:
             left join amount_20d a on s.code = a.code
             left join latest_bar b on s.code = b.code
             order by s.exchange, s.code
-            """.format(placeholders=", ".join(["?"] * len(index_codes))),
-            [*index_codes, trade_date, trade_date, trade_date, trade_date, trade_date],
+            """,
+            [*member_params, trade_date, trade_date, trade_date],
         )
         trade_day = date.fromisoformat(trade_date)
         result = []
@@ -79,3 +80,16 @@ class UniverseService:
                 "listed_days": listed_days,
             })
         return result
+
+    def _member_pool_sql(self, index_code_count: int, use_full_market: bool) -> str:
+        if use_full_market:
+            return "select code from stock_basic where status = 'listed'"
+
+        placeholders = ", ".join(["?"] * index_code_count)
+        return f"""
+                select distinct code
+                from index_member
+                where index_code in ({placeholders})
+                  and effective_date <= ?
+                  and (expire_date is null or expire_date > ?)
+        """

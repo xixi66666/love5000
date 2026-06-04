@@ -15,6 +15,17 @@ class FakeDataFrame:
         return self.rows
 
 
+class FakeResponse:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return self.payload
+
+
 def install_fake_akshare(monkeypatch, stock_rows=None, hist_by_code=None):
     fake_akshare = types.SimpleNamespace()
 
@@ -102,6 +113,80 @@ def test_get_daily_bars_parses_rows_and_isolates_single_stock_errors(monkeypatch
     assert rows[0].limit_up == 11.0
     assert rows[0].limit_down == 9.0
     assert provider.errors == [{"code": "000001", "message": "remote timeout"}]
+
+
+def test_get_daily_bars_falls_back_to_eastmoney_when_akshare_disconnects(monkeypatch):
+    install_fake_akshare(
+        monkeypatch,
+        stock_rows=[{"code": "000001", "name": "平安银行"}],
+        hist_by_code={"000001": RuntimeError("remote disconnected")},
+    )
+    calls = []
+
+    def fake_get(url, params, timeout):
+        calls.append((url, params, timeout))
+        return FakeResponse({
+            "data": {
+                "klines": [
+                    "2024-01-02,9.90,10.20,10.30,9.80,120000,1234567,0,2.00,0.20,1.20"
+                ]
+            }
+        })
+
+    monkeypatch.setattr("quant.providers.akshare_provider.requests.get", fake_get)
+    provider = AkShareProvider(timeout_seconds=23)
+
+    rows = provider.get_daily_bars("2024-01-02", "2024-01-02", codes=["000001"])
+
+    assert len(rows) == 1
+    assert rows[0].code == "000001"
+    assert rows[0].trade_date == "2024-01-02"
+    assert rows[0].open == 9.90
+    assert rows[0].close == 10.20
+    assert rows[0].pre_close == 10.0
+    assert rows[0].available_date == "2024-01-03"
+    assert rows[0].data_version == "eastmoney-20240102"
+    assert calls[0][1]["secid"] == "0.000001"
+    assert calls[0][2] == 23
+
+
+def test_get_daily_bars_falls_back_to_sina_when_eastmoney_disconnects(monkeypatch):
+    install_fake_akshare(
+        monkeypatch,
+        stock_rows=[{"code": "600000", "name": "浦发银行"}],
+        hist_by_code={"600000": RuntimeError("remote disconnected")},
+    )
+    calls = []
+
+    def fake_get(url, params=None, timeout=None):
+        calls.append((url, params, timeout))
+        if "eastmoney" in url:
+            raise RuntimeError("eastmoney disconnected")
+        return FakeResponse([
+            {
+                "day": "2024-01-02",
+                "open": "9.90",
+                "high": "10.30",
+                "low": "9.80",
+                "close": "10.20",
+                "volume": "120000",
+            }
+        ])
+
+    monkeypatch.setattr("quant.providers.akshare_provider.requests.get", fake_get)
+    provider = AkShareProvider(timeout_seconds=23)
+
+    rows = provider.get_daily_bars("2024-01-02", "2024-01-02", codes=["600000"])
+
+    assert len(rows) == 1
+    assert rows[0].code == "600000"
+    assert rows[0].trade_date == "2024-01-02"
+    assert rows[0].close == 10.20
+    assert rows[0].volume == 120000
+    assert rows[0].amount == 1224000
+    assert rows[0].data_version == "sina-20240102"
+    assert calls[-1][0].endswith("CN_MarketData.getKLineData")
+    assert calls[-1][1]["symbol"] == "sh600000"
 
 
 def test_neutral_valuation_and_financials_are_labeled_as_derived(monkeypatch):

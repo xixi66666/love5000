@@ -1,7 +1,9 @@
+from datetime import date
+
 from fastapi.testclient import TestClient
 
 from main import app
-from quant.api.routes import get_pipeline, run_daily_sync_task
+from quant.api.routes import daily_sync_lock, get_pipeline, run_daily_sync_task
 from quant.providers.mock_provider import MockProvider
 from quant.services.pipeline import QuantPipeline
 from quant.storage.repository import QuantRepository
@@ -16,6 +18,10 @@ def build_client(tmp_path):
 
 def clear_overrides():
     app.dependency_overrides.clear()
+    try:
+        daily_sync_lock.release()
+    except RuntimeError:
+        pass
 
 
 def test_data_sync_and_scoring_pipeline(tmp_path):
@@ -54,6 +60,81 @@ def test_data_sync_and_scoring_pipeline(tmp_path):
         clear_overrides()
 
 
+def test_status_reports_local_data_integrity_and_latest_score_date(tmp_path):
+    client, repository = build_client(tmp_path)
+    try:
+        client.post("/api/data/sync", json={
+            "start_date": "2024-01-02",
+            "end_date": "2024-03-31",
+            "index_codes": ["FULL_MARKET"],
+        })
+
+        response = client.get("/api/status")
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["success"] is True
+        integrity = payload["data"]["data_integrity"]
+        assert integrity["stock_count"] == 6
+        assert integrity["daily_bar_count"] > 0
+        assert integrity["valuation_count"] > 0
+        assert integrity["financial_count"] == 6
+        assert integrity["latest_score_date"] == "2024-03-29"
+        assert integrity["score_ready"] is True
+        assert integrity["score_ready_stock_count"] == 6
+        assert integrity["market_remaining_count"] == 0
+        assert repository.count_rows("index_member") == 6
+    finally:
+        clear_overrides()
+
+
+def test_status_reports_missing_valuation_as_not_score_ready(tmp_path):
+    client, repository = build_client(tmp_path)
+    try:
+        client.post("/api/data/sync", json={
+            "start_date": "2024-01-02",
+            "end_date": "2024-03-31",
+            "index_codes": ["FULL_MARKET"],
+        })
+        repository.connection.execute("delete from valuation")
+
+        response = client.get("/api/status")
+
+        assert response.status_code == 200
+        payload = response.json()
+        integrity = payload["data"]["data_integrity"]
+        assert integrity["valuation_count"] == 0
+        assert integrity["latest_score_date"] is None
+        assert integrity["score_ready"] is False
+        assert "估值数据为空" in integrity["blocking_reasons"]
+    finally:
+        clear_overrides()
+
+
+def test_run_scores_returns_clear_error_when_local_data_is_incomplete(tmp_path):
+    client, repository = build_client(tmp_path)
+    try:
+        client.post("/api/data/sync", json={
+            "start_date": "2024-01-02",
+            "end_date": "2024-03-31",
+            "index_codes": ["FULL_MARKET"],
+        })
+        repository.connection.execute("delete from valuation")
+
+        response = client.post("/api/scores/run", json={
+            "trade_date": "2024-03-29",
+            "index_codes": ["FULL_MARKET"],
+        })
+
+        assert response.status_code == 400
+        payload = response.json()
+        assert payload["success"] is False
+        assert "本地数据不足，无法评分" in payload["message"]
+        assert "估值数据为空" in payload["message"]
+    finally:
+        clear_overrides()
+
+
 def test_daily_sync_endpoint_reuses_cached_snapshot(tmp_path):
     repository = QuantRepository(tmp_path / "quant.duckdb")
     pipeline = QuantPipeline(repository=repository, provider=MockProvider())
@@ -82,7 +163,10 @@ def test_daily_sync_endpoint_starts_background_task_when_snapshot_missing(tmp_pa
     calls = []
 
     def record_task(pipeline, request):
-        calls.append((pipeline, request.start_date, request.end_date, request.index_codes))
+        try:
+            calls.append((pipeline, request.start_date, request.end_date, request.index_codes))
+        finally:
+            daily_sync_lock.release()
 
     app.dependency_overrides[run_daily_sync_task] = lambda: record_task
     try:
@@ -100,6 +184,45 @@ def test_daily_sync_endpoint_starts_background_task_when_snapshot_missing(tmp_pa
         assert payload["data"]["message"] == "今日数据同步已启动，请稍后查看。"
         assert len(calls) == 1
         assert calls[0][1:] == ("2024-01-02", "2024-03-31", ["CSI300"])
+    finally:
+        clear_overrides()
+
+
+def test_daily_sync_endpoint_continues_background_task_when_cached_snapshot_is_incomplete(tmp_path):
+    repository = QuantRepository(tmp_path / "quant.duckdb")
+    pipeline = QuantPipeline(repository=repository, provider=MockProvider())
+    pipeline.sync_data_daily_fast(
+        "2024-01-02",
+        "2024-03-31",
+        ["FULL_MARKET"],
+        sync_date=date.today().isoformat(),
+    )
+    calls = []
+
+    def record_task(pipeline_arg, request):
+        try:
+            calls.append((pipeline_arg, request.start_date, request.end_date, request.index_codes))
+        finally:
+            daily_sync_lock.release()
+
+    app.dependency_overrides[get_pipeline] = lambda: pipeline
+    app.dependency_overrides[run_daily_sync_task] = lambda: record_task
+    client = TestClient(app)
+    try:
+        response = client.post("/api/data/sync-daily", json={
+            "start_date": "2024-01-02",
+            "end_date": "2024-03-31",
+            "index_codes": ["FULL_MARKET"],
+        })
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["success"] is True
+        assert payload["data"]["status"] == "syncing"
+        assert payload["data"]["cache_hit"] is True
+        assert payload["data"]["market_remaining_count"] == 6
+        assert payload["data"]["valuation_remaining_count"] == 6
+        assert len(calls) == 1
     finally:
         clear_overrides()
 

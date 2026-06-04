@@ -2,6 +2,8 @@ import math
 from datetime import date, datetime, timedelta
 from typing import List, Optional
 
+import requests
+
 from quant.providers.base import (
     DailyBarRow,
     FinancialRow,
@@ -92,6 +94,18 @@ class AkShareProvider:
                     adjust="qfq",
                 )
             except Exception as exc:
+                try:
+                    fallback_rows = self._eastmoney_daily_bars(stock, start_date, end_date, calendar_by_date)
+                except Exception:
+                    fallback_rows = []
+                if not fallback_rows:
+                    try:
+                        fallback_rows = self._sina_daily_bars(stock, start_date, end_date, calendar_by_date)
+                    except Exception:
+                        fallback_rows = []
+                if fallback_rows:
+                    rows.extend(fallback_rows)
+                    continue
                 self.errors.append({"code": stock.code, "message": str(exc)})
                 continue
 
@@ -121,9 +135,128 @@ class AkShareProvider:
                 ))
         return rows
 
-    def get_valuation(self, start_date: str, end_date: str, codes: Optional[List[str]] = None) -> List[ValuationRow]:
+    def _eastmoney_daily_bars(
+        self,
+        stock: StockBasicRow,
+        start_date: str,
+        end_date: str,
+        calendar_by_date: dict,
+    ) -> List[DailyBarRow]:
+        response = requests.get(
+            "https://push2his.eastmoney.com/api/qt/stock/kline/get",
+            params={
+                "secid": "%s.%s" % (self._eastmoney_market_id(stock.code), stock.code),
+                "fields1": "f1,f2,f3,f4,f5,f6",
+                "fields2": "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61",
+                "klt": "101",
+                "fqt": "1",
+                "beg": self._compact_date(start_date),
+                "end": self._compact_date(end_date),
+            },
+            timeout=self.timeout_seconds,
+        )
+        response.raise_for_status()
+        klines = ((response.json() or {}).get("data") or {}).get("klines") or []
         rows = []
-        for bar in self.get_daily_bars(start_date, end_date, codes=codes):
+        for line in klines:
+            parts = str(line).split(",")
+            if len(parts) < 11:
+                continue
+            trade_date = self._normalize_date(parts[0])
+            if not trade_date or trade_date < start_date or trade_date > end_date:
+                continue
+            close = self._to_float(parts[2])
+            pct_change = self._to_float(parts[8])
+            pre_close = close if pct_change <= -100 else round(close / (1 + pct_change / 100), 2)
+            calendar_row = calendar_by_date.get(trade_date)
+            rows.append(DailyBarRow(
+                trade_date=trade_date,
+                code=stock.code,
+                open=self._to_float(parts[1]),
+                high=self._to_float(parts[3]),
+                low=self._to_float(parts[4]),
+                close=close,
+                pre_close=pre_close,
+                volume=self._to_float(parts[5]),
+                amount=self._to_float(parts[6]),
+                turnover_rate=self._to_float(parts[10]),
+                adj_factor=1.0,
+                limit_up=round(pre_close * 1.1, 2),
+                limit_down=round(pre_close * 0.9, 2),
+                suspend_flag=False,
+                available_date=self._available_date(trade_date, calendar_row),
+                data_version="eastmoney-%s" % self._compact_date(trade_date),
+            ))
+        return rows
+
+    def _sina_daily_bars(
+        self,
+        stock: StockBasicRow,
+        start_date: str,
+        end_date: str,
+        calendar_by_date: dict,
+    ) -> List[DailyBarRow]:
+        response = requests.get(
+            "https://quotes.sina.cn/cn/api/json_v2.php/CN_MarketData.getKLineData",
+            params={
+                "symbol": "%s%s" % (self._sina_market_prefix(stock.code), stock.code),
+                "scale": "240",
+                "ma": "no",
+                "datalen": "260",
+            },
+            timeout=self.timeout_seconds,
+        )
+        response.raise_for_status()
+        items = response.json() or []
+        rows = []
+        previous_close = None
+        for item in items:
+            trade_date = self._normalize_date(item.get("day"))
+            if not trade_date:
+                continue
+            close = self._to_float(item.get("close"))
+            pre_close = previous_close if previous_close is not None else close
+            previous_close = close
+            if trade_date < start_date or trade_date > end_date:
+                continue
+            calendar_row = calendar_by_date.get(trade_date)
+            volume = self._to_float(item.get("volume"))
+            rows.append(DailyBarRow(
+                trade_date=trade_date,
+                code=stock.code,
+                open=self._to_float(item.get("open")),
+                high=self._to_float(item.get("high")),
+                low=self._to_float(item.get("low")),
+                close=close,
+                pre_close=pre_close,
+                volume=volume,
+                amount=round(volume * close, 4),
+                turnover_rate=0.0,
+                adj_factor=1.0,
+                limit_up=round(pre_close * 1.1, 2),
+                limit_down=round(pre_close * 0.9, 2),
+                suspend_flag=False,
+                available_date=self._available_date(trade_date, calendar_row),
+                data_version="sina-%s" % self._compact_date(trade_date),
+            ))
+        return rows
+
+    def _sina_market_prefix(self, code: str) -> str:
+        if code.startswith(("6", "9")):
+            return "sh"
+        return "sz"
+
+    def _eastmoney_market_id(self, code: str) -> str:
+        if code.startswith(("6", "9")):
+            return "1"
+        return "0"
+
+    def get_valuation(self, start_date: str, end_date: str, codes: Optional[List[str]] = None) -> List[ValuationRow]:
+        return self.derive_valuation_from_daily_bars(self.get_daily_bars(start_date, end_date, codes=codes))
+
+    def derive_valuation_from_daily_bars(self, daily_bars: List[DailyBarRow]) -> List[ValuationRow]:
+        rows = []
+        for bar in daily_bars:
             rows.append(ValuationRow(
                 trade_date=bar.trade_date,
                 code=bar.code,
