@@ -18,9 +18,17 @@ from pathlib import Path
 from threading import Lock
 from typing import Any, Dict, Iterable, List, Optional
 
+from services.account_service import AccountService
+from services.obsidian_service import ObsidianTradingService
+from services.stock_match_service import StockMatchService
+from services.storage_service import JsonStore
+from services.trade_service import TradeService
+from services.vision_parse_service import VisionParseService
+
 
 ROOT = Path(__file__).resolve().parent
 OBSIDIAN_ROOT = Path(os.environ.get("ASHARE_OBSIDIAN_ROOT", ROOT / "obsidian-vault" / "A股AI")).resolve()
+DATA_ROOT = OBSIDIAN_ROOT / "data"
 PORT = int(os.environ.get("PORT", "5174"))
 CACHE_TTL_SECONDS = 180
 FETCH_WORKERS = 6
@@ -30,6 +38,8 @@ WATCHLIST = [
 
 DEEPSEEK_API_BASE = os.environ.get("DEEPSEEK_API_BASE", "https://api.deepseek.com").rstrip("/")
 DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-pro")
+VISION_API_BASE = os.environ.get("VISION_API_BASE", DEEPSEEK_API_BASE).rstrip("/")
+VISION_MODEL = os.environ.get("VISION_MODEL", os.environ.get("DEEPSEEK_VISION_MODEL", "gpt-4o-mini"))
 
 HTTP_HEADERS = {
     "User-Agent": (
@@ -64,6 +74,21 @@ def read_local_secret(name: str) -> str:
         except Exception:
             return ""
     return ""
+
+
+def trading_services() -> Dict[str, Any]:
+    store = JsonStore(DATA_ROOT)
+    return {
+        "account": AccountService(store),
+        "trade": TradeService(store),
+        "stock_match": StockMatchService(store, seed_rows=read_watchlist()),
+        "obsidian": ObsidianTradingService(OBSIDIAN_ROOT),
+        "vision": VisionParseService(
+            api_key=read_local_secret("VISION_API_KEY"),
+            api_base=VISION_API_BASE,
+            model=VISION_MODEL,
+        ),
+    }
 
 
 def secid_for_code(code: str) -> str:
@@ -925,6 +950,34 @@ def json_response(handler: SimpleHTTPRequestHandler, payload: Dict[str, Any], st
     handler.wfile.write(body)
 
 
+def read_uploaded_image(handler: SimpleHTTPRequestHandler) -> Dict[str, Any]:
+    content_type = handler.headers.get("Content-Type", "")
+    if not content_type.startswith("multipart/form-data"):
+        raise ValueError("请使用 multipart/form-data 上传截图")
+    try:
+        import cgi
+
+        form = cgi.FieldStorage(
+            fp=handler.rfile,
+            headers=handler.headers,
+            environ={
+                "REQUEST_METHOD": "POST",
+                "CONTENT_TYPE": content_type,
+            },
+        )
+        file_item = form["file"] if "file" in form else None
+        if not file_item or not getattr(file_item, "file", None):
+            raise ValueError("file is required")
+        image_bytes = file_item.file.read()
+        mime_type = getattr(file_item, "type", None) or "image/jpeg"
+        trade_date = form.getfirst("trade_date") or datetime.now().strftime("%Y-%m-%d")
+        return {"image_bytes": image_bytes, "mime_type": mime_type, "trade_date": trade_date}
+    except Exception as exc:
+        if isinstance(exc, ValueError):
+            raise
+        raise ValueError(f"截图上传解析失败：{exc}") from exc
+
+
 class AShareHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, directory=str(ROOT), **kwargs)
@@ -958,13 +1011,75 @@ class AShareHandler(SimpleHTTPRequestHandler):
             payload = fetch_watchlist_payload(force=force)
             json_response(self, payload, status=200 if payload["ok"] else 502)
             return
+        if parsed.path == "/api/trading/dashboard":
+            query = urllib.parse.parse_qs(parsed.query)
+            date_value = (query.get("date") or [datetime.now().strftime("%Y-%m-%d")])[0]
+            services = trading_services()
+            account_dashboard = services["account"].dashboard(date_value)
+            trades = services["trade"].list_trades(date_value)
+            json_response(
+                self,
+                {
+                    "ok": True,
+                    "success": True,
+                    "date": date_value,
+                    "account": account_dashboard,
+                    "trades": trades,
+                    "parse_drafts": services["trade"].list_parse_drafts("pending"),
+                },
+            )
+            return
+        if parsed.path == "/api/trading/capital-flows":
+            services = trading_services()
+            json_response(self, {"ok": True, "success": True, "flows": services["account"].list_capital_flows()})
+            return
+        if parsed.path == "/api/trading/account-snapshots":
+            query = urllib.parse.parse_qs(parsed.query)
+            date_value = (query.get("date") or [None])[0]
+            services = trading_services()
+            json_response(self, {"ok": True, "success": True, "snapshots": services["account"].list_account_snapshots(date_value)})
+            return
+        if parsed.path == "/api/trading/trades":
+            query = urllib.parse.parse_qs(parsed.query)
+            date_value = (query.get("date") or [None])[0]
+            services = trading_services()
+            json_response(self, {"ok": True, "success": True, "trades": services["trade"].list_trades(date_value)})
+            return
+        if parsed.path == "/api/trading/parse-drafts":
+            services = trading_services()
+            json_response(self, {"ok": True, "success": True, "drafts": services["trade"].list_parse_drafts()})
+            return
         return super().do_GET()
 
     def do_POST(self) -> None:
         parsed = urllib.parse.urlparse(self.path)
+        if parsed.path in {"/api/trading/parse/account-screenshot", "/api/trading/parse/trades-screenshot"}:
+            try:
+                upload = read_uploaded_image(self)
+                services = trading_services()
+                if parsed.path.endswith("account-screenshot"):
+                    parsed_payload = services["vision"].parse_account_screenshot(upload["image_bytes"], upload["mime_type"])
+                    draft = services["trade"].create_parse_draft("account_screenshot", upload["trade_date"], parsed_payload, [])
+                else:
+                    parsed_payload = services["vision"].parse_trades_screenshot(upload["image_bytes"], upload["mime_type"])
+                    warnings = []
+                    for trade in parsed_payload.get("trades") or []:
+                        if not trade.get("stock_code") and trade.get("stock_name"):
+                            match = services["stock_match"].match_name(trade["stock_name"])
+                            trade["stock_match"] = match
+                            if match.get("status") == "matched":
+                                trade["stock_code"] = match.get("stock_code", "")
+                            else:
+                                warnings.append(f"{trade.get('stock_name')} 股票代码未唯一匹配")
+                    draft = services["trade"].create_parse_draft("trades_screenshot", upload["trade_date"], parsed_payload, warnings)
+                json_response(self, {"ok": True, "success": True, "draft": draft})
+            except Exception as exc:
+                json_response(self, {"ok": False, "success": False, "error": str(exc), "message": str(exc)}, status=400)
+            return
         length = int(self.headers.get("Content-Length") or 0)
         try:
             payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            services = trading_services()
             if parsed.path == "/api/obsidian/daily-review":
                 json_response(self, write_daily_review(payload))
                 return
@@ -977,9 +1092,45 @@ class AShareHandler(SimpleHTTPRequestHandler):
             if parsed.path == "/api/watchlist":
                 json_response(self, add_watchlist_item(payload))
                 return
+            if parsed.path == "/api/trading/capital-flows":
+                json_response(self, {"ok": True, "success": True, "flow": services["account"].add_capital_flow(payload)})
+                return
+            if parsed.path == "/api/trading/account-snapshots":
+                json_response(self, {"ok": True, "success": True, "snapshot": services["account"].add_account_snapshot(payload)})
+                return
+            if parsed.path == "/api/trading/trades":
+                json_response(self, {"ok": True, "success": True, "trade": services["trade"].add_trade(payload)})
+                return
+            if parsed.path.startswith("/api/trading/parse-drafts/") and parsed.path.endswith("/confirm"):
+                draft_id = parsed.path.split("/")[-2]
+                result = services["trade"].confirm_draft(draft_id, payload)
+                json_response(self, {"ok": True, "success": True, **result})
+                return
+            if parsed.path.startswith("/api/trading/parse-drafts/") and parsed.path.endswith("/reject"):
+                draft_id = parsed.path.split("/")[-2]
+                draft = services["trade"].reject_draft(draft_id)
+                json_response(self, {"ok": True, "success": True, "draft": draft})
+                return
+            if parsed.path == "/api/trading/daily-review":
+                result = services["obsidian"].write_daily_review(
+                    payload.get("date") or datetime.now().strftime("%Y-%m-%d"),
+                    payload.get("snapshot") or {},
+                    payload.get("trades") or [],
+                    payload.get("review") or {},
+                )
+                json_response(self, result)
+                return
+            if parsed.path == "/api/trading/insights/update":
+                result = services["obsidian"].update_insight_index(payload.get("insight") or payload)
+                json_response(self, result)
+                return
+            if parsed.path == "/api/trading/stock-match":
+                result = services["stock_match"].match_name(str(payload.get("stock_name") or ""))
+                json_response(self, {"ok": True, "success": True, "match": result})
+                return
             json_response(self, {"ok": False, "error": "Not found"}, status=404)
         except Exception as exc:
-            json_response(self, {"ok": False, "error": str(exc)}, status=400)
+            json_response(self, {"ok": False, "success": False, "error": str(exc), "message": str(exc)}, status=400)
 
     def do_DELETE(self) -> None:
         parsed = urllib.parse.urlparse(self.path)
