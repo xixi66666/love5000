@@ -36,9 +36,13 @@
           </div>
           <button id="refreshBtn" class="primary-button" type="button">刷新数据</button>
         </div>
+        <nav class="main-tabs" aria-label="工作台视图">
+          <button class="main-tab active" data-view="research" type="button">股票研究</button>
+          <button class="main-tab" data-view="trading" type="button">交易复盘</button>
+        </nav>
       </header>
 
-      <main class="workspace">
+      <main id="researchView" class="workspace view-panel active">
         <aside class="watch-panel panel">
           <div class="panel-head">
             <div>
@@ -248,6 +252,97 @@
             <button id="saveReviewBtn" class="primary-button full" type="submit">保存到该股票长期记忆</button>
           </form>
         </aside>
+      </main>
+
+      <main id="tradingView" class="trading-workspace view-panel" hidden>
+        <section class="panel trading-panel">
+          <div class="panel-head">
+            <div>
+              <h2>交易复盘</h2>
+              <p>每日收盘后确认账户、交易和心得</p>
+            </div>
+            <label class="compact-field">
+              <span>复盘日期</span>
+              <input id="tradingDate" type="date" />
+            </label>
+          </div>
+
+          <div class="privacy-note">
+            截图解析会将图片发送给外部 AI 视觉接口；原图不会保存到本地项目目录。解析结果需要确认后才会入账。
+          </div>
+
+          <div class="trading-grid">
+            <section class="trading-card">
+              <h3>账户资金</h3>
+              <div id="accountSummary" class="metric-grid"></div>
+            </section>
+
+            <section class="trading-card">
+              <h3>本金流水</h3>
+              <form id="capitalFlowForm" class="trading-form">
+                <select id="capitalFlowType">
+                  <option value="initial">初始本金</option>
+                  <option value="deposit">入金</option>
+                  <option value="withdraw">出金</option>
+                  <option value="adjustment">资金修正</option>
+                </select>
+                <input id="capitalFlowAmount" type="number" step="0.01" placeholder="金额" />
+                <input id="capitalFlowNote" placeholder="说明" />
+                <button class="secondary-button" type="submit">保存流水</button>
+              </form>
+              <div id="capitalFlowList" class="simple-list"></div>
+            </section>
+
+            <section class="trading-card">
+              <h3>截图解析</h3>
+              <form id="accountScreenshotForm" class="upload-form">
+                <input id="accountScreenshotInput" type="file" accept="image/*" />
+                <button class="secondary-button" type="submit">解析账户截图</button>
+              </form>
+              <form id="tradesScreenshotForm" class="upload-form">
+                <input id="tradesScreenshotInput" type="file" accept="image/*" />
+                <button class="secondary-button" type="submit">解析成交截图</button>
+              </form>
+            </section>
+
+            <section class="trading-card span-2">
+              <h3>待确认解析结果</h3>
+              <div id="parseDraftList" class="draft-list"></div>
+            </section>
+
+            <section class="trading-card span-2">
+              <h3>今日交易</h3>
+              <form id="manualTradeForm" class="trade-form">
+                <input id="tradeStockCode" maxlength="6" placeholder="代码" />
+                <input id="tradeStockName" placeholder="名称" />
+                <select id="tradeSide">
+                  <option value="buy">买入</option>
+                  <option value="sell">卖出</option>
+                </select>
+                <input id="tradeTime" type="datetime-local" />
+                <input id="tradePrice" type="number" step="0.001" placeholder="价格" />
+                <input id="tradeQuantity" type="number" step="1" placeholder="数量" />
+                <input id="tradeAmount" type="number" step="0.01" placeholder="金额" />
+                <button class="secondary-button" type="submit">新增交易</button>
+              </form>
+              <div id="tradeList" class="trade-list"></div>
+            </section>
+
+            <section class="trading-card span-2">
+              <h3>今日复盘</h3>
+              <form id="dailyReviewForm" class="daily-review-form">
+                <textarea id="dailySummary" rows="2" placeholder="今日操作总结"></textarea>
+                <textarea id="dailyDidWell" rows="2" placeholder="今天做对了什么"></textarea>
+                <textarea id="dailyMistake" rows="2" placeholder="今天做错了什么"></textarea>
+                <textarea id="dailyPositionReview" rows="2" placeholder="仓位是否合理"></textarea>
+                <textarea id="dailyEmotionReview" rows="2" placeholder="情绪是否影响操作"></textarea>
+                <textarea id="dailyNextPlan" rows="2" placeholder="明日观察计划"></textarea>
+                <textarea id="dailyLesson" rows="3" placeholder="自由心得"></textarea>
+                <button class="primary-button" type="submit">保存每日复盘</button>
+              </form>
+            </section>
+          </div>
+        </section>
       </main>
     </div>
 
