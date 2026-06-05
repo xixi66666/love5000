@@ -966,7 +966,7 @@ def read_uploaded_image(handler: SimpleHTTPRequestHandler) -> Dict[str, Any]:
             },
         )
         file_item = form["file"] if "file" in form else None
-        if not file_item or not getattr(file_item, "file", None):
+        if file_item is None or getattr(file_item, "file", None) is None:
             raise ValueError("file is required")
         image_bytes = file_item.file.read()
         mime_type = getattr(file_item, "type", None) or "image/jpeg"
