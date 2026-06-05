@@ -12,6 +12,13 @@ const state = {
   generatedResearchConclusion: "",
 };
 
+const tradingState = {
+  activeView: "research",
+  date: today(),
+  dashboard: null,
+  loading: false,
+};
+
 const $ = (selector) => document.querySelector(selector);
 
 const fallbackStocks = [];
@@ -64,6 +71,23 @@ async function requestJson(url, options = {}) {
   return payload;
 }
 
+async function requestForm(url, formData) {
+  const response = await fetch(url, { method: "POST", body: formData });
+  const payload = await response.json();
+  if (!response.ok || payload.ok === false || payload.success === false) {
+    throw new Error(payload.message || payload.error || "请求失败");
+  }
+  return payload;
+}
+
+async function loadTradingDashboard() {
+  const date = $("#tradingDate").value || today();
+  tradingState.date = date;
+  const payload = await requestJson(`/api/trading/dashboard?date=${encodeURIComponent(date)}`, { cache: "no-store" });
+  tradingState.dashboard = payload;
+  renderTradingDashboard();
+}
+
 async function loadWatchlist(force = false) {
   if (window.location.protocol === "file:") {
     stocks = fallbackStocks;
@@ -104,6 +128,50 @@ function renderAll() {
   renderSelectedStock();
   renderAiChat();
   renderReviewDraft();
+}
+
+function renderTradingDashboard() {
+  const payload = tradingState.dashboard || {};
+  const account = payload.account || {};
+  const snapshot = account.snapshot || {};
+  const metrics = [
+    ["总资产", snapshot.total_assets],
+    ["本金", account.principal],
+    ["账户收益", snapshot.account_profit],
+    ["收益率", typeof snapshot.account_profit_rate === "number" ? `${(snapshot.account_profit_rate * 100).toFixed(2)}%` : "--"],
+    ["当日盈亏", snapshot.daily_profit],
+    ["浮动盈亏", snapshot.floating_profit],
+    ["总市值", snapshot.market_value],
+    ["可用资金", snapshot.available_cash],
+  ];
+  $("#accountSummary").innerHTML = metrics
+    .map(([label, value]) => `<div class="metric-item"><span>${label}</span><strong>${value ?? "--"}</strong></div>`)
+    .join("");
+
+  $("#capitalFlowList").innerHTML =
+    (account.capital_flows || [])
+      .map((flow) => `<div class="list-row">${flow.date} · ${flow.type} · ${flow.amount} · ${flow.note || ""}</div>`)
+      .join("") || `<div class="list-row">当日暂无本金流水。</div>`;
+
+  $("#tradeList").innerHTML =
+    (payload.trades || [])
+      .map((trade) => `<div class="list-row">${trade.trade_datetime} · ${trade.stock_code || "待补"} ${trade.stock_name} · ${trade.side} · ${trade.price} x ${trade.quantity} · ${trade.amount}</div>`)
+      .join("") || `<div class="list-row">当日暂无确认交易。</div>`;
+
+  $("#parseDraftList").innerHTML =
+    (payload.parse_drafts || [])
+      .map((draft) => `<div class="list-row"><strong>${draft.type}</strong> · ${draft.trade_date} · ${draft.status}<pre>${JSON.stringify(draft.parsed, null, 2)}</pre></div>`)
+      .join("") || `<div class="list-row">暂无待确认解析结果。</div>`;
+}
+
+function switchMainView(view) {
+  tradingState.activeView = view;
+  document.querySelectorAll(".main-tab").forEach((button) => button.classList.toggle("active", button.dataset.view === view));
+  $("#researchView").hidden = view !== "research";
+  $("#tradingView").hidden = view !== "trading";
+  if (view === "trading") {
+    loadTradingDashboard().catch((error) => showToast(error.message));
+  }
 }
 
 function renderMarketSummary() {
@@ -527,11 +595,108 @@ async function saveStockReview(event) {
   }
 }
 
+async function saveCapitalFlow(event) {
+  event.preventDefault();
+  const payload = {
+    date: $("#tradingDate").value || today(),
+    type: $("#capitalFlowType").value,
+    amount: Number($("#capitalFlowAmount").value),
+    note: $("#capitalFlowNote").value.trim(),
+  };
+  try {
+    await requestJson("/api/trading/capital-flows", { method: "POST", body: JSON.stringify(payload) });
+    $("#capitalFlowForm").reset();
+    await loadTradingDashboard();
+    showToast("本金流水已保存");
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+async function saveManualTrade(event) {
+  event.preventDefault();
+  const payload = {
+    trade_datetime: $("#tradeTime").value ? new Date($("#tradeTime").value).toISOString() : `${$("#tradingDate").value || today()}T15:00:00+08:00`,
+    stock_code: $("#tradeStockCode").value.trim(),
+    stock_name: $("#tradeStockName").value.trim(),
+    side: $("#tradeSide").value,
+    price: Number($("#tradePrice").value),
+    quantity: Number($("#tradeQuantity").value),
+    amount: Number($("#tradeAmount").value),
+  };
+  try {
+    await requestJson("/api/trading/trades", { method: "POST", body: JSON.stringify(payload) });
+    $("#manualTradeForm").reset();
+    await loadTradingDashboard();
+    showToast("交易记录已保存");
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+async function uploadTradingScreenshot(event, inputId, endpoint) {
+  event.preventDefault();
+  const file = $(`#${inputId}`).files[0];
+  if (!file) {
+    showToast("请先选择截图");
+    return;
+  }
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("trade_date", $("#tradingDate").value || today());
+  try {
+    await requestForm(endpoint, formData);
+    await loadTradingDashboard();
+    showToast("截图解析草稿已生成，请确认后入账");
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+async function saveDailyReview(event) {
+  event.preventDefault();
+  const dashboard = tradingState.dashboard || {};
+  const payload = {
+    date: $("#tradingDate").value || today(),
+    snapshot: dashboard.account?.snapshot || {},
+    trades: dashboard.trades || [],
+    review: {
+      summary: $("#dailySummary").value.trim(),
+      did_well: $("#dailyDidWell").value.trim(),
+      mistake: $("#dailyMistake").value.trim(),
+      position_review: $("#dailyPositionReview").value.trim(),
+      emotion_review: $("#dailyEmotionReview").value.trim(),
+      next_plan: $("#dailyNextPlan").value.trim(),
+      lesson: $("#dailyLesson").value.trim(),
+    },
+  };
+  try {
+    await requestJson("/api/trading/daily-review", { method: "POST", body: JSON.stringify(payload) });
+    showToast("每日交易复盘已写入 Obsidian");
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
 function bindEvents() {
   $("#reviewDate").value = today();
+  $("#tradingDate").value = today();
   $("#addStockForm").addEventListener("submit", addStock);
   $("#deleteStockBtn").addEventListener("click", deleteSelectedStock);
   $("#refreshBtn").addEventListener("click", () => loadWatchlist(true));
+  document.querySelectorAll(".main-tab").forEach((button) => {
+    button.addEventListener("click", () => switchMainView(button.dataset.view));
+  });
+  $("#tradingDate").addEventListener("change", () => loadTradingDashboard().catch((error) => showToast(error.message)));
+  $("#capitalFlowForm").addEventListener("submit", saveCapitalFlow);
+  $("#manualTradeForm").addEventListener("submit", saveManualTrade);
+  $("#accountScreenshotForm").addEventListener("submit", (event) =>
+    uploadTradingScreenshot(event, "accountScreenshotInput", "/api/trading/parse/account-screenshot"),
+  );
+  $("#tradesScreenshotForm").addEventListener("submit", (event) =>
+    uploadTradingScreenshot(event, "tradesScreenshotInput", "/api/trading/parse/trades-screenshot"),
+  );
+  $("#dailyReviewForm").addEventListener("submit", saveDailyReview);
   $("#selfStockList").addEventListener("click", (event) => {
     const row = event.target.closest("[data-code]");
     if (!row) return;
