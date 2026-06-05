@@ -519,6 +519,20 @@ GET    /api/stock?code={code}
 POST   /api/ai/dimension-analysis
 POST   /api/obsidian/stock-daily-review
 POST   /api/obsidian/daily-review
+GET    /api/trading/dashboard?date={yyyy-MM-dd}
+GET    /api/trading/capital-flows
+POST   /api/trading/capital-flows
+GET    /api/trading/account-snapshots
+POST   /api/trading/account-snapshots
+GET    /api/trading/trades?date={yyyy-MM-dd}
+POST   /api/trading/trades
+POST   /api/trading/parse/account-screenshot
+POST   /api/trading/parse/trades-screenshot
+GET    /api/trading/parse-drafts
+POST   /api/trading/parse-drafts/{id}/confirm
+POST   /api/trading/parse-drafts/{id}/reject
+POST   /api/trading/daily-review
+POST   /api/trading/insights/update
 ```
 
 `quant-a` Quant 研究台接口：

@@ -19,6 +19,9 @@
 - DeepSeek 多维分析：自动生成技术结构、量能与换手、基本面与板块、风险与反证、观察计划。
 - AI 对话分析：围绕当前股票继续提问，结果可加入复盘草稿。
 - Obsidian 写入：保存当前股票的多维度分析到 `obsidian-vault/A股AI/`。
+- 交易复盘账本：记录本金流水、账户快照、成交记录和每日复盘。
+- 截图解析草稿：支持账户资金截图和历史成交截图 AI 解析，确认后才入账。
+- 交易心得沉淀：写入每日复盘、每股长期文件和 `交易心得总纲.md`。
 - 响应式布局：桌面和移动端都可使用。
 
 ## 多因子选股系统规划
@@ -137,6 +140,27 @@ POST /api/obsidian/stock-daily-review
 POST /api/obsidian/daily-review
 ```
 
+## 交易复盘 API
+
+```text
+GET  /api/trading/dashboard?date=2026-06-05
+GET  /api/trading/capital-flows
+POST /api/trading/capital-flows
+GET  /api/trading/account-snapshots
+POST /api/trading/account-snapshots
+GET  /api/trading/trades?date=2026-06-05
+POST /api/trading/trades
+POST /api/trading/parse/account-screenshot
+POST /api/trading/parse/trades-screenshot
+GET  /api/trading/parse-drafts
+POST /api/trading/parse-drafts/{id}/confirm
+POST /api/trading/parse-drafts/{id}/reject
+POST /api/trading/daily-review
+POST /api/trading/insights/update
+```
+
+截图解析会将图片发送给外部 AI 视觉接口。原图不保存，解析草稿必须确认后才写入账本。未配置 `VISION_API_KEY` 时，截图解析接口会返回明确错误，仍可人工录入本金流水、账户快照和交易记录。
+
 ## 数据来源
 
 行情数据来自东方财富公开网络接口：
@@ -161,9 +185,15 @@ obsidian-vault/A股AI/
 ```text
 股票/{股票代码}-{股票名称}.md
 操作记录/{日期}-{股票代码}-{股票名称}.md
+每日复盘/{日期}-交易复盘.md
+交易心得总纲.md
+data/capital_flows.json
+data/account_snapshots.json
+data/trades.json
+data/parse_drafts.json
 ```
 
-保存内容包括行情快照、分析重点、技术结构、量能与换手、基本面与板块、风险与反证、观察计划、AI 维度分析、研究结论和 AI 对话记录。
+保存内容包括行情快照、分析重点、技术结构、量能与换手、基本面与板块、风险与反证、观察计划、AI 维度分析、研究结论和 AI 对话记录。交易复盘模块额外保存本金流水、账户快照、成交记录、每日复盘和交易心得总纲。
 
 ## 安全与合规边界
 
