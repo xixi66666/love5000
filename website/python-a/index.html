@@ -197,7 +197,10 @@
                 </select>
               </label>
             </div>
-            <button id="generateAnalysisBtn" class="secondary-button" type="button">AI 生成维度分析</button>
+            <div class="agent-action-row">
+              <button id="generateAnalysisBtn" class="secondary-button" type="button">AI 生成维度分析</button>
+              <button id="generateProfessionalReportBtn" class="primary-button" type="button">生成专业报告</button>
+            </div>
 
             <label>
               <span>技术结构</span>
@@ -227,6 +230,14 @@
             <section class="ai-review-box">
               <h3>研究结论</h3>
               <p id="researchConclusion">等待分析记录。</p>
+            </section>
+
+            <section class="ai-review-box professional-report-box">
+              <div class="section-title">
+                <h3>专业研究报告</h3>
+                <span id="professionalReportStatus">SpringAI Agent</span>
+              </div>
+              <textarea id="professionalReportOutput" class="professional-report-output" rows="12" spellcheck="false" placeholder="点击“生成专业报告”后，这里会展示 SpringAI Agent 输出的综合型研究报告。"></textarea>
             </section>
 
             <section class="ai-chat-panel">

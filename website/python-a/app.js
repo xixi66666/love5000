@@ -1,5 +1,6 @@
 let stocks = [];
 const AI_CHAT_STORAGE_KEY = "ashare-research-ai-chat-v1";
+const SPRING_AI_AGENT_BASE_URL = "http://127.0.0.1:8090";
 
 const state = {
   selectedCode: "",
@@ -8,8 +9,10 @@ const state = {
   aiConversation: [],
   latestAiAnalysis: "",
   aiGenerating: false,
+  professionalReportGenerating: false,
   generatedDimensionAnalysis: "",
   generatedResearchConclusion: "",
+  latestProfessionalReport: "",
 };
 
 const tradingState = {
@@ -552,6 +555,55 @@ async function generateDimensionAnalysis() {
   }
 }
 
+async function generateProfessionalReport() {
+  const stock = selectedStock();
+  if (!stock) {
+    showToast("请先加入一只股票");
+    return;
+  }
+  if (state.professionalReportGenerating) return;
+  state.professionalReportGenerating = true;
+  const button = $("#generateProfessionalReportBtn");
+  const status = $("#professionalReportStatus");
+  const output = $("#professionalReportOutput");
+  button.disabled = true;
+  button.textContent = "报告生成中";
+  status.textContent = "正在连接 SpringAI";
+  output.value = "正在生成综合型专业研究报告，请稍候...";
+  try {
+    const payload = {
+      stockCode: stock.code,
+      reportType: "comprehensive",
+      researchQuestion: `请为 ${stock.code} ${stock.name} 生成一份综合型专业股票研究报告，重点关注趋势结构、量价关系、板块与基本面核验、交易复盘关联、核心假设、反证条件、风险矩阵和后续观察计划。`,
+      includeTradingReview: true,
+      autoPersist: false,
+    };
+    const result = await requestJson(`${SPRING_AI_AGENT_BASE_URL}/api/agent/reports/stock`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    const report = result.markdown || "SpringAI Agent 未返回报告正文。";
+    state.latestProfessionalReport = report;
+    output.value = report;
+    status.textContent = `${result.observationLevel || "watch"} / ${result.riskLevel || "risk"}`;
+    state.aiConversation.push({
+      role: "assistant",
+      content: `专业研究报告已生成：${result.reportId || stock.code}`,
+      at: new Date().toISOString(),
+    });
+    saveAiChatState();
+    showToast("专业研究报告已生成");
+  } catch (error) {
+    status.textContent = "SpringAI 未连接";
+    output.value = `生成失败：${error.message || "请确认 SpringAI Agent 已启动在 http://127.0.0.1:8090"}`;
+    showToast(error.message || "专业报告生成失败");
+  } finally {
+    state.professionalReportGenerating = false;
+    button.disabled = false;
+    button.textContent = "生成专业报告";
+  }
+}
+
 async function saveStockReview(event) {
   event.preventDefault();
   const stock = selectedStock();
@@ -575,6 +627,7 @@ async function saveStockReview(event) {
     plan_notes: review.planNotes,
     ai_summary: $("#dimensionAnalysis").textContent,
     evaluation: $("#researchConclusion").textContent,
+    professional_report: state.latestProfessionalReport || $("#professionalReportOutput")?.value || "",
     ai_dialogue: state.aiConversation.slice(-8),
     ai_dialogue_summary: state.latestAiAnalysis,
     quote_snapshot: {
@@ -721,6 +774,7 @@ function bindEvents() {
   });
   $("#reviewForm").addEventListener("submit", saveStockReview);
   $("#generateAnalysisBtn").addEventListener("click", generateDimensionAnalysis);
+  $("#generateProfessionalReportBtn").addEventListener("click", generateProfessionalReport);
   $("#sendAiChatBtn").addEventListener("click", sendAiMessage);
   $("#appendAiMemoryBtn").addEventListener("click", appendAiAnalysisToDraft);
 }

@@ -304,6 +304,12 @@ textarea:focus {
   background: var(--cursor-orange-active);
 }
 
+.agent-action-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
 .secondary-button {
   width: 100%;
   border: 1px solid var(--hairline-strong);
@@ -631,7 +637,7 @@ textarea:focus {
 }
 
 .review-form > .form-grid,
-.review-form > #generateAnalysisBtn,
+.review-form > .agent-action-row,
 .review-form > .ai-chat-panel,
 .review-form > .memory-field,
 .review-form > #saveReviewBtn {
@@ -655,6 +661,20 @@ textarea:focus {
   color: var(--body);
   font-size: 13px;
   line-height: 1.65;
+}
+
+.professional-report-box {
+  display: grid;
+  gap: 10px;
+}
+
+.professional-report-output {
+  min-height: 260px;
+  resize: vertical;
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
 }
 
 .ai-chat-panel {
@@ -812,6 +832,7 @@ textarea:focus {
   .quote-board,
   .form-grid,
   .review-form,
+  .agent-action-row,
   .ai-chat-actions {
     grid-template-columns: 1fr;
   }
