@@ -7,9 +7,12 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.File;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
-import java.util.List;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import org.junit.jupiter.api.io.TempDir;
 
 class QuantAAutoStartRunnerTest {
 
@@ -35,8 +38,7 @@ class QuantAAutoStartRunnerTest {
         ProcessBuilder builder = runner.createProcessBuilder(directory);
 
         assertThat(builder.directory()).isEqualTo(directory);
-        assertThat(builder.command()).containsExactly(
-                "python",
+        assertThat(builder.command()).containsSubsequence(
                 "-m",
                 "uvicorn",
                 "main:app",
@@ -47,10 +49,39 @@ class QuantAAutoStartRunnerTest {
         );
         assertThat(builder.environment()).containsEntry("PYTHONUNBUFFERED", "1");
 
-        List<String> command = builder.command();
-        assertThat(command).doesNotContain("server.py");
+        assertThat(builder.command()).doesNotContain("server.py");
         assertThat(builder.redirectOutput()).isEqualTo(ProcessBuilder.Redirect.INHERIT);
         assertThat(builder.redirectError()).isEqualTo(ProcessBuilder.Redirect.INHERIT);
+    }
+
+    @Test
+    void prefersQuantLocalVirtualEnvironmentWhenResolvingPythonCommand(@TempDir Path tempDir) throws Exception {
+        Path pythonPath = tempDir.resolve(".venv").resolve("Scripts").resolve("python.exe");
+        Files.createDirectories(pythonPath.getParent());
+        Files.createFile(pythonPath);
+
+        QuantAAutoStartRunner runner = new QuantAAutoStartRunner();
+        ReflectionTestUtils.setField(runner, "command", "python");
+        ReflectionTestUtils.setField(runner, "port", 5175);
+        ReflectionTestUtils.setField(runner, "logToConsole", true);
+
+        ProcessBuilder builder = runner.createProcessBuilder(tempDir.toFile());
+
+        assertThat(builder.command()).startsWith(pythonPath.toFile().getAbsolutePath());
+        assertThat(builder.command()).containsSubsequence("-m", "uvicorn", "main:app");
+    }
+
+    @Test
+    void doesNotFailWebsiteWhenQuantPythonCommandCannotStart(@TempDir Path tempDir) {
+        QuantAAutoStartRunner runner = new QuantAAutoStartRunner();
+        ReflectionTestUtils.setField(runner, "workDir", tempDir.toString());
+        ReflectionTestUtils.setField(runner, "command", "missing-python-command-for-test");
+        ReflectionTestUtils.setField(runner, "port", 5175);
+        ReflectionTestUtils.setField(runner, "healthPath", "/api/health");
+        ReflectionTestUtils.setField(runner, "startupTimeoutSeconds", 1);
+        ReflectionTestUtils.setField(runner, "logToConsole", true);
+
+        assertThatCode(() -> runner.run(null)).doesNotThrowAnyException();
     }
 
     @Test

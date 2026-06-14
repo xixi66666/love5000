@@ -21,6 +21,30 @@ python -m pip install -r requirements.txt
 
 主要依赖包括 FastAPI、Uvicorn、Pydantic、DuckDB、Pandas、PyYAML、Requests、Pytest 和 HTTPX。
 
+推荐在 `website/quant-a/` 内创建本地虚拟环境，Java 自动启动器会优先使用当前目录下的 `.venv`：
+
+```powershell
+cd website/quant-a
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+Linux/macOS：
+
+```bash
+cd website/quant-a
+python -m venv .venv
+./.venv/bin/python -m pip install -r requirements.txt
+```
+
+`website` 的默认配置使用 `quant-a.auto-start.command=python`，不要把某台电脑上的 Python 绝对路径提交到 `application.yml`。如果本机确实需要指定解释器，请只在本机配置或启动参数中覆盖，例如：
+
+```powershell
+mvn -pl website -am spring-boot:run "-Dspring-boot.run.arguments=--quant-a.auto-start.command=C:\Path\To\Python\python.exe"
+```
+
+如果没有 `.venv`，自动启动器会使用 `quant-a.auto-start.command` 配置的命令；默认值为 `python`，因此需要保证它在当前运行环境的 `PATH` 中可执行，或在本机启动参数里覆盖为自己的解释器路径。
+
 ## 真实行情源配置
 
 第一阶段推荐继续使用 `provider.active=akshare` 作为真实行情源验证入口；`mock` 仍用于单元测试和离线演示。Tushare 已保留 Provider 接口位，后续在 token 和权限到位后，可以把配置切换为：
@@ -67,7 +91,13 @@ python -m pytest -v
 
 ```powershell
 cd website/quant-a
-& 'C:\Users\xixixiaozi\AppData\Local\Programs\Python\Python311\python.exe' -m pytest tests -v
+.\.venv\Scripts\python.exe -m pytest tests -v
+```
+
+如果没有创建 `.venv`，也可以使用当前 shell 可找到的解释器：
+
+```powershell
+python -m pytest tests -v
 ```
 
 ## 主要入口

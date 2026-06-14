@@ -571,10 +571,24 @@ async function generateProfessionalReport() {
   status.textContent = "正在连接 SpringAI";
   output.value = "正在生成综合型专业研究报告，请稍候...";
   try {
+    const researchQuestion = [
+      `请为 ${stock.code} ${stock.name} 生成一份综合型专业股票研究报告。`,
+      "全程使用中文，报告标题、章节标题、正文、表格字段和风险提示都必须是中文。",
+      "不要输出英文标题，不要输出英文段落，不要使用英文分析框架名称。",
+      "重点关注趋势结构、量价关系、板块与基本面核验、交易复盘关联、核心假设、反证条件、风险矩阵和后续观察计划。",
+      "只做研究分析和风险提示，不给出确定性买卖指令，不承诺收益。",
+    ].join("\n");
     const payload = {
       stockCode: stock.code,
       reportType: "comprehensive",
-      researchQuestion: `请为 ${stock.code} ${stock.name} 生成一份综合型专业股票研究报告，重点关注趋势结构、量价关系、板块与基本面核验、交易复盘关联、核心假设、反证条件、风险矩阵和后续观察计划。`,
+      language: "zh-CN",
+      outputRequirements: [
+        "全程使用中文。",
+        "不要输出英文标题。",
+        "不要输出英文段落。",
+        "保留非投资建议和风险提示边界。",
+      ],
+      researchQuestion,
       includeTradingReview: true,
       autoPersist: false,
     };

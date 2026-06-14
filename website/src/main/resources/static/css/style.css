@@ -528,6 +528,10 @@ main {
     --accent-rgb: 220, 233, 247;
 }
 
+.service-card-prompt {
+    --accent-rgb: 94, 231, 255;
+}
+
 .service-card-stock {
     --accent-rgb: 158, 244, 204;
 }
