@@ -31,6 +31,8 @@ C:/Code/Java_Code/love5000/common
 
 **数据库约定**：`common` 可以定义跨模块复用的接口和模型，但不要在本模块实现业务数据库 CRUD。需要落库的能力由具体 Web 模块通过 MyBatis DAO + XML Mapper 实现。
 
+**文档同步约定**：每次修改 `common` 的公共 API、自动配置、配置前缀、认证能力、OSS 行为、测试方式或模块边界时，必须同步更新本文件、`common/README.md`，以及根目录 `AGENTS.md` / `README.md` 中相关内容。
+
 ## 开发命令
 
 默认从仓库根目录执行：
@@ -106,6 +108,11 @@ common/
 - `config/OssProperties.java`：承载 `love530.oss` 配置项。
 - `util/OssUtil.java`：封装 OSS 上传、删除、URL 拼接和 object key 解析。
 - `util/OssUploadResult.java`：上传结果 DTO。
+- `auth/config/AuthAutoConfiguration.java`：通用认证自动配置入口。
+- `auth/controller/AuthController.java`：注册、登录、登出、当前用户接口。
+- `auth/service/AuthService.java`、`AuthServiceImpl.java`：通用认证服务和密码校验流程。
+- `auth/repository/AuthUserRepository.java`：业务模块需要适配的用户仓储接口。
+- `auth/web/AuthInterceptor.java`、`auth/annotation/AuthRequired.java`：Session 鉴权拦截能力。
 - `META-INF/spring.factories`：Spring Boot 2.x 自动配置入口。
 
 ## 数据库访问约定
@@ -194,6 +201,7 @@ mvn -pl common clean test
 
 检查清单：
 
+- **关键**：修改公共 API、配置项、自动配置、认证流程或 OSS 行为时，同步更新 `common/AGENTS.md`、`common/README.md` 和根文档。
 - **关键**：不要新增对业务模块的依赖。
 - **关键**：不要破坏 `spring.factories` 自动配置入口。
 - **关键**：不要提交真实 OSS 密钥。

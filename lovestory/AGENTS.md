@@ -40,6 +40,8 @@ C:/Code/Java_Code/love5000/lovestory
 
 **关键**：`lovestory` 依赖 `common` 提供 OSS 能力，不要在本模块重新实现 OSS 客户端。
 
+**文档同步约定**：每次修改 `lovestory` 的页面入口、API、上传字段、数据库字段、OSS 路径、静态资源、启动方式或测试方式时，必须同步更新本文件、`lovestory/README.md`，以及根目录 `AGENTS.md` / `README.md` 中相关内容。
+
 ## 开发命令
 
 默认从仓库根目录执行：
@@ -135,6 +137,7 @@ lovestory/
 
 - `controller/UploadPhotoController.java`：照片上传、查询、删除 REST API。
 - `controller/GuitarVideoController.java`：吉他视频上传、封面上传、查询、删除 REST API。
+- `controller/MessageController.java`：留言板读取、新增和清空接口。
 - `controller/LoginController.java`：登录相关入口。
 - `dao/PhotoDao.java`：MyBatis DAO 接口，定义 `photo` 表 CRUD 方法。
 - `dao/GuitarVideoDao.java`：MyBatis DAO 接口，定义 `guitar_video` 表访问方法。
@@ -160,6 +163,14 @@ lovestory/
 POST   /api/photos/upload
 GET    /api/photos
 DELETE /api/photos/{id}
+```
+
+留言接口：
+
+```text
+GET    /api/messages
+POST   /api/messages
+DELETE /api/messages
 ```
 
 上传字段：
@@ -431,6 +442,7 @@ mvn -pl lovestory -am spring-boot:run -Dspring-boot.run.main-class=com.ycxandwuq
 
 检查清单：
 
+- **关键**：修改页面入口、API、上传字段、数据库字段、OSS 路径、静态资源或测试方式时，同步更新 `lovestory/AGENTS.md`、`lovestory/README.md` 和根文档。
 - **关键**：照片分类变更时，同步更新后端校验、前端展示和测试。
 - **关键**：数据库字段变更时，同步更新 `PhotoDao`、`PhotoMapper.xml`、模型和测试。
 - **关键**：吉他视频表字段变更时，同步更新 `GuitarVideoRecord`、`GuitarVideoDao`、`GuitarVideoMapper.xml`、`GuitarVideoServiceImplTests` 和前端展示字段。

@@ -1,6 +1,6 @@
 ﻿# A 股自选股 AI 研究台
 
-> 当前版本：2026-05-12
+> 当前版本：2026-06-14
 > 定位：围绕用户自己维护的少量 A 股自选股，做行情跟踪、多维度股票分析、AI 研究辅助和 Obsidian 长期记忆写入。
 > 边界：本项目只做研究辅助、信息整理、风险提示和复盘沉淀，不构成投资建议，不承诺收益，也不替代人工判断。
 
@@ -35,13 +35,13 @@ quant/README.md
 ## 技术栈
 
 ```text
-HTML
-CSS
-原生 JavaScript
+HTML / CSS / 原生 JavaScript
 Python 3.9+
 ThreadingHTTPServer
+unittest
 东方财富公开行情接口
 DeepSeek Chat Completions API
+外部 AI 视觉解析接口
 Obsidian Markdown
 ```
 
@@ -53,6 +53,8 @@ styles.css                         页面样式
 app.js                             前端交互、图表渲染、AI 生成按钮、Obsidian 草稿
 server.py                          本地后端：行情网关、DeepSeek 调用、Obsidian 写入
 package.json                       启动脚本
+services/                          账户、交易、存储、Obsidian、截图解析等服务拆分
+tests/                             unittest 测试
 deepseek.local.json                本地 DeepSeek API key 配置，已被 .gitignore 忽略
 obsidian-vault/A股AI/data/          自选股数据
 obsidian-vault/A股AI/股票/          单股长期记忆
@@ -161,6 +163,15 @@ POST /api/trading/insights/update
 
 截图解析会将图片发送给外部 AI 视觉接口。原图不保存，解析草稿必须确认后才写入账本。未配置 `VISION_API_KEY` 时，截图解析接口会返回明确错误，仍可人工录入本金流水、账户快照和交易记录。
 
+## 测试
+
+```bash
+cd website/python-a
+python -m unittest discover -s tests -v
+```
+
+测试覆盖账户服务、交易服务、存储服务、Obsidian 写入、股票代码匹配、上传解析和研究语言边界。测试不得真实调用 DeepSeek、视觉接口或外部行情服务。
+
 ## 数据来源
 
 行情数据来自东方财富公开网络接口：
@@ -214,4 +225,8 @@ data/parse_drafts.json
 ```
 
 所有结论都应包含证据、置信度、反证条件和后续验证窗口。
+
+## 文档维护
+
+每次修改页面入口、API、服务拆分、运行配置、环境变量、Obsidian 写入结构、测试方式或与 `website` 的自动启动集成时，必须同步更新本 README、`website/python-a/AGENTS.md`，以及根目录和 `website` 模块的 `AGENTS.md` / `README.md`。
 

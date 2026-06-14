@@ -37,6 +37,8 @@ C:/Code/Java_Code/love5000/imagetemplate
 
 **关键**：该模块没有数据库，不依赖 MySQL、MyBatis、OSS 或 `common` 模块。模板数据来自 classpath JSON 文件，运行时图片生成通过 OpenAI API 完成。
 
+**文档同步约定**：每次修改 `imagetemplate` 的模板数量、模板字段、API、图片生成参数、尺寸规则、OpenAI 配置、前端控件或测试方式时，必须同步更新本文件、`imagetemplate/README.md`，以及根目录 `AGENTS.md` / `README.md` 中相关内容。
+
 ## 开发命令
 
 默认从仓库根目录执行：
@@ -133,6 +135,7 @@ imagetemplate/
     │   │   │   ├── ImageGenerationResponse.java
     │   │   │   ├── PromptRenderRequest.java
     │   │   │   ├── PromptRenderResponse.java
+    │   │   │   ├── ReferenceImageInput.java
     │   │   │   └── TemplateCategoryResponse.java
     │   │   ├── model/
     │   │   │   └── ImagePromptTemplate.java
@@ -418,6 +421,7 @@ http://localhost:8082/
 
 检查清单：
 
+- **关键**：修改模板数量、模板字段、API、图片生成参数、尺寸规则、OpenAI 配置、前端控件或测试方式时，同步更新 `imagetemplate/AGENTS.md`、`imagetemplate/README.md` 和根文档。
 - **关键**：不要提交 `target/`、IDE 缓存、真实 OpenAI API Key。
 - **关键**：模板 JSON 必须保持合法 JSON，不能有注释或尾逗号。
 - **关键**：新增模板字段时，同步更新 `ImagePromptTemplate`、前端渲染和测试。

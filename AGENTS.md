@@ -35,6 +35,8 @@
 
 **关键**：`website/video` 是独立 Python 微应用，不是 Java Maven 模块，不要把它加入父 `pom.xml` 的 `<modules>`。Java 侧只负责入口链接、健康检测或反向代理，不把视频生成、FFmpeg 调用、OpenAI 调用等业务逻辑改写进 Controller。
 
+**关键**：每次修改项目结构、模块职责、启动命令、端口、配置项、API、数据目录、测试方式或部署入口时，必须同步更新根 `AGENTS.md` / `README.md`，以及受影响模块或微应用目录下的 `AGENTS.md` / `README.md`。文档和代码不一致时，本次改动不能视为完成。
+
 ## 开发命令
 
 默认从仓库根目录执行：
@@ -652,7 +654,14 @@ mvn -pl website -am test
 mvn -pl imagetemplate -am test
 ```
 
-`python-a` 当前没有单元测试框架。修改后至少执行：
+`python-a` 使用 Python `unittest` 测试服务拆分逻辑，修改后至少执行：
+
+```bash
+cd website/python-a
+python -m unittest discover -s tests -v
+```
+
+涉及页面或接口联调时再启动服务：
 
 ```bash
 cd website/python-a
@@ -733,6 +742,7 @@ mvn -pl imagetemplate -am test
 
 检查项：
 
+- **关键**：每次修改项目结构、模块职责、启动命令、端口、配置项、API、数据目录、测试方式或部署入口时，同步更新根 `AGENTS.md` / `README.md` 和受影响目录的 `AGENTS.md` / `README.md`。
 - **关键**：不提交 `target/`、IDE 缓存、真实密钥、真实数据库密码、生成图片 base64 文件。
 - **关键**：新增公共能力优先放入 `common`。
 - **关键**：修改数据库字段时，同步更新 Mapper XML、DAO、模型类和测试。

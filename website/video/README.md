@@ -390,7 +390,13 @@ Content-Type: application/json
 
 ## 六、验证
 
-当前 `tests/` 目录已删除，日常改动后使用手动验证：
+当前保留 `tests/` 目录，新增图生视频、任务管理、Web API 或配置逻辑时优先补充 `unittest` 测试：
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+涉及页面和本地服务联调时再做手动验证：
 
 ```bash
 python web_server.py
@@ -566,4 +572,8 @@ python anime_cli.py auto "雨夜里，一个妖刀少女救下路人，但她才
 ```text
 anime_projects/最新项目/output/final.mp4
 ```
+
+## 九、文档维护
+
+每次修改 Web API、命令行参数、配置结构、外部 Provider、项目输出结构、测试方式或与 `website` 的自动启动集成时，必须同步更新本 README、`website/video/AGENTS.md`，以及根目录和 `website` 模块的 `AGENTS.md` / `README.md`。
 

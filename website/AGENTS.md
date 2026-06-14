@@ -12,6 +12,7 @@ C:/Code/Java_Code/love5000/website
 
 - 提供个人主页静态站点。
 - 统一承载 `python-a`、`quant-a`、`video` 三个独立 Python 子服务的代码目录、首页入口、健康检测和自动启动配置。
+- 提供提示词控制台和静态提示词库页面。
 - 提供基础 Spring MVC Web Demo。
 - 保留 OSS Demo 和 Nacos Discovery 示例代码。
 - 使用 MySQL 和 Druid 作为后端数据源配置。
@@ -39,6 +40,8 @@ C:/Code/Java_Code/love5000/website
 **关键**：`python-a`、`quant-a`、`video` 放在 `website/` 目录下，但仍然是独立 Python 服务，不是 Java Maven 模块，不加入父 `pom.xml` 的 `<modules>`。
 
 **关键**：直接启动 `website` 时会自动检查并拉起 `website/python-a`、`website/quant-a`、`website/video`。默认会把三个 Python 子服务的 stdout/stderr 继承到 `website` 控制台，便于在 IDEA Run/Terminal 中查看运行日志和接口访问日志。
+
+**文档同步约定**：每次修改 `website` 的首页入口、提示词控制台、博客、自动启动配置、Python 子服务集成、端口、API、静态资源目录或测试方式时，必须同步更新本文件、`website/README.md`，以及根目录 `AGENTS.md` / `README.md` 中相关内容。
 
 ## 开发命令
 
@@ -157,7 +160,8 @@ website/
     │   │   │   ├── nacosdiscoveryprovider/
     │   │   │   ├── oss/
     │   │   │   └── web/
-    │   │   └── nacosdiscovery/
+    │   │   ├── nacosdiscovery/
+    │   │   └── prompt/
     │   └── resources/
     │       ├── application.properties
     │       ├── application.yml
@@ -170,6 +174,8 @@ website/
     │           ├── css/style.css
     │           ├── js/script.js
     │           ├── img/
+    │           ├── media/
+    │           ├── prompt-console/
     │           ├── soundeffects/
     │           └── svg/
     └── test/java/com/example/website/
@@ -193,6 +199,9 @@ website/
 - `demos/nacosdiscoveryconsumer`：Nacos 消费者示例。
 - `demos/nacosdiscoveryprovider`：Nacos 提供者示例。
 - `nacosdiscovery`：Nacos Discovery 配置。
+- `prompt/controller/PromptConsoleController.java`：提示词控制台 API。
+- `prompt/service`：提示词来源拉取、摘要、组合和注册服务。
+- `static/prompt-console`：提示词控制台前端和静态提示词库数据。
 - `static/css/style.css`：站点样式。
 - `static/js/script.js`：站点交互和首页服务卡片健康检测。
 - `static/img`、`static/svg`、`static/soundeffects`：图片、图标、音效资源。
@@ -304,6 +313,8 @@ Spring 约定：
 - CSS 修改放在 `src/main/resources/static/css/style.css`。
 - JS 修改放在 `src/main/resources/static/js/script.js`。
 - 图片放在 `src/main/resources/static/img`。
+- 媒体文件放在 `src/main/resources/static/media`。
+- 提示词控制台放在 `src/main/resources/static/prompt-console`。
 - SVG 图标放在 `src/main/resources/static/svg`。
 - 音效放在 `src/main/resources/static/soundeffects`。
 - 页面引用资源时使用相对路径，不使用本机绝对路径。
@@ -356,6 +367,7 @@ mvn -pl website -am spring-boot:run
 
 检查清单：
 
+- **关键**：修改首页入口、提示词控制台、博客、自动启动配置、Python 子服务集成、端口、API、静态资源目录或测试方式时，同步更新 `website/AGENTS.md`、`website/README.md` 和根文档。
 - **关键**：不要把正式业务代码继续放进 `demos` 包。
 - **关键**：新增或修改数据库 CRUD 时同步更新 DAO、Mapper XML、模型和测试。
 - **关键**：静态资源路径必须能从 `classpath:/static/` 加载。

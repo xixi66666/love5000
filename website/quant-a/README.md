@@ -150,3 +150,7 @@ python -m pytest tests -v
 - 避免未来函数：回测只能读取调仓日之前已经可用的数据，财报、复权、停牌和成分股变化都要按时间点处理。
 - 测试隔离：单元测试继续优先使用 mock provider 和临时存储，不依赖真实网络、真实外部行情接口或本地运行产物。
 
+## 文档维护
+
+每次修改 API、配置文件、数据目录、Provider、因子、回测、组合、报告输出、测试方式或与 `website` 的自动启动集成时，必须同步更新本 README、`website/quant-a/AGENTS.md`，以及根目录和 `website` 模块的 `AGENTS.md` / `README.md`。
+
