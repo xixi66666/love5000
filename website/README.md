@@ -1,28 +1,28 @@
-# website
+﻿# website
 
-`website` 是 `love530` 聚合工程中的个人主页/展示站点 Web 服务，默认端口 `8080`。它同时负责提供博客、提示词控制台、静态首页入口，以及 `python-a`、`quant-a`、`video` 三个独立 Python 子服务的自动启动和健康检查。
+`website` 鏄?`love530` 鑱氬悎宸ョ▼涓殑涓汉涓婚〉/灞曠ず绔欑偣 Web 鏈嶅姟锛岄粯璁ょ鍙?`8080`銆傚畠鍚屾椂璐熻矗鎻愪緵鍗氬銆佹彁绀鸿瘝鎺у埗鍙般€侀潤鎬侀椤靛叆鍙ｏ紝浠ュ強 `python-a`銆乣quant-a`銆乣video` 涓変釜鐙珛 Python 瀛愭湇鍔＄殑鑷姩鍚姩鍜屽仴搴锋鏌ャ€?
 
-## 功能
+## 鍔熻兘
 
-- 个人主页静态站点。
-- 博客 API 和前端页面。
-- 提示词控制台和静态提示词库页面。
-- `python-a`、`quant-a`、`video` 的入口、健康检测和自动启动。
-- Web、OSS、Nacos Discovery 示例代码。
+- 涓汉涓婚〉闈欐€佺珯鐐广€?
+- 鍗氬 API 鍜屽墠绔〉闈€?
+- 鎻愮ず璇嶆帶鍒跺彴鍜岄潤鎬佹彁绀鸿瘝搴撻〉闈€?
+- `python-a`銆乣quant-a`銆乣video` 鐨勫叆鍙ｃ€佸仴搴锋娴嬪拰鑷姩鍚姩銆?
+- Web銆丱SS銆丯acos Discovery 绀轰緥浠ｇ爜銆?
 
-## 运行
+## 杩愯
 
 ```bash
 mvn -pl website -am spring-boot:run
 ```
 
-访问：
+璁块棶锛?
 
 ```text
 http://localhost:8080/
 ```
 
-直接启动 `website` 时，会默认检查并拉起：
+鐩存帴鍚姩 `website` 鏃讹紝浼氶粯璁ゆ鏌ュ苟鎷夎捣锛?
 
 ```text
 http://127.0.0.1:5174/api/health  python-a
@@ -30,15 +30,15 @@ http://127.0.0.1:5175/api/health  quant-a
 http://127.0.0.1:5176/api/health  video
 ```
 
-## 主要目录
+## 涓昏鐩綍
 
 ```text
 src/main/java/com/example/website/
-  auth/         common 认证适配
-  blog/         博客 API
-  demos/        示例代码
-  integration/  Python 子服务自动启动
-  prompt/       提示词控制台后端
+  auth/         common 璁よ瘉閫傞厤
+  blog/         鍗氬 API
+  demos/        绀轰緥浠ｇ爜
+  integration/  Python 瀛愭湇鍔¤嚜鍔ㄥ惎鍔?
+  prompt/       鎻愮ず璇嶆帶鍒跺彴鍚庣
 src/main/resources/static/
   index.html
   blog/
@@ -51,14 +51,21 @@ quant-a/
 video/
 ```
 
-## 测试
+## 娴嬭瘯
 
 ```bash
 mvn -pl website -am test
 ```
 
-修改 Python 子服务自动启动逻辑时，至少运行对应的 `PythonAAutoStartRunnerTest`、`QuantAAutoStartRunnerTest` 或 `VideoAutoStartRunnerTest`。测试必须关闭外部子进程自动启动。
+鎻愮ず璇嶅簱闈欐€佸垎绫婚€昏緫鍙崟鐙獙璇侊細
 
-## 文档维护
+```bash
+node website/src/test/js/prompt-console/prompt-category-groups.test.js
+```
 
-每次修改首页入口、提示词控制台、博客、自动启动配置、Python 子服务集成、端口、API、静态资源目录或测试方式时，必须同步更新 `website/AGENTS.md`、本 README，以及根目录 `AGENTS.md` / `README.md` 中相关内容。
+`src/main/resources/static/prompt-console/prompt-category-groups.js` 缁存姢鈥滄彁绀鸿瘝澶у垎绫?-> 灏忓垎绫烩€濈殑鏄犲皠銆傚綋鍓嶉〉闈細鍏堟寜澶у垎绫荤瓫閫夛紝鍐嶆寜灏忓垎绫荤粏鍒嗭紱鏂板鎻愮ず璇嶅皬绫绘椂浼樺厛琛ュ厖璇ユ槧灏勶紝鏈槧灏勭殑灏忕被浼氳嚜鍔ㄨ繘鍏モ€滃叾浠栤€濄€?
+淇敼 Python 瀛愭湇鍔¤嚜鍔ㄥ惎鍔ㄩ€昏緫鏃讹紝鑷冲皯杩愯瀵瑰簲鐨?`PythonAAutoStartRunnerTest`銆乣QuantAAutoStartRunnerTest` 鎴?`VideoAutoStartRunnerTest`銆傛祴璇曞繀椤诲叧闂閮ㄥ瓙杩涚▼鑷姩鍚姩銆?
+## 鏂囨。缁存姢
+
+姣忔淇敼棣栭〉鍏ュ彛銆佹彁绀鸿瘝鎺у埗鍙般€佸崥瀹€佽嚜鍔ㄥ惎鍔ㄩ厤缃€丳ython 瀛愭湇鍔￠泦鎴愩€佺鍙ｃ€丄PI銆侀潤鎬佽祫婧愮洰褰曟垨娴嬭瘯鏂瑰紡鏃讹紝蹇呴』鍚屾鏇存柊 `website/AGENTS.md`銆佹湰 README锛屼互鍙婃牴鐩綍 `AGENTS.md` / `README.md` 涓浉鍏冲唴瀹广€?
+

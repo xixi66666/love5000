@@ -304,6 +304,7 @@ website/video/
 - `lovestory/src/main/resources/static`：恋爱相册、小游戏、留言板、照片墙和吉他视频卡片静态页面。
 - `website/blog`：个人博客微应用后端，按 Controller、Service、DAO、Model、DTO 分层。
 - `website/src/main/resources/static/blog`：博客前端页面和资源。
+- `website/src/main/resources/static/prompt-console`：静态提示词库页面、数据和两级分类映射。`prompt-category-groups.js` 维护“大分类 -> 小分类”映射，新增提示词小类时优先补充该文件；未映射小类自动归入“其他”。
 - `website/demos`：示例性质的 Web、OSS、Nacos Discovery 代码。
 - `imagetemplate/controller`：图片模板 API。
 - `imagetemplate/service`：模板加载、prompt 渲染、OpenAI 图片生成服务。
@@ -587,6 +588,7 @@ GET  /api/assets/{project_name}/video/final
 - `lovestory` 吉他视频卡片模块维护在 `lovestory/src/main/resources/static/index.html`，替代原 `甜蜜回忆 · Memory Cards` 模块；视频卡片数据来自 `/api/guitar-videos`，不要再硬编码视频 URL。
 - `website` 主页资源放在 `website/src/main/resources/static/css`、`static/js`、`static/img`。
 - `website` 博客资源放在 `website/src/main/resources/static/blog`。
+- `website` 静态提示词库资源放在 `website/src/main/resources/static/prompt-console`，分类采用“大分类 -> 小分类”两级结构。
 - `imagetemplate` 页面放在 `imagetemplate/src/main/resources/static`，模板 JSON 放在 `imagetemplate/src/main/resources/templates`。
 - `python-a` 页面放在 `website/python-a/index.html`、`website/python-a/app.js`、`website/python-a/styles.css`，由 `website/python-a/server.py` 直接提供静态访问。
 - `quant-a` 页面放在 `website/quant-a/web`，由 `website/quant-a/main.py` 通过 FastAPI 静态资源能力提供访问。
@@ -652,6 +654,12 @@ mvn -pl common test
 mvn -pl lovestory -am test
 mvn -pl website -am test
 mvn -pl imagetemplate -am test
+```
+
+修改 `website/src/main/resources/static/prompt-console` 的提示词分类映射后，至少执行：
+
+```bash
+node website/src/test/js/prompt-console/prompt-category-groups.test.js
 ```
 
 `python-a` 使用 Python `unittest` 测试服务拆分逻辑，修改后至少执行：
@@ -871,4 +879,5 @@ Use the default five-label triage vocabulary: `needs-triage`, `needs-info`, `rea
 ### Domain docs
 
 Single-context layout: root `CONTEXT.md` and `docs/adr/`, created lazily when needed. See `docs/agents/domain.md`.
+
 

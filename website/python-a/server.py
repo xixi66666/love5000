@@ -19,8 +19,10 @@ from threading import Lock
 from typing import Any, Dict, Iterable, List, Optional
 
 from services.account_service import AccountService
+from services.knowledge_graph_service import ObsidianKnowledgeGraphService
 from services.obsidian_service import ObsidianTradingService
 from services.stock_match_service import StockMatchService
+from services.stock_metadata_service import StockMetadataService
 from services.storage_service import JsonStore
 from services.trade_service import TradeService
 from services.vision_parse_service import VisionParseService
@@ -83,6 +85,8 @@ def trading_services() -> Dict[str, Any]:
         "trade": TradeService(store),
         "stock_match": StockMatchService(store, seed_rows=read_watchlist()),
         "obsidian": ObsidianTradingService(OBSIDIAN_ROOT),
+        "metadata": StockMetadataService(DATA_ROOT),
+        "knowledge_graph": ObsidianKnowledgeGraphService(OBSIDIAN_ROOT),
         "vision": VisionParseService(
             api_key=read_local_secret("VISION_API_KEY"),
             api_base=VISION_API_BASE,
@@ -352,6 +356,7 @@ def kline_url(code: str) -> str:
 
 def fetch_stock(code: str, meta: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
     meta = meta or {}
+    metadata = StockMetadataService(DATA_ROOT).get_stock_metadata(code, fallback=meta)
     quote_data = eastmoney_json(quote_url(code))["data"]
     kline_data = eastmoney_json(kline_url(code))["data"]
     klines = [parse_kline(raw) for raw in kline_data.get("klines", [])]
@@ -410,8 +415,9 @@ def fetch_stock(code: str, meta: Optional[Dict[str, str]] = None) -> Dict[str, A
     return {
         "code": quote_data.get("f57") or code,
         "name": quote_data.get("f58") or kline_data.get("name") or code,
-        "industry": meta.get("industry", "待映射"),
-        "board": meta.get("board", "A股"),
+        "industry": metadata.get("industry") or meta.get("industry", "待映射"),
+        "board": metadata.get("board") or meta.get("board", "A股"),
+        "concepts": metadata.get("concepts", []),
         "latest_price": latest_price,
         "pct_change": pct_change,
         "open": scaled_price(quote_data.get("f46")) or latest.get("open"),
@@ -437,7 +443,8 @@ def fetch_stock(code: str, meta: Optional[Dict[str, str]] = None) -> Dict[str, A
         "status": status,
         "overall_score": max(0, min(100, overall)),
         "ma_state": ma_state,
-        "sector_alignment": "待接入行业指数",
+        "sector_alignment": "、".join(metadata.get("concepts") or []) or "待接入行业指数",
+        "metadata_source": metadata.get("source", "fallback"),
         "confidence": "中" if len(klines) >= 120 else "低",
         "conclusion": conclusion,
         "chart": chart_points,
@@ -588,6 +595,7 @@ def ensure_vault() -> None:
         OBSIDIAN_ROOT / "策略假设",
         OBSIDIAN_ROOT / "风险案例",
         OBSIDIAN_ROOT / "数据快照",
+        OBSIDIAN_ROOT / "知识图谱",
         OBSIDIAN_ROOT / "data",
     ]:
         folder.mkdir(parents=True, exist_ok=True)
@@ -747,6 +755,43 @@ def write_stock_daily_review(payload: Dict[str, Any]) -> Dict[str, Any]:
     ai_summary = str(payload.get("ai_summary") or "等待 AI 维度分析").strip()
     evaluation = str(payload.get("evaluation") or "等待研究结论").strip()
     quote_snapshot = payload.get("quote_snapshot") or {}
+    metadata_service = StockMetadataService(DATA_ROOT)
+    stock_metadata = metadata_service.get_stock_metadata(
+        stock_code,
+        fallback={
+            "name": stock_name,
+            "industry": payload.get("industry", "待映射"),
+            "board": payload.get("board", "A股"),
+            "concepts": payload.get("concepts", []),
+        },
+    )
+    payload_concepts = payload.get("concepts") if isinstance(payload.get("concepts"), list) else []
+    metadata_concepts = stock_metadata.get("concepts") or payload_concepts
+    if not quote_snapshot.get("ma_state") and payload.get("ma_state"):
+        quote_snapshot["ma_state"] = payload.get("ma_state")
+    review_fields = {
+        "analysis_focus": analysis_focus,
+        "technical_notes": technical_notes,
+        "volume_notes": volume_notes,
+        "fundamental_notes": fundamental_notes,
+        "risk_notes": risk_notes,
+        "plan_notes": plan_notes,
+        "ai_summary": ai_summary,
+        "evaluation": evaluation,
+    }
+    knowledge_graph = ObsidianKnowledgeGraphService(OBSIDIAN_ROOT)
+    graph_context = knowledge_graph.build_review_context(
+        {
+            "stock_code": stock_code,
+            "stock_name": stock_name,
+            "industry": stock_metadata.get("industry") or payload.get("industry", "待映射"),
+            "board": stock_metadata.get("board") or payload.get("board", "A股"),
+            "concepts": metadata_concepts,
+        },
+        quote_snapshot,
+        review_fields,
+    )
+    knowledge_graph.write_concept_notes(graph_context)
     ai_dialogue_summary = str(payload.get("ai_dialogue_summary") or "").strip()
     ai_dialogue = payload.get("ai_dialogue") or []
     dialogue_lines = []
@@ -763,8 +808,8 @@ def write_stock_daily_review(payload: Dict[str, Any]) -> Dict[str, Any]:
         {
             "code": stock_code,
             "name": stock_name,
-            "industry": payload.get("industry", "待映射"),
-            "board": payload.get("board", "A股"),
+            "industry": stock_metadata.get("industry") or payload.get("industry", "待映射"),
+            "board": stock_metadata.get("board") or payload.get("board", "A股"),
             "pool": payload.get("pool", "核心自选"),
         }
     )
@@ -790,6 +835,9 @@ def write_stock_daily_review(payload: Dict[str, Any]) -> Dict[str, Any]:
         "> [!check] 研究结论\n"
         f"> {evaluation.replace(chr(10), chr(10) + '> ')}\n"
     )
+    graph_section = knowledge_graph.markdown_section(graph_context)
+    if graph_section:
+        block += f"\n{graph_section}\n"
     if ai_dialogue_summary:
         block += (
             "\n> [!note] AI 对话补充\n"
@@ -808,6 +856,8 @@ def write_stock_daily_review(payload: Dict[str, Any]) -> Dict[str, Any]:
             f"title: {review_date} {stock_code}-{stock_name} 多维度分析\n"
             f"date: {review_date}\n"
             f"stock: {stock_code}-{stock_name}\n"
+            f"industry: {stock_metadata.get('industry') or payload.get('industry', '待映射')}\n"
+            f"concepts: {', '.join(metadata_concepts)}\n"
             "review_type: stock_dimension_review\n"
             "tags:\n"
             "  - review/stock-daily\n"

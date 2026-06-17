@@ -1,49 +1,52 @@
-# love5000 / love530
+﻿# love5000 / love530
 
-`love5000` 是一个 Java 8 + Spring Boot 2.6.13 的 Maven 多模块项目，父工程 artifactId 为 `love530`。仓库同时托管三个独立 Python 微应用，用于 A 股研究、量化研究和 AI 动漫短片生成。
+`love5000` 鏄竴涓?Java 8 + Spring Boot 2.6.13 鐨?Maven 澶氭ā鍧楅」鐩紝鐖跺伐绋?artifactId 涓?`love530`銆備粨搴撳悓鏃舵墭绠′笁涓嫭绔?Python 寰簲鐢紝鐢ㄤ簬 A 鑲＄爺绌躲€侀噺鍖栫爺绌跺拰 AI 鍔ㄦ极鐭墖鐢熸垚銆?
 
-## 模块
+## 妯″潡
 
-Maven 聚合模块：
+Maven 鑱氬悎妯″潡锛?
 
-- `common`：公共 OSS 工具、自动配置和通用 Session 认证能力。
-- `lovestory`：恋爱相册、照片上传、留言板和吉他视频卡片 Web 应用。
-- `website`：个人主页/展示站点、博客、提示词控制台，以及 Python 子服务入口和自动启动。
-- `imagetemplate`：图片提示词模板库和 OpenAI Images API 生成服务。
+- `common`锛氬叕鍏?OSS 宸ュ叿銆佽嚜鍔ㄩ厤缃拰閫氱敤 Session 璁よ瘉鑳藉姏銆?
+- `lovestory`锛氭亱鐖辩浉鍐屻€佺収鐗囦笂浼犮€佺暀瑷€鏉垮拰鍚変粬瑙嗛鍗＄墖 Web 搴旂敤銆?
+- `website`锛氫釜浜轰富椤?灞曠ず绔欑偣銆佸崥瀹€佹彁绀鸿瘝鎺у埗鍙帮紝浠ュ強 Python 瀛愭湇鍔″叆鍙ｅ拰鑷姩鍚姩銆?- `imagetemplate`锛氬浘鐗囨彁绀鸿瘝妯℃澘搴撳拰 OpenAI Images API 鐢熸垚鏈嶅姟銆?
+`website` 鐨勯潤鎬佹彁绀鸿瘝搴撲綅浜?`website/src/main/resources/static/prompt-console/`銆傚垎绫婚噰鐢ㄢ€滃ぇ鍒嗙被 -> 灏忓垎绫烩€濅袱绾х粨鏋勶紝鏄犲皠缁存姢鍦?`prompt-category-groups.js`锛屽垎绫婚€昏緫鍙敤浠ヤ笅鍛戒护鍗曠嫭楠岃瘉锛?
+```bash
+node website/src/test/js/prompt-console/prompt-category-groups.test.js
+```
 
-独立 Python 微应用：
+鐙珛 Python 寰簲鐢細
 
-- `website/python-a`：A 股自选股 AI 研究台，默认端口 `5174`。
-- `website/quant-a`：A 股多因子量化研究台，默认端口 `5175`。
-- `website/video`：AI 原创动漫短片生成工作台，默认端口 `5176`。
+- `website/python-a`锛欰 鑲¤嚜閫夎偂 AI 鐮旂┒鍙帮紝榛樿绔彛 `5174`銆?
+- `website/quant-a`锛欰 鑲″鍥犲瓙閲忓寲鐮旂┒鍙帮紝榛樿绔彛 `5175`銆?
+- `website/video`锛欰I 鍘熷垱鍔ㄦ极鐭墖鐢熸垚宸ヤ綔鍙帮紝榛樿绔彛 `5176`銆?
 
-根目录下的 `python-a/`、`quant-a/` 不是当前主要接入路径；当前运行和文档维护以 `website/` 下的三个子服务为准。
+鏍圭洰褰曚笅鐨?`python-a/`銆乣quant-a/` 涓嶆槸褰撳墠涓昏鎺ュ叆璺緞锛涘綋鍓嶈繍琛屽拰鏂囨。缁存姢浠?`website/` 涓嬬殑涓変釜瀛愭湇鍔′负鍑嗐€?
 
-## 快速开始
+## 蹇€熷紑濮?
 
-从仓库根目录执行：
+浠庝粨搴撴牴鐩綍鎵ц锛?
 
 ```bash
 cd C:/Code/Java_Code/love5000
 mvn test
 ```
 
-启动 `website`：
+鍚姩 `website`锛?
 
 ```bash
 mvn -pl website -am spring-boot:run
 ```
 
-`website` 默认端口为 `8080`，启动时会检查并自动拉起 `website/python-a`、`website/quant-a` 和 `website/video`。如果对应健康检查已经可用，会复用已有服务。
+`website` 榛樿绔彛涓?`8080`锛屽惎鍔ㄦ椂浼氭鏌ュ苟鑷姩鎷夎捣 `website/python-a`銆乣website/quant-a` 鍜?`website/video`銆傚鏋滃搴斿仴搴锋鏌ュ凡缁忓彲鐢紝浼氬鐢ㄥ凡鏈夋湇鍔°€?
 
-其他服务：
+鍏朵粬鏈嶅姟锛?
 
 ```bash
 mvn -pl lovestory -am spring-boot:run -Dspring-boot.run.main-class=com.ycxandwuqian.love.LovestoryApplication
 mvn -pl imagetemplate -am spring-boot:run
 ```
 
-Python 子服务可单独启动：
+Python 瀛愭湇鍔″彲鍗曠嫭鍚姩锛?
 
 ```bash
 cd website/python-a && python server.py
@@ -51,18 +54,18 @@ cd website/quant-a && python -m uvicorn main:app --host 127.0.0.1 --port 5175
 cd website/video && python web_server.py
 ```
 
-## 端口
+## 绔彛
 
-- `website`：`8080`
-- `lovestory`：`8081`
-- `imagetemplate`：`8082`
-- `python-a`：`5174`
-- `quant-a`：`5175`
-- `video`：`5176`
+- `website`锛歚8080`
+- `lovestory`锛歚8081`
+- `imagetemplate`锛歚8082`
+- `python-a`锛歚5174`
+- `quant-a`锛歚5175`
+- `video`锛歚5176`
 
-## 测试
+## 娴嬭瘯
 
-Java 模块：
+Java 妯″潡锛?
 
 ```bash
 mvn test
@@ -72,7 +75,7 @@ mvn -pl website -am test
 mvn -pl imagetemplate -am test
 ```
 
-Python 子服务：
+Python 瀛愭湇鍔★細
 
 ```bash
 cd website/python-a && python -m unittest discover -s tests -v
@@ -80,20 +83,21 @@ cd website/quant-a && python -m pytest -v
 cd website/video && python -m unittest discover -s tests -v
 ```
 
-## 配置与安全
+## 閰嶇疆涓庡畨鍏?
 
-不要提交真实数据库密码、OSS AccessKey、OpenAI API Key、DeepSeek Key、Tushare Token、腾讯云密钥或 DashScope Key。新增配置优先使用环境变量或本地私有配置文件。
+涓嶈鎻愪氦鐪熷疄鏁版嵁搴撳瘑鐮併€丱SS AccessKey銆丱penAI API Key銆丏eepSeek Key銆乀ushare Token銆佽吘璁簯瀵嗛挜鎴?DashScope Key銆傛柊澧為厤缃紭鍏堜娇鐢ㄧ幆澧冨彉閲忔垨鏈湴绉佹湁閰嶇疆鏂囦欢銆?
 
-常见私有文件已在 `.gitignore` 中忽略，例如：
+甯歌绉佹湁鏂囦欢宸插湪 `.gitignore` 涓拷鐣ワ紝渚嬪锛?
 
 - `website/python-a/deepseek.local.json`
 - `website/quant-a/data/`
 - `website/video/config/config.local.json`
 - `website/video/anime_projects/`
-- `.env`、`.venv/`、`__pycache__/`、`.pytest_cache/`、`*.log`
+- `.env`銆乣.venv/`銆乣__pycache__/`銆乣.pytest_cache/`銆乣*.log`
 
-## 文档维护规则
+## 鏂囨。缁存姢瑙勫垯
 
-每次修改项目结构、模块职责、启动命令、端口、配置项、API、数据目录、测试方式或部署入口时，必须同步更新根 `AGENTS.md` / `README.md`，以及受影响模块或微应用目录下的 `AGENTS.md` / `README.md`。文档和代码不一致时，本次改动不能视为完成。
+姣忔淇敼椤圭洰缁撴瀯銆佹ā鍧楄亴璐ｃ€佸惎鍔ㄥ懡浠ゃ€佺鍙ｃ€侀厤缃」銆丄PI銆佹暟鎹洰褰曘€佹祴璇曟柟寮忔垨閮ㄧ讲鍏ュ彛鏃讹紝蹇呴』鍚屾鏇存柊鏍?`AGENTS.md` / `README.md`锛屼互鍙婂彈褰卞搷妯″潡鎴栧井搴旂敤鐩綍涓嬬殑 `AGENTS.md` / `README.md`銆傛枃妗ｅ拰浠ｇ爜涓嶄竴鑷存椂锛屾湰娆℃敼鍔ㄤ笉鑳借涓哄畬鎴愩€?
 
-开发代理细节、模块边界、API 清单和测试要求见根目录 `AGENTS.md`，模块目录下的 `AGENTS.md` / `README.md` 以各自模块为准。
+寮€鍙戜唬鐞嗙粏鑺傘€佹ā鍧楄竟鐣屻€丄PI 娓呭崟鍜屾祴璇曡姹傝鏍圭洰褰?`AGENTS.md`锛屾ā鍧楃洰褰曚笅鐨?`AGENTS.md` / `README.md` 浠ュ悇鑷ā鍧椾负鍑嗐€?
+

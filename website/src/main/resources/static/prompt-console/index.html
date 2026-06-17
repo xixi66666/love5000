@@ -30,8 +30,8 @@
     <section class="hero-panel" aria-labelledby="page-title">
         <div>
             <p class="eyebrow">Curated Prompt Archive</p>
-            <h1 id="page-title">把授权来源整理成可搜索、可分类、可复制的提示词合集</h1>
-            <p class="hero-copy">这里不再生成提示词，只收录 Prompt123 与 GitHub 提示词库中的授权案例。优先展示来源自带的中文提示词，保留原始授权链接。</p>
+            <h1 id="page-title">提示词合集</h1>
+            <p class="hero-copy">V1.0 单纯的提示词整理合集</p>
         </div>
         <div class="hero-stats" aria-live="polite">
             <strong class="entry-count">0</strong>
@@ -49,7 +49,11 @@
             <select class="source-filter"></select>
         </label>
         <label class="filter-field">
-            <span>分类</span>
+            <span>大分类</span>
+            <select class="group-filter"></select>
+        </label>
+        <label class="filter-field">
+            <span>小分类</span>
             <select class="category-filter"></select>
         </label>
         <label class="filter-field">
@@ -117,6 +121,7 @@
     </article>
 </dialog>
 
+<script src="prompt-category-groups.js"></script>
 <script src="prompt-console.js"></script>
 </body>
 

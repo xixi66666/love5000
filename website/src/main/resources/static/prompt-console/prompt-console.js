@@ -4,8 +4,10 @@
         sources: [],
         entries: [],
         categories: [],
+        categoryGroups: [],
         visibleEntries: [],
         activeEntry: null,
+        activeGroup: "all",
         activeCategory: "all",
         renderLimit: PAGE_SIZE
     };
@@ -26,6 +28,7 @@
         elements.entryList = $(".entry-list");
         elements.searchInput = $(".search-input");
         elements.sourceFilter = $(".source-filter");
+        elements.groupFilter = $(".group-filter");
         elements.categoryFilter = $(".category-filter");
         elements.statusFilter = $(".status-filter");
         elements.dialog = $(".entry-dialog");
@@ -65,14 +68,17 @@
 
     function buildFilters() {
         state.categories = buildCategoryStats();
+        state.categoryGroups = PromptCategoryGroups.buildGroupStats(state.entries, state.categories);
 
         elements.sourceFilter.innerHTML = '<option value="all">全部来源</option>' + state.sources.map(function (source) {
             return '<option value="' + escapeAttribute(source.id) + '">' + escapeHtml(source.name) + '</option>';
         }).join("");
 
-        elements.categoryFilter.innerHTML = '<option value="all">全部分类</option>' + state.categories.map(function (item) {
-            return '<option value="' + escapeAttribute(item.name) + '">' + escapeHtml(item.name) + '（' + item.count + '）</option>';
+        elements.groupFilter.innerHTML = '<option value="all">全部大分类</option>' + state.categoryGroups.map(function (group) {
+            return '<option value="' + escapeAttribute(group.slug) + '">' + escapeHtml(group.name) + ' (' + group.count + ')</option>';
         }).join("");
+
+        renderCategoryFilterOptions();
     }
 
     function buildCategoryStats() {
@@ -101,13 +107,18 @@
     function applyFilters() {
         var query = elements.searchInput.value.trim().toLowerCase();
         var sourceId = elements.sourceFilter.value;
+        var group = elements.groupFilter.value;
         var category = elements.categoryFilter.value;
         var status = elements.statusFilter.value;
+        state.activeGroup = group;
         state.activeCategory = category;
         state.renderLimit = PAGE_SIZE;
 
         state.visibleEntries = state.entries.filter(function (entry) {
             if (sourceId !== "all" && entry.sourceId !== sourceId) {
+                return false;
+            }
+            if (group !== "all" && PromptCategoryGroups.getGroupForCategory(entry.category || "未分类").slug !== group) {
                 return false;
             }
             if (category !== "all" && entry.category !== category) {
@@ -131,20 +142,47 @@
         return [
             entry.title,
             entry.category,
+            PromptCategoryGroups.getGroupForCategory(entry.category || "未分类").name,
             entry.prompt,
             entry.sourceName,
             (entry.tags || []).join(" ")
         ].join(" ").toLowerCase();
     }
 
+    function getVisibleCategoriesForActiveGroup() {
+        if (state.activeGroup === "all") {
+            return state.categories;
+        }
+        var group = PromptCategoryGroups.findGroup(state.categoryGroups, state.activeGroup);
+        return group ? group.categories : [];
+    }
+
+    function renderCategoryFilterOptions() {
+        var categories = getVisibleCategoriesForActiveGroup();
+        if (state.activeCategory !== "all" && !categories.some(function (item) { return item.name === state.activeCategory; })) {
+            state.activeCategory = "all";
+        }
+        elements.categoryFilter.innerHTML = '<option value="all">全部小分类</option>' + categories.map(function (item) {
+            return '<option value="' + escapeAttribute(item.name) + '">' + escapeHtml(item.name) + ' (' + item.count + ')</option>';
+        }).join("");
+        elements.categoryFilter.value = state.activeCategory;
+    }
+
     function renderCategories() {
-        elements.categoryCount.textContent = String(state.categories.length);
+        elements.categoryCount.textContent = String(state.categoryGroups.length);
         var total = state.entries.length;
-        var html = '<button class="category-chip' + (state.activeCategory === "all" ? " active" : "") + '" type="button" data-category-value="all">'
+        var html = '<button class="category-chip category-chip-all' + (state.activeGroup === "all" && state.activeCategory === "all" ? " active" : "") + '" type="button" data-group-value="all">'
             + '<span>全部分类</span><strong>' + total + '</strong></button>';
-        html += state.categories.map(function (item) {
-            return '<button class="category-chip' + (state.activeCategory === item.name ? " active" : "") + '" type="button" data-category-value="' + escapeAttribute(item.name) + '">'
-                + '<span>' + escapeHtml(item.name) + '</span><strong>' + item.count + '</strong></button>';
+        html += state.categoryGroups.map(function (group) {
+            var childHtml = group.categories.map(function (item) {
+                return '<button class="subcategory-chip' + (state.activeCategory === item.name ? " active" : "") + '" type="button" data-category-value="' + escapeAttribute(item.name) + '">'
+                    + '<span>' + escapeHtml(item.name) + '</span><strong>' + item.count + '</strong></button>';
+            }).join("");
+            return '<article class="category-group">'
+                + '<button class="category-chip' + (state.activeGroup === group.slug && state.activeCategory === "all" ? " active" : "") + '" type="button" data-group-value="' + escapeAttribute(group.slug) + '">'
+                + '<span>' + escapeHtml(group.name) + '</span><strong>' + group.count + '</strong></button>'
+                + '<div class="subcategory-list">' + childHtml + '</div>'
+                + '</article>';
         }).join("");
         elements.categoryList.innerHTML = html;
     }
@@ -176,6 +214,7 @@
 
         var items = state.visibleEntries.slice(0, state.renderLimit);
         var cards = items.map(function (entry, index) {
+            var group = PromptCategoryGroups.getGroupForCategory(entry.category || "未分类");
             var tags = (entry.tags || []).slice(0, 5).map(function (tag) {
                 return '<span class="tag">' + escapeHtml(tag) + '</span>';
             }).join("");
@@ -185,7 +224,7 @@
             return '<article class="entry-card">'
                 + '<div>'
                 + '<h3>' + escapeHtml(entry.title || "Untitled Prompt") + '</h3>'
-                + '<p class="entry-meta-text">' + escapeHtml(entry.sourceName || entry.sourceId) + ' · ' + escapeHtml(entry.category || "未分类") + '</p>'
+                + '<p class="entry-meta-text">' + escapeHtml(entry.sourceName || entry.sourceId) + ' · ' + escapeHtml(group.name) + ' / ' + escapeHtml(entry.category || "未分类") + '</p>'
                 + '</div>'
                 + '<p class="prompt-preview">' + escapeHtml(entry.prompt || "") + '</p>'
                 + '<div class="entry-meta">' + tags + '<span class="pill">' + escapeHtml(entry.license || "") + '</span></div>'
@@ -205,9 +244,26 @@
         elements.visibleCount.textContent = String(state.visibleEntries.length);
     }
 
+    function setGroup(group, shouldScroll) {
+        state.activeGroup = group;
+        state.activeCategory = "all";
+        elements.groupFilter.value = group;
+        renderCategoryFilterOptions();
+        applyFilters();
+        if (shouldScroll) {
+            $(".entry-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+    }
+
     function setCategory(category, shouldScroll) {
-        elements.categoryFilter.value = category;
+        if (category !== "all") {
+            var group = PromptCategoryGroups.getGroupForCategory(category);
+            state.activeGroup = group.slug;
+            elements.groupFilter.value = group.slug;
+        }
         state.activeCategory = category;
+        renderCategoryFilterOptions();
+        elements.categoryFilter.value = category;
         applyFilters();
         if (shouldScroll) {
             $(".entry-panel").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -219,9 +275,10 @@
         if (!entry) {
             return;
         }
+        var group = PromptCategoryGroups.getGroupForCategory(entry.category || "未分类");
         state.activeEntry = entry;
         elements.dialogTitle.textContent = entry.title || "Untitled Prompt";
-        elements.dialogSource.textContent = (entry.sourceName || entry.sourceId || "来源") + " · " + (entry.category || "未分类");
+        elements.dialogSource.textContent = (entry.sourceName || entry.sourceId || "来源") + " · " + group.name + " / " + (entry.category || "未分类");
         elements.dialogTags.innerHTML = (entry.tags || []).map(function (tag) {
             return '<span class="tag">' + escapeHtml(tag) + '</span>';
         }).join("") + (isMostlyEnglish(entry.prompt || "") ? '<span class="tag language-tag">英文原文</span>' : "");
@@ -246,14 +303,22 @@
     function setupEvents() {
         elements.searchInput.addEventListener("input", applyFilters);
         elements.sourceFilter.addEventListener("change", applyFilters);
+        elements.groupFilter.addEventListener("change", function () {
+            setGroup(elements.groupFilter.value, false);
+        });
         elements.categoryFilter.addEventListener("change", function () {
             setCategory(elements.categoryFilter.value, false);
         });
         elements.statusFilter.addEventListener("change", applyFilters);
         elements.categoryList.addEventListener("click", function (event) {
-            var button = event.target.closest("[data-category-value]");
-            if (button) {
-                setCategory(button.getAttribute("data-category-value"), true);
+            var categoryButton = event.target.closest("[data-category-value]");
+            if (categoryButton) {
+                setCategory(categoryButton.getAttribute("data-category-value"), true);
+                return;
+            }
+            var groupButton = event.target.closest("[data-group-value]");
+            if (groupButton) {
+                setGroup(groupButton.getAttribute("data-group-value"), true);
             }
         });
         elements.entryList.addEventListener("click", function (event) {
