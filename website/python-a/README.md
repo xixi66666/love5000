@@ -55,7 +55,7 @@ styles.css                         页面样式
 app.js                             前端交互、图表渲染、AI 生成按钮、Obsidian 草稿
 server.py                          本地后端：行情网关、DeepSeek 调用、Obsidian 写入
 package.json                       启动脚本
-services/                          账户、交易、存储、Obsidian、截图解析等服务拆分
+services/                          账户、交易、存储、Obsidian、股票元数据、知识图谱、截图解析等服务拆分
 tests/                             unittest 测试
 deepseek.local.json                本地 DeepSeek API key 配置，已被 .gitignore 忽略
 obsidian-vault/A股AI/data/          自选股数据

@@ -1,4 +1,4 @@
-# common
+﻿# common
 
 `common` 是 `love530` Maven 聚合工程的公共能力模块，不作为独立 Web 服务启动。它为业务模块提供 OSS 自动配置、上传工具和通用 Session 认证能力。
 

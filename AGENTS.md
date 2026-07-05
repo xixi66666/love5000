@@ -311,6 +311,8 @@ website/video/
 - `imagetemplate/src/main/resources/templates`：图片提示词模板 JSON 数据源。
 - `imagetemplate/src/main/resources/static`：图片模板库单页前端。
 - `website/python-a/server.py`：Python 微应用后端，负责静态页面服务、东方财富行情网关、DeepSeek 调用和 Obsidian 写入。
+- `website/python-a/services/stock_metadata_service.py`：股票行业、板块和概念元数据缓存与降级读取。
+- `website/python-a/services/knowledge_graph_service.py`：Obsidian 知识图谱节点、复盘双链和风险模式链接生成。
 - `website/python-a/index.html`、`website/python-a/app.js`、`website/python-a/styles.css`：A 股自选股 AI 研究台前端页面、交互和样式。
 - `website/python-a/obsidian-vault/A股AI`：Python 微应用默认写入的 Obsidian 研究记录和自选股数据目录。
 - `website/quant-a/main.py`：Quant FastAPI 应用入口，挂载前端静态资源并注册 `/api/**` 路由。
