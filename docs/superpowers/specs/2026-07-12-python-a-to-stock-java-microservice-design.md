@@ -185,7 +185,7 @@ mvn -pl stock -am spring-boot:run
 
 根启动脚本先检查 `http://127.0.0.1:5174/api/health`；不可用时启动 `stock`，健康检查通过后再启动 `website`。`website` 首页继续链接 `http://127.0.0.1:5174/`。
 
-`website` 不再负责启动 Python 解释器。现有 `PythonAAutoStartRunner` 在切换时删除或替换为不包含业务依赖的开发期 Java 服务启动适配器；生产环境不由一个业务服务管理另一个业务服务的生命周期。
+`website` 不再负责启动 Python 解释器，也不负责启动 `stock`。切换时删除现有 `PythonAAutoStartRunner` 及其配置和测试，由根启动脚本承担本地开发编排；生产环境不由一个业务服务管理另一个业务服务的生命周期。
 
 ## 测试策略
 
