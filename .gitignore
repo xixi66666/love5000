@@ -35,6 +35,7 @@ out/
 
 ### Local design previews ###
 .superpowers/
+.worktrees/
 
 ### Python runtime artifacts ###
 .venv/
