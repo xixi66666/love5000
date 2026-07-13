@@ -19,11 +19,17 @@ from threading import Lock
 from typing import Any, Dict, Iterable, List, Optional
 
 from services.account_service import AccountService
+from services.cninfo_announcement_provider import CninfoAnnouncementProvider
+from services.eastmoney_research_provider import EastmoneyResearchProvider
 from services.knowledge_graph_service import ObsidianKnowledgeGraphService
 from services.obsidian_service import ObsidianTradingService
+from services.research_provider import validate_stock_code
+from services.sina_fund_flow_provider import SinaFundFlowProvider
 from services.stock_match_service import StockMatchService
 from services.stock_metadata_service import StockMetadataService
+from services.stock_research_service import StockResearchService
 from services.storage_service import JsonStore
+from services.tencent_quote_provider import TencentQuoteProvider
 from services.trade_service import TradeService
 from services.vision_parse_service import VisionParseService
 
@@ -54,6 +60,19 @@ HTTP_HEADERS = {
 STOCK_CACHE: Dict[str, Dict[str, Any]] = {}
 WATCHLIST_CACHE: Dict[str, Any] = {"time": 0.0, "payload": None}
 CACHE_LOCK = Lock()
+
+
+def build_stock_research_service() -> StockResearchService:
+    return StockResearchService(
+        tencent_provider=TencentQuoteProvider(),
+        eastmoney_provider=EastmoneyResearchProvider(),
+        sina_provider=SinaFundFlowProvider(),
+        cninfo_provider=CninfoAnnouncementProvider(),
+        metadata_service=StockMetadataService(DATA_ROOT),
+    )
+
+
+STOCK_RESEARCH_SERVICE = build_stock_research_service()
 
 
 class DataSourceError(RuntimeError):
@@ -741,6 +760,122 @@ def append_stock_review(stock_code: str, stock_name: str, review_date: str, summ
     return stock_file
 
 
+def provider_display_name(provider: Any) -> str:
+    names = {
+        "tencent": "腾讯财经",
+        "eastmoney": "东方财富",
+        "sina": "新浪财经",
+        "cninfo": "巨潮资讯",
+        "szse": "深交所",
+        "tushare": "Tushare",
+        "fallback": "本地档案",
+        "local": "本地档案",
+    }
+    value = str(provider or "未知来源")
+    return names.get(value, value)
+
+
+def research_snapshot_markdown(snapshot: Dict[str, Any]) -> str:
+    if not isinstance(snapshot, dict) or not snapshot:
+        return ""
+    lines = ["#### 研究数据快照", ""]
+
+    overview = snapshot.get("overview") or {}
+    valuation = overview.get("valuation") or {}
+    if valuation.get("success"):
+        lines.extend(
+            [
+                "- 估值来源：{} · {}".format(
+                    provider_display_name(valuation.get("provider")), valuation.get("data_date") or "时间待确认"
+                ),
+                "- PE(TTM)：{}；PB：{}；总市值：{} 亿元；流通市值：{} 亿元".format(
+                    valuation.get("pe_ttm", "未知"),
+                    valuation.get("pb", "未知"),
+                    valuation.get("market_cap_yi", "未知"),
+                    valuation.get("float_market_cap_yi", "未知"),
+                ),
+            ]
+        )
+    metadata = overview.get("metadata") or {}
+    if metadata.get("success"):
+        concepts = "、".join(str(item) for item in (metadata.get("concepts") or [])[:8]) or "未提供"
+        lines.append(
+            "- 行业概念：{}；{}（{}）".format(
+                metadata.get("industry") or "待映射",
+                concepts,
+                provider_display_name(metadata.get("provider")),
+            )
+        )
+
+    capital = snapshot.get("capital") or {}
+    fund_flow = capital.get("fund_flow") or {}
+    if fund_flow.get("success"):
+        lines.append(
+            "- 资金流：近 5 日{}，近 20 日{}（{} · {}）".format(
+                fund_flow.get("five_day_direction") or "待确认",
+                fund_flow.get("twenty_day_direction") or "待确认",
+                provider_display_name(fund_flow.get("provider")),
+                fund_flow.get("data_date") or "时间待确认",
+            )
+        )
+    margin = capital.get("margin") or {}
+    if margin.get("success"):
+        lines.append(
+            "- 融资余额：{}，较上一期变化 {}（{} · {}）".format(
+                margin.get("latest_balance", "未知"),
+                margin.get("balance_change", "未知"),
+                provider_display_name(margin.get("provider")),
+                margin.get("data_date") or "时间待确认",
+            )
+        )
+    shareholders = capital.get("shareholders") or {}
+    if shareholders.get("success"):
+        lines.append(
+            "- 股东户数：{}，环比 {}%（{} · {}）".format(
+                shareholders.get("holder_count", "未知"),
+                shareholders.get("change_ratio", "未知"),
+                provider_display_name(shareholders.get("provider")),
+                shareholders.get("data_date") or "时间待确认",
+            )
+        )
+    lockups = capital.get("lockups") or {}
+    if lockups.get("success"):
+        upcoming = lockups.get("upcoming") or []
+        lines.append(
+            "- 未来 90 天解禁：{} 条（{} · {}）".format(
+                len(upcoming),
+                provider_display_name(lockups.get("provider")),
+                lockups.get("data_date") or "时间待确认",
+            )
+        )
+
+    events = snapshot.get("events") or {}
+    reports = events.get("reports") or {}
+    if reports.get("success") and reports.get("items"):
+        titles = "；".join(str(item.get("title") or "") for item in reports["items"][:5] if item.get("title"))
+        lines.append(
+            "- 最新研报：{}（{} · {}）".format(
+                titles,
+                provider_display_name(reports.get("provider")),
+                reports.get("data_date") or "时间待确认",
+            )
+        )
+    announcements = events.get("announcements") or {}
+    if announcements.get("success") and announcements.get("items"):
+        titles = "；".join(
+            str(item.get("title") or "") for item in announcements["items"][:5] if item.get("title")
+        )
+        lines.append(
+            "- 最新公告：{}（{} · {}）".format(
+                titles,
+                provider_display_name(announcements.get("provider")),
+                announcements.get("data_date") or "时间待确认",
+            )
+        )
+    lines.extend(["", "> 数据来自公开网络接口，仅用于研究辅助；交易前请与交易软件和官方公告交叉核验。"])
+    return "\n".join(lines)
+
+
 def write_stock_daily_review(payload: Dict[str, Any]) -> Dict[str, Any]:
     ensure_vault()
     review_date = payload.get("date") or datetime.now().strftime("%Y-%m-%d")
@@ -755,6 +890,12 @@ def write_stock_daily_review(payload: Dict[str, Any]) -> Dict[str, Any]:
     ai_summary = str(payload.get("ai_summary") or "等待 AI 维度分析").strip()
     evaluation = str(payload.get("evaluation") or "等待研究结论").strip()
     quote_snapshot = payload.get("quote_snapshot") or {}
+    research_snapshot = payload.get("research_snapshot") or {}
+    if not research_snapshot and re.fullmatch(r"\d{6}", stock_code):
+        try:
+            research_snapshot = STOCK_RESEARCH_SERVICE.build_snapshot(stock_code, load_missing=False)
+        except Exception:
+            research_snapshot = {}
     metadata_service = StockMetadataService(DATA_ROOT)
     stock_metadata = metadata_service.get_stock_metadata(
         stock_code,
@@ -836,6 +977,9 @@ def write_stock_daily_review(payload: Dict[str, Any]) -> Dict[str, Any]:
         f"> {evaluation.replace(chr(10), chr(10) + '> ')}\n"
     )
     graph_section = knowledge_graph.markdown_section(graph_context)
+    research_section = research_snapshot_markdown(research_snapshot)
+    if research_section:
+        block += "\n{}\n".format(research_section)
     if graph_section:
         block += f"\n{graph_section}\n"
     if ai_dialogue_summary:
@@ -903,7 +1047,11 @@ def write_daily_review(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def deepseek_dimension_prompt(stock: Dict[str, Any], review: Dict[str, Any]) -> List[Dict[str, str]]:
+def deepseek_dimension_prompt(
+    stock: Dict[str, Any],
+    review: Dict[str, Any],
+    research_snapshot: Optional[Dict[str, Any]] = None,
+) -> List[Dict[str, str]]:
     system_prompt = (
         "你是一名严谨的A股股票研究助手，只做研究分析和风险提示，不承诺收益，不输出确定性买卖指令。"
         "你需要根据给定行情、技术指标、换手、行业板块和用户关注点，生成可写入长期复盘系统的分析。"
@@ -924,6 +1072,7 @@ def deepseek_dimension_prompt(stock: Dict[str, Any], review: Dict[str, Any]) -> 
         ],
         "stock": stock,
         "current_form": review,
+        "research_snapshot": research_snapshot or {},
     }
     return [
         {"role": "system", "content": system_prompt},
@@ -958,9 +1107,13 @@ def call_deepseek_dimension_analysis(payload: Dict[str, Any]) -> Dict[str, Any]:
 
     stock = payload.get("stock") or {}
     review = payload.get("review") or {}
+    research_snapshot = payload.get("research_snapshot") or {}
+    stock_code = str(stock.get("code") or payload.get("stock_code") or "").strip()
+    if not research_snapshot and re.fullmatch(r"\d{6}", stock_code):
+        research_snapshot = STOCK_RESEARCH_SERVICE.build_snapshot(stock_code, load_missing=True)
     request_payload = {
         "model": os.environ.get("DEEPSEEK_MODEL", DEEPSEEK_MODEL),
-        "messages": deepseek_dimension_prompt(stock, review),
+        "messages": deepseek_dimension_prompt(stock, review, research_snapshot),
         "temperature": 0.25,
         "max_tokens": 3000,
         "response_format": {"type": "json_object"},
@@ -986,8 +1139,51 @@ def call_deepseek_dimension_analysis(payload: Dict[str, Any]) -> Dict[str, Any]:
         "ok": True,
         "model": request_payload["model"],
         "analysis": analysis,
+        "research_snapshot": research_snapshot,
         "generated_at": now_iso(),
     }
+
+
+RESEARCH_ROUTE_PATTERN = re.compile(r"^/api/stocks/(\d{6})/research/(overview|capital|events)$")
+
+
+def parse_research_route(path: str) -> Optional[tuple]:
+    match = RESEARCH_ROUTE_PATTERN.fullmatch(str(path or ""))
+    if not match:
+        return None
+    return match.group(1), match.group(2)
+
+
+def get_research_response(
+    path: str,
+    query_string: str,
+    service: Optional[StockResearchService] = None,
+) -> Dict[str, Any]:
+    route = parse_research_route(path)
+    if route is None:
+        raise ValueError("研究数据接口路径无效")
+    code, section = route
+    validate_stock_code(code)
+    query = urllib.parse.parse_qs(query_string or "")
+    force = (query.get("force") or ["0"])[0] == "1"
+    research_service = service or STOCK_RESEARCH_SERVICE
+    if section == "overview":
+        return research_service.get_overview(code, force=force)
+    if section == "capital":
+        return research_service.get_capital(code, force=force)
+    try:
+        page = int((query.get("page") or ["1"])[0])
+        page_size = int((query.get("page_size") or ["10"])[0])
+    except ValueError as exc:
+        raise ValueError("page 和 page_size 必须是整数") from exc
+    kind = (query.get("kind") or ["all"])[0]
+    return research_service.get_events(
+        code,
+        kind=kind,
+        page=page,
+        page_size=page_size,
+        force=force,
+    )
 
 
 def json_response(handler: SimpleHTTPRequestHandler, payload: Dict[str, Any], status: int = 200) -> None:
@@ -1034,6 +1230,14 @@ class AShareHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urllib.parse.urlparse(self.path)
+        if parsed.path.startswith("/api/stocks/") and "/research/" in parsed.path:
+            try:
+                json_response(self, get_research_response(parsed.path, parsed.query))
+            except ValueError as exc:
+                json_response(self, {"success": False, "message": str(exc)}, status=400)
+            except Exception as exc:
+                json_response(self, {"success": False, "message": str(exc)}, status=502)
+            return
         if parsed.path == "/api/health":
             json_response(
                 self,

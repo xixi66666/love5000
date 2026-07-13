@@ -34,9 +34,26 @@ class UploadImageTests(unittest.TestCase):
 
 class StockDailyReviewTests(unittest.TestCase):
     def test_write_stock_daily_review_adds_knowledge_graph_links_and_nodes(self):
+        class FakeMetadataService:
+            def __init__(self, data_root):
+                self.data_root = data_root
+
+            def get_stock_metadata(self, code, fallback=None):
+                fallback = fallback or {}
+                return {
+                    "code": code,
+                    "name": fallback.get("name", "圣阳股份"),
+                    "industry": fallback.get("industry", "电池"),
+                    "board": fallback.get("board", "A股"),
+                    "concepts": fallback.get("concepts", []),
+                    "source": "test",
+                }
+
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            with mock.patch.object(server, "OBSIDIAN_ROOT", root), mock.patch.object(server, "DATA_ROOT", root / "data"):
+            with mock.patch.object(server, "OBSIDIAN_ROOT", root), mock.patch.object(
+                server, "DATA_ROOT", root / "data"
+            ), mock.patch.object(server, "StockMetadataService", FakeMetadataService):
                 result = server.write_stock_daily_review(
                     {
                         "date": "2026-05-12",
@@ -52,6 +69,34 @@ class StockDailyReviewTests(unittest.TestCase):
                             "risk": "高",
                             "ma_state": "多头排列",
                         },
+                        "research_snapshot": {
+                            "code": "002580",
+                            "overview": {
+                                "valuation": {
+                                    "success": True,
+                                    "provider": "tencent",
+                                    "data_date": "2026-07-13",
+                                    "pe_ttm": 26.8,
+                                    "pb": 2.35,
+                                }
+                            },
+                            "capital": {
+                                "fund_flow": {
+                                    "success": True,
+                                    "provider": "sina",
+                                    "data_date": "2026-07-11",
+                                    "five_day_direction": "净流入",
+                                }
+                            },
+                            "events": {
+                                "reports": {
+                                    "success": True,
+                                    "provider": "eastmoney",
+                                    "data_date": "2026-07-10",
+                                    "items": [{"title": "储能业务跟踪"}],
+                                }
+                            },
+                        },
                         "technical_notes": "多头排列后出现高位震荡。",
                         "volume_notes": "高换手后收跌，疑似派发。",
                         "risk_notes": "不要追高，必须有止损条件。",
@@ -64,6 +109,11 @@ class StockDailyReviewTests(unittest.TestCase):
                 self.assertIn("[[002580-圣阳股份]]", content)
                 self.assertIn("[[行业-电池]]", content)
                 self.assertIn("[[风险模式-高换手]]", content)
+                self.assertIn("#### 研究数据快照", content)
+                self.assertIn("PE(TTM)：26.8", content)
+                self.assertIn("腾讯财经", content)
+                self.assertIn("新浪财经", content)
+                self.assertIn("储能业务跟踪", content)
                 self.assertTrue((root / "知识图谱" / "风险模式" / "风险模式-高换手.md").exists())
 
 
