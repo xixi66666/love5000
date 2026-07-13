@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import json
 import re
+import threading
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from contextlib import contextmanager
 from datetime import datetime
 from typing import Any, Dict, Iterable, Optional
 
@@ -16,6 +20,26 @@ class ResearchProviderError(RuntimeError):
 
 
 class UrlLibHttpClient:
+    def _read_json(self, request: urllib.request.Request, timeout: int) -> Dict[str, Any]:
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                payload = response.read().decode("utf-8", errors="replace")
+        except urllib.error.HTTPError as exc:
+            raise ResearchProviderError(
+                "外部数据源返回 HTTP {}".format(exc.code),
+                retryable=exc.code == 429 or exc.code >= 500,
+                status_code=exc.code,
+            ) from exc
+        except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as exc:
+            raise ResearchProviderError("外部数据源请求失败：{}".format(exc), retryable=True) from exc
+        try:
+            result = json.loads(payload)
+        except json.JSONDecodeError as exc:
+            raise ResearchProviderError("外部数据源返回了无效 JSON", retryable=True) from exc
+        if not isinstance(result, dict):
+            raise ResearchProviderError("外部数据源 JSON 结构无效", retryable=True)
+        return result
+
     def get_text(
         self,
         url: str,
@@ -35,6 +59,67 @@ class UrlLibHttpClient:
             ) from exc
         except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as exc:
             raise ResearchProviderError("外部数据源请求失败：{}".format(exc), retryable=True) from exc
+
+    def get_json(
+        self,
+        url: str,
+        params: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
+        timeout: int = 15,
+    ) -> Dict[str, Any]:
+        target = url
+        if params:
+            separator = "&" if "?" in target else "?"
+            target = target + separator + urllib.parse.urlencode(params)
+        return self._read_json(urllib.request.Request(target, headers=headers or {}), timeout)
+
+    def post_form_json(
+        self,
+        url: str,
+        data: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
+        timeout: int = 15,
+    ) -> Dict[str, Any]:
+        request_headers = dict(headers or {})
+        request_headers.setdefault("Content-Type", "application/x-www-form-urlencoded")
+        body = urllib.parse.urlencode(data or {}).encode("utf-8")
+        request = urllib.request.Request(url, data=body, headers=request_headers, method="POST")
+        return self._read_json(request, timeout)
+
+    def post_json(
+        self,
+        url: str,
+        data: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
+        timeout: int = 15,
+    ) -> Dict[str, Any]:
+        request_headers = dict(headers or {})
+        request_headers.setdefault("Content-Type", "application/json")
+        body = json.dumps(data or {}, ensure_ascii=False).encode("utf-8")
+        request = urllib.request.Request(url, data=body, headers=request_headers, method="POST")
+        return self._read_json(request, timeout)
+
+
+class EastmoneyRateLimiter:
+    def __init__(self, min_interval: float = 1.0, monotonic=None, sleep=None):
+        self.min_interval = min_interval
+        self.monotonic = monotonic or time.monotonic
+        self.sleep = sleep or time.sleep
+        self._lock = threading.Lock()
+        self._last_call = None
+
+    @contextmanager
+    def slot(self):
+        with self._lock:
+            now = self.monotonic()
+            if self._last_call is not None:
+                wait = self.min_interval - (now - self._last_call)
+                if wait > 0:
+                    self.sleep(wait)
+            try:
+                yield
+            finally:
+                self._last_call = self.monotonic()
 
 
 def now_iso() -> str:
