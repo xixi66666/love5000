@@ -159,6 +159,76 @@
             </section>
           </div>
 
+          <section class="stock-research-section" aria-labelledby="stockResearchTitle">
+            <div class="section-title research-section-head">
+              <div>
+                <h3 id="stockResearchTitle">单股深度研究</h3>
+                <span>估值、资金筹码与公开披露</span>
+              </div>
+              <span id="researchSectionStatus" aria-live="polite">等待选择股票</span>
+            </div>
+            <div class="research-tabs" role="tablist" aria-label="单股研究数据">
+              <button
+                class="research-tab active"
+                type="button"
+                role="tab"
+                aria-selected="true"
+                aria-controls="researchOverviewPanel"
+                data-research-tab="overview"
+              >概览</button>
+              <button
+                class="research-tab"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="researchCapitalPanel"
+                data-research-tab="capital"
+              >资金筹码</button>
+              <button
+                class="research-tab"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="researchEventsPanel"
+                data-research-tab="events"
+              >研报公告</button>
+            </div>
+
+            <div id="researchOverviewPanel" class="research-panel-content" role="tabpanel">
+              <div id="researchOverviewContent" class="research-overview-content research-skeleton" aria-live="polite"></div>
+            </div>
+
+            <div id="researchCapitalPanel" class="research-panel-content" role="tabpanel" hidden>
+              <div class="capital-research-grid" aria-live="polite">
+                <section id="fundFlowBlock" class="research-data-block"></section>
+                <section id="marginBlock" class="research-data-block"></section>
+                <section id="shareholdersBlock" class="research-data-block"></section>
+                <section id="lockupsBlock" class="research-data-block"></section>
+              </div>
+            </div>
+
+            <div id="researchEventsPanel" class="research-panel-content" role="tabpanel" hidden>
+              <div class="research-events-grid">
+                <section class="research-event-column">
+                  <div class="research-list-head">
+                    <h4>机构研报</h4>
+                    <span id="reportsSource">--</span>
+                  </div>
+                  <div id="reportsList" class="research-event-list" aria-live="polite"></div>
+                  <button id="loadMoreReportsBtn" class="text-button" type="button" hidden>加载更多研报</button>
+                </section>
+                <section class="research-event-column">
+                  <div class="research-list-head">
+                    <h4>公司公告</h4>
+                    <span id="announcementsSource">--</span>
+                  </div>
+                  <div id="announcementsList" class="research-event-list" aria-live="polite"></div>
+                  <button id="loadMoreAnnouncementsBtn" class="text-button" type="button" hidden>加载更多公告</button>
+                </section>
+              </div>
+            </div>
+          </section>
+
           <section class="memory-panel-inline">
             <div class="section-title">
               <h3>该股票的长期记忆文件</h3>
