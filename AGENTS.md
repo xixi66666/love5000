@@ -8,6 +8,7 @@
 - `lovestory`：恋爱相册 Web 应用，提供静态页面、照片上传、照片列表、删除接口、留言板功能和吉他视频卡片模块。
 - `website`：个人主页/展示站点 Web 应用，包含主页静态资源、Web Demo、OSS Demo、Nacos Discovery 示例和个人博客微应用。
 - `imagetemplate`：图片提示词模板 Web 服务，提供模板库检索、prompt 渲染、直接提示词模板和 OpenAI 图片生成能力。
+- `guitar`：Guitar Web 微服务，提供基础首页和健康检查，当前不使用数据库或外部服务。
 - `python-a`：A 股自选股 AI 研究台，作为独立 Python 微应用接入，不加入 Maven 聚合模块。
 - `quant-a`：A 股量化研究台，作为独立 FastAPI 微服务接入，不加入 Maven 聚合模块，不写入 `website/python-a` 的 Obsidian 目录。
 - `video`：AI 原创动漫短片生成工作台，作为独立 Python 微应用接入，不加入 Maven 聚合模块。
@@ -68,6 +69,7 @@ mvn -pl common test
 mvn -pl lovestory -am test
 mvn -pl website -am test
 mvn -pl imagetemplate -am test
+mvn -pl guitar -am test
 ```
 
 启动 `lovestory`，默认端口 `8081`：
@@ -112,6 +114,12 @@ mvn -pl website -am spring-boot:run
 
 ```bash
 mvn -pl imagetemplate -am spring-boot:run
+```
+
+启动 `guitar`，默认端口 `8088`：
+
+```bash
+mvn -pl guitar -am spring-boot:run
 ```
 
 带 OpenAI Key 启动 `imagetemplate`：
@@ -215,6 +223,12 @@ love5000/
 │           │   ├── css/app.css
 │           │   └── js/app.js
 │           └── templates/image-prompt-templates.json
+├── guitar/
+│   ├── AGENTS.md
+│   └── src/
+│       ├── main/java/com/example/guitar/
+│       ├── main/resources/static/index.html
+│       └── test/java/com/example/guitar/
 ├── website/python-a/
     ├── README.md
     ├── package.json
@@ -307,6 +321,8 @@ website/video/
 - `imagetemplate/service`：模板加载、prompt 渲染、OpenAI 图片生成服务。
 - `imagetemplate/src/main/resources/templates`：图片提示词模板 JSON 数据源。
 - `imagetemplate/src/main/resources/static`：图片模板库单页前端。
+- `guitar/src/main/java/com/example/guitar/controller`：Guitar HTTP 接口，当前提供 `/api/health`。
+- `guitar/src/main/resources/static`：Guitar 基础首页，默认由 Spring Boot 静态资源能力提供。
 - `website/python-a/server.py`：Python 微应用后端，负责静态页面服务、东方财富行情网关、DeepSeek 调用和 Obsidian 写入。
 - `website/python-a/index.html`、`website/python-a/app.js`、`website/python-a/styles.css`：A 股自选股 AI 研究台前端页面、交互和样式。
 - `website/python-a/obsidian-vault/A股AI`：Python 微应用默认写入的 Obsidian 研究记录和自选股数据目录。
@@ -321,6 +337,16 @@ website/video/
 - `website/video/config`：Video 配置模板和本地私有配置目录，`config.local.json` 禁止提交。
 - `website/video/web`：Video 工作台前端页面和静态资源。
 - `website/video/anime_projects`：Video 本地生成项目和视频产物目录，默认不提交。
+
+## Guitar 服务入口方式
+
+`guitar` 作为父工程中的独立 Java Web 模块接入 `love5000`：
+
+- 本地开发入口：启动后访问 `http://127.0.0.1:8088/`。
+- 健康检查入口：`GET http://127.0.0.1:8088/api/health`，响应中的 `success` 必须为 `true`。
+- 推荐命令：`mvn -pl guitar -am spring-boot:run`，工作目录为仓库根目录。
+- `website` 只提供入口链接和浏览器端健康检测，不负责启动或管理 Guitar Java 进程。
+- 当前不使用数据库、OSS、Nacos、认证或外部服务；增加这些能力前先确认业务需求和模块边界。
 
 ## Python 微应用入口方式
 
@@ -378,6 +404,7 @@ website/video/
 - `website`：`8080`
 - `lovestory`：`8081`
 - `imagetemplate`：`8082`
+- `guitar`：`8088`
 - `python-a`：`5174`
 - `quant-a`：`5175`
 - `video`：`5176`
@@ -387,6 +414,7 @@ website/video/
 - `lovestory` 使用 MySQL 数据库 `lovestory`。
 - `website` 使用 MySQL 数据库 `ycx_pms`。
 - `imagetemplate` 不使用数据库。
+- `guitar` 不使用数据库，并在应用入口排除 DataSource 和 MyBatis 自动配置。
 - `python-a` 不使用 MySQL；默认写入本地 `website/python-a/obsidian-vault/A股AI/`。
 - `quant-a` 不使用 MySQL；默认使用 `website/quant-a/` 内部数据、配置和存储目录，不写入 `website/python-a` 的 Obsidian 目录。
 - `video` 不使用 MySQL；默认使用 `website/video/anime_projects/` 保存本地生成项目和视频产物。
@@ -508,6 +536,12 @@ POST /api/image-templates/{id}/prompt
 POST /api/image-templates/{id}/generate
 ```
 
+`guitar` 接口：
+
+```text
+GET /api/health
+```
+
 `python-a` A 股研究台接口：
 
 ```text
@@ -586,6 +620,7 @@ GET  /api/assets/{project_name}/video/final
 - `website` 主页资源放在 `website/src/main/resources/static/css`、`static/js`、`static/img`。
 - `website` 博客资源放在 `website/src/main/resources/static/blog`。
 - `imagetemplate` 页面放在 `imagetemplate/src/main/resources/static`，模板 JSON 放在 `imagetemplate/src/main/resources/templates`。
+- `guitar` 页面放在 `guitar/src/main/resources/static`，健康接口放在 `com.example.guitar.controller`。
 - `python-a` 页面放在 `website/python-a/index.html`、`website/python-a/app.js`、`website/python-a/styles.css`，由 `website/python-a/server.py` 直接提供静态访问。
 - `quant-a` 页面放在 `website/quant-a/web`，由 `website/quant-a/main.py` 通过 FastAPI 静态资源能力提供访问。
 - `video` 页面放在 `website/video/web`，由 `website/video/web_server.py` 通过 Python `http.server` 提供静态访问。
@@ -650,6 +685,21 @@ mvn -pl common test
 mvn -pl lovestory -am test
 mvn -pl website -am test
 mvn -pl imagetemplate -am test
+mvn -pl guitar -am test
+```
+
+`guitar` 修改后至少执行：
+
+```bash
+mvn -pl guitar -am test
+mvn -pl guitar -am spring-boot:run
+```
+
+再访问：
+
+```text
+http://127.0.0.1:8088/
+http://127.0.0.1:8088/api/health
 ```
 
 `python-a` 当前没有单元测试框架。修改后至少执行：
@@ -704,6 +754,7 @@ http://127.0.0.1:5176/api/config
 - `website/blog` 新增 controller/service/dao 逻辑必须覆盖成功路径和主要失败路径。
 - `imagetemplate` 模板渲染测试必须覆盖分类、关键词、变量替换和模板不存在。
 - `imagetemplate` 图片尺寸测试必须覆盖合法 4K、非法格式、非 16 倍数、单边超限、像素过少、像素过多和比例超限。
+- `guitar` 新增 Controller 时使用 Spring Boot Test + MockMvc 覆盖状态码和响应结构，不依赖数据库或外部服务。
 - OpenAI 图片生成测试不得真实调用外部 API；使用 mock 或可注入 HTTP 客户端。
 - `quant-a` 新增 API、因子、回测、组合或服务编排逻辑时，使用 pytest 覆盖成功路径和主要失败路径，不依赖真实外部行情接口。
 - `video` 新增 API、任务管理、分镜保存、关键帧生成或合成逻辑时，使用 unittest 覆盖成功路径和主要失败路径，不依赖真实 OpenAI 或真实外部服务。
@@ -739,6 +790,7 @@ mvn -pl imagetemplate -am test
 - **关键**：修改 `lovestory` 吉他视频表字段时，同步更新 `GuitarVideoRecord`、`GuitarVideoDao`、`GuitarVideoMapper.xml`、`GuitarVideoServiceImplTests` 和前端展示字段。
 - **关键**：修改 `imagetemplate` 模板 JSON 时，同步更新模板数量、分类断言和前端展示；当前模板库包含 47 个模板，其中 20 个属于 `direct-prompt` / “直接提示词”分类。
 - **关键**：修改 `imagetemplate` 图片尺寸选项或规则时，同步更新前端校验、后端校验和 `OpenAiImageGenerationServiceTest`。
+- **关键**：修改 `guitar` 的端口、名称或健康接口时，同步更新 Website 主页入口、根 `AGENTS.md` 和 `guitar/AGENTS.md`。
 - **关键**：修改 `website/python-a` 时不要提交 `deepseek.local.json`、`.env`、`__pycache__/`、`server.err.log`、`server.out.log`。
 - **关键**：修改 `website/quant-a` 时不要提交 `.env`、`__pycache__/`、`.pytest_cache/`、运行时数据库、缓存或生成报告；不要写入 `website/python-a/obsidian-vault/`。
 - **关键**：修改 `website/video` 时不要提交 `config/config.local.json`、`config.local.json`、`.vendor/`、`__pycache__/`、`.pytest_cache/`、`anime_projects/`、生成的视频、音频、图片产物或真实 API Key。
