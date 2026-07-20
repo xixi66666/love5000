@@ -13,6 +13,7 @@
         <module>lovestory</module>
         <module>common</module>
         <module>imagetemplate</module>
+        <module>guitar</module>
     </modules>
     <properties>
         <java.version>1.8</java.version>
