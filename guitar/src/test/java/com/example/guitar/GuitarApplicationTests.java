@@ -31,4 +31,13 @@ class GuitarApplicationTests {
 				.andExpect(jsonPath("$.service").value("guitar"));
 	}
 
+	@Test
+	void homepageIdentifiesTheGuitarService() throws Exception {
+		mockMvc.perform(get("/index.html"))
+				.andExpect(status().isOk())
+				.andExpect(content().contentTypeCompatibleWith("text/html"))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("Guitar Service")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("8088")));
+	}
+
 }
