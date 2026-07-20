@@ -10,7 +10,7 @@
 
 ```bash
 mvn -pl guitar -am test
-mvn -pl guitar -am spring-boot:run
+mvn -f guitar/pom.xml spring-boot:run
 ```
 
 访问地址：

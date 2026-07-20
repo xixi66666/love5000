@@ -406,7 +406,7 @@ Write `guitar/AGENTS.md` with these explicit facts:
 
 ```bash
 mvn -pl guitar -am test
-mvn -pl guitar -am spring-boot:run
+mvn -f guitar/pom.xml spring-boot:run
 ```
 
 访问地址：
@@ -440,7 +440,7 @@ Apply these exact documentation facts throughout root `AGENTS.md`:
 
 - Add `guitar` to the current Java module list as a minimal Guitar Web service.
 - Add `mvn -pl guitar -am test` to module tests.
-- Add the start command `mvn -pl guitar -am spring-boot:run` and state default port `8088`.
+- Add the start command `mvn -f guitar/pom.xml spring-boot:run` and state default port `8088`.
 - Add `guitar/` to the project tree and module responsibility list.
 - Add `guitar: 8088` to the port table.
 - Add `GET /api/health` under a Guitar API heading.
@@ -498,7 +498,7 @@ Expected: BUILD SUCCESS for all reactor modules including Guitar. Record unrelat
 Start the long-running process from the repository root:
 
 ```bash
-mvn -pl guitar -am spring-boot:run
+mvn -f guitar/pom.xml spring-boot:run
 ```
 
 Verify:

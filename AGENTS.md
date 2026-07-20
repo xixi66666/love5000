@@ -119,7 +119,7 @@ mvn -pl imagetemplate -am spring-boot:run
 启动 `guitar`，默认端口 `8088`：
 
 ```bash
-mvn -pl guitar -am spring-boot:run
+mvn -f guitar/pom.xml spring-boot:run
 ```
 
 带 OpenAI Key 启动 `imagetemplate`：
@@ -344,7 +344,7 @@ website/video/
 
 - 本地开发入口：启动后访问 `http://127.0.0.1:8088/`。
 - 健康检查入口：`GET http://127.0.0.1:8088/api/health`，响应中的 `success` 必须为 `true`。
-- 推荐命令：`mvn -pl guitar -am spring-boot:run`，工作目录为仓库根目录。
+- 推荐命令：`mvn -f guitar/pom.xml spring-boot:run`，工作目录为仓库根目录。
 - `website` 只提供入口链接和浏览器端健康检测，不负责启动或管理 Guitar Java 进程。
 - 当前不使用数据库、OSS、Nacos、认证或外部服务；增加这些能力前先确认业务需求和模块边界。
 
@@ -692,7 +692,7 @@ mvn -pl guitar -am test
 
 ```bash
 mvn -pl guitar -am test
-mvn -pl guitar -am spring-boot:run
+mvn -f guitar/pom.xml spring-boot:run
 ```
 
 再访问：

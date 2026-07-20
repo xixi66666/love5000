@@ -27,7 +27,7 @@
 
 模块保持独立运行边界：
 
-- 单独启动：`mvn -pl guitar -am spring-boot:run`
+- 单独启动：`mvn -f guitar/pom.xml spring-boot:run`
 - 单模块测试：`mvn -pl guitar -am test`
 - 聚合构建：参与根目录 `mvn test` 和 `mvn clean install`
 
@@ -129,7 +129,7 @@ mvn test
 测试不连接真实 MySQL、OSS、Nacos 或外部服务。手动运行验证使用：
 
 ```bash
-mvn -pl guitar -am spring-boot:run
+mvn -f guitar/pom.xml spring-boot:run
 ```
 
 验收地址：
