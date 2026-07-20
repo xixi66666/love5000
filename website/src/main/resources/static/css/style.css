@@ -528,6 +528,10 @@ main {
     --accent-rgb: 220, 233, 247;
 }
 
+.service-card-guitar {
+    --accent-rgb: 105, 214, 193;
+}
+
 .service-card-stock {
     --accent-rgb: 158, 244, 204;
 }
