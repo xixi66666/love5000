@@ -37,6 +37,7 @@ out/
 .superpowers/
 
 ### Python runtime artifacts ###
+.venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/

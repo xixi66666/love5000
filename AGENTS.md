@@ -36,6 +36,8 @@
 
 **关键**：`website/video` 是独立 Python 微应用，不是 Java Maven 模块，不要把它加入父 `pom.xml` 的 `<modules>`。Java 侧只负责入口链接、健康检测或反向代理，不把视频生成、FFmpeg 调用、OpenAI 调用等业务逻辑改写进 Controller。
 
+**关键**：每次修改项目结构、模块职责、启动命令、端口、配置项、API、数据目录、测试方式或部署入口时，必须同步更新根 `AGENTS.md` / `README.md`，以及受影响模块或微应用目录下的 `AGENTS.md` / `README.md`。文档和代码不一致时，本次改动不能视为完成。
+
 ## 开发命令
 
 默认从仓库根目录执行：
@@ -316,6 +318,7 @@ website/video/
 - `lovestory/src/main/resources/static`：恋爱相册、小游戏、留言板、照片墙和吉他视频卡片静态页面。
 - `website/blog`：个人博客微应用后端，按 Controller、Service、DAO、Model、DTO 分层。
 - `website/src/main/resources/static/blog`：博客前端页面和资源。
+- `website/src/main/resources/static/prompt-console`：静态提示词库页面、数据和两级分类映射。`prompt-category-groups.js` 维护“大分类 -> 小分类”映射，新增提示词小类时优先补充该文件；未映射小类自动归入“其他”。
 - `website/demos`：示例性质的 Web、OSS、Nacos Discovery 代码。
 - `imagetemplate/controller`：图片模板 API。
 - `imagetemplate/service`：模板加载、prompt 渲染、OpenAI 图片生成服务。
@@ -324,6 +327,8 @@ website/video/
 - `guitar/src/main/java/com/example/guitar/controller`：Guitar HTTP 接口，当前提供 `/api/health`。
 - `guitar/src/main/resources/static`：Guitar 基础首页，默认由 Spring Boot 静态资源能力提供。
 - `website/python-a/server.py`：Python 微应用后端，负责静态页面服务、东方财富行情网关、DeepSeek 调用和 Obsidian 写入。
+- `website/python-a/services/stock_metadata_service.py`：股票行业、板块和概念元数据缓存与降级读取。
+- `website/python-a/services/knowledge_graph_service.py`：Obsidian 知识图谱节点、复盘双链和风险模式链接生成。
 - `website/python-a/index.html`、`website/python-a/app.js`、`website/python-a/styles.css`：A 股自选股 AI 研究台前端页面、交互和样式。
 - `website/python-a/obsidian-vault/A股AI`：Python 微应用默认写入的 Obsidian 研究记录和自选股数据目录。
 - `website/quant-a/main.py`：Quant FastAPI 应用入口，挂载前端静态资源并注册 `/api/**` 路由。
@@ -619,6 +624,7 @@ GET  /api/assets/{project_name}/video/final
 - `lovestory` 吉他视频卡片模块维护在 `lovestory/src/main/resources/static/index.html`，替代原 `甜蜜回忆 · Memory Cards` 模块；视频卡片数据来自 `/api/guitar-videos`，不要再硬编码视频 URL。
 - `website` 主页资源放在 `website/src/main/resources/static/css`、`static/js`、`static/img`。
 - `website` 博客资源放在 `website/src/main/resources/static/blog`。
+- `website` 静态提示词库资源放在 `website/src/main/resources/static/prompt-console`，分类采用“大分类 -> 小分类”两级结构。
 - `imagetemplate` 页面放在 `imagetemplate/src/main/resources/static`，模板 JSON 放在 `imagetemplate/src/main/resources/templates`。
 - `guitar` 页面放在 `guitar/src/main/resources/static`，健康接口放在 `com.example.guitar.controller`。
 - `python-a` 页面放在 `website/python-a/index.html`、`website/python-a/app.js`、`website/python-a/styles.css`，由 `website/python-a/server.py` 直接提供静态访问。
@@ -702,7 +708,20 @@ http://127.0.0.1:8088/
 http://127.0.0.1:8088/api/health
 ```
 
-`python-a` 当前没有单元测试框架。修改后至少执行：
+修改 `website/src/main/resources/static/prompt-console` 的提示词分类映射后，至少执行：
+
+```bash
+node website/src/test/js/prompt-console/prompt-category-groups.test.js
+```
+
+`python-a` 使用 Python `unittest` 测试服务拆分逻辑，修改后至少执行：
+
+```bash
+cd website/python-a
+python -m unittest discover -s tests -v
+```
+
+涉及页面或接口联调时再启动服务：
 
 ```bash
 cd website/python-a
@@ -784,6 +803,7 @@ mvn -pl imagetemplate -am test
 
 检查项：
 
+- **关键**：每次修改项目结构、模块职责、启动命令、端口、配置项、API、数据目录、测试方式或部署入口时，同步更新根 `AGENTS.md` / `README.md` 和受影响目录的 `AGENTS.md` / `README.md`。
 - **关键**：不提交 `target/`、IDE 缓存、真实密钥、真实数据库密码、生成图片 base64 文件。
 - **关键**：新增公共能力优先放入 `common`。
 - **关键**：修改数据库字段时，同步更新 Mapper XML、DAO、模型类和测试。
@@ -913,4 +933,5 @@ Use the default five-label triage vocabulary: `needs-triage`, `needs-info`, `rea
 ### Domain docs
 
 Single-context layout: root `CONTEXT.md` and `docs/adr/`, created lazily when needed. See `docs/agents/domain.md`.
+
 

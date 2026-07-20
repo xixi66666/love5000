@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git reset *)",
+      "Bash(ping *)",
+      "Bash(GIT_HTTP_CONNECT_TIMEOUT=60 git push *)"
     ]
   }
 }

@@ -1,4 +1,4 @@
-let stocks = [];
+﻿let stocks = [];
 const AI_CHAT_STORAGE_KEY = "ashare-research-ai-chat-v1";
 const SPRING_AI_AGENT_BASE_URL = "http://127.0.0.1:8090";
 
@@ -571,10 +571,24 @@ async function generateProfessionalReport() {
   status.textContent = "正在连接 SpringAI";
   output.value = "正在生成综合型专业研究报告，请稍候...";
   try {
+    const researchQuestion = [
+      `请为 ${stock.code} ${stock.name} 生成一份综合型专业股票研究报告。`,
+      "全程使用中文，报告标题、章节标题、正文、表格字段和风险提示都必须是中文。",
+      "不要输出英文标题，不要输出英文段落，不要使用英文分析框架名称。",
+      "重点关注趋势结构、量价关系、板块与基本面核验、交易复盘关联、核心假设、反证条件、风险矩阵和后续观察计划。",
+      "只做研究分析和风险提示，不给出确定性买卖指令，不承诺收益。",
+    ].join("\n");
     const payload = {
       stockCode: stock.code,
       reportType: "comprehensive",
-      researchQuestion: `请为 ${stock.code} ${stock.name} 生成一份综合型专业股票研究报告，重点关注趋势结构、量价关系、板块与基本面核验、交易复盘关联、核心假设、反证条件、风险矩阵和后续观察计划。`,
+      language: "zh-CN",
+      outputRequirements: [
+        "全程使用中文。",
+        "不要输出英文标题。",
+        "不要输出英文段落。",
+        "保留非投资建议和风险提示边界。",
+      ],
+      researchQuestion,
       includeTradingReview: true,
       autoPersist: false,
     };
@@ -586,12 +600,6 @@ async function generateProfessionalReport() {
     state.latestProfessionalReport = report;
     output.value = report;
     status.textContent = `${result.observationLevel || "watch"} / ${result.riskLevel || "risk"}`;
-    state.aiConversation.push({
-      role: "assistant",
-      content: `专业研究报告已生成：${result.reportId || stock.code}`,
-      at: new Date().toISOString(),
-    });
-    saveAiChatState();
     showToast("专业研究报告已生成");
   } catch (error) {
     status.textContent = "SpringAI 未连接";
@@ -619,6 +627,7 @@ async function saveStockReview(event) {
     industry: stock.industry,
     board: stock.board,
     pool: stock.pool,
+    concepts: stock.concepts || [],
     analysis_focus: review.analysisFocus,
     technical_notes: review.technicalNotes,
     volume_notes: review.volumeNotes,
@@ -634,6 +643,9 @@ async function saveStockReview(event) {
       latest_price: formatNumber(stock.latest_price),
       pct_change: signedPercent(stock.pct_change),
       turnover_rate: typeof stock.turnover_rate === "number" ? `${stock.turnover_rate.toFixed(2)}%` : "--",
+      turnover_percentile: stock.turnover_percentile,
+      distribution_score: stock.distribution_score,
+      ma_state: stock.ma_state,
       risk: stock.risk || "--",
     },
   };

@@ -14,6 +14,7 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Component
@@ -53,12 +54,16 @@ public class QuantAAutoStartRunner implements ApplicationRunner {
             throw new IllegalStateException("quant-a directory does not exist: " + directory.getAbsolutePath());
         }
 
-        ProcessBuilder builder = createProcessBuilder(directory);
-        process = builder.start();
-        System.out.println("quant-a started, pid=" + getPid(process) + ", health=" + healthUrl);
+        try {
+            ProcessBuilder builder = createProcessBuilder(directory);
+            process = builder.start();
+            System.out.println("quant-a started, pid=" + getPid(process) + ", health=" + healthUrl);
 
-        if (!waitUntilHealthy(healthUrl)) {
-            throw new IllegalStateException("quant-a health check failed after startup: " + healthUrl);
+            if (!waitUntilHealthy(healthUrl)) {
+                warnAutoStartSkipped("health check failed after startup: " + healthUrl, null);
+            }
+        } catch (IOException e) {
+            warnAutoStartSkipped("failed to start command '" + command + "' in " + directory.getAbsolutePath(), e);
         }
     }
 
@@ -122,16 +127,16 @@ public class QuantAAutoStartRunner implements ApplicationRunner {
     }
 
     ProcessBuilder createProcessBuilder(File directory) {
-        ProcessBuilder builder = new ProcessBuilder(
-                command,
-                "-m",
-                "uvicorn",
-                "main:app",
-                "--host",
-                "127.0.0.1",
-                "--port",
-                String.valueOf(port)
-        );
+        List<String> commandParts = PythonCommandResolver.resolve(command, directory);
+        commandParts.add("-m");
+        commandParts.add("uvicorn");
+        commandParts.add("main:app");
+        commandParts.add("--host");
+        commandParts.add("127.0.0.1");
+        commandParts.add("--port");
+        commandParts.add(String.valueOf(port));
+
+        ProcessBuilder builder = new ProcessBuilder(commandParts);
         builder.directory(directory);
         builder.environment().put("PYTHONUNBUFFERED", "1");
         configureLogging(builder, directory);
@@ -208,5 +213,15 @@ public class QuantAAutoStartRunner implements ApplicationRunner {
         } catch (Exception e) {
             return "unknown";
         }
+    }
+
+    private void warnAutoStartSkipped(String reason, Exception cause) {
+        String message = "quant-a auto-start skipped: " + reason
+                + ". Start it manually or configure quant-a.auto-start.command / website/quant-a/.venv.";
+        if (cause == null) {
+            System.err.println(message);
+            return;
+        }
+        System.err.println(message + " Cause: " + cause.getMessage());
     }
 }

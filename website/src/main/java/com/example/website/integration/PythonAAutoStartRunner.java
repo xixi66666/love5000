@@ -11,6 +11,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Component
@@ -50,13 +51,17 @@ public class PythonAAutoStartRunner implements ApplicationRunner {
             throw new IllegalStateException("python-a directory does not exist: " + directory.getAbsolutePath());
         }
 
-        ProcessBuilder builder = createProcessBuilder(directory);
+        try {
+            ProcessBuilder builder = createProcessBuilder(directory);
 
-        process = builder.start();
-        System.out.println("python-a started, pid=" + getPid(process) + ", health=" + healthUrl);
+            process = builder.start();
+            System.out.println("python-a started, pid=" + getPid(process) + ", health=" + healthUrl);
 
-        if (!waitUntilHealthy(healthUrl)) {
-            throw new IllegalStateException("python-a health check failed after startup: " + healthUrl);
+            if (!waitUntilHealthy(healthUrl)) {
+                warnAutoStartSkipped("health check failed after startup: " + healthUrl, null);
+            }
+        } catch (IOException e) {
+            warnAutoStartSkipped("failed to start command '" + command + "' in " + directory.getAbsolutePath(), e);
         }
     }
 
@@ -120,7 +125,10 @@ public class PythonAAutoStartRunner implements ApplicationRunner {
     }
 
     ProcessBuilder createProcessBuilder(File directory) {
-        ProcessBuilder builder = new ProcessBuilder(command, "server.py");
+        List<String> commandParts = PythonCommandResolver.resolve(command, directory);
+        commandParts.add("server.py");
+
+        ProcessBuilder builder = new ProcessBuilder(commandParts);
         builder.directory(directory);
         builder.environment().put("PORT", String.valueOf(port));
         builder.environment().put("PYTHONUNBUFFERED", "1");
@@ -181,5 +189,15 @@ public class PythonAAutoStartRunner implements ApplicationRunner {
         } catch (Exception e) {
             return "unknown";
         }
+    }
+
+    private void warnAutoStartSkipped(String reason, Exception cause) {
+        String message = "python-a auto-start skipped: " + reason
+                + ". Start it manually or configure python-a.auto-start.command / website/python-a/.venv.";
+        if (cause == null) {
+            System.err.println(message);
+            return;
+        }
+        System.err.println(message + " Cause: " + cause.getMessage());
     }
 }

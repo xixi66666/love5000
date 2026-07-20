@@ -2,13 +2,17 @@ package com.example.website.integration;
 
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.File;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 class VideoAutoStartRunnerTest {
 
@@ -34,8 +38,7 @@ class VideoAutoStartRunnerTest {
         ProcessBuilder builder = runner.createProcessBuilder(directory);
 
         assertThat(builder.directory()).isEqualTo(directory);
-        assertThat(builder.command()).containsExactly(
-                "python",
+        assertThat(builder.command()).containsSubsequence(
                 "web_server.py",
                 "--host",
                 "127.0.0.1",
@@ -45,6 +48,36 @@ class VideoAutoStartRunnerTest {
         assertThat(builder.environment()).containsEntry("PYTHONUNBUFFERED", "1");
         assertThat(builder.redirectOutput()).isEqualTo(ProcessBuilder.Redirect.INHERIT);
         assertThat(builder.redirectError()).isEqualTo(ProcessBuilder.Redirect.INHERIT);
+    }
+
+    @Test
+    void prefersVideoLocalVirtualEnvironmentWhenResolvingPythonCommand(@TempDir Path tempDir) throws Exception {
+        Path pythonPath = tempDir.resolve(".venv").resolve("Scripts").resolve("python.exe");
+        Files.createDirectories(pythonPath.getParent());
+        Files.createFile(pythonPath);
+
+        VideoAutoStartRunner runner = new VideoAutoStartRunner();
+        ReflectionTestUtils.setField(runner, "command", "python");
+        ReflectionTestUtils.setField(runner, "port", 5176);
+        ReflectionTestUtils.setField(runner, "logToConsole", true);
+
+        ProcessBuilder builder = runner.createProcessBuilder(tempDir.toFile());
+
+        assertThat(builder.command()).startsWith(pythonPath.toFile().getAbsolutePath());
+        assertThat(builder.command()).containsSubsequence("web_server.py", "--host", "127.0.0.1");
+    }
+
+    @Test
+    void doesNotFailWebsiteWhenVideoPythonCommandCannotStart(@TempDir Path tempDir) {
+        VideoAutoStartRunner runner = new VideoAutoStartRunner();
+        ReflectionTestUtils.setField(runner, "workDir", tempDir.toString());
+        ReflectionTestUtils.setField(runner, "command", "missing-python-command-for-test");
+        ReflectionTestUtils.setField(runner, "port", 5176);
+        ReflectionTestUtils.setField(runner, "healthPath", "/api/health");
+        ReflectionTestUtils.setField(runner, "startupTimeoutSeconds", 1);
+        ReflectionTestUtils.setField(runner, "logToConsole", true);
+
+        assertThatCode(() -> runner.run(null)).doesNotThrowAnyException();
     }
 
     @Test
