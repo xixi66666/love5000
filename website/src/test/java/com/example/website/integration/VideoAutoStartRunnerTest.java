@@ -6,6 +6,8 @@ import org.junit.jupiter.api.io.TempDir;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.File;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
@@ -148,6 +150,38 @@ class VideoAutoStartRunnerTest {
 
             assertThat(healthy).isFalse();
         } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void runExplainsConsoleLogsWhenExistingVideoIsReused() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/api/health", exchange -> {
+            byte[] body = "{\"success\":true}".getBytes("UTF-8");
+            exchange.sendResponseHeaders(200, body.length);
+            try (OutputStream output = exchange.getResponseBody()) {
+                output.write(body);
+            }
+        });
+        server.start();
+
+        PrintStream originalOut = System.out;
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try {
+            VideoAutoStartRunner runner = new VideoAutoStartRunner();
+            ReflectionTestUtils.setField(runner, "port", server.getAddress().getPort());
+            ReflectionTestUtils.setField(runner, "healthPath", "/api/health");
+            ReflectionTestUtils.setField(runner, "logToConsole", true);
+            System.setOut(new PrintStream(output, true, "UTF-8"));
+
+            runner.run(null);
+
+            String text = output.toString("UTF-8");
+            assertThat(text).contains("video is already running");
+            assertThat(text).contains("Stop the existing process");
+        } finally {
+            System.setOut(originalOut);
             server.stop(0);
         }
     }

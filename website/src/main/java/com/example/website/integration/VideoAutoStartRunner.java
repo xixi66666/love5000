@@ -46,6 +46,10 @@ public class VideoAutoStartRunner implements ApplicationRunner {
         String healthUrl = buildHealthUrl();
         if (isHealthy(healthUrl)) {
             System.out.println("video is already running: " + healthUrl);
+            if (logToConsole) {
+                System.out.println("video logs are only attached to this IDEA console when website starts the video process. "
+                        + "Stop the existing process on port " + port + " and restart website if you need live video logs here.");
+            }
             return;
         }
 
