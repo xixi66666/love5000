@@ -49,6 +49,17 @@ class GuitarUserProfilePersistenceServiceTest {
                         exception -> assertThat(exception.getCode()).isEqualTo("PROFILE_UPDATE_FAILED"));
     }
 
+    @Test
+    void profileUpdateRejectsMissingReloadAfterDatabaseUpdate() {
+        when(guitarUserDao.findByIdForUpdate(7L)).thenReturn(user("old", "old/avatar.png"));
+        when(guitarUserDao.updateProfile(7L, "new", "old/avatar.png")).thenReturn(1);
+        when(guitarUserDao.findById(7L)).thenReturn(null);
+
+        assertThatThrownBy(() -> service.updateNickname(7L, "new"))
+                .isInstanceOfSatisfying(GuitarApiException.class,
+                        exception -> assertThat(exception.getCode()).isEqualTo("PROFILE_UPDATE_FAILED"));
+    }
+
     private GuitarUser user(String nickname, String avatar) {
         GuitarUser user = new GuitarUser();
         user.setId(7L);

@@ -3,7 +3,10 @@ package com.example.guitar.user.service;
 import com.example.common.util.OssUploadResult;
 import com.example.common.util.OssUtil;
 import com.example.guitar.auth.model.GuitarUserPrincipal;
+import com.example.guitar.storage.dao.OssCleanupTaskDao;
+import com.example.guitar.storage.model.OssCleanupTask;
 import com.example.guitar.storage.service.OssCleanupService;
+import com.example.guitar.storage.service.OssCleanupServiceImpl;
 import com.example.guitar.user.model.GuitarUser;
 import com.example.guitar.web.GuitarApiException;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,6 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -59,6 +63,19 @@ class GuitarUserServiceImplTest {
                 new MockMultipartFile("avatar", "fake.PNG", "image/png", new byte[]{'G', 'I', 'F'})), "AVATAR_FILE_INVALID");
         assertApiError(() -> service.updateAvatar(7L,
                 new MockMultipartFile("avatar", "fake.png", "image/png", "<svg/>".getBytes())), "AVATAR_FILE_INVALID");
+        assertApiError(() -> service.updateAvatar(7L,
+                new MockMultipartFile("avatar", "fake.jpg", "image/jpeg", new byte[]{'P', 'N', 'G'})), "AVATAR_FILE_INVALID");
+        assertApiError(() -> service.updateAvatar(7L,
+                new MockMultipartFile("avatar", "fake.webp", "image/webp", new byte[]{'R', 'I', 'F', 'F'})), "AVATAR_FILE_INVALID");
+    }
+
+    @Test
+    void validJpegAndRiffWebpMagicReachTheOssAvailabilityCheck() {
+        when(ossUtilProvider.getIfAvailable()).thenReturn(null);
+
+        assertApiError(() -> service.updateAvatar(7L, jpegFile("avatar.jpeg")), "OSS_UNAVAILABLE");
+        assertApiError(() -> service.updateAvatar(7L, webpFile("avatar.webp")), "OSS_UNAVAILABLE");
+        verifyNoProfilePersistence();
     }
 
     @Test
@@ -113,6 +130,31 @@ class GuitarUserServiceImplTest {
         verify(ossCleanupService, never()).deleteOrEnqueue("old/avatar.png", "AVATAR");
     }
 
+    @Test
+    void successfulAvatarProfileUpdateEnqueuesPendingCleanupWhenOldObjectDeletionFails() {
+        OssUtil ossUtil = mock(OssUtil.class);
+        OssCleanupTaskDao cleanupTaskDao = mock(OssCleanupTaskDao.class);
+        when(ossUtilProvider.getIfAvailable()).thenReturn(ossUtil);
+        when(cleanupTaskDao.insertPending(any())).thenReturn(1);
+        doThrow(new IllegalStateException("delete failed")).when(ossUtil).delete("old/avatar.png");
+        when(ossUtil.upload(any(java.io.InputStream.class), eq(8L), eq("avatar.png"), any(), any()))
+                .thenReturn(new OssUploadResult("bucket", "new/avatar.png", null, null, null, 8));
+        when(persistenceService.replaceAvatar(7L, "new/avatar.png"))
+                .thenReturn(profileUpdate("旋律", "new/avatar.png", "old/avatar.png"));
+        service = new GuitarUserServiceImpl(persistenceService, ossUtilProvider,
+                new OssCleanupServiceImpl(ossUtilProvider, cleanupTaskDao));
+
+        GuitarUserPrincipal principal = service.updateAvatar(7L, pngFile("avatar.png"));
+
+        org.mockito.ArgumentCaptor<OssCleanupTask> taskCaptor = org.mockito.ArgumentCaptor.forClass(OssCleanupTask.class);
+        assertThat(principal.getAvatarObjectKey()).isEqualTo("new/avatar.png");
+        verify(persistenceService).replaceAvatar(7L, "new/avatar.png");
+        verify(cleanupTaskDao).insertPending(taskCaptor.capture());
+        assertThat(taskCaptor.getValue().getObjectKey()).isEqualTo("old/avatar.png");
+        assertThat(taskCaptor.getValue().getStatus()).isEqualTo("PENDING");
+        assertThat(taskCaptor.getValue().getBusinessType()).isEqualTo("AVATAR");
+    }
+
     private void verifyNoProfilePersistence() {
         verify(persistenceService, never()).replaceAvatar(any(), any());
         verify(persistenceService, never()).updateNickname(any(), any());
@@ -131,6 +173,16 @@ class GuitarUserServiceImplTest {
     private MockMultipartFile pngFile(String filename) {
         return new MockMultipartFile("avatar", filename, "image/png",
                 new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A});
+    }
+
+    private MockMultipartFile jpegFile(String filename) {
+        return new MockMultipartFile("avatar", filename, "image/jpeg",
+                new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 0x00});
+    }
+
+    private MockMultipartFile webpFile(String filename) {
+        return new MockMultipartFile("avatar", filename, "image/webp",
+                new byte[]{'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'E', 'B', 'P'});
     }
 
     @SuppressWarnings("unchecked")
