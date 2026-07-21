@@ -21,7 +21,11 @@ GET  /api/auth/session
 POST /api/auth/register
 POST /api/auth/login
 POST /api/auth/logout
+PUT  /api/users/me
+POST /api/users/me/avatar
 ```
+
+`PUT /api/users/me` 请求体为 `{ "nickname": "..." }`；用户 ID 始终来自认证 Session。`POST /api/users/me/avatar` 使用 multipart 字段 `avatar`，只允许不超过 5MB 的 JPG/JPEG、PNG、WebP，并会校验文件魔数。头像对象键存入数据库而非公开 URL，需设置 `LOVE530_OSS_ENABLED=true` 及现有 `LOVE530_OSS_*` 配置后才可上传。旧头像删除失败会持久化到 `guitar_oss_cleanup_task`，不会回滚已成功的头像更新。
 
 注册请求体：
 

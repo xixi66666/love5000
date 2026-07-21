@@ -78,6 +78,8 @@ mvn -pl guitar -am test
 
 Guitar 认证流程先调用 `GET http://127.0.0.1:8088/api/auth/session` 获取 Session 和 `csrfToken`，再把令牌放入所有写请求的 `X-CSRF-Token` 请求头。注册、登录和注销接口分别为 `POST /api/auth/register`、`POST /api/auth/login`、`POST /api/auth/logout`。注册和登录的数据库事务提交成功后才会轮换认证 Session。
 
+Guitar 已提供 `PUT /api/users/me` 更新昵称和 `POST /api/users/me/avatar` 上传头像。两个接口只使用认证 Session 中的用户身份；头像字段名为 `avatar`，限制为不超过 5MB 的 JPG/JPEG、PNG 或 WebP，并校验文件魔数。头像 OSS 存储通过 `LOVE530_OSS_ENABLED=true` 及现有 `LOVE530_OSS_*` 环境变量启用，数据库仅保存对象键；旧对象删除失败会落入 `guitar_oss_cleanup_task` 等待后续清理。
+
 Python 子服务：
 
 ```bash

@@ -41,6 +41,14 @@
         LIMIT 1
     </select>
 
+    <select id="findByIdForUpdate" resultMap="GuitarUserResultMap">
+        SELECT <include refid="UserColumns"/>
+        FROM guitar_user
+        WHERE id = #{id}
+        LIMIT 1
+        FOR UPDATE
+    </select>
+
     <insert id="insert" parameterType="com.example.guitar.user.model.GuitarUser"
             useGeneratedKeys="true" keyProperty="id" keyColumn="id">
         INSERT INTO guitar_user (

@@ -13,6 +13,8 @@ public interface GuitarUserDao {
 
     GuitarUser findById(@Param("id") Long id);
 
+    GuitarUser findByIdForUpdate(@Param("id") Long id);
+
     int insert(GuitarUser user);
 
     int updateLastLoginAt(@Param("id") Long id, @Param("lastLoginAt") LocalDateTime lastLoginAt);

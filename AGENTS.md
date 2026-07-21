@@ -477,6 +477,15 @@ openai:
 
 ## API 约定
 
+### Guitar 用户资料与头像
+
+```text
+PUT  /api/users/me
+POST /api/users/me/avatar
+```
+
+这两个接口均从认证 Session 读取用户 ID，禁止接收或信任客户端 `userId`。`PUT /api/users/me` 请求体为 `{ "nickname": "..." }`，昵称会去首尾空白并限制为 1-30 个字符。头像上传字段名为 `avatar`，只允许实际内容与扩展名一致的 JPG/JPEG、PNG、WebP，单文件最大 5MB。启用 `LOVE530_OSS_ENABLED=true` 后，头像对象键保存在 `guitar_user.avatar_object_key`，旧对象删除失败会写入 `guitar_oss_cleanup_task`，由后续清理任务处理。
+
 `lovestory` 照片接口：
 
 ```text

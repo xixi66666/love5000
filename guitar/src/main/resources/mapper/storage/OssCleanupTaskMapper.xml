@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.guitar.storage.dao.OssCleanupTaskDao">
+
+    <insert id="insertPending" parameterType="com.example.guitar.storage.model.OssCleanupTask"
+            useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO guitar_oss_cleanup_task (
+            object_key, business_type, status, retry_count, next_retry_at, last_error
+        ) VALUES (
+            #{objectKey}, #{businessType}, #{status}, #{retryCount}, #{nextRetryAt}, #{lastError}
+        )
+    </insert>
+</mapper>

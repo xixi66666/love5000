@@ -48,3 +48,12 @@ POST /api/auth/logout
 ```
 
 客户端先调用 `GET /api/auth/session` 创建 Session 并获取 `csrfToken`，再将其作为 `X-CSRF-Token` 请求头发送到注册、登录、注销及其他写接口。
+
+## 用户资料与头像
+
+```text
+PUT  /api/users/me
+POST /api/users/me/avatar
+```
+
+上述接口从认证 Session 获取用户 ID，禁止客户端传入 `userId`。昵称去除首尾空白后必须为 1-30 个字符。头像 multipart 字段为 `avatar`，限制 5MB，且仅接受魔数和扩展名一致的 JPG/JPEG、PNG、WebP。OSS 未启用时返回 `OSS_UNAVAILABLE` 且不写数据库；已替换的旧头像删除失败会写入 `guitar_oss_cleanup_task`，不回滚已成功的资料更新。
