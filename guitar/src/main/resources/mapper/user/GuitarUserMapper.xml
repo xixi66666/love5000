@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.guitar.user.dao.GuitarUserDao">
+
+    <resultMap id="GuitarUserResultMap" type="com.example.guitar.user.model.GuitarUser">
+        <id column="id" property="id"/>
+        <result column="phone" property="phone"/>
+        <result column="password_hash" property="passwordHash"/>
+        <result column="nickname" property="nickname"/>
+        <result column="avatar_object_key" property="avatarObjectKey"/>
+        <result column="role" property="role"/>
+        <result column="status" property="status"/>
+        <result column="ban_reason" property="banReason"/>
+        <result column="banned_by" property="bannedBy"/>
+        <result column="banned_at" property="bannedAt"/>
+        <result column="ban_expires_at" property="banExpiresAt"/>
+        <result column="last_login_at" property="lastLoginAt"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="UserColumns">
+        id, phone, password_hash, nickname, avatar_object_key, role, status,
+        ban_reason, banned_by, banned_at, ban_expires_at, last_login_at,
+        create_time, update_time
+    </sql>
+
+    <select id="findByPhone" resultMap="GuitarUserResultMap">
+        SELECT <include refid="UserColumns"/>
+        FROM guitar_user
+        WHERE phone = #{phone}
+        LIMIT 1
+    </select>
+
+    <select id="findById" resultMap="GuitarUserResultMap">
+        SELECT <include refid="UserColumns"/>
+        FROM guitar_user
+        WHERE id = #{id}
+        LIMIT 1
+    </select>
+
+    <insert id="insert" parameterType="com.example.guitar.user.model.GuitarUser"
+            useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO guitar_user (
+            phone, password_hash, nickname, avatar_object_key, role, status
+        ) VALUES (
+            #{phone}, #{passwordHash}, #{nickname}, #{avatarObjectKey}, #{role}, #{status}
+        )
+    </insert>
+
+    <update id="updateLastLoginAt">
+        UPDATE guitar_user
+        SET last_login_at = #{lastLoginAt}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateProfile">
+        UPDATE guitar_user
+        SET nickname = #{nickname}, avatar_object_key = #{avatarObjectKey}
+        WHERE id = #{id}
+    </update>
+</mapper>

@@ -8,7 +8,7 @@
 - `lovestory`：恋爱相册 Web 应用，提供静态页面、照片上传、照片列表、删除接口、留言板功能和吉他视频卡片模块。
 - `website`：个人主页/展示站点 Web 应用，包含主页静态资源、Web Demo、OSS Demo、Nacos Discovery 示例和个人博客微应用。
 - `imagetemplate`：图片提示词模板 Web 服务，提供模板库检索、prompt 渲染、直接提示词模板和 OpenAI 图片生成能力。
-- `guitar`：Guitar Web 微服务，提供基础首页和健康检查，当前不使用数据库或外部服务。
+- `guitar`：Guitar 曲谱平台 Web 微服务，提供基础首页、健康检查、手机号注册登录、Session/CSRF 鉴权和 MySQL 持久化基础能力。
 - `python-a`：A 股自选股 AI 研究台，作为独立 Python 微应用接入，不加入 Maven 聚合模块。
 - `quant-a`：A 股量化研究台，作为独立 FastAPI 微服务接入，不加入 Maven 聚合模块，不写入 `website/python-a` 的 Obsidian 目录。
 - `video`：AI 原创动漫短片生成工作台，作为独立 Python 微应用接入，不加入 Maven 聚合模块。
@@ -324,7 +324,9 @@ website/video/
 - `imagetemplate/service`：模板加载、prompt 渲染、OpenAI 图片生成服务。
 - `imagetemplate/src/main/resources/templates`：图片提示词模板 JSON 数据源。
 - `imagetemplate/src/main/resources/static`：图片模板库单页前端。
-- `guitar/src/main/java/com/example/guitar/controller`：Guitar HTTP 接口，当前提供 `/api/health`。
+- `guitar/src/main/java/com/example/guitar/controller`：Guitar 基础 HTTP 接口，当前提供 `/api/health`。
+- `guitar/src/main/java/com/example/guitar/auth`：Guitar 手机号注册登录、Session、CSRF 和 API 权限拦截能力。
+- `guitar/src/main/java/com/example/guitar/user`：Guitar 用户模型和 MyBatis DAO，SQL 位于 `guitar/src/main/resources/mapper/user`。
 - `guitar/src/main/resources/static`：Guitar 基础首页，默认由 Spring Boot 静态资源能力提供。
 - `website/python-a/server.py`：Python 微应用后端，负责静态页面服务、东方财富行情网关、DeepSeek 调用和 Obsidian 写入。
 - `website/python-a/services/stock_metadata_service.py`：股票行业、板块和概念元数据缓存与降级读取。
@@ -351,7 +353,8 @@ website/video/
 - 健康检查入口：`GET http://127.0.0.1:8088/api/health`，响应中的 `success` 必须为 `true`。
 - 推荐命令：`mvn -f guitar/pom.xml spring-boot:run`，工作目录为仓库根目录。
 - `website` 只提供入口链接和浏览器端健康检测，不负责启动或管理 Guitar Java 进程。
-- 当前不使用数据库、OSS、Nacos、认证或外部服务；增加这些能力前先确认业务需求和模块边界。
+- 用户数据使用 MySQL 数据库 `guitar`，数据访问保持 MyBatis DAO + XML Mapper；当前 OSS 默认关闭，不使用 Nacos。
+- 所有写请求必须携带从 `GET /api/auth/session` 获取的 `X-CSRF-Token`，受保护接口返回 JSON 401/403，不跳转页面。
 
 ## Python 微应用入口方式
 
@@ -419,7 +422,7 @@ website/video/
 - `lovestory` 使用 MySQL 数据库 `lovestory`。
 - `website` 使用 MySQL 数据库 `ycx_pms`。
 - `imagetemplate` 不使用数据库。
-- `guitar` 不使用数据库，并在应用入口排除 DataSource 和 MyBatis 自动配置。
+- `guitar` 使用 MySQL 数据库 `guitar`，用户及曲谱平台表结构位于 `guitar/src/main/resources/db/guitar-schema.sql`。
 - `python-a` 不使用 MySQL；默认写入本地 `website/python-a/obsidian-vault/A股AI/`。
 - `quant-a` 不使用 MySQL；默认使用 `website/quant-a/` 内部数据、配置和存储目录，不写入 `website/python-a` 的 Obsidian 目录。
 - `video` 不使用 MySQL；默认使用 `website/video/anime_projects/` 保存本地生成项目和视频产物。
@@ -545,7 +548,13 @@ POST /api/image-templates/{id}/generate
 
 ```text
 GET /api/health
+GET  /api/auth/session
+POST /api/auth/register
+POST /api/auth/login
+POST /api/auth/logout
 ```
+
+`POST` 注册、登录和注销均需先请求 `GET /api/auth/session` 创建 Session，并在请求头携带返回的 `X-CSRF-Token`。认证 Session 属性名为 `GUITAR_AUTH_USER`。
 
 `python-a` A 股研究台接口：
 

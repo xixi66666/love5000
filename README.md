@@ -10,6 +10,7 @@ Maven 聚合模块：
 - `lovestory`：恋爱相册、照片上传、留言板和吉他视频卡片 Web 应用。
 - `website`：个人主页/展示站点、博客、提示词控制台，以及 Python 子服务入口和自动启动。
 - `imagetemplate`：图片提示词模板库和 OpenAI Images API 生成服务。
+- `guitar`：Guitar 曲谱平台，提供手机号注册登录、Session/CSRF 鉴权和 MySQL 数据基础，默认端口 `8088`。
 
 独立 Python 微应用：
 
@@ -41,6 +42,7 @@ mvn -pl website -am spring-boot:run
 ```bash
 mvn -pl lovestory -am spring-boot:run -Dspring-boot.run.main-class=com.ycxandwuqian.love.LovestoryApplication
 mvn -pl imagetemplate -am spring-boot:run
+mvn -f guitar/pom.xml spring-boot:run
 ```
 
 Python 子服务可单独启动：
@@ -56,6 +58,7 @@ cd website/video && python web_server.py
 - `website`：`8080`
 - `lovestory`：`8081`
 - `imagetemplate`：`8082`
+- `guitar`：`8088`
 - `python-a`：`5174`
 - `quant-a`：`5175`
 - `video`：`5176`
@@ -70,7 +73,10 @@ mvn -pl common test
 mvn -pl lovestory -am test
 mvn -pl website -am test
 mvn -pl imagetemplate -am test
+mvn -pl guitar -am test
 ```
+
+Guitar 认证流程先调用 `GET http://127.0.0.1:8088/api/auth/session` 获取 Session 和 `csrfToken`，再把令牌放入所有写请求的 `X-CSRF-Token` 请求头。注册、登录和注销接口分别为 `POST /api/auth/register`、`POST /api/auth/login`、`POST /api/auth/logout`。
 
 Python 子服务：
 
