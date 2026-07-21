@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS guitar_sheet (
     deleted_at DATETIME DEFAULT NULL,
     PRIMARY KEY (id),
     UNIQUE KEY uk_guitar_sheet_storage_uuid (storage_uuid),
+    KEY idx_guitar_sheet_public (status, create_time, id),
     KEY idx_guitar_sheet_uploader (uploader_id, status, create_time),
     KEY idx_guitar_sheet_filters (status, sheet_type, difficulty, key_signature),
     CONSTRAINT fk_guitar_sheet_uploader FOREIGN KEY (uploader_id) REFERENCES guitar_user (id),
@@ -67,7 +68,6 @@ CREATE TABLE IF NOT EXISTS guitar_sheet_file (
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uk_guitar_sheet_file_order (sheet_id, sort_order),
-    KEY idx_guitar_sheet_file_sheet (sheet_id),
     CONSTRAINT fk_guitar_sheet_file_sheet FOREIGN KEY (sheet_id) REFERENCES guitar_sheet (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS guitar_favorite_folder (
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
+    UNIQUE KEY uk_guitar_favorite_folder_owner (id, user_id),
     UNIQUE KEY uk_guitar_favorite_folder_name (user_id, name),
     KEY idx_guitar_favorite_folder_user (user_id, sort_order, id),
     CONSTRAINT fk_guitar_favorite_folder_user FOREIGN KEY (user_id) REFERENCES guitar_user (id)
@@ -95,7 +96,7 @@ CREATE TABLE IF NOT EXISTS guitar_favorite (
     KEY idx_guitar_favorite_user (user_id, create_time),
     KEY idx_guitar_favorite_sheet (sheet_id),
     CONSTRAINT fk_guitar_favorite_user FOREIGN KEY (user_id) REFERENCES guitar_user (id),
-    CONSTRAINT fk_guitar_favorite_folder FOREIGN KEY (folder_id) REFERENCES guitar_favorite_folder (id),
+    CONSTRAINT fk_guitar_favorite_folder_owner FOREIGN KEY (folder_id, user_id) REFERENCES guitar_favorite_folder (id, user_id),
     CONSTRAINT fk_guitar_favorite_sheet FOREIGN KEY (sheet_id) REFERENCES guitar_sheet (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -129,7 +130,7 @@ CREATE TABLE IF NOT EXISTS guitar_oss_cleanup_task (
     update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     KEY idx_guitar_oss_cleanup_poll (status, next_retry_at),
-    KEY idx_guitar_oss_cleanup_object (object_key)
+    KEY idx_guitar_oss_cleanup_object (object_key(191))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS guitar_daily_stat (

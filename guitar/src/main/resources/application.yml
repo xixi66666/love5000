@@ -20,8 +20,10 @@ server:
   servlet:
     session:
       cookie:
+        name: GUITARSESSIONID
         http-only: true
         same-site: lax
+        secure: ${GUITAR_SESSION_COOKIE_SECURE:false}
 
 mybatis:
   mapper-locations: classpath*:mapper/**/*.xml
