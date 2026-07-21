@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: guitar
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${GUITAR_DB_URL:jdbc:mysql://127.0.0.1:3306/guitar?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai}
+    username: ${GUITAR_DB_USERNAME:root}
+    password: ${GUITAR_DB_PASSWORD:}
+  servlet:
+    multipart:
+      max-file-size: 30MB
+      max-request-size: 210MB
+  web:
+    resources:
+      static-locations: classpath:/static/
+
+server:
+  port: 8088
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: lax
+
+mybatis:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.example.guitar
+  configuration:
+    map-underscore-to-camel-case: true
+
+love530:
+  oss:
+    enabled: ${LOVE530_OSS_ENABLED:false}
+    endpoint: ${LOVE530_OSS_ENDPOINT:}
+    access-key-id: ${LOVE530_OSS_ACCESS_KEY_ID:}
+    access-key-secret: ${LOVE530_OSS_ACCESS_KEY_SECRET:}
+    bucket-name: ${LOVE530_OSS_BUCKET_NAME:}
+    url-prefix: ${LOVE530_OSS_URL_PREFIX:}
+    base-dir: ${LOVE530_OSS_BASE_DIR:love530}
+    use-https: ${LOVE530_OSS_USE_HTTPS:true}
+
+guitar:
+  oss:
+    public-base-url: ${GUITAR_OSS_PUBLIC_BASE_URL:}
