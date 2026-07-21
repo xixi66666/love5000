@@ -1,4 +1,4 @@
-# A 股 AI 长期记忆库
+﻿# A 股 AI 长期记忆库
 
 这个目录是本项目默认的 Obsidian vault。
 

@@ -1,4 +1,4 @@
-# website resources
+﻿# website resources
 
 本目录是 `website` 模块的 Spring Boot 资源目录，不再是独立 HomePage 模板项目。
 

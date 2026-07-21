@@ -1,4 +1,4 @@
-# AGENTS.md
+﻿# AGENTS.md
 
 ## 项目概述
 
@@ -8,7 +8,7 @@
 
 - 后端入口是 `server.py`，使用 Python 标准库 `ThreadingHTTPServer`。
 - 前端入口是 `index.html`、`app.js`、`styles.css`。
-- 业务服务拆分在 `services/`，包括账户、交易、存储、Obsidian、股票匹配和截图解析。
+- 业务服务拆分在 `services/`，包括账户、交易、存储、Obsidian、股票匹配、股票元数据、知识图谱和截图解析。
 - 测试在 `tests/`，使用 `unittest`。
 - 默认写入 `obsidian-vault/A股AI/`，不写入 `website/quant-a/`。
 - Java 侧只负责入口链接、健康检查和自动启动，不把 Python 业务逻辑改写进 Controller。

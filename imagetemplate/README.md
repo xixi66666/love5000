@@ -1,4 +1,4 @@
-# imagetemplate
+﻿# imagetemplate
 
 `imagetemplate` 是图片提示词模板 Web 服务，默认端口 `8082`。它从 classpath JSON 加载提示词模板，支持模板检索、prompt 渲染和 OpenAI 图片生成。
 

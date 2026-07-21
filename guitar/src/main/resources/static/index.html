@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Love530 Guitar Service">
+    <title>Guitar Service</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+            background: #111311;
+            color: #f1efe8;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            min-width: 280px;
+            min-height: 100vh;
+            margin: 0;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            background: #111311;
+        }
+
+        header,
+        main,
+        footer {
+            width: min(100% - 40px, 1040px);
+            margin-inline: auto;
+        }
+
+        header {
+            min-height: 72px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #343832;
+        }
+
+        .brand {
+            font-weight: 700;
+        }
+
+        .port {
+            color: #9ea69b;
+            font-family: Consolas, monospace;
+            font-size: 13px;
+        }
+
+        main {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(240px, 360px);
+            align-items: center;
+            gap: 64px;
+            padding-block: 64px;
+        }
+
+        .eyebrow {
+            margin: 0 0 14px;
+            color: #67d5bd;
+            font: 700 12px/1.4 Consolas, monospace;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            max-width: 700px;
+            margin: 0;
+            font-size: 64px;
+            line-height: 1.05;
+            letter-spacing: 0;
+        }
+
+        .status {
+            margin: 26px 0 32px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #cbd0c7;
+        }
+
+        .status span {
+            width: 9px;
+            height: 9px;
+            flex: 0 0 9px;
+            border-radius: 50%;
+            background: #67d5bd;
+            box-shadow: 0 0 0 4px rgba(103, 213, 189, 0.12);
+        }
+
+        .health-link {
+            min-height: 44px;
+            display: inline-flex;
+            align-items: center;
+            padding: 0 18px;
+            border: 1px solid #e8e4da;
+            border-radius: 6px;
+            color: #111311;
+            background: #e8e4da;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .health-link:hover {
+            border-color: #67d5bd;
+            background: #67d5bd;
+        }
+
+        .health-link:focus-visible {
+            outline: 3px solid #f17a62;
+            outline-offset: 4px;
+        }
+
+        .strings {
+            min-height: 300px;
+            display: grid;
+            align-content: center;
+            gap: 20px;
+            border-block: 1px solid #343832;
+        }
+
+        .strings span {
+            display: block;
+            height: 1px;
+            background: #697067;
+        }
+
+        .strings span:nth-child(2),
+        .strings span:nth-child(5) {
+            height: 2px;
+            background: #a8afa4;
+        }
+
+        .strings span:nth-child(3) {
+            height: 3px;
+            background: #f17a62;
+        }
+
+        footer {
+            min-height: 64px;
+            display: flex;
+            align-items: center;
+            border-top: 1px solid #343832;
+            color: #7f877d;
+            font-size: 12px;
+        }
+
+        @media (max-width: 720px) {
+            header,
+            main,
+            footer {
+                width: min(100% - 32px, 1040px);
+            }
+
+            main {
+                grid-template-columns: 1fr;
+                gap: 44px;
+                padding-block: 48px;
+            }
+
+            h1 {
+                font-size: 44px;
+            }
+
+            .strings {
+                min-height: 180px;
+            }
+        }
+    </style>
+</head>
+<body>
+<header>
+    <span class="brand">LOVE530</span>
+    <span class="port">PORT 8088</span>
+</header>
+<main>
+    <section aria-labelledby="service-title">
+        <p class="eyebrow">LOVE530 / 8088</p>
+        <h1 id="service-title">Guitar Service</h1>
+        <p class="status"><span aria-hidden="true"></span>Service online</p>
+        <a class="health-link" href="/api/health">Health API</a>
+    </section>
+    <div class="strings" aria-hidden="true">
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
+</main>
+<footer>GUITAR / SPRING BOOT</footer>
+</body>
+</html>

@@ -7,7 +7,7 @@
     <title>西西小屋</title>
     <link rel="icon" type="image/png" sizes="1024x1024" href="img/moon-icon.png?v=5.5">
     <link rel="shortcut icon" href="favicon.ico?v=5.5">
-    <meta name="description" content="西西小子的个人微服务静夜入口，连接博客、恋爱相册、AI 图片模板和 A 股 AI 研究台。">
+    <meta name="description" content="西西小子的个人微服务静夜入口，连接博客、恋爱相册、Guitar、AI 图片模板和 A 股 AI 研究台。">
     <meta name="keywords" content="Spring Boot, AI, Blog, Microservice">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="css/style.css?v=5.8">
@@ -38,7 +38,7 @@
         <a href="http://localhost:8081/login.html" target="_blank" rel="noopener">xixi & 5000</a>
         <a href="http://localhost:8082/index.html" target="_blank" rel="noopener" data-auth-required="true" data-auth-target-name="图片模板">Photo</a>
         <a href="blog/index.html">Blog</a>
-        <a href="prompt-console/index.html">Prompt</a>
+        <a href="http://127.0.0.1:8088/" target="_blank" rel="noopener">Guitar</a>
         <a href="http://127.0.0.1:5174/" target="_blank" rel="noopener">股票分析台</a>
         <a href="http://127.0.0.1:5175/" target="_blank" rel="noopener">Quant</a>
         <a href="http://127.0.0.1:5176/" target="_blank" rel="noopener">视频工作台</a>
@@ -66,8 +66,8 @@
                     <strong>Blog · 8080</strong>
                     <span class="service-status" aria-label="检测中" title="检测中"></span>
                 </a>
-                <a class="service-card service-card-prompt" href="prompt-console/index.html" data-health-url="/prompt-console/index.html">
-                    <strong>Prompt · 8080</strong>
+                <a class="service-card service-card-guitar" href="http://127.0.0.1:8088/" target="_blank" rel="noopener" data-health-url="http://127.0.0.1:8088/api/health" data-health-mode="no-cors">
+                    <strong>Guitar · 8088</strong>
                     <span class="service-status" aria-label="检测中" title="检测中"></span>
                 </a>
                 <a class="service-card service-card-stock" href="http://127.0.0.1:5174/" target="_blank" rel="noopener" data-health-url="http://127.0.0.1:5174/api/health" data-health-mode="no-cors">
