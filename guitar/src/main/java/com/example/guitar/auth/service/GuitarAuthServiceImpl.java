@@ -4,17 +4,14 @@ import com.example.common.auth.service.AuthPasswordService;
 import com.example.guitar.auth.dto.LoginRequest;
 import com.example.guitar.auth.dto.RegisterRequest;
 import com.example.guitar.auth.model.GuitarUserPrincipal;
-import com.example.guitar.user.dao.GuitarUserDao;
 import com.example.guitar.user.model.GuitarUser;
 import com.example.guitar.web.GuitarApiException;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
-import java.time.LocalDateTime;
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -22,20 +19,25 @@ import java.util.regex.Pattern;
 public class GuitarAuthServiceImpl implements GuitarAuthService {
 
     private static final Pattern PHONE_PATTERN = Pattern.compile("^1[3-9]\\d{9}$");
+    private static final Pattern BCRYPT_HASH_PATTERN = Pattern.compile(
+            "^\\$2[aby]\\$(?:0[4-9]|[12]\\d|3[01])\\$[./A-Za-z0-9]{53}$");
+    private static final String DUMMY_PASSWORD = "guitar-dummy-password";
+    private static final String DUMMY_PASSWORD_HASH =
+            "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
     private static final int MIN_PASSWORD_LENGTH = 8;
     private static final int MAX_PASSWORD_LENGTH = 72;
     private static final int MAX_NICKNAME_LENGTH = 30;
 
-    private final GuitarUserDao guitarUserDao;
+    private final GuitarAuthPersistenceService persistenceService;
     private final AuthPasswordService authPasswordService;
 
-    public GuitarAuthServiceImpl(GuitarUserDao guitarUserDao, AuthPasswordService authPasswordService) {
-        this.guitarUserDao = guitarUserDao;
+    public GuitarAuthServiceImpl(GuitarAuthPersistenceService persistenceService,
+                                 AuthPasswordService authPasswordService) {
+        this.persistenceService = persistenceService;
         this.authPasswordService = authPasswordService;
     }
 
     @Override
-    @Transactional
     public GuitarUserPrincipal register(RegisterRequest registerRequest, HttpServletRequest request) {
         if (registerRequest == null) {
             throw validationError("注册信息不能为空");
@@ -45,42 +47,28 @@ public class GuitarAuthServiceImpl implements GuitarAuthService {
         validatePassword(registerRequest.getPassword());
         String nickname = normalizeNickname(registerRequest.getNickname());
         validateNickname(nickname);
-        if (guitarUserDao.findByPhone(phone) != null) {
-            throw new GuitarApiException(HttpStatus.BAD_REQUEST, "PHONE_EXISTS", "该手机号已注册");
-        }
-
         GuitarUser user = new GuitarUser();
         user.setPhone(phone);
         user.setPasswordHash(authPasswordService.hash(registerRequest.getPassword()));
         user.setNickname(nickname);
         user.setRole("USER");
         user.setStatus("ENABLED");
-        try {
-            if (guitarUserDao.insert(user) != 1 || user.getId() == null) {
-                throw new GuitarApiException(HttpStatus.INTERNAL_SERVER_ERROR,
-                        "USER_CREATE_FAILED", "用户创建失败");
-            }
-        } catch (DuplicateKeyException exception) {
-            throw new GuitarApiException(HttpStatus.BAD_REQUEST, "PHONE_EXISTS", "该手机号已注册");
-        }
-
-        GuitarUser created = guitarUserDao.findById(user.getId());
-        if (created == null) {
-            throw new GuitarApiException(HttpStatus.INTERNAL_SERVER_ERROR,
-                    "USER_CREATE_FAILED", "用户创建失败");
-        }
+        GuitarUser created = persistenceService.createUser(user);
         GuitarUserPrincipal principal = GuitarUserPrincipal.from(created);
         rotateSession(request, principal);
         return principal;
     }
 
     @Override
-    @Transactional
     public GuitarUserPrincipal login(LoginRequest loginRequest, HttpServletRequest request) {
         String phone = normalizePhone(loginRequest == null ? null : loginRequest.getPhone());
         String password = loginRequest == null ? null : loginRequest.getPassword();
-        GuitarUser user = PHONE_PATTERN.matcher(phone).matches() ? guitarUserDao.findByPhone(phone) : null;
-        if (user == null || password == null || !authPasswordService.matches(password, user.getPasswordHash())) {
+        GuitarUser user = PHONE_PATTERN.matcher(phone).matches() ? persistenceService.findByPhone(phone) : null;
+        boolean passwordWithinBcryptLimit = password != null && utf8Length(password) <= MAX_PASSWORD_LENGTH;
+        boolean usableStoredHash = user != null && isUsableBcryptHash(user.getPasswordHash());
+        boolean passwordMatches = matchPasswordForAuthentication(
+                password, passwordWithinBcryptLimit, usableStoredHash ? user.getPasswordHash() : null);
+        if (user == null || !passwordWithinBcryptLimit || !usableStoredHash || !passwordMatches) {
             throw authFailed();
         }
         if ("BANNED".equals(user.getStatus())) {
@@ -90,7 +78,7 @@ public class GuitarAuthServiceImpl implements GuitarAuthService {
             throw authFailed();
         }
 
-        guitarUserDao.updateLastLoginAt(user.getId(), LocalDateTime.now());
+        persistenceService.recordSuccessfulLogin(user.getId());
         GuitarUserPrincipal principal = GuitarUserPrincipal.from(user);
         rotateSession(request, principal);
         return principal;
@@ -138,6 +126,7 @@ public class GuitarAuthServiceImpl implements GuitarAuthService {
         if (password == null
                 || password.length() < MIN_PASSWORD_LENGTH
                 || password.length() > MAX_PASSWORD_LENGTH
+                || utf8Length(password) > MAX_PASSWORD_LENGTH
                 || containsWhitespace(password)
                 || !containsAsciiLetter(password)
                 || !containsAsciiDigit(password)) {
@@ -184,6 +173,29 @@ public class GuitarAuthServiceImpl implements GuitarAuthService {
             }
         }
         return false;
+    }
+
+    private int utf8Length(String value) {
+        return value.getBytes(StandardCharsets.UTF_8).length;
+    }
+
+    private boolean isUsableBcryptHash(String passwordHash) {
+        return passwordHash != null && BCRYPT_HASH_PATTERN.matcher(passwordHash).matches();
+    }
+
+    private boolean matchPasswordForAuthentication(String password, boolean passwordWithinBcryptLimit,
+                                                   String usableStoredHash) {
+        if (!passwordWithinBcryptLimit || usableStoredHash == null) {
+            return authPasswordService.matches(
+                    passwordWithinBcryptLimit ? password : DUMMY_PASSWORD,
+                    DUMMY_PASSWORD_HASH);
+        }
+        try {
+            return authPasswordService.matches(password, usableStoredHash);
+        } catch (IllegalArgumentException exception) {
+            authPasswordService.matches(DUMMY_PASSWORD, DUMMY_PASSWORD_HASH);
+            return false;
+        }
     }
 
     private GuitarApiException validationError(String message) {

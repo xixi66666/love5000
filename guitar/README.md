@@ -42,7 +42,7 @@ POST /api/auth/logout
 }
 ```
 
-注册时手机号会先去除首尾空格，再按 `^1[3-9]\d{9}$` 校验；密码长度必须为 8-72 个字符，至少包含一个 ASCII 字母和一个数字且不能包含空白字符；昵称去除首尾空格后必须为 1-30 个字符。重复手机号返回稳定错误码 `PHONE_EXISTS`，手机号或密码错误统一返回 `AUTH_FAILED`，已封禁账号返回 `USER_BANNED`。
+注册时手机号会先去除首尾空格，再按 `^1[3-9]\d{9}$` 校验；密码长度必须为 8-72 个字符、UTF-8 编码后不超过 72 字节，至少包含一个 ASCII 字母和一个数字且不能包含空白字符；昵称去除首尾空格后必须为 1-30 个字符。重复手机号返回稳定错误码 `PHONE_EXISTS`，手机号或密码错误统一返回 `AUTH_FAILED`，已封禁账号仅在密码正确后返回 `USER_BANNED`。
 
 先调用 `GET /api/auth/session` 创建 Session 并读取响应中的 `data.csrfToken`。所有 POST、PUT、PATCH、DELETE 请求都必须在同一 Session 下携带：
 
@@ -50,7 +50,7 @@ POST /api/auth/logout
 X-CSRF-Token: <data.csrfToken>
 ```
 
-注册或登录成功会轮换 Session，因此后续写请求前应重新调用 `GET /api/auth/session` 获取新令牌。接口统一返回 `success/data`，错误返回 `success=false/code/message`。
+注册或登录的数据库事务提交成功后才会轮换 Session，因此后续写请求前应重新调用 `GET /api/auth/session` 获取新令牌。事务或登录时间更新失败不会创建认证 Session。接口统一返回 `success/data`，错误返回 `success=false/code/message`。
 
 ## 权限边界
 

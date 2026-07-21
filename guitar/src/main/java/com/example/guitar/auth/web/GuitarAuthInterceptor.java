@@ -5,6 +5,7 @@ import com.example.guitar.auth.service.GuitarAuthService;
 import com.example.guitar.web.GuitarApiException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import org.springframework.web.util.UrlPathHelper;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import javax.servlet.http.HttpServletRequest;
@@ -15,6 +16,8 @@ import java.util.Optional;
 
 @Component
 public class GuitarAuthInterceptor implements HandlerInterceptor {
+
+    private static final UrlPathHelper URL_PATH_HELPER = createUrlPathHelper();
 
     private final GuitarAuthService authService;
     private final CsrfTokenService csrfTokenService;
@@ -67,9 +70,15 @@ public class GuitarAuthInterceptor implements HandlerInterceptor {
     }
 
     private String requestPath(HttpServletRequest request) {
-        String uri = request.getRequestURI();
-        String contextPath = request.getContextPath();
-        return contextPath.isEmpty() ? uri : uri.substring(contextPath.length());
+        String lookupPath = URL_PATH_HELPER.getLookupPathForRequest(request);
+        return URL_PATH_HELPER.removeSemicolonContent(lookupPath);
+    }
+
+    private static UrlPathHelper createUrlPathHelper() {
+        UrlPathHelper pathHelper = new UrlPathHelper();
+        pathHelper.setRemoveSemicolonContent(true);
+        pathHelper.setUrlDecode(true);
+        return pathHelper;
     }
 
     private boolean matchesPrefix(String path, String prefix) {

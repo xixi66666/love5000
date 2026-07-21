@@ -25,7 +25,7 @@ http://127.0.0.1:8088/api/health
 - 正式代码放在 `com.example.guitar` 下，不把业务代码放入 `demos`。
 - 新增跨模块公共能力时优先复用或扩展 `common`。
 - 用户和业务数据使用 MySQL 数据库 `guitar`，数据访问遵循 DAO + XML Mapper 约定，不使用 JPA、JdbcTemplate 或 Java 内联 SQL。
-- 认证代码放在 `com.example.guitar.auth`，用户模型和 DAO 放在 `com.example.guitar.user`；密码哈希复用 `common` 的 `AuthPasswordService`。
+- 认证代码放在 `com.example.guitar.auth`，用户模型和 DAO 放在 `com.example.guitar.user`；密码哈希复用 `common` 的 `AuthPasswordService`。数据库创建和登录时间更新必须经过独立事务服务，事务提交成功后才能轮换 Session。
 - 认证 Session 属性名固定为 `GUITAR_AUTH_USER`；所有 POST/PUT/PATCH/DELETE 请求都必须校验 `X-CSRF-Token`。
 - `/api/users/**`、`/api/favorite-folders/**` 和非 GET `/api/sheets/**` 要求登录，`/api/admin/**` 要求 ADMIN。
 - OSS 默认关闭，未明确需要前不引入 Nacos 或其他外部服务。

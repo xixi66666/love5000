@@ -16,6 +16,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.transaction.TransactionSystemException;
 
 import javax.servlet.http.HttpSession;
 import java.time.LocalDateTime;
@@ -23,6 +24,8 @@ import java.time.LocalDateTime;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -43,7 +46,8 @@ class GuitarAuthServiceImplTest {
     void setUp() {
         guitarUserDao = mock(GuitarUserDao.class);
         authPasswordService = new AuthPasswordService();
-        authService = new GuitarAuthServiceImpl(guitarUserDao, authPasswordService);
+        authService = new GuitarAuthServiceImpl(
+                new GuitarAuthPersistenceService(guitarUserDao), authPasswordService);
     }
 
     @Test
@@ -125,6 +129,18 @@ class GuitarAuthServiceImplTest {
     }
 
     @Test
+    void registerRejectsPasswordLongerThanSeventyTwoUtf8Bytes() {
+        String password = repeat('a', 69) + "吉1";
+
+        assertApiError(
+                () -> authService.register(registerRequest("13800138000", password, "用户"),
+                        new MockHttpServletRequest()),
+                HttpStatus.BAD_REQUEST,
+                "PASSWORD_INVALID");
+        verify(guitarUserDao, never()).insert(any(GuitarUser.class));
+    }
+
+    @Test
     void registerAcceptsEightAndSeventyTwoCharacterPasswords() {
         assertRegisterSucceeds("guitar12", 42L);
         assertRegisterSucceeds(repeat('a', 71) + "1", 43L);
@@ -182,6 +198,60 @@ class GuitarAuthServiceImplTest {
     }
 
     @Test
+    void loginRejectsSeventyThreeByteBcryptSuffixCollision() {
+        String seventyTwoBytes = repeat('a', 71) + "1";
+        GuitarUser existing = user(7L, "13800138000", authPasswordService.hash(seventyTwoBytes), "USER", "ENABLED");
+        when(guitarUserDao.findByPhone("13800138000")).thenReturn(existing);
+
+        assertApiError(
+                () -> authService.login(loginRequest("13800138000", seventyTwoBytes + "x"),
+                        new MockHttpServletRequest()),
+                HttpStatus.UNAUTHORIZED,
+                "AUTH_FAILED");
+        verify(guitarUserDao, never()).updateLastLoginAt(any(Long.class), any(LocalDateTime.class));
+    }
+
+    @Test
+    void missingAndMalformedPhonesStillPerformDummyPasswordMatch() {
+        AuthPasswordService passwordService = mock(AuthPasswordService.class);
+        GuitarAuthServiceImpl timingSafeService = new GuitarAuthServiceImpl(
+                new GuitarAuthPersistenceService(guitarUserDao), passwordService);
+        when(passwordService.matches(anyString(), anyString())).thenReturn(false);
+
+        assertApiError(
+                () -> timingSafeService.login(loginRequest("13800138000", "wrong123"),
+                        new MockHttpServletRequest()),
+                HttpStatus.UNAUTHORIZED,
+                "AUTH_FAILED");
+        assertApiError(
+                () -> timingSafeService.login(loginRequest("bad-phone", "wrong123"),
+                        new MockHttpServletRequest()),
+                HttpStatus.UNAUTHORIZED,
+                "AUTH_FAILED");
+
+        verify(passwordService, org.mockito.Mockito.times(2))
+                .matches(eq("wrong123"), argThat(hash -> hash != null && hash.startsWith("$2")));
+    }
+
+    @Test
+    void disabledUserWithoutUsableHashPerformsDummyMatchAndFailsGenerically() {
+        AuthPasswordService passwordService = mock(AuthPasswordService.class);
+        GuitarAuthServiceImpl timingSafeService = new GuitarAuthServiceImpl(
+                new GuitarAuthPersistenceService(guitarUserDao), passwordService);
+        when(guitarUserDao.findByPhone("13800138000"))
+                .thenReturn(user(7L, "13800138000", null, "USER", "DISABLED"));
+        when(passwordService.matches(anyString(), anyString())).thenReturn(false);
+
+        assertApiError(
+                () -> timingSafeService.login(loginRequest("13800138000", "wrong123"),
+                        new MockHttpServletRequest()),
+                HttpStatus.UNAUTHORIZED,
+                "AUTH_FAILED");
+
+        verify(passwordService).matches(eq("wrong123"), argThat(hash -> hash != null && hash.startsWith("$2")));
+    }
+
+    @Test
     void loginUsesGenericFailureForDisabledUser() {
         GuitarUser disabled = user(7L, "13800138000", authPasswordService.hash("right123"), "USER", "DISABLED");
         when(guitarUserDao.findByPhone("13800138000")).thenReturn(disabled);
@@ -212,6 +282,7 @@ class GuitarAuthServiceImplTest {
         GuitarUser existing = user(7L, "13800138000", authPasswordService.hash("right123"), "USER", "ENABLED");
         existing.setNickname("旋律");
         when(guitarUserDao.findByPhone("13800138000")).thenReturn(existing);
+        when(guitarUserDao.updateLastLoginAt(eq(7L), any(LocalDateTime.class))).thenReturn(1);
         MockHttpServletRequest request = new MockHttpServletRequest();
         MockHttpSession oldSession = (MockHttpSession) request.getSession(true);
 
@@ -222,6 +293,44 @@ class GuitarAuthServiceImplTest {
         assertThat(oldSession.isInvalid()).isTrue();
         assertThat(request.getSession(false).getAttribute(GuitarAuthService.SESSION_ATTRIBUTE))
                 .isEqualTo(principal);
+    }
+
+    @Test
+    void registrationCommitFailureLeavesAnonymousSessionUnauthenticated() {
+        GuitarAuthPersistenceService persistenceService = mock(GuitarAuthPersistenceService.class);
+        GuitarAuthServiceImpl service = new GuitarAuthServiceImpl(persistenceService, authPasswordService);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpSession originalSession = (MockHttpSession) request.getSession(true);
+        when(persistenceService.createUser(any(GuitarUser.class)))
+                .thenThrow(new TransactionSystemException("simulated commit failure"));
+
+        assertThatThrownBy(() -> service.register(
+                registerRequest("13800138000", "guitar123", "用户"), request))
+                .isInstanceOf(TransactionSystemException.class);
+
+        assertThat(originalSession.isInvalid()).isFalse();
+        assertThat(originalSession.getAttribute(GuitarAuthService.SESSION_ATTRIBUTE)).isNull();
+        assertThat(request.getSession(false)).isSameAs(originalSession);
+    }
+
+    @Test
+    void loginCommitFailureLeavesAnonymousSessionUnauthenticated() {
+        GuitarAuthPersistenceService persistenceService = mock(GuitarAuthPersistenceService.class);
+        GuitarAuthServiceImpl service = new GuitarAuthServiceImpl(persistenceService, authPasswordService);
+        GuitarUser existing = user(7L, "13800138000", authPasswordService.hash("right123"), "USER", "ENABLED");
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpSession originalSession = (MockHttpSession) request.getSession(true);
+        when(persistenceService.findByPhone("13800138000")).thenReturn(existing);
+        org.mockito.Mockito.doThrow(new TransactionSystemException("simulated commit failure"))
+                .when(persistenceService).recordSuccessfulLogin(7L);
+
+        assertThatThrownBy(() -> service.login(
+                loginRequest("13800138000", "right123"), request))
+                .isInstanceOf(TransactionSystemException.class);
+
+        assertThat(originalSession.isInvalid()).isFalse();
+        assertThat(originalSession.getAttribute(GuitarAuthService.SESSION_ATTRIBUTE)).isNull();
+        assertThat(request.getSession(false)).isSameAs(originalSession);
     }
 
     @Test

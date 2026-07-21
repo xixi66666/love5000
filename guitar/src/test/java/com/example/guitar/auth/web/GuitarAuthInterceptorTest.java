@@ -3,8 +3,11 @@ package com.example.guitar.auth.web;
 import com.example.guitar.auth.model.GuitarUserPrincipal;
 import com.example.guitar.auth.service.GuitarAuthService;
 import com.example.guitar.web.ApiExceptionHandler;
+import com.example.guitar.web.GuitarApiException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -21,6 +24,8 @@ import java.util.Optional;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -95,6 +100,35 @@ class GuitarAuthInterceptorTest {
     }
 
     @Test
+    void matrixParametersCannotBypassProtectedEndpoint() throws Exception {
+        mockMvc.perform(get("/api/users;v=1/me"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_REQUIRED"));
+    }
+
+    @Test
+    void contextPathEncodedSegmentAndTrailingSlashRemainProtected() {
+        assertAuthenticationRequired("/guitar/api/users/me", "/guitar");
+        assertAuthenticationRequired("/api/%75sers/me", "");
+        assertAuthenticationRequired("/api/users%3Bview=compact/me", "");
+        assertAuthenticationRequired("/api%2Fusers/me", "");
+        assertAuthenticationRequired("/api/users/", "");
+        assertAuthenticationRequired("/api/favorite-folders;view=compact/1", "");
+    }
+
+    @Test
+    void matrixParametersCannotBypassAdminRoleCheck() throws Exception {
+        MockHttpSession session = sessionWithCsrfToken();
+        when(authService.currentSession(any())).thenReturn(Optional.of(principal("USER")));
+
+        mockMvc.perform(post("/api/admin;v=1/stats")
+                        .session(session)
+                        .header(CsrfTokenService.HEADER_NAME, token(session)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ADMIN_REQUIRED"));
+    }
+
+    @Test
     void regularUserCannotAccessAdminEndpoint() throws Exception {
         MockHttpSession session = sessionWithCsrfToken();
         when(authService.currentSession(any())).thenReturn(Optional.of(principal("USER")));
@@ -146,6 +180,19 @@ class GuitarAuthInterceptorTest {
 
     private GuitarUserPrincipal principal(String role) {
         return new GuitarUserPrincipal(8L, "13800138000", "旋律", null, role);
+    }
+
+    private void assertAuthenticationRequired(String requestUri, String contextPath) {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", requestUri);
+        request.setContextPath(contextPath);
+        GuitarAuthInterceptor interceptor = new GuitarAuthInterceptor(authService, csrfTokenService);
+
+        assertThatThrownBy(() -> interceptor.preHandle(
+                request, new MockHttpServletResponse(), new Object()))
+                .isInstanceOfSatisfying(GuitarApiException.class, exception -> {
+                    assertThat(exception.getStatus().value()).isEqualTo(401);
+                    assertThat(exception.getCode()).isEqualTo("AUTH_REQUIRED");
+                });
     }
 
     @RestController
