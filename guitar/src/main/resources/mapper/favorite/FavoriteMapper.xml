@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.guitar.favorite.dao.FavoriteDao">
+
+    <resultMap id="FavoriteFolderResultMap" type="com.example.guitar.favorite.model.FavoriteFolder">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="name" column="name"/>
+        <result property="sortOrder" column="sort_order"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <resultMap id="SheetSummaryResultMap" type="com.example.guitar.sheet.vo.SheetSummaryResponse">
+        <id property="id" column="id"/>
+        <result property="songName" column="song_name"/>
+        <result property="singer" column="singer"/>
+        <result property="arranger" column="arranger"/>
+        <result property="sheetType" column="sheet_type"/>
+        <result property="difficulty" column="difficulty"/>
+        <result property="keySignature" column="key_signature"/>
+        <result property="capoPosition" column="capo_position"/>
+        <result property="tuning" column="tuning"/>
+        <result property="uploaderNickname" column="uploader_nickname"/>
+        <result property="viewCount" column="view_count"/>
+        <result property="favoriteCount" column="favorite_count"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <select id="findFoldersByUserId" resultMap="FavoriteFolderResultMap">
+        SELECT f.id, f.user_id, f.name, f.sort_order, f.create_time, f.update_time
+        FROM guitar_favorite_folder f
+        WHERE f.user_id = #{userId}
+        ORDER BY f.sort_order ASC, f.id ASC
+    </select>
+
+    <select id="findOwnedFolder" resultMap="FavoriteFolderResultMap">
+        SELECT id, user_id, name, sort_order, create_time, update_time
+        FROM guitar_favorite_folder
+        WHERE id = #{folderId} AND user_id = #{userId}
+    </select>
+
+    <select id="findOwnedFolderForUpdate" resultMap="FavoriteFolderResultMap">
+        SELECT id, user_id, name, sort_order, create_time, update_time
+        FROM guitar_favorite_folder
+        WHERE id = #{folderId} AND user_id = #{userId}
+        FOR UPDATE
+    </select>
+
+    <insert id="insertFolder" parameterType="com.example.guitar.favorite.model.FavoriteFolder"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO guitar_favorite_folder (user_id, name, sort_order)
+        VALUES (#{userId}, #{name}, #{sortOrder})
+    </insert>
+
+    <update id="updateFolder" parameterType="com.example.guitar.favorite.model.FavoriteFolder">
+        UPDATE guitar_favorite_folder
+        SET name = #{name}, sort_order = #{sortOrder}, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND user_id = #{userId}
+    </update>
+
+    <delete id="deleteFolder">
+        DELETE FROM guitar_favorite_folder
+        WHERE id = #{folderId} AND user_id = #{userId}
+    </delete>
+
+    <select id="findPublishedSheetForUpdate" resultType="long">
+        SELECT id FROM guitar_sheet
+        WHERE id = #{sheetId} AND status = 'PUBLISHED' AND deleted_at IS NULL
+        FOR UPDATE
+    </select>
+
+    <insert id="insertFavorite">
+        INSERT INTO guitar_favorite (user_id, folder_id, sheet_id)
+        VALUES (#{userId}, #{folderId}, #{sheetId})
+    </insert>
+
+    <delete id="deleteFavorite">
+        DELETE FROM guitar_favorite
+        WHERE user_id = #{userId} AND folder_id = #{folderId} AND sheet_id = #{sheetId}
+    </delete>
+
+    <update id="incrementFavoriteCount">
+        UPDATE guitar_sheet
+        SET favorite_count = favorite_count + 1, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{sheetId} AND status = 'PUBLISHED' AND deleted_at IS NULL
+    </update>
+
+    <update id="decrementFavoriteCount">
+        UPDATE guitar_sheet
+        SET favorite_count = CASE WHEN favorite_count > 0 THEN favorite_count - 1 ELSE 0 END,
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{sheetId}
+    </update>
+
+    <select id="findSheetIdsByFolder" resultType="long">
+        SELECT favorite.sheet_id
+        FROM guitar_favorite favorite
+        WHERE favorite.folder_id = #{folderId} AND favorite.user_id = #{userId}
+        ORDER BY favorite.id ASC
+    </select>
+
+    <delete id="deleteFavoritesByFolder">
+        DELETE FROM guitar_favorite
+        WHERE folder_id = #{folderId} AND user_id = #{userId}
+    </delete>
+
+    <update id="decrementFavoriteCounts">
+        UPDATE guitar_sheet
+        SET favorite_count = CASE WHEN favorite_count > 0 THEN favorite_count - 1 ELSE 0 END,
+            update_time = CURRENT_TIMESTAMP
+        WHERE id IN
+        <foreach collection="sheetIds" item="sheetId" open="(" separator="," close=")">
+            #{sheetId}
+        </foreach>
+    </update>
+
+    <select id="findPublishedSheetsByFolder" resultMap="SheetSummaryResultMap">
+        SELECT s.id, s.song_name, s.singer, s.arranger, s.sheet_type, s.difficulty,
+               s.key_signature, s.capo_position, s.tuning, u.nickname AS uploader_nickname,
+               s.view_count, s.favorite_count, s.create_time, s.update_time
+        FROM guitar_favorite favorite
+        INNER JOIN guitar_favorite_folder folder ON folder.id = favorite.folder_id
+        INNER JOIN guitar_sheet s ON s.id = favorite.sheet_id
+        INNER JOIN guitar_user u ON u.id = s.uploader_id
+        WHERE favorite.folder_id = #{folderId}
+          AND favorite.user_id = #{userId}
+          AND folder.user_id = #{userId}
+          AND s.status = 'PUBLISHED'
+          AND s.deleted_at IS NULL
+        ORDER BY favorite.create_time DESC, favorite.id DESC
+    </select>
+</mapper>

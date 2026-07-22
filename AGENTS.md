@@ -328,6 +328,7 @@ website/video/
 - `guitar/src/main/java/com/example/guitar/auth`：Guitar 手机号注册登录、Session、CSRF 和 API 权限拦截能力；数据库写入由独立事务服务提交成功后，认证服务才轮换 Session。
 - `guitar/src/main/java/com/example/guitar/user`：Guitar 用户模型和 MyBatis DAO，SQL 位于 `guitar/src/main/resources/mapper/user`。
 - `guitar/src/main/java/com/example/guitar/sheet`：Guitar 曲谱公开检索、详情、安全上传、文件 URL 服务和 MyBatis DAO；OSS 上传在事务外完成，曲谱和文件记录由独立事务服务写入，SQL 位于 `guitar/src/main/resources/mapper/sheet`。
+- `guitar/src/main/java/com/example/guitar/favorite`：Guitar 私人多收藏夹、收藏关系、所有权校验和收藏计数事务；SQL 位于 `guitar/src/main/resources/mapper/favorite`，接口不得返回收藏夹 `userId` 或曲谱对象键。
 - `guitar/src/main/resources/static`：Guitar 基础首页，默认由 Spring Boot 静态资源能力提供。
 - `website/python-a/server.py`：Python 微应用后端，负责静态页面服务、东方财富行情网关、DeepSeek 调用和 Obsidian 写入。
 - `website/python-a/services/stock_metadata_service.py`：股票行业、板块和概念元数据缓存与降级读取。
@@ -568,6 +569,13 @@ GET  /api/auth/session
 POST /api/auth/register
 POST /api/auth/login
 POST /api/auth/logout
+GET    /api/favorite-folders
+POST   /api/favorite-folders
+PUT    /api/favorite-folders/{id}
+DELETE /api/favorite-folders/{id}
+POST   /api/favorite-folders/{id}/sheets/{sheetId}
+DELETE /api/favorite-folders/{id}/sheets/{sheetId}
+GET    /api/favorite-folders/{id}/sheets
 ```
 
 `POST` 注册、登录和注销均需先请求 `GET /api/auth/session` 创建 Session，并在请求头携带返回的 `X-CSRF-Token`。认证 Session 属性名为 `GUITAR_AUTH_USER`。
@@ -579,6 +587,10 @@ POST /api/auth/logout
 `PUT /api/sheets/{id}` 使用 JSON 元数据更新所有者自己的未删除曲谱，`fileMode` 不要求提供且不会被该接口修改；当前文件 URL 必须在数据库提交前完成解析。`PUT /api/sheets/{id}/files` 使用 multipart 表单参数 `mode` 和重复 `files` Part 替换文件且不修改元数据，`DELETE /api/sheets/{id}` 软删除并清除该曲谱收藏。三个接口均从 Session 读取用户 ID 并要求 CSRF；Service 必须先校验所有权再校验元数据或文件，`OFFLINE` 所有者仍可编辑或替换且状态保持不变，管理员不绕过所有者校验。每次替换必须生成与旧值不同的新 `storageUuid`，在文件行切换的同一事务内更新 `guitar_sheet.storage_uuid` 和 `file_mode`；事务锁内必须校验请求开始时观察到的 `storageUuid`，版本已变化时返回 HTTP 409 和 `SHEET_VERSION_CONFLICT`，且只补偿本请求的新对象，不得清理任何已提交版本。替换和删除必须在取得曲谱行锁后读取当前文件快照，并在同一事务内为旧对象写入 PENDING cleanup outbox；提交后的立即删除只作加速，进程中断时 scheduler 仍可接管。`guitar_oss_cleanup_task` 使用 `claim_version` 和 `processing_started_at` 隔离 worker lease；认领递增版本，成功、重试和失败更新均须匹配当前版本，15 分钟以上的 PROCESSING 才可恢复。任务在启动 60 秒后、每 5 分钟最多处理 50 项，失败退避依次为 5、30、120、720 分钟，第五次失败标记 `FAILED`。
 
 公开曲谱检索的文本参数必须在入库字段边界内：`keyword`、`songName`、`singer` 最大 120 个字符，`keySignature` 最大 20 个字符，`tuning` 最大 80 个字符；超长请求返回 `VALIDATION_ERROR`，不得静默截断。`page` 和 `size` 计算出的偏移量最大为 `5,000,000`（默认 `page=1`、`size=20`，`size` 为 1-50）；超过上限返回 `PAGE_TOO_LARGE`。
+
+收藏夹写接口和收藏夹曲谱查询只使用认证 Session 的用户 ID。新建/更新请求体为 `{ "name": "练习", "sortOrder": 0 }`，`name` 去除首尾空白后为 1-50 个字符，`sortOrder` 可选；同用户重名返回 `FOLDER_NAME_EXISTS`，同一收藏夹重复加入同一曲谱返回 `FAVORITE_EXISTS`。他人或不存在的收藏夹统一返回 `FOLDER_NOT_FOUND`，避免泄露所有权；仅 `PUBLISHED` 且未删除曲谱可加入，否则返回 `SHEET_NOT_FOUND`。删除不存在的收藏关系幂等成功且不修改计数；删除非空收藏夹必须在单一事务内先删除关系，再按关系集合批量递减 `favorite_count`，不得删除曲谱。
+
+Task 7 聚焦测试命令为 `mvn -pl guitar -am '-Dtest=FavoriteServiceTest,FavoriteControllerTest' -DfailIfNoTests=false test`；完整回归仍运行 `mvn -pl guitar -am test`。
 
 `python-a` A 股研究台接口：
 

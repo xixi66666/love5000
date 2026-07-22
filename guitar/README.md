@@ -1,6 +1,6 @@
 # Guitar 服务
 
-`guitar` 是 `love530` 的独立 Spring Boot Web 模块，使用 Java 8、Spring Boot 2.6.13、MyBatis 和 MySQL，默认监听 `8088`。当前提供静态首页、健康检查、手机号注册登录、Session/CSRF 鉴权，以及公开曲谱检索、详情查询和安全上传。
+`guitar` 是 `love530` 的独立 Spring Boot Web 模块，使用 Java 8、Spring Boot 2.6.13、MyBatis 和 MySQL，默认监听 `8088`。当前提供静态首页、健康检查、手机号注册登录、Session/CSRF 鉴权，以及公开曲谱检索、安全上传、个人曲谱管理和私人多收藏夹。
 
 ## 启动与测试
 
@@ -8,6 +8,7 @@
 
 ```bash
 mvn -pl guitar -am test
+mvn -pl guitar -am '-Dtest=FavoriteServiceTest,FavoriteControllerTest' -DfailIfNoTests=false test
 mvn -f guitar/pom.xml spring-boot:run
 ```
 
@@ -29,6 +30,13 @@ POST /api/auth/login
 POST /api/auth/logout
 PUT  /api/users/me
 POST /api/users/me/avatar
+GET    /api/favorite-folders
+POST   /api/favorite-folders
+PUT    /api/favorite-folders/{id}
+DELETE /api/favorite-folders/{id}
+POST   /api/favorite-folders/{id}/sheets/{sheetId}
+DELETE /api/favorite-folders/{id}/sheets/{sheetId}
+GET    /api/favorite-folders/{id}/sheets
 ```
 
 `GET /api/sheets` 和 `GET /api/sheets/{id}` 可匿名访问，只返回已发布且未删除的曲谱。列表可使用 `keyword`（歌名、歌手、编配者、关键词）、`songName`、`singer`、`sheetType`、`difficulty`、`keySignature`、`capoPosition`（0-12）、`tuning`、`sort`（`LATEST`、`MOST_FAVORITED`、`MOST_VIEWED`）筛选。分页默认 `page=1`、`size=20`，`size` 为 1-50。详情文件 URL 仅由 OSS 对象键生成，未配置可用 OSS 时返回 `OSS_UNAVAILABLE`，不会返回本地路径；读取详情会同时累计曲谱浏览量和 Asia/Shanghai 当日统计。
@@ -42,6 +50,10 @@ POST /api/users/me/avatar
 公开检索的 `keyword`、`songName`、`singer` 最大为 120 个字符，`keySignature` 最大为 20 个字符，`tuning` 最大为 80 个字符。超长参数返回 `VALIDATION_ERROR`，服务不会截断输入。分页偏移量上限为 `5,000,000`，超过时返回 `PAGE_TOO_LARGE`。
 
 `PUT /api/users/me` 请求体为 `{ "nickname": "..." }`；用户 ID 始终来自认证 Session。`POST /api/users/me/avatar` 使用 multipart 字段 `avatar`，只允许不超过 5MB 的 JPG/JPEG、PNG、WebP，并会校验文件魔数。头像对象键存入数据库而非公开 URL，需设置 `LOVE530_OSS_ENABLED=true` 及现有 `LOVE530_OSS_*` 配置后才可上传。旧头像删除失败会持久化到 `guitar_oss_cleanup_task`，不会回滚已成功的头像更新。
+
+收藏夹的新建和更新使用 JSON 请求体 `{ "name": "练习", "sortOrder": 0 }`；`name` 去除首尾空白后必须为 1-50 个字符，`sortOrder` 可选，新建时默认为 0。列表、更新、删除和曲谱操作全部按 Session 用户 ID 查询，接口响应不包含收藏夹 `userId`、曲谱对象键或其他用户数据。他人或不存在的收藏夹统一返回 `FOLDER_NOT_FOUND`；同用户名称重复和同一收藏夹重复收藏分别返回 `FOLDER_NAME_EXISTS`、`FAVORITE_EXISTS`。
+
+只有 `PUBLISHED` 且未删除的曲谱可以加入收藏夹，不符合条件时返回 `SHEET_NOT_FOUND`。新增收藏在同一事务内先写关系再增加 `favorite_count`；移除时先删关系，仅在实际删除一行后递减计数。重复移除幂等成功。删除非空收藏夹会批量取得其曲谱集合、删除该用户的收藏关系并批量递减对应计数，不会删除曲谱；收藏夹曲谱列表也只返回仍公开的曲谱摘要。
 
 注册请求体：
 

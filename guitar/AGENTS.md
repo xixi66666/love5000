@@ -2,7 +2,7 @@
 
 ## 模块概述
 
-`guitar` 是 `love530` 的 Java 8 + Spring Boot 2.6.13 Web 子模块，默认端口为 `8088`。当前提供基础静态首页、健康检查、手机号注册登录、Session/CSRF 鉴权，以及 Guitar 曲谱平台的公开检索、安全上传和 MySQL 数据基础。
+`guitar` 是 `love530` 的 Java 8 + Spring Boot 2.6.13 Web 子模块，默认端口为 `8088`。当前提供基础静态首页、健康检查、手机号注册登录、Session/CSRF 鉴权，以及 Guitar 曲谱平台的公开检索、安全上传、个人曲谱管理、私人多收藏夹和 MySQL 数据基础。
 
 ## 开发命令
 
@@ -10,6 +10,7 @@
 
 ```bash
 mvn -pl guitar -am test
+mvn -pl guitar -am '-Dtest=FavoriteServiceTest,FavoriteControllerTest' -DfailIfNoTests=false test
 mvn -f guitar/pom.xml spring-boot:run
 ```
 
@@ -29,6 +30,7 @@ http://127.0.0.1:8088/api/health
 - 认证 Session 属性名固定为 `GUITAR_AUTH_USER`；所有 POST/PUT/PATCH/DELETE 请求都必须校验 `X-CSRF-Token`。
 - `/api/users/**`、`/api/favorite-folders/**` 和非 GET `/api/sheets/**` 要求登录，`/api/admin/**` 要求 ADMIN。
 - `GET /api/sheets` 和 `GET /api/sheets/{id}` 保持公开访问，只查询 `PUBLISHED` 且未删除的曲谱；详情访问才累计曲谱和 Asia/Shanghai 当日浏览量。
+- 收藏功能放在 `com.example.guitar.favorite`，按 Controller、Service、DAO + XML Mapper 分层；所有收藏夹查询必须同时携带 Session 用户 ID 作为 SQL 条件，响应不得暴露收藏夹 `userId`、曲谱对象键或其他用户数据。
 - OSS 默认关闭，未明确需要前不引入 Nacos 或其他外部服务。
 - 新增接口响应至少包含 `success` 字段，并覆盖成功路径和主要失败路径。
 - 不提交密钥、`target/`、IDE 缓存或运行日志。
@@ -90,3 +92,17 @@ DELETE /api/sheets/{id}
 - Post-commit immediate deletion must claim the already-persisted task; it never creates the first durable record. `OssCleanupRetryService` starts after 60 seconds and runs every 5 minutes. Claims increment `claim_version` and set `processing_started_at`; success, reschedule, and failure updates fence on task ID, PROCESSING status, and claim version. Processing older than 15 minutes is recovered, stale workers affect zero rows, and retry delays are 5, 30, 120, and 720 minutes before the fifth failure becomes `FAILED`.
 
 列表参数为 `keyword`、`songName`、`singer`、`sheetType`、`difficulty`、`keySignature`、`capoPosition`、`tuning`、`sort`、`page`、`size`。`keyword` 覆盖歌名、歌手、编配者和关键词；`sheetType`、`difficulty`、`sort` 必须是稳定模型枚举，`sort` 仅允许 `LATEST`、`MOST_FAVORITED`、`MOST_VIEWED`。分页默认为 `page=1`、`size=20`，大小范围为 1-50，变调夹范围为 0-12。文件 URL 只从对象键生成，公开基础 URL 和 OSS 都不可用时返回稳定的 `OSS_UNAVAILABLE`，禁止泄露本地文件路径。静态首页仍为 `/`，健康检查仍为 `/api/health`。
+
+## 多收藏夹接口
+
+```text
+GET    /api/favorite-folders
+POST   /api/favorite-folders
+PUT    /api/favorite-folders/{id}
+DELETE /api/favorite-folders/{id}
+POST   /api/favorite-folders/{id}/sheets/{sheetId}
+DELETE /api/favorite-folders/{id}/sheets/{sheetId}
+GET    /api/favorite-folders/{id}/sheets
+```
+
+新建/更新请求体为 `{ "name": "练习", "sortOrder": 0 }`。名称 trim 后必须为 1-50 个字符；同用户名称唯一，冲突返回 `FOLDER_NAME_EXISTS`。他人和不存在的收藏夹统一返回 `FOLDER_NOT_FOUND`；仅公开未删除曲谱可新增收藏，重复收藏返回 `FAVORITE_EXISTS`。新增和实际删除收藏关系必须与计数变化处于同一事务，递减 SQL 必须保证计数不小于 0。移除不存在的收藏关系幂等成功；删除非空收藏夹只删除关系并按集合批量修正计数，不删除曲谱。
