@@ -11,6 +11,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -52,7 +53,8 @@ class OssCleanupServiceImplTest {
         assertThat(task.getStatus()).isEqualTo("PENDING");
         assertThat(task.getRetryCount()).isZero();
         assertThat(task.getNextRetryAt()).isNotNull();
-        assertThat(task.getLastError()).isEqualTo("OSS deletion failed");
+        assertThat(task.getLastError()).contains("OSS deletion failed", "IllegalStateException")
+                .doesNotContain("private key");
     }
 
     @Test
@@ -62,6 +64,22 @@ class OssCleanupServiceImplTest {
         service.deleteOrEnqueue("old/avatar.png", "AVATAR");
 
         assertThat(capturedTask().getLastError()).isEqualTo("OSS unavailable");
+    }
+
+    @Test
+    void existingOutboxTaskIsClaimedAndMarkedSuccessWithoutAnotherInsert() {
+        OssUtil ossUtil = mock(OssUtil.class);
+        when(ossUtilProvider.getIfAvailable()).thenReturn(ossUtil);
+        when(cleanupTaskDao.claimPending(eq(9L), eq(0L), any())).thenReturn(1);
+        when(cleanupTaskDao.markSuccess(eq(9L), eq(1L), any())).thenReturn(1);
+        OssCleanupTask task = new OssCleanupTask();
+        task.setId(9L); task.setObjectKey("old/sheet.pdf"); task.setClaimVersion(0L); task.setRetryCount(0);
+
+        service.deleteEnqueued(task);
+
+        verify(ossUtil).delete("old/sheet.pdf");
+        verify(cleanupTaskDao).markSuccess(eq(9L), eq(1L), any());
+        verify(cleanupTaskDao, never()).insertPending(any());
     }
 
     @Test

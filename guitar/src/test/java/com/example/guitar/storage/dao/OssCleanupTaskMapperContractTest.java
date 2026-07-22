@@ -22,7 +22,12 @@ class OssCleanupTaskMapperContractTest {
         assertThat(xml).contains("LIMIT #{limit}");
         assertThat(xml).contains("<update id=\"claimPending\"");
         assertThat(xml).contains("status='PENDING' AND next_retry_at &lt;= #{now}");
+        assertThat(xml).contains("claim_version=claim_version+1");
+        assertThat(xml).contains("claim_version=#{expectedClaimVersion}");
+        assertThat(xml).contains("processing_started_at=#{now}");
         assertThat(xml).contains("<update id=\"recoverStaleProcessing\"");
+        assertThat(xml).contains("processing_started_at &lt; #{cutoff}");
+        assertThat(xml).contains("id=#{id} AND status='PROCESSING' AND claim_version=#{claimVersion}");
         assertThat(xml).doesNotContain("${");
     }
 }

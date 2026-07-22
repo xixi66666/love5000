@@ -14,16 +14,20 @@ public interface OssCleanupTaskDao {
 
     List<OssCleanupTask> findDuePending(@Param("now") LocalDateTime now, @Param("limit") int limit);
 
-    int claimPending(@Param("id") Long id, @Param("now") LocalDateTime now);
+    int claimPending(@Param("id") Long id, @Param("expectedClaimVersion") long expectedClaimVersion,
+                     @Param("now") LocalDateTime now);
 
     int recoverStaleProcessing(@Param("cutoff") LocalDateTime cutoff, @Param("now") LocalDateTime now);
 
-    int markSuccess(@Param("id") Long id, @Param("now") LocalDateTime now);
+    int markSuccess(@Param("id") Long id, @Param("claimVersion") long claimVersion,
+                    @Param("now") LocalDateTime now);
 
-    int reschedule(@Param("id") Long id, @Param("retryCount") int retryCount,
+    int reschedule(@Param("id") Long id, @Param("claimVersion") long claimVersion,
+                   @Param("retryCount") int retryCount,
                    @Param("nextRetryAt") LocalDateTime nextRetryAt, @Param("lastError") String lastError,
                    @Param("now") LocalDateTime now);
 
-    int markFailed(@Param("id") Long id, @Param("retryCount") int retryCount,
+    int markFailed(@Param("id") Long id, @Param("claimVersion") long claimVersion,
+                   @Param("retryCount") int retryCount,
                    @Param("lastError") String lastError, @Param("now") LocalDateTime now);
 }

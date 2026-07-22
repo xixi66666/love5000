@@ -138,10 +138,6 @@
         update_time=CURRENT_TIMESTAMP WHERE id=#{id} AND uploader_id=#{ownerId} AND status != 'DELETED' AND deleted_at IS NULL
     </update>
 
-    <update id="resetFavoriteCount">
-        UPDATE guitar_sheet SET favorite_count=0, update_time=CURRENT_TIMESTAMP WHERE id=#{id} AND status='DELETED'
-    </update>
-
     <delete id="deleteFavoritesBySheetId">
         DELETE FROM guitar_favorite WHERE sheet_id=#{sheetId}
     </delete>

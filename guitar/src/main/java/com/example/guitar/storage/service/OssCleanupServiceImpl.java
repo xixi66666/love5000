@@ -9,6 +9,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.Clock;
 
 @Service
 public class OssCleanupServiceImpl implements OssCleanupService {
@@ -18,10 +19,17 @@ public class OssCleanupServiceImpl implements OssCleanupService {
 
     private final ObjectProvider<OssUtil> ossUtilProvider;
     private final OssCleanupTaskDao ossCleanupTaskDao;
+    private final OssCleanupTaskProcessor taskProcessor;
 
     public OssCleanupServiceImpl(ObjectProvider<OssUtil> ossUtilProvider, OssCleanupTaskDao ossCleanupTaskDao) {
         this.ossUtilProvider = ossUtilProvider;
         this.ossCleanupTaskDao = ossCleanupTaskDao;
+        this.taskProcessor = new OssCleanupTaskProcessor(ossCleanupTaskDao, ossUtilProvider, Clock.systemDefaultZone());
+    }
+
+    @Override
+    public void deleteEnqueued(OssCleanupTask task) {
+        taskProcessor.process(task);
     }
 
     @Override
@@ -37,8 +45,10 @@ public class OssCleanupServiceImpl implements OssCleanupService {
         try {
             ossUtil.delete(objectKey);
         } catch (RuntimeException deleteFailure) {
+            LOGGER.warn("OSS deletion failed before cleanup enqueue, objectKey={}",
+                    sanitizeForLog(objectKey), deleteFailure);
             try {
-                enqueue(objectKey, businessType, "OSS deletion failed");
+                enqueue(objectKey, businessType, diagnostic("OSS deletion failed", deleteFailure));
             } catch (RuntimeException enqueueFailure) {
                 enqueueFailure.addSuppressed(deleteFailure);
                 LOGGER.warn("Failed to compensate OSS object, objectKey={}",
@@ -55,6 +65,7 @@ public class OssCleanupServiceImpl implements OssCleanupService {
         task.setStatus(PENDING);
         task.setRetryCount(0);
         task.setNextRetryAt(LocalDateTime.now());
+        task.setClaimVersion(0L);
         task.setLastError(lastError);
         if (ossCleanupTaskDao.insertPending(task) != 1) {
             LOGGER.warn("Failed to persist OSS cleanup task, objectKey={}", sanitizeForLog(objectKey));
@@ -72,5 +83,12 @@ public class OssCleanupServiceImpl implements OssCleanupService {
         }
         String sanitized = value.replaceAll("[\\p{Cntrl}]", "?");
         return sanitized.length() > 200 ? sanitized.substring(0, 200) : sanitized;
+    }
+
+    private String diagnostic(String summary, Throwable failure) {
+        String type = failure == null ? "" : failure.getClass().getSimpleName();
+        String diagnostic = type.isEmpty() ? summary : summary + " (" + type + ")";
+        String sanitized = diagnostic.replaceAll("[\\p{Cntrl}]", "?");
+        return sanitized.length() > 500 ? sanitized.substring(0, 500) : sanitized;
     }
 }

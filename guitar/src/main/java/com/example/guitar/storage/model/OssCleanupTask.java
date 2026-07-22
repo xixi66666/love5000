@@ -10,6 +10,8 @@ public class OssCleanupTask {
     private String status;
     private Integer retryCount;
     private LocalDateTime nextRetryAt;
+    private Long claimVersion;
+    private LocalDateTime processingStartedAt;
     private String lastError;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
@@ -26,6 +28,10 @@ public class OssCleanupTask {
     public void setRetryCount(Integer retryCount) { this.retryCount = retryCount; }
     public LocalDateTime getNextRetryAt() { return nextRetryAt; }
     public void setNextRetryAt(LocalDateTime nextRetryAt) { this.nextRetryAt = nextRetryAt; }
+    public Long getClaimVersion() { return claimVersion; }
+    public void setClaimVersion(Long claimVersion) { this.claimVersion = claimVersion; }
+    public LocalDateTime getProcessingStartedAt() { return processingStartedAt; }
+    public void setProcessingStartedAt(LocalDateTime processingStartedAt) { this.processingStartedAt = processingStartedAt; }
     public String getLastError() { return lastError; }
     public void setLastError(String lastError) { this.lastError = lastError; }
     public LocalDateTime getCreateTime() { return createTime; }

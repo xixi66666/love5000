@@ -141,12 +141,14 @@ public class GuitarSheetServiceImpl implements GuitarSheetService {
 
     @Override
     public SheetDetailResponse update(long userId, long sheetId, SheetSaveRequest request) {
-        GuitarSheet sheet = mutations().update(userId, sheetId, request);
-        List<GuitarSheetFile> files = fileDao.findBySheetId(sheet.getId());
+        GuitarSheetMutationService.MutationFiles result = mutations().update(userId, sheetId, request);
+        GuitarSheet sheet = result.getSheet();
         SheetDetailResponse response = new SheetDetailResponse();
         copySummary(sheet, response); response.setDescription(sheet.getDescription());
         List<SheetDetailResponse.FileResponse> responses = new ArrayList<SheetDetailResponse.FileResponse>();
-        for (GuitarSheetFile file : files) responses.add(toFileResponse(file));
+        for (GuitarSheetFile file : result.getFiles()) {
+            responses.add(toFileResponse(file, result.getUrls().get(file.getObjectKey())));
+        }
         response.setFiles(responses);
         return response;
     }
@@ -220,7 +222,7 @@ public class GuitarSheetServiceImpl implements GuitarSheetService {
             return ossUtil.uploadWithObjectKey(input, validated.getFileSize(), objectKey,
                     validated.getOriginalFilename(), validated.getMimeType());
         } catch (IOException | RuntimeException exception) {
-            throw ossUnavailable();
+            throw ossUnavailable(exception);
         }
     }
 
@@ -291,8 +293,14 @@ public class GuitarSheetServiceImpl implements GuitarSheetService {
     }
 
     private GuitarApiException ossUnavailable() {
-        return new GuitarApiException(HttpStatus.SERVICE_UNAVAILABLE,
+        return ossUnavailable(null);
+    }
+
+    private GuitarApiException ossUnavailable(Throwable cause) {
+        GuitarApiException exception = new GuitarApiException(HttpStatus.SERVICE_UNAVAILABLE,
                 "OSS_UNAVAILABLE", "曲谱存储服务暂不可用");
+        if (cause != null) exception.initCause(cause);
+        return exception;
     }
 
     private SheetSummaryResponse toSummary(GuitarSheet sheet) {

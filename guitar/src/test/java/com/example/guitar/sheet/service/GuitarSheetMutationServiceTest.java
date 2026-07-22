@@ -11,6 +11,7 @@ import com.example.guitar.sheet.model.GuitarSheetFile;
 import com.example.guitar.sheet.model.SheetDifficulty;
 import com.example.guitar.sheet.model.SheetType;
 import com.example.guitar.storage.service.OssCleanupService;
+import com.example.guitar.storage.model.OssCleanupTask;
 import com.example.guitar.web.GuitarApiException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -63,15 +64,45 @@ class GuitarSheetMutationServiceTest {
     @Test
     void ownerCanEditOfflineMetadataWithoutChangingStatusOrUsingOss() {
         GuitarSheet offline = sheet(8L, 5L, "OFFLINE");
+        GuitarSheetFile existing = file("existing.pdf", 1);
         when(sheetDao.findActiveByIdForOwner(8L, 5L)).thenReturn(offline);
+        when(fileDao.findBySheetId(8L)).thenReturn(Collections.singletonList(existing));
+        when(urlService.getFileUrl("existing.pdf")).thenReturn("https://cdn.example/existing.pdf");
         when(persistenceService.updateMetadata(eq(offline), any(SheetSaveRequest.class))).thenReturn(offline);
 
-        GuitarSheet result = service.update(5L, 8L, request(FileMode.PDF));
+        GuitarSheetMutationService.MutationFiles result = service.update(5L, 8L, request(FileMode.PDF));
 
-        assertThat(result.getStatus()).isEqualTo("OFFLINE");
+        assertThat(result.getSheet().getStatus()).isEqualTo("OFFLINE");
         verify(persistenceService).updateMetadata(eq(offline), any(SheetSaveRequest.class));
-        verifyNoInteractions(urlService, cleanupService);
+        verify(urlService).getFileUrl("existing.pdf");
+        verifyNoInteractions(cleanupService);
         verify(ossProvider, never()).getIfAvailable();
+    }
+
+    @Test
+    void metadataUrlFailurePreventsDatabaseCommit() {
+        GuitarSheet current = sheet(8L, 5L, "PUBLISHED");
+        when(sheetDao.findActiveByIdForOwner(8L, 5L)).thenReturn(current);
+        when(fileDao.findBySheetId(8L)).thenReturn(Collections.singletonList(file("existing.pdf", 1)));
+        when(urlService.getFileUrl("existing.pdf")).thenThrow(new IllegalStateException("url unavailable"));
+
+        assertThatThrownBy(() -> service.update(5L, 8L, request(null)))
+                .isInstanceOf(IllegalStateException.class);
+
+        verifyNoInteractions(persistenceService);
+    }
+
+    @Test
+    void metadataUpdateDoesNotRequireUnchangedFileMode() {
+        GuitarSheet current = sheet(8L, 5L, "PUBLISHED");
+        when(sheetDao.findActiveByIdForOwner(8L, 5L)).thenReturn(current);
+        when(fileDao.findBySheetId(8L)).thenReturn(Collections.<GuitarSheetFile>emptyList());
+        when(persistenceService.updateMetadata(eq(current), any(SheetSaveRequest.class))).thenReturn(current);
+
+        GuitarSheetMutationService.MutationFiles result = service.update(5L, 8L, request(null));
+
+        assertThat(result.getSheet()).isSameAs(current);
+        verify(persistenceService).updateMetadata(eq(current), any(SheetSaveRequest.class));
     }
 
     @Test
@@ -115,6 +146,8 @@ class GuitarSheetMutationServiceTest {
         when(oss.uploadWithObjectKey(any(InputStream.class), anyLong(), anyString(), anyString(), anyString()))
                 .thenAnswer(invocation -> new OssUploadResult("bucket", invocation.getArgument(2), "", "", "", 1L));
         when(urlService.getFileUrl(anyString())).thenReturn("https://cdn.example/new.pdf");
+        when(persistenceService.replaceFiles(eq(sheet), eq("123e4567-e89b-12d3-a456-426614174000"),
+                anyString(), eq(FileMode.PDF), any())).thenReturn(outbox(oldKey, "SHEET_REPLACE"));
 
         service.replaceFiles(5L, 8L, FileMode.PDF, Collections.singletonList(pdf()));
 
@@ -131,7 +164,7 @@ class GuitarSheetMutationServiceTest {
         ArgumentCaptor<String> storageCaptor = ArgumentCaptor.forClass(String.class);
         order.verify(persistenceService).replaceFiles(eq(sheet), eq("123e4567-e89b-12d3-a456-426614174000"),
                 storageCaptor.capture(), eq(FileMode.PDF), any());
-        order.verify(cleanupService).deleteOrEnqueue(oldKey, "SHEET_REPLACE");
+        order.verify(cleanupService).deleteEnqueued(any(OssCleanupTask.class));
         assertThat(keyCaptor.getValue()).contains("/" + storageCaptor.getValue() + "/");
         assertThat(sheet.getStorageUuid()).isEqualTo(storageCaptor.getValue());
     }
@@ -140,7 +173,6 @@ class GuitarSheetMutationServiceTest {
     void replacementVersionConflictCompensatesNewObjectsWithoutDeletingCommittedVersions() {
         GuitarSheet sheet = sheet(8L, 5L, "PUBLISHED");
         when(sheetDao.findActiveByIdForOwner(8L, 5L)).thenReturn(sheet);
-        when(fileDao.findBySheetId(8L)).thenReturn(Collections.singletonList(file("version-a.pdf", 1)));
         OssUtil oss = mock(OssUtil.class);
         when(ossProvider.getIfAvailable()).thenReturn(oss);
         when(oss.uploadWithObjectKey(any(InputStream.class), anyLong(), anyString(), anyString(), anyString()))
@@ -157,6 +189,43 @@ class GuitarSheetMutationServiceTest {
                 eq("SHEET_REPLACE_NEW"));
         verify(cleanupService, never()).deleteOrEnqueue("version-a.pdf", "SHEET_REPLACE");
         verify(cleanupService, never()).deleteOrEnqueue("version-b.pdf", "SHEET_REPLACE");
+        verify(cleanupService, never()).deleteEnqueued(any());
+    }
+
+    @Test
+    void replacementDeletedWhileUploadingReturnsNotFoundAndCompensatesNewObject() {
+        GuitarSheet sheet = sheet(8L, 5L, "PUBLISHED");
+        OssUtil oss = mock(OssUtil.class);
+        when(sheetDao.findActiveByIdForOwner(8L, 5L)).thenReturn(sheet);
+        when(ossProvider.getIfAvailable()).thenReturn(oss);
+        when(oss.uploadWithObjectKey(any(InputStream.class), anyLong(), anyString(), anyString(), anyString()))
+                .thenAnswer(invocation -> new OssUploadResult("bucket", invocation.getArgument(2), "", "", "", 1L));
+        when(urlService.getFileUrl(anyString())).thenReturn("https://cdn.example/new.pdf");
+        doThrow(new GuitarApiException(org.springframework.http.HttpStatus.NOT_FOUND,
+                "SHEET_NOT_FOUND", "曲谱不存在或已删除")).when(persistenceService)
+                .replaceFiles(any(), anyString(), anyString(), any(), any());
+
+        assertThatThrownBy(() -> service.replaceFiles(5L, 8L, FileMode.PDF, Collections.singletonList(pdf())))
+                .isInstanceOfSatisfying(GuitarApiException.class,
+                        exception -> assertThat(exception.getCode()).isEqualTo("SHEET_NOT_FOUND"));
+        verify(cleanupService).deleteOrEnqueue(
+                org.mockito.ArgumentMatchers.matches("love530/guitar/sheets/[0-9a-f-]{36}/pdf/sheet.pdf"),
+                eq("SHEET_REPLACE_NEW"));
+    }
+
+    @Test
+    void uploadFailureKeepsOriginalCauseForDiagnostics() {
+        GuitarSheet sheet = sheet(8L, 5L, "PUBLISHED");
+        OssUtil oss = mock(OssUtil.class);
+        IllegalStateException cause = new IllegalStateException("internal upload failure");
+        when(sheetDao.findActiveByIdForOwner(8L, 5L)).thenReturn(sheet);
+        when(ossProvider.getIfAvailable()).thenReturn(oss);
+        when(oss.uploadWithObjectKey(any(InputStream.class), anyLong(), anyString(), anyString(), anyString()))
+                .thenThrow(cause);
+
+        assertThatThrownBy(() -> service.replaceFiles(5L, 8L, FileMode.PDF, Collections.singletonList(pdf())))
+                .isInstanceOfSatisfying(GuitarApiException.class,
+                        exception -> assertThat(exception.getCause()).isSameAs(cause));
     }
 
     @Test
@@ -164,29 +233,30 @@ class GuitarSheetMutationServiceTest {
         GuitarSheet sheet = sheet(8L, 5L, "PUBLISHED");
         when(sheetDao.findActiveByIdForOwner(8L, 5L)).thenReturn(sheet);
         when(fileDao.findBySheetId(8L)).thenReturn(Collections.singletonList(file("version-a.pdf", 1)));
-        when(persistenceService.softDelete(sheet))
-                .thenReturn(Collections.singletonList(file("version-b.pdf", 1)));
+        when(persistenceService.softDelete(sheet)).thenReturn(outbox("version-b.pdf", "SHEET_DELETE"));
 
         service.delete(5L, 8L);
 
         InOrder order = inOrder(persistenceService, cleanupService);
         order.verify(persistenceService).softDelete(eq(sheet));
-        order.verify(cleanupService).deleteOrEnqueue("version-b.pdf", "SHEET_DELETE");
+        order.verify(cleanupService).deleteEnqueued(any(OssCleanupTask.class));
         verify(fileDao, never()).findBySheetId(8L);
-        verify(cleanupService, never()).deleteOrEnqueue("version-a.pdf", "SHEET_DELETE");
+        verify(cleanupService, never()).deleteOrEnqueue(anyString(), eq("SHEET_DELETE"));
     }
 
     @Test
     void postCommitCleanupFailureDoesNotRollBackOrFailDelete() {
         GuitarSheet sheet = sheet(8L, 5L, "PUBLISHED");
         when(sheetDao.findActiveByIdForOwner(8L, 5L)).thenReturn(sheet);
-        when(persistenceService.softDelete(sheet)).thenReturn(Collections.singletonList(file("old.pdf", 1)));
-        doThrow(new IllegalStateException("queue unavailable")).when(cleanupService)
-                .deleteOrEnqueue("old.pdf", "SHEET_DELETE");
+        SheetMutationPersistenceService.CleanupOutbox outbox = outbox("old.pdf", "SHEET_DELETE");
+        when(persistenceService.softDelete(sheet)).thenReturn(outbox);
+        doThrow(new IllegalStateException("database unavailable")).when(cleanupService)
+                .deleteEnqueued(outbox.getTasks().get(0));
 
         service.delete(5L, 8L);
 
         verify(persistenceService).softDelete(sheet);
+        verify(cleanupService).deleteEnqueued(outbox.getTasks().get(0));
     }
 
     private SheetSaveRequest request(FileMode mode) {
@@ -208,6 +278,13 @@ class GuitarSheetMutationServiceTest {
 
     private GuitarSheetFile file(String objectKey, int sortOrder) {
         GuitarSheetFile file = new GuitarSheetFile(); file.setObjectKey(objectKey); file.setSortOrder(sortOrder); return file;
+    }
+
+    private SheetMutationPersistenceService.CleanupOutbox outbox(String objectKey, String businessType) {
+        OssCleanupTask task = new OssCleanupTask();
+        task.setId(77L); task.setObjectKey(objectKey); task.setBusinessType(businessType);
+        task.setStatus("PENDING"); task.setRetryCount(0); task.setClaimVersion(0L);
+        return new SheetMutationPersistenceService.CleanupOutbox(Collections.singletonList(task));
     }
 
     private void assertApiError(ThrowingCallable action, String code) {

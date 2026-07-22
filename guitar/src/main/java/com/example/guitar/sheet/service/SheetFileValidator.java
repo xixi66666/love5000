@@ -22,6 +22,11 @@ public class SheetFileValidator {
     private static final int MAX_IMAGE_COUNT = 20;
 
     public void normalizeAndValidateMetadata(SheetSaveRequest request) {
+        normalizeAndValidateMetadataForUpdate(request);
+        requireFileMode(request.getFileMode());
+    }
+
+    public void normalizeAndValidateMetadataForUpdate(SheetSaveRequest request) {
         if (request == null) {
             throw invalidMetadata();
         }
@@ -37,7 +42,6 @@ public class SheetFileValidator {
                 && (request.getCapoPosition() < 0 || request.getCapoPosition() > 12)) {
             throw invalidMetadata();
         }
-        requireFileMode(request.getFileMode());
     }
 
     public FileMode requireFileMode(FileMode fileMode) {

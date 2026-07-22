@@ -35,7 +35,5 @@ public interface GuitarSheetDao {
 
     int markDeleted(@Param("id") Long id, @Param("ownerId") Long ownerId);
 
-    int resetFavoriteCount(@Param("id") Long id);
-
     int deleteFavoritesBySheetId(@Param("sheetId") Long sheetId);
 }

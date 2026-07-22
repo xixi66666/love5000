@@ -31,6 +31,8 @@ class GuitarSchemaSqlTest {
         assertThat(schema).contains("create_time datetime not null default current_timestamp");
         assertThat(schema).contains("update_time datetime not null default current_timestamp on update current_timestamp");
         assertThat(schema).contains("next_retry_at datetime not null default current_timestamp");
+        assertThat(schema).contains("claim_version bigint unsigned not null default 0");
+        assertThat(schema).contains("processing_started_at datetime default null");
         assertThat(schema).contains("key idx_guitar_sheet_uploader (uploader_id, status, create_time)");
         assertThat(schema).contains("key idx_guitar_sheet_filters (status, sheet_type, difficulty, key_signature)");
         assertThat(schema).contains("key idx_guitar_sheet_public (status, create_time, id)");

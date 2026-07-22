@@ -9,6 +9,7 @@ import com.example.guitar.sheet.model.FileMode;
 import com.example.guitar.sheet.model.GuitarSheet;
 import com.example.guitar.sheet.model.GuitarSheetFile;
 import com.example.guitar.storage.service.OssCleanupService;
+import com.example.guitar.storage.model.OssCleanupTask;
 import com.example.guitar.web.GuitarApiException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,18 +45,20 @@ public class GuitarSheetMutationService {
         this.ossProvider = ossProvider; this.cleanupService = cleanupService; this.persistenceService = persistenceService;
     }
 
-    public GuitarSheet update(long ownerId, long sheetId, SheetSaveRequest request) {
+    public MutationFiles update(long ownerId, long sheetId, SheetSaveRequest request) {
         requireOwnerId(ownerId);
         GuitarSheet current = requireOwner(sheetId, ownerId);
-        validator.normalizeAndValidateMetadata(request);
-        return persistenceService.updateMetadata(current, request);
+        validator.normalizeAndValidateMetadataForUpdate(request);
+        List<GuitarSheetFile> files = fileDao.findBySheetId(current.getId());
+        Map<String, String> urls = precomputeUrls(files);
+        GuitarSheet updated = persistenceService.updateMetadata(current, request);
+        return new MutationFiles(updated, files, urls);
     }
 
     public MutationFiles replaceFiles(long ownerId, long sheetId, FileMode mode,
                                                List<MultipartFile> multipartFiles) {
         requireOwnerId(ownerId);
         GuitarSheet current = requireOwner(sheetId, ownerId);
-        List<GuitarSheetFile> oldFiles = fileDao.findBySheetId(current.getId());
         String expectedStorageUuid = current.getStorageUuid();
         List<SheetFileValidator.ValidatedSheetFile> validated = validator.validateFiles(mode, multipartFiles);
         OssUtil oss = ossProvider.getIfAvailable();
@@ -66,10 +69,11 @@ public class GuitarSheetMutationService {
         try {
             upload(oss, newStorageUuid, mode, validated, newFiles);
             Map<String, String> urls = precomputeUrls(newFiles);
-            persistenceService.replaceFiles(current, expectedStorageUuid, newStorageUuid, mode, newFiles);
+            SheetMutationPersistenceService.CleanupOutbox cleanupOutbox = persistenceService.replaceFiles(
+                    current, expectedStorageUuid, newStorageUuid, mode, newFiles);
             current.setStorageUuid(newStorageUuid);
             current.setFileMode(mode.name());
-            cleanupOldFiles(oldFiles, "SHEET_REPLACE");
+            cleanupCommittedTasks(cleanupOutbox);
             return new MutationFiles(current, newFiles, urls);
         } catch (RuntimeException failure) {
             cleanupNewFiles(newFiles, failure);
@@ -80,8 +84,7 @@ public class GuitarSheetMutationService {
     public void delete(long ownerId, long sheetId) {
         requireOwnerId(ownerId);
         GuitarSheet current = requireOwner(sheetId, ownerId);
-        List<GuitarSheetFile> oldFiles = persistenceService.softDelete(current);
-        cleanupOldFiles(oldFiles, "SHEET_DELETE");
+        cleanupCommittedTasks(persistenceService.softDelete(current));
     }
 
     private GuitarSheet requireOwner(Long sheetId, Long ownerId) {
@@ -110,7 +113,7 @@ public class GuitarSheetMutationService {
                 OssUploadResult result = oss.uploadWithObjectKey(input, source.getFileSize(), file.getObjectKey(),
                         source.getOriginalFilename(), source.getMimeType());
                 if (result == null || !file.getObjectKey().equals(result.getObjectKey())) throw ossUnavailable();
-            } catch (IOException | RuntimeException failure) { throw ossUnavailable(); }
+            } catch (IOException | RuntimeException failure) { throw ossUnavailable(failure); }
         }
     }
 
@@ -137,7 +140,6 @@ public class GuitarSheetMutationService {
     }
 
     private void cleanupNewFiles(List<GuitarSheetFile> files, Throwable failure) { cleanup(files, "SHEET_REPLACE_NEW", failure); }
-    private void cleanupOldFiles(List<GuitarSheetFile> files, String type) { cleanup(files, type, null); }
     private void cleanup(List<GuitarSheetFile> files, String type, Throwable original) {
         for (GuitarSheetFile file : files) {
             try { cleanupService.deleteOrEnqueue(file.getObjectKey(), type); }
@@ -148,8 +150,25 @@ public class GuitarSheetMutationService {
         }
     }
 
-    private GuitarApiException ossUnavailable() {
-        return new GuitarApiException(HttpStatus.SERVICE_UNAVAILABLE, "OSS_UNAVAILABLE", "曲谱存储服务暂不可用");
+    private void cleanupCommittedTasks(SheetMutationPersistenceService.CleanupOutbox outbox) {
+        if (outbox == null) return;
+        for (OssCleanupTask task : outbox.getTasks()) {
+            try {
+                cleanupService.deleteEnqueued(task);
+            } catch (RuntimeException failure) {
+                LOGGER.warn("Immediate cleanup deferred to durable task, taskId={}, objectKey={}",
+                        task.getId(), task.getObjectKey(), failure);
+            }
+        }
+    }
+
+    private GuitarApiException ossUnavailable() { return ossUnavailable(null); }
+
+    private GuitarApiException ossUnavailable(Throwable cause) {
+        GuitarApiException exception = new GuitarApiException(HttpStatus.SERVICE_UNAVAILABLE,
+                "OSS_UNAVAILABLE", "曲谱存储服务暂不可用");
+        if (cause != null) exception.initCause(cause);
+        return exception;
     }
 
     public static final class MutationFiles {
