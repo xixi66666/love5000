@@ -985,4 +985,8 @@ Use the default five-label triage vocabulary: `needs-triage`, `needs-info`, `rea
 
 Single-context layout: root `CONTEXT.md` and `docs/adr/`, created lazily when needed. See `docs/agents/domain.md`.
 
+## Guitar frontend
+
+The Guitar static sheet-search homepage is `guitar/src/main/resources/static/index.html`; authentication is `auth.html`, with shared ES modules in `static/js/` and styles in `static/css/app.css`. Run frontend checks from `guitar/` using `npm.cmd run test:api` and `npm.cmd run test:auth`; Java static-resource assertions run with the Guitar Maven test command.
+
 

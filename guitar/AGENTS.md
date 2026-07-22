@@ -120,3 +120,9 @@ POST /api/admin/sheets/{id}/restore
 `GET /api/admin/sheets` 支持 `keyword`、`status`、`sort`、`page`、`size`，可查询 `DRAFT`、`PUBLISHED`、`OFFLINE`、`DELETED`；`sort` 仅允许 `LATEST`、`MOST_FAVORITED`、`MOST_VIEWED`，分页默认 1/20、`size` 最大 50、偏移量最大 5,000,000。下架请求体为 `{ "reason": "..." }`，理由 trim 后必须为 1-500 个字符。状态机仅允许 `PUBLISHED -> OFFLINE` 与 `OFFLINE -> PUBLISHED`，重复或非法转换返回 HTTP 409，`DELETED` 不可恢复。
 
 所有 `/api/admin/**` 只允许认证 Session 中角色为 `ADMIN` 的用户访问，普通 `USER` 返回 HTTP 403；写接口继续要求 CSRF Token。Controller 不接收客户端 `adminUserId` 或 `role`，审计 IP 只使用容器提供的 `request.getRemoteAddr()`，不信任任意转发头。下架填写离线原因、管理员和时间，恢复清空离线信息；状态更新和 `guitar_admin_action_log` 插入同一事务提交，日志至少记录管理员、动作、目标、理由、前后状态、IP 和时间。管理员操作不删除 OSS 文件、不修改收藏关系。
+
+## Frontend foundation
+
+The static application lives in `src/main/resources/static/index.html` with shared styles in `css/app.css`. Authentication is provided by `auth.html` and the ES modules `js/api.js`, `js/session.js`, and `js/auth.js`. API requests use same-origin credentials, in-memory/session-storage CSRF, and redirect JSON 401 responses to `auth.html`.
+
+Run frontend checks from `guitar/` with `npm.cmd run test:api` and `npm.cmd run test:auth`. The Java static-resource checks are included in `mvn -pl guitar -am -Dtest=GuitarApplicationTests -DfailIfNoTests=false test`.

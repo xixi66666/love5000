@@ -98,3 +98,13 @@ X-CSRF-Token: <data.csrfToken>
 - `/api/admin/**` 要求 `ADMIN` 角色。
 - 未登录和权限不足分别返回 JSON 401、403，不进行页面跳转。
 - 静态首页为 `http://127.0.0.1:8088/`，健康检查为 `GET /api/health`。
+## Static frontend
+
+`src/main/resources/static/index.html` is the mobile-first sheet search screen. `auth.html` provides login/register tabs. Shared API/session/auth modules are under `static/js/`, with styles in `static/css/app.css`.
+
+Run browser-independent frontend tests from this directory:
+
+```bash
+npm.cmd run test:api
+npm.cmd run test:auth
+```

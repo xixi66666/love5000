@@ -120,3 +120,7 @@ cd website/video && python -m unittest discover -s tests -v
 
 ## 代码提交
 本地代码提交到远程仓库时，通常会遇到网络问题导致提交失败，不用处理，直接进行重试，直到成功为止。
+
+## Guitar 前端
+
+Guitar 的静态曲谱搜索首页位于 `guitar/src/main/resources/static/index.html`，认证页为 `auth.html`；共享 API、Session、校验模块位于 `static/js/`。前端 Node 测试从 `guitar/` 执行 `npm.cmd run test:api` 和 `npm.cmd run test:auth`，Java 静态资源断言使用 Guitar 模块 Maven 测试命令。

@@ -50,8 +50,19 @@ class GuitarApplicationTests {
 		mockMvc.perform(get("/index.html"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentTypeCompatibleWith("text/html"))
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("Guitar Service")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("GUITAR")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("/js/api.js")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("8088")));
+	}
+
+	@Test
+	void authPageExposesAccessibleAuthForms() throws Exception {
+		mockMvc.perform(get("/auth.html"))
+				.andExpect(status().isOk())
+				.andExpect(content().contentTypeCompatibleWith("text/html"))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("for=\"login-phone\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("data-auth-tab=\"register\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("/js/auth.js")));
 	}
 
 	@Test
