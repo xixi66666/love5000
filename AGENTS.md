@@ -8,7 +8,7 @@
 - `lovestory`：恋爱相册 Web 应用，提供静态页面、照片上传、照片列表、删除接口、留言板功能和吉他视频卡片模块。
 - `website`：个人主页/展示站点 Web 应用，包含主页静态资源、Web Demo、OSS Demo、Nacos Discovery 示例和个人博客微应用。
 - `imagetemplate`：图片提示词模板 Web 服务，提供模板库检索、prompt 渲染、直接提示词模板和 OpenAI 图片生成能力。
-- `guitar`：Guitar 曲谱平台 Web 微服务，提供基础首页、健康检查、手机号注册登录、Session/CSRF 鉴权、公开曲谱检索详情、安全上传和 MySQL 持久化基础能力。
+- `guitar`：Guitar 曲谱平台 Web 微服务，提供基础首页、健康检查、手机号注册登录、Session/CSRF 鉴权、公开曲谱检索详情、安全上传、管理员曲谱下架/恢复和 MySQL 持久化基础能力。
 - `python-a`：A 股自选股 AI 研究台，作为独立 Python 微应用接入，不加入 Maven 聚合模块。
 - `quant-a`：A 股量化研究台，作为独立 FastAPI 微服务接入，不加入 Maven 聚合模块，不写入 `website/python-a` 的 Obsidian 目录。
 - `video`：AI 原创动漫短片生成工作台，作为独立 Python 微应用接入，不加入 Maven 聚合模块。
@@ -329,6 +329,7 @@ website/video/
 - `guitar/src/main/java/com/example/guitar/user`：Guitar 用户模型和 MyBatis DAO，SQL 位于 `guitar/src/main/resources/mapper/user`。
 - `guitar/src/main/java/com/example/guitar/sheet`：Guitar 曲谱公开检索、详情、安全上传、文件 URL 服务和 MyBatis DAO；OSS 上传在事务外完成，曲谱和文件记录由独立事务服务写入，SQL 位于 `guitar/src/main/resources/mapper/sheet`。
 - `guitar/src/main/java/com/example/guitar/favorite`：Guitar 私人多收藏夹、收藏关系、所有权校验和收藏计数事务；SQL 位于 `guitar/src/main/resources/mapper/favorite`，接口不得返回收藏夹 `userId` 或曲谱对象键。
+- `guitar/src/main/java/com/example/guitar/admin`：Guitar 管理员曲谱查询、下架/恢复状态机和审计事务；管理员身份只取认证 Session，SQL 位于 `guitar/src/main/resources/mapper/admin`。
 - `guitar/src/main/resources/static`：Guitar 基础首页，默认由 Spring Boot 静态资源能力提供。
 - `website/python-a/server.py`：Python 微应用后端，负责静态页面服务、东方财富行情网关、DeepSeek 调用和 Obsidian 写入。
 - `website/python-a/services/stock_metadata_service.py`：股票行业、板块和概念元数据缓存与降级读取。
@@ -576,6 +577,9 @@ DELETE /api/favorite-folders/{id}
 POST   /api/favorite-folders/{id}/sheets/{sheetId}
 DELETE /api/favorite-folders/{id}/sheets/{sheetId}
 GET    /api/favorite-folders/{id}/sheets
+GET    /api/admin/sheets
+POST   /api/admin/sheets/{id}/offline
+POST   /api/admin/sheets/{id}/restore
 ```
 
 `POST` 注册、登录和注销均需先请求 `GET /api/auth/session` 创建 Session，并在请求头携带返回的 `X-CSRF-Token`。认证 Session 属性名为 `GUITAR_AUTH_USER`。
@@ -590,7 +594,9 @@ GET    /api/favorite-folders/{id}/sheets
 
 收藏夹写接口和收藏夹曲谱查询只使用认证 Session 的用户 ID。新建/更新请求体为 `{ "name": "练习", "sortOrder": 0 }`，`name` 去除首尾空白后为 1-50 个字符，`sortOrder` 可选；同用户重名返回 `FOLDER_NAME_EXISTS`，同一收藏夹重复加入同一曲谱返回 `FAVORITE_EXISTS`。他人或不存在的收藏夹统一返回 `FOLDER_NOT_FOUND`，避免泄露所有权；仅 `PUBLISHED` 且未删除曲谱可加入，否则返回 `SHEET_NOT_FOUND`。删除不存在的收藏关系幂等成功且不修改计数；删除非空收藏夹必须在单一事务内先删除关系，再按关系集合批量递减 `favorite_count`，不得删除曲谱。
 
-Task 7 聚焦测试命令为 `mvn -pl guitar -am '-Dtest=FavoriteServiceTest,FavoriteControllerTest' -DfailIfNoTests=false test`；完整回归仍运行 `mvn -pl guitar -am test`。
+`/api/admin/**` 仅允许 Session 中角色为 `ADMIN` 的用户访问，普通 `USER` 返回 HTTP 403；所有管理员写接口仍要求 `X-CSRF-Token`。`GET /api/admin/sheets` 支持 `keyword`、`status`、`sort`、`page`、`size`，可分页查看 `DRAFT`、`PUBLISHED`、`OFFLINE`、`DELETED`，排序白名单为 `LATEST`、`MOST_FAVORITED`、`MOST_VIEWED`。下架请求体为 `{ "reason": "..." }`，理由 trim 后必须为 1-500 个字符；状态机只允许 `PUBLISHED -> OFFLINE` 和 `OFFLINE -> PUBLISHED`，重复操作或恢复 `DELETED` 返回稳定 HTTP 409 业务错误。下架填写 `offline_reason/offline_by/offline_at`，恢复清空这些字段；状态更新和 `guitar_admin_action_log` 写入处于同一事务，审计记录管理员、动作、目标、理由、前后状态、容器远端 IP 和时间。管理员身份不从请求体读取，IP 不采信任意 `X-Forwarded-For`；操作不修改 OSS 文件和收藏关系。
+
+Task 7 聚焦测试命令为 `mvn -pl guitar -am '-Dtest=FavoriteServiceTest,FavoriteControllerTest' -DfailIfNoTests=false test`；Task 8 聚焦测试命令为 `mvn -pl guitar -am '-Dtest=SheetAdminServiceTest,SheetAdminControllerTest' -DfailIfNoTests=false test`；完整回归仍运行 `mvn -pl guitar -am test`。
 
 `python-a` A 股研究台接口：
 

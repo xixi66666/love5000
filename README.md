@@ -10,7 +10,7 @@ Maven 聚合模块：
 - `lovestory`：恋爱相册、照片上传、留言板和吉他视频卡片 Web 应用。
 - `website`：个人主页/展示站点、博客、提示词控制台，以及 Python 子服务入口和自动启动。
 - `imagetemplate`：图片提示词模板库和 OpenAI Images API 生成服务。
-- `guitar`：Guitar 曲谱平台，提供手机号注册登录、Session/CSRF 鉴权、公开曲谱检索、安全上传、个人曲谱管理和多收藏夹，默认端口 `8088`。
+- `guitar`：Guitar 曲谱平台，提供手机号注册登录、Session/CSRF 鉴权、公开曲谱检索、安全上传、个人曲谱管理、多收藏夹和管理员曲谱下架/恢复，默认端口 `8088`。
 
 独立 Python 微应用：
 
@@ -75,6 +75,7 @@ mvn -pl website -am test
 mvn -pl imagetemplate -am test
 mvn -pl guitar -am test
 mvn -pl guitar -am '-Dtest=FavoriteServiceTest,FavoriteControllerTest' -DfailIfNoTests=false test
+mvn -pl guitar -am '-Dtest=SheetAdminServiceTest,SheetAdminControllerTest' -DfailIfNoTests=false test
 ```
 
 Guitar 认证流程先调用 `GET http://127.0.0.1:8088/api/auth/session` 获取 Session 和 `csrfToken`，再把令牌放入所有写请求的 `X-CSRF-Token` 请求头。注册、登录和注销接口分别为 `POST /api/auth/register`、`POST /api/auth/login`、`POST /api/auth/logout`。注册和登录的数据库事务提交成功后才会轮换认证 Session。
@@ -88,6 +89,8 @@ Guitar 的 `GET /api/sheets` 和 `GET /api/sheets/{id}` 可匿名访问。列表
 曲谱所有者可通过 `PUT /api/sheets/{id}` 更新元数据，通过 multipart `PUT /api/sheets/{id}/files` 替换文件，或通过 `DELETE /api/sheets/{id}` 软删除曲谱。元数据更新不要求 `fileMode`，也不会修改文件模式；响应中的当前文件 URL 会在数据库提交前解析。文件替换请求只包含表单参数 `mode` 和重复 `files`；每次替换使用全新的存储 UUID 目录，并在文件行切换的同一事务内更新 `storage_uuid`。并发版本冲突返回 HTTP 409 和 `SHEET_VERSION_CONFLICT`，并发或重复删除稳定返回 `SHEET_NOT_FOUND`。替换和删除会在行锁内确定旧文件，并与业务变更在同一事务写入 PENDING `guitar_oss_cleanup_task`；提交后立即删除失败或进程中断时 scheduler 仍可接管。cleanup lease 通过 `claim_version` 和 `processing_started_at` fencing，陈旧 worker 无法覆盖新 worker；服务启动 60 秒后开始、每 5 分钟轮询最多 50 项，采用 5、30、120、720 分钟退避，连续第五次失败标记为 `FAILED`。
 
 Guitar 多收藏夹 API 位于 `/api/favorite-folders`，支持列表、新建、重命名/排序、删除，以及加入、移除和列出收藏曲谱。收藏夹请求体为 `{ "name": "练习", "sortOrder": 0 }`，名称去除首尾空白后必须为 1-50 个字符；所有用户身份只取自 Session。重复名称和同一收藏夹重复收藏分别返回 `FOLDER_NAME_EXISTS`、`FAVORITE_EXISTS`，不可访问的收藏夹统一返回 `FOLDER_NOT_FOUND`。只有 `PUBLISHED` 且未删除的曲谱可加入，移除不存在的收藏关系幂等成功；删除非空收藏夹只删除关系并在同一事务批量修正曲谱收藏计数，不删除曲谱。
+
+Guitar 管理员接口为 `GET /api/admin/sheets`、`POST /api/admin/sheets/{id}/offline` 和 `POST /api/admin/sheets/{id}/restore`。列表支持 `keyword`、`status`、`sort`、`page`、`size`；`status` 使用曲谱状态枚举，`sort` 仅允许 `LATEST`、`MOST_FAVORITED`、`MOST_VIEWED`。下架 JSON 请求体为 `{ "reason": "版权整改" }`，理由 trim 后为 1-500 个字符。仅 Session 中的 `ADMIN` 可访问，普通用户返回 HTTP 403，写请求还需 CSRF Token。状态只允许 `PUBLISHED -> OFFLINE` 和 `OFFLINE -> PUBLISHED`；重复或非法转换返回 HTTP 409，`DELETED` 不可恢复。下架/恢复与包含管理员、理由、前后状态、容器远端 IP 和时间的审计日志在同一事务提交，不修改曲谱文件、OSS 对象或收藏关系。
 
 Python 子服务：
 

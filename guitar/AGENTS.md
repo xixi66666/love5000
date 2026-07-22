@@ -2,7 +2,7 @@
 
 ## 模块概述
 
-`guitar` 是 `love530` 的 Java 8 + Spring Boot 2.6.13 Web 子模块，默认端口为 `8088`。当前提供基础静态首页、健康检查、手机号注册登录、Session/CSRF 鉴权，以及 Guitar 曲谱平台的公开检索、安全上传、个人曲谱管理、私人多收藏夹和 MySQL 数据基础。
+`guitar` 是 `love530` 的 Java 8 + Spring Boot 2.6.13 Web 子模块，默认端口为 `8088`。当前提供基础静态首页、健康检查、手机号注册登录、Session/CSRF 鉴权，以及 Guitar 曲谱平台的公开检索、安全上传、个人曲谱管理、私人多收藏夹、管理员曲谱下架/恢复和 MySQL 数据基础。
 
 ## 开发命令
 
@@ -11,6 +11,7 @@
 ```bash
 mvn -pl guitar -am test
 mvn -pl guitar -am '-Dtest=FavoriteServiceTest,FavoriteControllerTest' -DfailIfNoTests=false test
+mvn -pl guitar -am '-Dtest=SheetAdminServiceTest,SheetAdminControllerTest' -DfailIfNoTests=false test
 mvn -f guitar/pom.xml spring-boot:run
 ```
 
@@ -31,6 +32,7 @@ http://127.0.0.1:8088/api/health
 - `/api/users/**`、`/api/favorite-folders/**` 和非 GET `/api/sheets/**` 要求登录，`/api/admin/**` 要求 ADMIN。
 - `GET /api/sheets` 和 `GET /api/sheets/{id}` 保持公开访问，只查询 `PUBLISHED` 且未删除的曲谱；详情访问才累计曲谱和 Asia/Shanghai 当日浏览量。
 - 收藏功能放在 `com.example.guitar.favorite`，按 Controller、Service、DAO + XML Mapper 分层；所有收藏夹查询必须同时携带 Session 用户 ID 作为 SQL 条件，响应不得暴露收藏夹 `userId`、曲谱对象键或其他用户数据。
+- 管理员曲谱功能放在 `com.example.guitar.admin`，按 Controller、Service、DAO + XML Mapper 分层；管理员 ID 和角色只从认证 Session 获取，状态更新和审计日志必须在同一事务。
 - OSS 默认关闭，未明确需要前不引入 Nacos 或其他外部服务。
 - 新增接口响应至少包含 `success` 字段，并覆盖成功路径和主要失败路径。
 - 不提交密钥、`target/`、IDE 缓存或运行日志。
@@ -106,3 +108,15 @@ GET    /api/favorite-folders/{id}/sheets
 ```
 
 新建/更新请求体为 `{ "name": "练习", "sortOrder": 0 }`。名称 trim 后必须为 1-50 个字符；同用户名称唯一，冲突返回 `FOLDER_NAME_EXISTS`。他人和不存在的收藏夹统一返回 `FOLDER_NOT_FOUND`；仅公开未删除曲谱可新增收藏，重复收藏返回 `FAVORITE_EXISTS`。新增和实际删除收藏关系必须与计数变化处于同一事务，递减 SQL 必须保证计数不小于 0。移除不存在的收藏关系幂等成功；删除非空收藏夹只删除关系并按集合批量修正计数，不删除曲谱。
+
+## 管理员曲谱接口
+
+```text
+GET  /api/admin/sheets
+POST /api/admin/sheets/{id}/offline
+POST /api/admin/sheets/{id}/restore
+```
+
+`GET /api/admin/sheets` 支持 `keyword`、`status`、`sort`、`page`、`size`，可查询 `DRAFT`、`PUBLISHED`、`OFFLINE`、`DELETED`；`sort` 仅允许 `LATEST`、`MOST_FAVORITED`、`MOST_VIEWED`，分页默认 1/20、`size` 最大 50、偏移量最大 5,000,000。下架请求体为 `{ "reason": "..." }`，理由 trim 后必须为 1-500 个字符。状态机仅允许 `PUBLISHED -> OFFLINE` 与 `OFFLINE -> PUBLISHED`，重复或非法转换返回 HTTP 409，`DELETED` 不可恢复。
+
+所有 `/api/admin/**` 只允许认证 Session 中角色为 `ADMIN` 的用户访问，普通 `USER` 返回 HTTP 403；写接口继续要求 CSRF Token。Controller 不接收客户端 `adminUserId` 或 `role`，审计 IP 只使用容器提供的 `request.getRemoteAddr()`，不信任任意转发头。下架填写离线原因、管理员和时间，恢复清空离线信息；状态更新和 `guitar_admin_action_log` 插入同一事务提交，日志至少记录管理员、动作、目标、理由、前后状态、IP 和时间。管理员操作不删除 OSS 文件、不修改收藏关系。

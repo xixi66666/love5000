@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.guitar.admin.dao.SheetAdminDao">
+
+    <resultMap id="AdminSheetSummaryResultMap" type="com.example.guitar.admin.vo.AdminSheetSummaryResponse">
+        <id property="id" column="id"/>
+        <result property="uploaderId" column="uploader_id"/>
+        <result property="uploaderNickname" column="uploader_nickname"/>
+        <result property="songName" column="song_name"/>
+        <result property="singer" column="singer"/>
+        <result property="arranger" column="arranger"/>
+        <result property="sheetType" column="sheet_type"/>
+        <result property="difficulty" column="difficulty"/>
+        <result property="keySignature" column="key_signature"/>
+        <result property="capoPosition" column="capo_position"/>
+        <result property="tuning" column="tuning"/>
+        <result property="status" column="status"/>
+        <result property="offlineReason" column="offline_reason"/>
+        <result property="offlineBy" column="offline_by"/>
+        <result property="offlineAt" column="offline_at"/>
+        <result property="viewCount" column="view_count"/>
+        <result property="favoriteCount" column="favorite_count"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="deletedAt" column="deleted_at"/>
+    </resultMap>
+
+    <sql id="AdminSheetColumns">
+        s.id, s.uploader_id, u.nickname AS uploader_nickname, s.song_name, s.singer, s.arranger,
+        s.sheet_type, s.difficulty, s.key_signature, s.capo_position, s.tuning, s.status,
+        s.offline_reason, s.offline_by, s.offline_at, s.view_count, s.favorite_count,
+        s.create_time, s.update_time, s.deleted_at
+    </sql>
+
+    <sql id="AdminSheetWhere">
+        <where>
+            <if test="request.status != null">s.status = #{request.status}</if>
+            <if test="request.keywordLike != null">
+                AND (s.song_name LIKE #{request.keywordLike} ESCAPE '\\'
+                OR s.singer LIKE #{request.keywordLike} ESCAPE '\\'
+                OR s.arranger LIKE #{request.keywordLike} ESCAPE '\\')
+            </if>
+        </where>
+    </sql>
+
+    <select id="countSheets" resultType="long">
+        SELECT COUNT(1) FROM guitar_sheet s
+        <include refid="AdminSheetWhere"/>
+    </select>
+
+    <select id="findSheets" resultMap="AdminSheetSummaryResultMap">
+        SELECT <include refid="AdminSheetColumns"/>
+        FROM guitar_sheet s
+        INNER JOIN guitar_user u ON u.id = s.uploader_id
+        <include refid="AdminSheetWhere"/>
+        ORDER BY
+        <choose>
+            <when test="request.sort == 'MOST_FAVORITED'">s.favorite_count DESC, s.create_time DESC, s.id DESC</when>
+            <when test="request.sort == 'MOST_VIEWED'">s.view_count DESC, s.create_time DESC, s.id DESC</when>
+            <otherwise>s.create_time DESC, s.id DESC</otherwise>
+        </choose>
+        LIMIT #{request.size} OFFSET #{request.offset}
+    </select>
+
+    <select id="findByIdForUpdate" resultMap="AdminSheetSummaryResultMap">
+        SELECT <include refid="AdminSheetColumns"/>
+        FROM guitar_sheet s INNER JOIN guitar_user u ON u.id = s.uploader_id
+        WHERE s.id = #{id}
+        FOR UPDATE
+    </select>
+
+    <select id="findById" resultMap="AdminSheetSummaryResultMap">
+        SELECT <include refid="AdminSheetColumns"/>
+        FROM guitar_sheet s INNER JOIN guitar_user u ON u.id = s.uploader_id
+        WHERE s.id = #{id}
+    </select>
+
+    <update id="markOffline">
+        UPDATE guitar_sheet
+        SET status = 'OFFLINE', offline_reason = #{reason}, offline_by = #{adminUserId},
+            offline_at = CURRENT_TIMESTAMP, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND status = 'PUBLISHED' AND deleted_at IS NULL
+    </update>
+
+    <update id="restore">
+        UPDATE guitar_sheet
+        SET status = 'PUBLISHED', offline_reason = NULL, offline_by = NULL,
+            offline_at = NULL, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND status = 'OFFLINE' AND deleted_at IS NULL
+    </update>
+</mapper>
