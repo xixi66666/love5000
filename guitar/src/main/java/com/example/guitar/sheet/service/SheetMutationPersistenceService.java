@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 
 /** Owns short database transactions after remote file operations have succeeded. */
 @Service
@@ -35,9 +36,10 @@ public class SheetMutationPersistenceService {
     }
 
     @Transactional
-    public void replaceFiles(GuitarSheet current, String newStorageUuid, FileMode mode,
+    public void replaceFiles(GuitarSheet current, String expectedStorageUuid, String newStorageUuid, FileMode mode,
                              List<GuitarSheetFile> files) {
         GuitarSheet locked = lock(current);
+        if (!Objects.equals(locked.getStorageUuid(), expectedStorageUuid)) throw versionConflict();
         locked.setStorageUuid(newStorageUuid);
         locked.setFileMode(mode.name());
         if (sheetDao.updateStorageAndFileMode(locked) != 1) throw saveFailed();
@@ -47,11 +49,13 @@ public class SheetMutationPersistenceService {
     }
 
     @Transactional
-    public void softDelete(GuitarSheet current) {
+    public List<GuitarSheetFile> softDelete(GuitarSheet current) {
         GuitarSheet locked = lock(current);
+        List<GuitarSheetFile> currentFiles = fileDao.findBySheetId(locked.getId());
         if (sheetDao.markDeleted(locked.getId(), locked.getUploaderId()) != 1) throw saveFailed();
         sheetDao.deleteFavoritesBySheetId(locked.getId());
         if (sheetDao.resetFavoriteCount(locked.getId()) != 1) throw saveFailed();
+        return currentFiles;
     }
 
     private void applyMetadata(GuitarSheet target, SheetSaveRequest source) {
@@ -69,5 +73,9 @@ public class SheetMutationPersistenceService {
 
     private GuitarApiException saveFailed() {
         return new GuitarApiException(HttpStatus.INTERNAL_SERVER_ERROR, "SHEET_SAVE_FAILED", "曲谱保存失败，请稍后重试");
+    }
+
+    private GuitarApiException versionConflict() {
+        return new GuitarApiException(HttpStatus.CONFLICT, "SHEET_VERSION_CONFLICT", "曲谱文件已被其他请求更新，请刷新后重试");
     }
 }

@@ -129,49 +129,58 @@ class GuitarSheetMutationServiceTest {
         order.verify(oss).uploadWithObjectKey(any(InputStream.class), anyLong(), anyString(), anyString(), anyString());
         order.verify(urlService).getFileUrl(anyString());
         ArgumentCaptor<String> storageCaptor = ArgumentCaptor.forClass(String.class);
-        order.verify(persistenceService).replaceFiles(eq(sheet), storageCaptor.capture(), eq(FileMode.PDF), any());
+        order.verify(persistenceService).replaceFiles(eq(sheet), eq("123e4567-e89b-12d3-a456-426614174000"),
+                storageCaptor.capture(), eq(FileMode.PDF), any());
         order.verify(cleanupService).deleteOrEnqueue(oldKey, "SHEET_REPLACE");
         assertThat(keyCaptor.getValue()).contains("/" + storageCaptor.getValue() + "/");
         assertThat(sheet.getStorageUuid()).isEqualTo(storageCaptor.getValue());
     }
 
     @Test
-    void replacementDatabaseFailureCompensatesNewObjectsWithoutDeletingOldObjects() {
+    void replacementVersionConflictCompensatesNewObjectsWithoutDeletingCommittedVersions() {
         GuitarSheet sheet = sheet(8L, 5L, "PUBLISHED");
         when(sheetDao.findActiveByIdForOwner(8L, 5L)).thenReturn(sheet);
-        when(fileDao.findBySheetId(8L)).thenReturn(Collections.singletonList(file("old.pdf", 1)));
+        when(fileDao.findBySheetId(8L)).thenReturn(Collections.singletonList(file("version-a.pdf", 1)));
         OssUtil oss = mock(OssUtil.class);
         when(ossProvider.getIfAvailable()).thenReturn(oss);
         when(oss.uploadWithObjectKey(any(InputStream.class), anyLong(), anyString(), anyString(), anyString()))
                 .thenAnswer(invocation -> new OssUploadResult("bucket", invocation.getArgument(2), "", "", "", 1L));
         when(urlService.getFileUrl(anyString())).thenReturn("https://cdn.example/new.pdf");
-        doThrow(new IllegalStateException("db")).when(persistenceService).replaceFiles(any(), anyString(), any(), any());
+        doThrow(new GuitarApiException(org.springframework.http.HttpStatus.CONFLICT,
+                "SHEET_VERSION_CONFLICT", "曲谱文件已被其他请求更新，请刷新后重试")).when(persistenceService)
+                .replaceFiles(any(), anyString(), anyString(), any(), any());
 
         assertThatThrownBy(() -> service.replaceFiles(5L, 8L, FileMode.PDF, Collections.singletonList(pdf())))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOfSatisfying(GuitarApiException.class,
+                        exception -> assertThat(exception.getCode()).isEqualTo("SHEET_VERSION_CONFLICT"));
         verify(cleanupService).deleteOrEnqueue(org.mockito.ArgumentMatchers.matches("love530/guitar/sheets/[0-9a-f-]{36}/pdf/sheet.pdf"),
                 eq("SHEET_REPLACE_NEW"));
-        verify(cleanupService, never()).deleteOrEnqueue("old.pdf", "SHEET_REPLACE");
+        verify(cleanupService, never()).deleteOrEnqueue("version-a.pdf", "SHEET_REPLACE");
+        verify(cleanupService, never()).deleteOrEnqueue("version-b.pdf", "SHEET_REPLACE");
     }
 
     @Test
-    void deleteCommitsSoftDeleteAndFavoriteRemovalBeforeOssCleanupAndIsRepeatSafe() {
+    void deleteCleansFilesReturnedFromLockedTransactionInsteadOfStalePreTransactionSnapshot() {
         GuitarSheet sheet = sheet(8L, 5L, "PUBLISHED");
         when(sheetDao.findActiveByIdForOwner(8L, 5L)).thenReturn(sheet);
-        when(fileDao.findBySheetId(8L)).thenReturn(Collections.singletonList(file("old.pdf", 1)));
+        when(fileDao.findBySheetId(8L)).thenReturn(Collections.singletonList(file("version-a.pdf", 1)));
+        when(persistenceService.softDelete(sheet))
+                .thenReturn(Collections.singletonList(file("version-b.pdf", 1)));
 
         service.delete(5L, 8L);
 
         InOrder order = inOrder(persistenceService, cleanupService);
         order.verify(persistenceService).softDelete(eq(sheet));
-        order.verify(cleanupService).deleteOrEnqueue("old.pdf", "SHEET_DELETE");
+        order.verify(cleanupService).deleteOrEnqueue("version-b.pdf", "SHEET_DELETE");
+        verify(fileDao, never()).findBySheetId(8L);
+        verify(cleanupService, never()).deleteOrEnqueue("version-a.pdf", "SHEET_DELETE");
     }
 
     @Test
     void postCommitCleanupFailureDoesNotRollBackOrFailDelete() {
         GuitarSheet sheet = sheet(8L, 5L, "PUBLISHED");
         when(sheetDao.findActiveByIdForOwner(8L, 5L)).thenReturn(sheet);
-        when(fileDao.findBySheetId(8L)).thenReturn(Collections.singletonList(file("old.pdf", 1)));
+        when(persistenceService.softDelete(sheet)).thenReturn(Collections.singletonList(file("old.pdf", 1)));
         doThrow(new IllegalStateException("queue unavailable")).when(cleanupService)
                 .deleteOrEnqueue("old.pdf", "SHEET_DELETE");
 

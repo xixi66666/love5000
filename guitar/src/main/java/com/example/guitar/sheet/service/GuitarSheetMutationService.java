@@ -56,6 +56,7 @@ public class GuitarSheetMutationService {
         requireOwnerId(ownerId);
         GuitarSheet current = requireOwner(sheetId, ownerId);
         List<GuitarSheetFile> oldFiles = fileDao.findBySheetId(current.getId());
+        String expectedStorageUuid = current.getStorageUuid();
         List<SheetFileValidator.ValidatedSheetFile> validated = validator.validateFiles(mode, multipartFiles);
         OssUtil oss = ossProvider.getIfAvailable();
         if (oss == null) throw ossUnavailable();
@@ -65,7 +66,7 @@ public class GuitarSheetMutationService {
         try {
             upload(oss, newStorageUuid, mode, validated, newFiles);
             Map<String, String> urls = precomputeUrls(newFiles);
-            persistenceService.replaceFiles(current, newStorageUuid, mode, newFiles);
+            persistenceService.replaceFiles(current, expectedStorageUuid, newStorageUuid, mode, newFiles);
             current.setStorageUuid(newStorageUuid);
             current.setFileMode(mode.name());
             cleanupOldFiles(oldFiles, "SHEET_REPLACE");
@@ -79,8 +80,7 @@ public class GuitarSheetMutationService {
     public void delete(long ownerId, long sheetId) {
         requireOwnerId(ownerId);
         GuitarSheet current = requireOwner(sheetId, ownerId);
-        List<GuitarSheetFile> oldFiles = fileDao.findBySheetId(current.getId());
-        persistenceService.softDelete(current);
+        List<GuitarSheetFile> oldFiles = persistenceService.softDelete(current);
         cleanupOldFiles(oldFiles, "SHEET_DELETE");
     }
 

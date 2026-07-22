@@ -35,7 +35,7 @@ POST /api/users/me/avatar
 
 `POST /api/sheets` 使用 multipart 的 `metadata` JSON Part 和重复 `files` Part 创建并立即发布曲谱，必须携带当前登录 Session 的 `X-CSRF-Token`。必填元数据包括 `songName`、`singer`、`sheetType`、`difficulty`、`keySignature`、`tuning` 与 `fileMode`；`capoPosition` 只能为 0-12。`fileMode=PDF` 仅允许一个不超过 30MB、扩展名为 `.pdf` 且文件头为 `%PDF` 的文件；`fileMode=IMAGES` 仅允许 1-20 个不超过 10MB、扩展名和 JPEG/PNG/WebP 魔数一致的图片。服务端不信任客户端文件名路径和 Content-Type，使用服务器 UUID 预声明对象键并写入派生 MIME、对象键和排序。OSS 上传和公开 URL 生成均在数据库事务外完成，且 URL 会在持久化前验证；任一阶段失败都会补偿所有已知对象，成功响应只提供文件 URL。
 
-`PUT /api/sheets/{id}` 用 JSON 元数据更新曲谱，`PUT /api/sheets/{id}/files` 用 multipart 表单参数 `mode`（`PDF` 或 `IMAGES`）和重复 `files` Part 替换文件且不修改元数据，`DELETE /api/sheets/{id}` 软删除曲谱并删除其收藏记录。三者均要求当前 Session 和 `X-CSRF-Token`，只允许上传者本人执行，管理员身份不绕过此限制；Service 先验证所有权再验证请求内容，`OFFLINE` 曲谱可由所有者修改且保持 `OFFLINE`。每次替换生成新的存储 UUID 目录，事务内同时更新 `storage_uuid`、`file_mode` 和文件行；提交后才清理旧对象。事务失败只补偿新对象，清理失败不回滚已提交版本，而是进入清理队列。
+`PUT /api/sheets/{id}` 用 JSON 元数据更新曲谱，`PUT /api/sheets/{id}/files` 用 multipart 表单参数 `mode`（`PDF` 或 `IMAGES`）和重复 `files` Part 替换文件且不修改元数据，`DELETE /api/sheets/{id}` 软删除曲谱并删除其收藏记录。三者均要求当前 Session 和 `X-CSRF-Token`，只允许上传者本人执行，管理员身份不绕过此限制；Service 先验证所有权再验证请求内容，`OFFLINE` 曲谱可由所有者修改且保持 `OFFLINE`。每次替换生成新的存储 UUID 目录，事务内同时更新 `storage_uuid`、`file_mode` 和文件行；事务锁内会校验请求读取到的存储版本，版本冲突返回 HTTP 409 和 `SHEET_VERSION_CONFLICT`，只补偿冲突请求的新对象。删除会在锁内读取当前文件快照，提交后仅清理该快照。事务失败只补偿新对象，清理失败不回滚已提交版本，而是进入清理队列。
 
 `guitar_oss_cleanup_task` 在服务启动 60 秒后开始、每 5 分钟轮询一次，单次最多认领 50 条到期任务。认领使用 MySQL 5.7 兼容的条件更新，超过 15 分钟的 `PROCESSING` 会恢复为待处理；失败重试间隔为 5、30、120、720 分钟，第五次失败标记为 `FAILED`。OSS 不可用时任务会重新调度，不会被误标成功。
 
