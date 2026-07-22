@@ -20,4 +20,6 @@ public interface GuitarSheetDao {
     int incrementViewCount(@Param("id") Long id);
 
     int incrementDailyViewCount(@Param("statDate") LocalDate statDate);
+
+    int insert(GuitarSheet sheet);
 }

@@ -9,6 +9,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.ObjectProvider;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -61,6 +62,15 @@ class OssCleanupServiceImplTest {
         service.deleteOrEnqueue("old/avatar.png", "AVATAR");
 
         assertThat(capturedTask().getLastError()).isEqualTo("OSS unavailable");
+    }
+
+    @Test
+    void persistenceFailureIsSurfacedInsteadOfSilentlyDroppingCleanupWork() {
+        when(cleanupTaskDao.insertPending(any())).thenReturn(0);
+
+        assertThatThrownBy(() -> service.deleteOrEnqueue("old/avatar.png", "AVATAR"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Failed to persist OSS cleanup task");
     }
 
     private OssCleanupTask capturedTask() {

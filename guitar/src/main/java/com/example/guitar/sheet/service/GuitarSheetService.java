@@ -1,8 +1,10 @@
 package com.example.guitar.sheet.service;
 
 import com.example.guitar.sheet.dto.SheetSearchRequest;
+import com.example.guitar.sheet.dto.SheetSaveRequest;
 import com.example.guitar.sheet.vo.SheetDetailResponse;
 import com.example.guitar.sheet.vo.SheetSummaryResponse;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -11,6 +13,9 @@ public interface GuitarSheetService {
     SheetSearchResult searchPublicSheets(SheetSearchRequest request);
 
     SheetDetailResponse getPublicSheetDetail(Long id);
+
+    SheetDetailResponse createSheet(Long uploaderId, String uploaderNickname,
+                                    SheetSaveRequest request, List<MultipartFile> files);
 
     final class SheetSearchResult {
         private final List<SheetSummaryResponse> records;

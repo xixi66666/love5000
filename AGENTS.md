@@ -8,7 +8,7 @@
 - `lovestory`：恋爱相册 Web 应用，提供静态页面、照片上传、照片列表、删除接口、留言板功能和吉他视频卡片模块。
 - `website`：个人主页/展示站点 Web 应用，包含主页静态资源、Web Demo、OSS Demo、Nacos Discovery 示例和个人博客微应用。
 - `imagetemplate`：图片提示词模板 Web 服务，提供模板库检索、prompt 渲染、直接提示词模板和 OpenAI 图片生成能力。
-- `guitar`：Guitar 曲谱平台 Web 微服务，提供基础首页、健康检查、手机号注册登录、Session/CSRF 鉴权、公开曲谱检索详情和 MySQL 持久化基础能力。
+- `guitar`：Guitar 曲谱平台 Web 微服务，提供基础首页、健康检查、手机号注册登录、Session/CSRF 鉴权、公开曲谱检索详情、安全上传和 MySQL 持久化基础能力。
 - `python-a`：A 股自选股 AI 研究台，作为独立 Python 微应用接入，不加入 Maven 聚合模块。
 - `quant-a`：A 股量化研究台，作为独立 FastAPI 微服务接入，不加入 Maven 聚合模块，不写入 `website/python-a` 的 Obsidian 目录。
 - `video`：AI 原创动漫短片生成工作台，作为独立 Python 微应用接入，不加入 Maven 聚合模块。
@@ -327,7 +327,7 @@ website/video/
 - `guitar/src/main/java/com/example/guitar/controller`：Guitar 基础 HTTP 接口，当前提供 `/api/health`。
 - `guitar/src/main/java/com/example/guitar/auth`：Guitar 手机号注册登录、Session、CSRF 和 API 权限拦截能力；数据库写入由独立事务服务提交成功后，认证服务才轮换 Session。
 - `guitar/src/main/java/com/example/guitar/user`：Guitar 用户模型和 MyBatis DAO，SQL 位于 `guitar/src/main/resources/mapper/user`。
-- `guitar/src/main/java/com/example/guitar/sheet`：Guitar 曲谱公开检索、详情、文件 URL 服务和 MyBatis DAO；SQL 位于 `guitar/src/main/resources/mapper/sheet`。
+- `guitar/src/main/java/com/example/guitar/sheet`：Guitar 曲谱公开检索、详情、安全上传、文件 URL 服务和 MyBatis DAO；OSS 上传在事务外完成，曲谱和文件记录由独立事务服务写入，SQL 位于 `guitar/src/main/resources/mapper/sheet`。
 - `guitar/src/main/resources/static`：Guitar 基础首页，默认由 Spring Boot 静态资源能力提供。
 - `website/python-a/server.py`：Python 微应用后端，负责静态页面服务、东方财富行情网关、DeepSeek 调用和 Obsidian 写入。
 - `website/python-a/services/stock_metadata_service.py`：股票行业、板块和概念元数据缓存与降级读取。
@@ -560,6 +560,7 @@ POST /api/image-templates/{id}/generate
 GET /api/health
 GET  /api/sheets
 GET  /api/sheets/{id}
+POST /api/sheets
 GET  /api/auth/session
 POST /api/auth/register
 POST /api/auth/login
@@ -569,6 +570,8 @@ POST /api/auth/logout
 `POST` 注册、登录和注销均需先请求 `GET /api/auth/session` 创建 Session，并在请求头携带返回的 `X-CSRF-Token`。认证 Session 属性名为 `GUITAR_AUTH_USER`。
 
 `GET /api/sheets` 和 `GET /api/sheets/{id}` 可匿名访问，列表仅返回 `PUBLISHED` 且未删除的曲谱。列表支持 `keyword`、`songName`、`singer`、`sheetType`、`difficulty`、`keySignature`、`capoPosition`、`tuning`、`sort`、`page`、`size`；`sort` 仅允许 `LATEST`、`MOST_FAVORITED`、`MOST_VIEWED`，分页默认 `page=1`、`size=20` 且 `size` 最大为 50。详情按 `sort_order` 返回文件 URL，URL 只能由 OSS 对象键生成；读取详情同时更新曲谱浏览量和 Asia/Shanghai 当日统计。
+
+`POST /api/sheets` 是受 Session 和 CSRF 保护的 multipart 上传接口：`metadata` 为 JSON Part，`files` 为重复文件 Part。元数据要求有效的 `sheetType`、`difficulty`、`keySignature`、`tuning` 与 `fileMode`，`fileMode=PDF` 仅允许一个不超过 30MB 的 `%PDF` PDF，`fileMode=IMAGES` 仅允许 1-20 个不超过 10MB 且魔数匹配 JPG/JPEG、PNG、WebP 的图片。客户端 Content-Type 不可信，服务端会派生 MIME 和扩展名；所有文件先上传至 `love530/guitar/sheets/{storageUuid}/pdf` 或 `/images`，再由独立事务写入曲谱和文件记录。上传或持久化失败会通过 OSS 清理队列补偿已上传对象，成功响应只返回经文件 URL 服务生成的 URL，不暴露对象键或存储 UUID。
 
 公开曲谱检索的文本参数必须在入库字段边界内：`keyword`、`songName`、`singer` 最大 120 个字符，`keySignature` 最大 20 个字符，`tuning` 最大 80 个字符；超长请求返回 `VALIDATION_ERROR`，不得静默截断。`page` 和 `size` 计算出的偏移量最大为 `5,000,000`（默认 `page=1`、`size=20`，`size` 为 1-50）；超过上限返回 `PAGE_TOO_LARGE`。
 

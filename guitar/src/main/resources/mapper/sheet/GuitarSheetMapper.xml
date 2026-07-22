@@ -89,4 +89,17 @@
         VALUES (#{statDate}, 0, 0, 1, 0, 0)
         ON DUPLICATE KEY UPDATE sheet_view_count = sheet_view_count + 1, update_time = CURRENT_TIMESTAMP
     </insert>
+
+    <insert id="insert" parameterType="com.example.guitar.sheet.model.GuitarSheet"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO guitar_sheet (
+            uploader_id, song_name, singer, arranger, description, keywords,
+            sheet_type, difficulty, key_signature, capo_position, tuning,
+            file_mode, storage_uuid, status
+        ) VALUES (
+            #{uploaderId}, #{songName}, #{singer}, #{arranger}, #{description}, #{keywords},
+            #{sheetType}, #{difficulty}, #{keySignature}, #{capoPosition}, #{tuning},
+            #{fileMode}, #{storageUuid}, #{status}
+        )
+    </insert>
 </mapper>

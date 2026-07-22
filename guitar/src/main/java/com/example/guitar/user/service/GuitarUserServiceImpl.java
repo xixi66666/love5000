@@ -159,7 +159,7 @@ public class GuitarUserServiceImpl implements GuitarUserService {
     private OssUploadResult uploadAvatar(OssUtil ossUtil, MultipartFile avatar, String extension, Long userId) {
         try (InputStream inputStream = avatar.getInputStream()) {
             return ossUtil.upload(inputStream, avatar.getSize(), "avatar." + extension,
-                    avatar.getContentType(), avatarDirectory(userId));
+                    mimeTypeFor(extension), avatarDirectory(userId));
         } catch (IOException | RuntimeException exception) {
             throw new GuitarApiException(HttpStatus.SERVICE_UNAVAILABLE,
                     "OSS_UNAVAILABLE", "头像存储服务暂不可用");
@@ -183,6 +183,16 @@ public class GuitarUserServiceImpl implements GuitarUserService {
         } catch (RuntimeException cleanupException) {
             LOGGER.warn("Failed to schedule previous avatar cleanup");
         }
+    }
+
+    private String mimeTypeFor(String extension) {
+        if ("png".equals(extension)) {
+            return "image/png";
+        }
+        if ("webp".equals(extension)) {
+            return "image/webp";
+        }
+        return "image/jpeg";
     }
 
     private GuitarApiException invalidAvatar() {

@@ -20,4 +20,14 @@
         WHERE sheet_id = #{sheetId}
         ORDER BY sort_order ASC, id ASC
     </select>
+
+    <insert id="insertBatch">
+        INSERT INTO guitar_sheet_file (
+            sheet_id, object_key, original_filename, mime_type, file_extension, file_size, sort_order
+        ) VALUES
+        <foreach collection="files" item="file" separator=",">
+            (#{file.sheetId}, #{file.objectKey}, #{file.originalFilename}, #{file.mimeType},
+            #{file.fileExtension}, #{file.fileSize}, #{file.sortOrder})
+        </foreach>
+    </insert>
 </mapper>

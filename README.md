@@ -10,7 +10,7 @@ Maven 聚合模块：
 - `lovestory`：恋爱相册、照片上传、留言板和吉他视频卡片 Web 应用。
 - `website`：个人主页/展示站点、博客、提示词控制台，以及 Python 子服务入口和自动启动。
 - `imagetemplate`：图片提示词模板库和 OpenAI Images API 生成服务。
-- `guitar`：Guitar 曲谱平台，提供手机号注册登录、Session/CSRF 鉴权、公开曲谱检索和详情查询，默认端口 `8088`。
+- `guitar`：Guitar 曲谱平台，提供手机号注册登录、Session/CSRF 鉴权、公开曲谱检索、详情查询和安全上传，默认端口 `8088`。
 
 独立 Python 微应用：
 
@@ -81,6 +81,8 @@ Guitar 认证流程先调用 `GET http://127.0.0.1:8088/api/auth/session` 获取
 Guitar 已提供 `PUT /api/users/me` 更新昵称和 `POST /api/users/me/avatar` 上传头像。两个接口只使用认证 Session 中的用户身份；头像字段名为 `avatar`，限制为不超过 5MB 的 JPG/JPEG、PNG 或 WebP，并校验文件魔数。头像 OSS 存储通过 `LOVE530_OSS_ENABLED=true` 及现有 `LOVE530_OSS_*` 环境变量启用，数据库仅保存对象键；旧对象删除失败会落入 `guitar_oss_cleanup_task` 等待后续清理。
 
 Guitar 的 `GET /api/sheets` 和 `GET /api/sheets/{id}` 可匿名访问。列表仅返回已发布且未删除的曲谱，支持 `keyword`、`songName`、`singer`、`sheetType`、`difficulty`、`keySignature`、`capoPosition`、`tuning` 和 `sort`（`LATEST`、`MOST_FAVORITED`、`MOST_VIEWED`）；分页默认 `page=1`、`size=20`，`size` 最大为 50。详情按文件排序返回可公开访问的文件 URL，并在亚洲/上海日期桶中记录浏览量。静态首页仍为 `http://127.0.0.1:8088/`，健康检查为 `GET /api/health`。
+
+`POST /api/sheets` 使用 multipart 的 `metadata` JSON Part 和重复 `files` Part 创建并立即发布曲谱，必须使用登录 Session 和 `X-CSRF-Token`。`fileMode=PDF` 仅接受一个不超过 30MB、扩展名和 `%PDF` 文件头一致的 PDF；`fileMode=IMAGES` 接受 1-20 个不超过 10MB、扩展名和 JPEG/PNG/WebP 魔数一致的图片。服务端忽略客户端 MIME，使用校验后的类型上传到 `love530/guitar/sheets/{uuid}/pdf` 或 `/images`，数据库只保存 OSS 对象键；OSS 或数据库失败时会补偿已上传对象。
 
 Python 子服务：
 

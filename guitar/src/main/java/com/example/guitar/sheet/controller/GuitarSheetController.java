@@ -1,23 +1,36 @@
 package com.example.guitar.sheet.controller;
 
+import com.example.guitar.auth.model.GuitarUserPrincipal;
+import com.example.guitar.auth.service.GuitarAuthService;
 import com.example.guitar.sheet.dto.SheetSearchRequest;
+import com.example.guitar.sheet.dto.SheetSaveRequest;
 import com.example.guitar.sheet.service.GuitarSheetService;
 import com.example.guitar.sheet.vo.SheetDetailResponse;
 import com.example.guitar.web.ApiResponse;
+import com.example.guitar.web.GuitarApiException;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import javax.servlet.http.HttpServletRequest;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/sheets")
 public class GuitarSheetController {
 
     private final GuitarSheetService guitarSheetService;
+    private final GuitarAuthService guitarAuthService;
 
-    public GuitarSheetController(GuitarSheetService guitarSheetService) {
+    public GuitarSheetController(GuitarSheetService guitarSheetService, GuitarAuthService guitarAuthService) {
         this.guitarSheetService = guitarSheetService;
+        this.guitarAuthService = guitarAuthService;
     }
 
     @GetMapping
@@ -29,5 +42,14 @@ public class GuitarSheetController {
     @GetMapping("/{id}")
     public ApiResponse<SheetDetailResponse> detail(@PathVariable Long id) {
         return ApiResponse.success(guitarSheetService.getPublicSheetDetail(id));
+    }
+
+    @PostMapping(consumes = "multipart/form-data")
+    public ApiResponse<SheetDetailResponse> create(@RequestPart("metadata") SheetSaveRequest metadata,
+                                                    @RequestPart("files") List<MultipartFile> files,
+                                                    HttpServletRequest request) {
+        GuitarUserPrincipal current = guitarAuthService.currentSession(request).orElseThrow(() ->
+                new GuitarApiException(HttpStatus.UNAUTHORIZED, "AUTH_REQUIRED", "请先登录"));
+        return ApiResponse.success(guitarSheetService.createSheet(current.getId(), current.getNickname(), metadata, files));
     }
 }

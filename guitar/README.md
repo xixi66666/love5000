@@ -1,6 +1,6 @@
 # Guitar 服务
 
-`guitar` 是 `love530` 的独立 Spring Boot Web 模块，使用 Java 8、Spring Boot 2.6.13、MyBatis 和 MySQL，默认监听 `8088`。当前提供静态首页、健康检查、手机号注册登录、Session/CSRF 鉴权，以及公开曲谱检索和详情查询。
+`guitar` 是 `love530` 的独立 Spring Boot Web 模块，使用 Java 8、Spring Boot 2.6.13、MyBatis 和 MySQL，默认监听 `8088`。当前提供静态首页、健康检查、手机号注册登录、Session/CSRF 鉴权，以及公开曲谱检索、详情查询和安全上传。
 
 ## 启动与测试
 
@@ -19,6 +19,7 @@ mvn -f guitar/pom.xml spring-boot:run
 GET  /api/health
 GET  /api/sheets
 GET  /api/sheets/{id}
+POST /api/sheets
 GET  /api/auth/session
 POST /api/auth/register
 POST /api/auth/login
@@ -28,6 +29,8 @@ POST /api/users/me/avatar
 ```
 
 `GET /api/sheets` 和 `GET /api/sheets/{id}` 可匿名访问，只返回已发布且未删除的曲谱。列表可使用 `keyword`（歌名、歌手、编配者、关键词）、`songName`、`singer`、`sheetType`、`difficulty`、`keySignature`、`capoPosition`（0-12）、`tuning`、`sort`（`LATEST`、`MOST_FAVORITED`、`MOST_VIEWED`）筛选。分页默认 `page=1`、`size=20`，`size` 为 1-50。详情文件 URL 仅由 OSS 对象键生成，未配置可用 OSS 时返回 `OSS_UNAVAILABLE`，不会返回本地路径；读取详情会同时累计曲谱浏览量和 Asia/Shanghai 当日统计。
+
+`POST /api/sheets` 使用 multipart 的 `metadata` JSON Part 和重复 `files` Part 创建并立即发布曲谱，必须携带当前登录 Session 的 `X-CSRF-Token`。必填元数据包括 `songName`、`singer`、`sheetType`、`difficulty`、`keySignature`、`tuning` 与 `fileMode`；`capoPosition` 只能为 0-12。`fileMode=PDF` 仅允许一个不超过 30MB、扩展名为 `.pdf` 且文件头为 `%PDF` 的文件；`fileMode=IMAGES` 仅允许 1-20 个不超过 10MB、扩展名和 JPEG/PNG/WebP 魔数一致的图片。服务端不信任客户端文件名路径和 Content-Type，并将派生的 MIME、对象键和排序写入数据库。OSS 上传在数据库事务外进行；OSS 或数据库失败会清理已上传对象，成功响应只提供由文件 URL 服务生成的 URL。
 
 公开检索的 `keyword`、`songName`、`singer` 最大为 120 个字符，`keySignature` 最大为 20 个字符，`tuning` 最大为 80 个字符。超长参数返回 `VALIDATION_ERROR`，服务不会截断输入。分页偏移量上限为 `5,000,000`，超过时返回 `PAGE_TOO_LARGE`。
 

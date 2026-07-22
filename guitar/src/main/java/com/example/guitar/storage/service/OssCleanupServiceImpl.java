@@ -51,6 +51,7 @@ public class OssCleanupServiceImpl implements OssCleanupService {
         task.setLastError(lastError);
         if (ossCleanupTaskDao.insertPending(task) != 1) {
             LOGGER.warn("Failed to persist OSS cleanup task");
+            throw new IllegalStateException("Failed to persist OSS cleanup task");
         }
     }
 

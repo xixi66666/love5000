@@ -10,6 +10,7 @@ import com.example.guitar.sheet.vo.SheetSummaryResponse;
 import com.example.guitar.web.GuitarApiException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 
 import java.time.LocalDate;
 import java.util.Collections;
@@ -28,6 +29,10 @@ class GuitarSheetServiceImplTest {
     private GuitarSheetDao sheetDao;
     private GuitarSheetFileDao fileDao;
     private SheetFileUrlService fileUrlService;
+    private SheetFileValidator sheetFileValidator;
+    private ObjectProvider<com.example.common.util.OssUtil> ossUtilProvider;
+    private com.example.guitar.storage.service.OssCleanupService ossCleanupService;
+    private SheetUploadPersistenceService persistenceService;
     private GuitarSheetServiceImpl service;
 
     @BeforeEach
@@ -35,7 +40,12 @@ class GuitarSheetServiceImplTest {
         sheetDao = mock(GuitarSheetDao.class);
         fileDao = mock(GuitarSheetFileDao.class);
         fileUrlService = mock(SheetFileUrlService.class);
-        service = new GuitarSheetServiceImpl(sheetDao, fileDao, fileUrlService);
+        sheetFileValidator = mock(SheetFileValidator.class);
+        ossUtilProvider = ossUtilProvider();
+        ossCleanupService = mock(com.example.guitar.storage.service.OssCleanupService.class);
+        persistenceService = mock(SheetUploadPersistenceService.class);
+        service = new GuitarSheetServiceImpl(sheetDao, fileDao, fileUrlService, sheetFileValidator,
+                ossUtilProvider, ossCleanupService, persistenceService);
     }
 
     @Test
@@ -210,6 +220,11 @@ class GuitarSheetServiceImplTest {
             builder.append(value);
         }
         return builder.toString();
+    }
+
+    @SuppressWarnings("unchecked")
+    private ObjectProvider<com.example.common.util.OssUtil> ossUtilProvider() {
+        return (ObjectProvider<com.example.common.util.OssUtil>) mock(ObjectProvider.class);
     }
 
     @FunctionalInterface

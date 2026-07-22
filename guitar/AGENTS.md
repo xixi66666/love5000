@@ -2,7 +2,7 @@
 
 ## 模块概述
 
-`guitar` 是 `love530` 的 Java 8 + Spring Boot 2.6.13 Web 子模块，默认端口为 `8088`。当前提供基础静态首页、健康检查、手机号注册登录、Session/CSRF 鉴权，以及 Guitar 曲谱平台的公开检索和 MySQL 数据基础。
+`guitar` 是 `love530` 的 Java 8 + Spring Boot 2.6.13 Web 子模块，默认端口为 `8088`。当前提供基础静态首页、健康检查、手机号注册登录、Session/CSRF 鉴权，以及 Guitar 曲谱平台的公开检索、安全上传和 MySQL 数据基础。
 
 ## 开发命令
 
@@ -64,11 +64,19 @@ POST /api/users/me/avatar
 ```text
 GET /api/sheets
 GET /api/sheets/{id}
+POST /api/sheets
 ```
 
 ### Public sheet query limits
 
 - `keyword`, `songName`, and `singer` are limited to 120 characters; `keySignature` is limited to 20; `tuning` is limited to 80. Overlong values return `VALIDATION_ERROR` and are never truncated.
 - `page` defaults to 1 and `size` defaults to 20 (valid range 1-50). The calculated SQL offset is capped at `5,000,000`; requests above the cap return `PAGE_TOO_LARGE`.
+
+### Safe sheet upload
+
+- `POST /api/sheets` requires the authenticated Session and `X-CSRF-Token`; it accepts a JSON `metadata` part plus repeated `files` parts.
+- `fileMode=PDF` accepts exactly one `.pdf` no larger than 30MB with a `%PDF` header. `fileMode=IMAGES` accepts 1-20 JPG/JPEG, PNG, or WebP files no larger than 10MB each, with matching magic bytes.
+- Ignore client Content-Type and path segments. Derive the stored MIME type and extension, upload outside the database transaction to `love530/guitar/sheets/{storageUuid}/pdf` or `/images`, and persist only returned object keys.
+- If an upload or transactional persistence fails, compensate every uploaded object through `OssCleanupService`. Never expose `storageUuid` or object keys in API responses.
 
 列表参数为 `keyword`、`songName`、`singer`、`sheetType`、`difficulty`、`keySignature`、`capoPosition`、`tuning`、`sort`、`page`、`size`。`keyword` 覆盖歌名、歌手、编配者和关键词；`sheetType`、`difficulty`、`sort` 必须是稳定模型枚举，`sort` 仅允许 `LATEST`、`MOST_FAVORITED`、`MOST_VIEWED`。分页默认为 `page=1`、`size=20`，大小范围为 1-50，变调夹范围为 0-12。文件 URL 只从对象键生成，公开基础 URL 和 OSS 都不可用时返回稳定的 `OSS_UNAVAILABLE`，禁止泄露本地文件路径。静态首页仍为 `/`，健康检查仍为 `/api/health`。
