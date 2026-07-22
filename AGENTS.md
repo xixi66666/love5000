@@ -570,6 +570,8 @@ POST /api/auth/logout
 
 `GET /api/sheets` 和 `GET /api/sheets/{id}` 可匿名访问，列表仅返回 `PUBLISHED` 且未删除的曲谱。列表支持 `keyword`、`songName`、`singer`、`sheetType`、`difficulty`、`keySignature`、`capoPosition`、`tuning`、`sort`、`page`、`size`；`sort` 仅允许 `LATEST`、`MOST_FAVORITED`、`MOST_VIEWED`，分页默认 `page=1`、`size=20` 且 `size` 最大为 50。详情按 `sort_order` 返回文件 URL，URL 只能由 OSS 对象键生成；读取详情同时更新曲谱浏览量和 Asia/Shanghai 当日统计。
 
+公开曲谱检索的文本参数必须在入库字段边界内：`keyword`、`songName`、`singer` 最大 120 个字符，`keySignature` 最大 20 个字符，`tuning` 最大 80 个字符；超长请求返回 `VALIDATION_ERROR`，不得静默截断。`page` 和 `size` 计算出的偏移量最大为 `5,000,000`（默认 `page=1`、`size=20`，`size` 为 1-50）；超过上限返回 `PAGE_TOO_LARGE`。
+
 `python-a` A 股研究台接口：
 
 ```text

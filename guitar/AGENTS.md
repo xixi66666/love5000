@@ -66,4 +66,9 @@ GET /api/sheets
 GET /api/sheets/{id}
 ```
 
+### Public sheet query limits
+
+- `keyword`, `songName`, and `singer` are limited to 120 characters; `keySignature` is limited to 20; `tuning` is limited to 80. Overlong values return `VALIDATION_ERROR` and are never truncated.
+- `page` defaults to 1 and `size` defaults to 20 (valid range 1-50). The calculated SQL offset is capped at `5,000,000`; requests above the cap return `PAGE_TOO_LARGE`.
+
 列表参数为 `keyword`、`songName`、`singer`、`sheetType`、`difficulty`、`keySignature`、`capoPosition`、`tuning`、`sort`、`page`、`size`。`keyword` 覆盖歌名、歌手、编配者和关键词；`sheetType`、`difficulty`、`sort` 必须是稳定模型枚举，`sort` 仅允许 `LATEST`、`MOST_FAVORITED`、`MOST_VIEWED`。分页默认为 `page=1`、`size=20`，大小范围为 1-50，变调夹范围为 0-12。文件 URL 只从对象键生成，公开基础 URL 和 OSS 都不可用时返回稳定的 `OSS_UNAVAILABLE`，禁止泄露本地文件路径。静态首页仍为 `/`，健康检查仍为 `/api/health`。

@@ -9,6 +9,13 @@ import java.util.Locale;
 
 public class SheetSearchRequest {
 
+    private static final int MAX_KEYWORD_LENGTH = 120;
+    private static final int MAX_SONG_NAME_LENGTH = 120;
+    private static final int MAX_SINGER_LENGTH = 120;
+    private static final int MAX_KEY_SIGNATURE_LENGTH = 20;
+    private static final int MAX_TUNING_LENGTH = 80;
+    private static final long MAX_OFFSET = 5_000_000L;
+
     public enum Sort {
         LATEST,
         MOST_FAVORITED,
@@ -29,7 +36,7 @@ public class SheetSearchRequest {
     private String keywordLike;
     private String songNameLike;
     private String singerLike;
-    private int offset;
+    private long offset;
 
     public void normalizeAndValidate() {
         keyword = trimToNull(keyword);
@@ -42,10 +49,16 @@ public class SheetSearchRequest {
         sort = normalizeEnum(sort == null ? Sort.LATEST.name() : sort, Sort.class);
         page = page == null ? 1 : page;
         size = size == null ? 20 : size;
-        if (page < 1 || size < 1 || size > 50 || (capoPosition != null && (capoPosition < 0 || capoPosition > 12))) {
+        if (page < 1 || size < 1 || size > 50 || (capoPosition != null && (capoPosition < 0 || capoPosition > 12))
+                || exceedsLength(keyword, MAX_KEYWORD_LENGTH) || exceedsLength(songName, MAX_SONG_NAME_LENGTH)
+                || exceedsLength(singer, MAX_SINGER_LENGTH) || exceedsLength(keySignature, MAX_KEY_SIGNATURE_LENGTH)
+                || exceedsLength(tuning, MAX_TUNING_LENGTH)) {
             throw validationError();
         }
-        offset = (page - 1) * size;
+        offset = ((long) page - 1L) * size;
+        if (offset > MAX_OFFSET) {
+            throw pageTooLargeError();
+        }
         keywordLike = toLikePattern(keyword);
         songNameLike = toLikePattern(songName);
         singerLike = toLikePattern(singer);
@@ -78,8 +91,16 @@ public class SheetSearchRequest {
         return "%" + value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
     }
 
+    private boolean exceedsLength(String value, int maximumLength) {
+        return value != null && value.length() > maximumLength;
+    }
+
     private GuitarApiException validationError() {
         return new GuitarApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "请求参数不正确");
+    }
+
+    private GuitarApiException pageTooLargeError() {
+        return new GuitarApiException(HttpStatus.BAD_REQUEST, "PAGE_TOO_LARGE", "页码超出公开检索范围");
     }
 
     public String getKeyword() { return keyword; }
@@ -107,5 +128,5 @@ public class SheetSearchRequest {
     public String getKeywordLike() { return keywordLike; }
     public String getSongNameLike() { return songNameLike; }
     public String getSingerLike() { return singerLike; }
-    public int getOffset() { return offset; }
+    public long getOffset() { return offset; }
 }

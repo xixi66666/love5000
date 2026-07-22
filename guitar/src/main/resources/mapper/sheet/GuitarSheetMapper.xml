@@ -65,7 +65,7 @@
         <choose>
             <when test="request.sort == 'MOST_FAVORITED'">s.favorite_count DESC, s.create_time DESC, s.id DESC</when>
             <when test="request.sort == 'MOST_VIEWED'">s.view_count DESC, s.create_time DESC, s.id DESC</when>
-            <otherwise>s.status ASC, s.create_time DESC, s.id DESC</otherwise>
+            <otherwise>s.create_time DESC, s.id DESC</otherwise>
         </choose>
         LIMIT #{request.size} OFFSET #{request.offset}
     </select>

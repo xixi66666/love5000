@@ -82,6 +82,42 @@ class GuitarSheetServiceImplTest {
     }
 
     @Test
+    void searchRejectsPageWhoseOffsetWouldExceedPublicQueryCap() {
+        SheetSearchRequest request = new SheetSearchRequest();
+        request.setPage(Integer.MAX_VALUE);
+        request.setSize(50);
+
+        assertApiError(() -> service.searchPublicSheets(request), "PAGE_TOO_LARGE");
+        verifyNoInteractions(sheetDao, fileDao);
+    }
+
+    @Test
+    void searchAllowsPageWhoseOffsetIsExactlyAtPublicQueryCap() {
+        SheetSearchRequest request = new SheetSearchRequest();
+        request.setPage(100001);
+        request.setSize(50);
+        when(sheetDao.countPublicSheets(any(SheetSearchRequest.class))).thenReturn(0L);
+        when(sheetDao.findPublicSheets(any(SheetSearchRequest.class))).thenReturn(Collections.<GuitarSheet>emptyList());
+
+        GuitarSheetService.SheetSearchResult result = service.searchPublicSheets(request);
+
+        assertThat(result.getPage()).isEqualTo(100001);
+        assertThat(request.getOffset()).isEqualTo(5_000_000L);
+        verify(sheetDao).countPublicSheets(request);
+        verify(sheetDao).findPublicSheets(request);
+    }
+
+    @Test
+    void searchRejectsOverlongPublicFilterValues() {
+        assertOverlongFilterIsRejected("keyword", 121);
+        assertOverlongFilterIsRejected("songName", 121);
+        assertOverlongFilterIsRejected("singer", 121);
+        assertOverlongFilterIsRejected("keySignature", 21);
+        assertOverlongFilterIsRejected("tuning", 81);
+        verifyNoInteractions(sheetDao, fileDao);
+    }
+
+    @Test
     void detailReturnsAnonymousPublicRecordFilesAndCountsViewForShanghaiDay() {
         GuitarSheet publicSheet = sheet(9L);
         GuitarSheetFile file = new GuitarSheetFile();
@@ -147,6 +183,33 @@ class GuitarSheetServiceImplTest {
     private void assertApiError(ThrowingCallable callable, String code) {
         assertThatThrownBy(callable::call).isInstanceOfSatisfying(GuitarApiException.class,
                 exception -> assertThat(exception.getCode()).isEqualTo(code));
+    }
+
+    private void assertOverlongFilterIsRejected(String filterName, int length) {
+        SheetSearchRequest request = new SheetSearchRequest();
+        String value = repeat('x', length);
+        if ("keyword".equals(filterName)) {
+            request.setKeyword(value);
+        } else if ("songName".equals(filterName)) {
+            request.setSongName(value);
+        } else if ("singer".equals(filterName)) {
+            request.setSinger(value);
+        } else if ("keySignature".equals(filterName)) {
+            request.setKeySignature(value);
+        } else if ("tuning".equals(filterName)) {
+            request.setTuning(value);
+        } else {
+            throw new IllegalArgumentException("Unknown filter: " + filterName);
+        }
+        assertApiError(() -> service.searchPublicSheets(request), "VALIDATION_ERROR");
+    }
+
+    private String repeat(char value, int count) {
+        StringBuilder builder = new StringBuilder(count);
+        for (int index = 0; index < count; index++) {
+            builder.append(value);
+        }
+        return builder.toString();
     }
 
     @FunctionalInterface
