@@ -66,6 +66,22 @@ class GuitarApplicationTests {
 	}
 
 	@Test
+	void phaseOneWorkspacePagesExposeTheirModules() throws Exception {
+		assertWorkspacePage("/upload.html", "/js/upload.js");
+		assertWorkspacePage("/favorites.html", "/js/favorites.js");
+		assertWorkspacePage("/profile.html", "/js/profile.js");
+		assertWorkspacePage("/admin.html", "/js/admin.js");
+	}
+
+	private void assertWorkspacePage(String path, String module) throws Exception {
+		mockMvc.perform(get(path))
+				.andExpect(status().isOk())
+				.andExpect(content().contentTypeCompatibleWith("text/html"))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(module)))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"main\"")));
+	}
+
+	@Test
 	void configuredAuthenticationInterceptorProtectsMatrixParameterPath() throws Exception {
 		mockMvc.perform(get("/api/users;v=1/me"))
 				.andExpect(status().isUnauthorized())

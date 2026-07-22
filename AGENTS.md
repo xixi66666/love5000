@@ -987,6 +987,8 @@ Single-context layout: root `CONTEXT.md` and `docs/adr/`, created lazily when ne
 
 ## Guitar frontend
 
+第一期工作台页面包括 `guitar/src/main/resources/static/upload.html`（上传/编辑）、`favorites.html`（私人收藏夹）、`profile.html`（资料与我的公开上传）和 `admin.html`（管理员下架/恢复）。Node 校验脚本为 `npm.cmd run test:upload`、`npm.cmd run test:favorites`，Java 静态资源断言使用 `mvn -pl guitar -am -Dtest=GuitarApplicationTests -DfailIfNoTests=false test`。
+
 The Guitar static sheet-search homepage is `guitar/src/main/resources/static/index.html`; public detail is `sheet.html`, authentication is `auth.html`, with shared ES modules in `static/js/` and discovery styles in `static/css/discovery.css`. Run frontend checks from `guitar/` using `npm.cmd run test:api`, `npm.cmd run test:auth`, and `npm.cmd run test:search`; Java static-resource assertions run with the Guitar Maven test command.
 
 

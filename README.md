@@ -123,4 +123,6 @@ cd website/video && python -m unittest discover -s tests -v
 
 ## Guitar 前端
 
+第一期工作台页面包括 `upload.html`（上传/编辑）、`favorites.html`（私人收藏夹）、`profile.html`（资料与我的公开上传）和 `admin.html`（管理员下架/恢复）。新增 Node 校验脚本为 `npm.cmd run test:upload`、`npm.cmd run test:favorites`；页面静态资源由 `GuitarApplicationTests` 断言。
+
 Guitar 的静态曲谱搜索首页位于 `guitar/src/main/resources/static/index.html`，详情页为 `sheet.html`，认证页为 `auth.html`；共享 API、Session、搜索与详情模块位于 `static/js/`，检索页样式位于 `static/css/discovery.css`。前端 Node 测试从 `guitar/` 执行 `npm.cmd run test:api`、`npm.cmd run test:auth` 和 `npm.cmd run test:search`，Java 静态资源断言使用 Guitar 模块 Maven 测试命令。

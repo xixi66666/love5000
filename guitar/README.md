@@ -100,6 +100,8 @@ X-CSRF-Token: <data.csrfToken>
 - 静态首页为 `http://127.0.0.1:8088/`，健康检查为 `GET /api/health`。
 ## Static frontend
 
+第一期工作台页面为 `upload.html`、`favorites.html`、`profile.html` 和 `admin.html`，分别使用对应 `static/js/` 模块；页面调用现有曲谱、收藏夹、用户资料/头像和管理员 API，写请求继续由 Session/CSRF 与服务端所有权/角色授权保护。除 `test:api`、`test:auth`、`test:search` 外，还需运行 `npm.cmd run test:upload` 和 `npm.cmd run test:favorites`。
+
 `src/main/resources/static/index.html` is the mobile-first sheet discovery workspace and `sheet.html` is the public detail/file-preview page. `auth.html` provides login/register tabs. Shared API/session/search modules are under `static/js/`; discovery styles are in `static/css/discovery.css` and reuse `static/css/app.css` tokens.
 
 Run browser-independent frontend tests from this directory:

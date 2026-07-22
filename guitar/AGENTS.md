@@ -126,6 +126,8 @@ POST /api/admin/sheets/{id}/restore
 
 ## Frontend foundation
 
+第一期页面：`upload.html` / `js/upload.js` 对应曲谱创建、元数据更新和文件替换；`favorites.html` / `js/favorites.js` 对应 `/api/favorite-folders/**`；`profile.html` / `js/profile.js` 对应 Session、资料/头像和公开曲谱列表；`admin.html` / `js/admin.js` 对应管理员曲谱列表、下架和恢复。前端限制 PDF 30MB、图片每张 10MB 且最多 20 张、头像 5MB，服务端校验和权限仍为最终依据。另运行 `npm.cmd run test:upload` 与 `npm.cmd run test:favorites`。
+
 The static application lives in `src/main/resources/static/index.html` with shared styles in `css/app.css`. Authentication is provided by `auth.html` and the ES modules `js/api.js`, `js/session.js`, and `js/auth.js`. API requests use same-origin credentials, in-memory/session-storage CSRF, and redirect JSON 401 responses to `auth.html`.
 
 Run frontend checks from `guitar/` with `npm.cmd run test:api` and `npm.cmd run test:auth`. The Java static-resource checks are included in `mvn -pl guitar -am -Dtest=GuitarApplicationTests -DfailIfNoTests=false test`.

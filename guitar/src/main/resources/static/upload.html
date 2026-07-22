@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Guitar 曲谱上传与编辑"><title>上传曲谱 · Guitar</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<a class="skip-link" href="#main">跳到主要内容</a>
+<header class="site-header"><div class="header-inner"><a class="brand" href="/"><span>GUITAR</span><small>LOVE530 SHEET LIBRARY</small></a><nav class="nav" aria-label="主导航"><a href="/">曲谱库</a><a href="/favorites.html">收藏夹</a><a href="/profile.html">个人</a></nav></div></header>
+<main id="main" class="page workspace-page">
+  <header class="workspace-head"><div><p class="eyebrow">创作者工作台</p><h1 id="page-title">上传曲谱</h1></div><a class="button secondary" href="/profile.html">返回个人页</a></header>
+  <form id="sheet-form" class="editor-layout" novalidate>
+    <section class="panel form-panel" aria-labelledby="metadata-title">
+      <div class="section-head"><div><p class="eyebrow">资料</p><h2 id="metadata-title">曲谱信息</h2></div></div>
+      <div class="form-grid">
+        <div class="field"><label for="songName">歌曲名 <span aria-hidden="true">*</span></label><input id="songName" name="songName" required maxlength="120"></div>
+        <div class="field"><label for="singer">歌手 <span aria-hidden="true">*</span></label><input id="singer" name="singer" required maxlength="120"></div>
+        <div class="field"><label for="arranger">编配者</label><input id="arranger" name="arranger" maxlength="120"></div>
+        <div class="field"><label for="keywords">关键词</label><input id="keywords" name="keywords" maxlength="255"></div>
+        <div class="field"><label for="sheetType">曲谱类型 <span aria-hidden="true">*</span></label><select id="sheetType" name="sheetType" required><option value="CHORD">和弦</option><option value="TAB">六线谱</option><option value="SCORE">五线谱</option></select></div>
+        <div class="field"><label for="difficulty">难度 <span aria-hidden="true">*</span></label><select id="difficulty" name="difficulty" required><option value="BEGINNER">入门</option><option value="INTERMEDIATE">进阶</option><option value="ADVANCED">高级</option></select></div>
+        <div class="field"><label for="keySignature">调性 <span aria-hidden="true">*</span></label><input id="keySignature" name="keySignature" required maxlength="20" placeholder="C、Am"></div>
+        <div class="field"><label for="capoPosition">变调夹</label><input id="capoPosition" name="capoPosition" type="number" min="0" max="12"></div>
+        <div class="field full"><label for="tuning">调弦 <span aria-hidden="true">*</span></label><input id="tuning" name="tuning" required maxlength="80" value="Standard"></div>
+        <div class="field full"><label for="description">说明</label><textarea id="description" name="description" rows="5" maxlength="2000"></textarea></div>
+      </div>
+      <div class="edit-only separated-action"><button id="metadata-submit" class="button primary" type="button">保存曲谱资料</button><p>仅保存上方资料，不替换文件。</p></div>
+    </section>
+    <aside class="panel file-panel" aria-labelledby="files-title">
+      <div class="section-head"><div><p class="eyebrow">文件</p><h2 id="files-title">曲谱页</h2></div></div>
+      <fieldset class="segment-field"><legend>文件模式</legend><div class="segmented"><label><input type="radio" name="fileMode" value="PDF" checked><span>PDF</span></label><label><input type="radio" name="fileMode" value="IMAGES"><span>多图</span></label></div></fieldset>
+      <label id="drop-zone" class="drop-zone" for="sheet-files"><span id="drop-hint">拖入或选择一个 PDF</span><span class="button secondary">选择文件</span><input id="sheet-files" type="file"></label>
+      <p id="file-error" class="field-error" role="alert"></p>
+      <ol id="selected-files" class="selected-files" aria-label="已选文件，按上传顺序排列"></ol>
+      <div class="progress-wrap"><progress id="upload-progress" max="100" value="0" hidden></progress><span id="progress-text" aria-live="polite"></span></div>
+      <div id="form-error" class="notice error-notice" role="alert" hidden></div>
+      <button id="create-submit" class="button primary create-only" type="button">发布曲谱</button>
+      <div class="edit-only separated-action"><button id="files-submit" class="button secondary" type="button">替换曲谱文件</button><p>仅替换文件，不修改曲谱资料。</p></div>
+    </aside>
+  </form>
+</main>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script type="module" src="/js/upload.js"></script>
+</body></html>
