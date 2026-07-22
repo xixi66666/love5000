@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "test:api": "node --test src/test/js/api.test.js",
-    "test:auth": "node --test src/test/js/auth-validation.test.js"
+    "test:auth": "node --test src/test/js/auth-validation.test.js",
+    "test:search": "node --test src/test/js/sheet-search.test.js"
   }
 }

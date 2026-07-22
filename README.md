@@ -123,4 +123,4 @@ cd website/video && python -m unittest discover -s tests -v
 
 ## Guitar 前端
 
-Guitar 的静态曲谱搜索首页位于 `guitar/src/main/resources/static/index.html`，认证页为 `auth.html`；共享 API、Session、校验模块位于 `static/js/`。前端 Node 测试从 `guitar/` 执行 `npm.cmd run test:api` 和 `npm.cmd run test:auth`，Java 静态资源断言使用 Guitar 模块 Maven 测试命令。
+Guitar 的静态曲谱搜索首页位于 `guitar/src/main/resources/static/index.html`，详情页为 `sheet.html`，认证页为 `auth.html`；共享 API、Session、搜索与详情模块位于 `static/js/`，检索页样式位于 `static/css/discovery.css`。前端 Node 测试从 `guitar/` 执行 `npm.cmd run test:api`、`npm.cmd run test:auth` 和 `npm.cmd run test:search`，Java 静态资源断言使用 Guitar 模块 Maven 测试命令。

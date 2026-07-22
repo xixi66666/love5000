@@ -100,11 +100,12 @@ X-CSRF-Token: <data.csrfToken>
 - 静态首页为 `http://127.0.0.1:8088/`，健康检查为 `GET /api/health`。
 ## Static frontend
 
-`src/main/resources/static/index.html` is the mobile-first sheet search screen. `auth.html` provides login/register tabs. Shared API/session/auth modules are under `static/js/`, with styles in `static/css/app.css`.
+`src/main/resources/static/index.html` is the mobile-first sheet discovery workspace and `sheet.html` is the public detail/file-preview page. `auth.html` provides login/register tabs. Shared API/session/search modules are under `static/js/`; discovery styles are in `static/css/discovery.css` and reuse `static/css/app.css` tokens.
 
 Run browser-independent frontend tests from this directory:
 
 ```bash
 npm.cmd run test:api
 npm.cmd run test:auth
+npm.cmd run test:search
 ```

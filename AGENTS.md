@@ -987,6 +987,6 @@ Single-context layout: root `CONTEXT.md` and `docs/adr/`, created lazily when ne
 
 ## Guitar frontend
 
-The Guitar static sheet-search homepage is `guitar/src/main/resources/static/index.html`; authentication is `auth.html`, with shared ES modules in `static/js/` and styles in `static/css/app.css`. Run frontend checks from `guitar/` using `npm.cmd run test:api` and `npm.cmd run test:auth`; Java static-resource assertions run with the Guitar Maven test command.
+The Guitar static sheet-search homepage is `guitar/src/main/resources/static/index.html`; public detail is `sheet.html`, authentication is `auth.html`, with shared ES modules in `static/js/` and discovery styles in `static/css/discovery.css`. Run frontend checks from `guitar/` using `npm.cmd run test:api`, `npm.cmd run test:auth`, and `npm.cmd run test:search`; Java static-resource assertions run with the Guitar Maven test command.
 
 

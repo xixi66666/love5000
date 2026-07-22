@@ -39,6 +39,9 @@ http://127.0.0.1:8088/api/health
 
 ## 验证要求
 
+- 公开曲谱检索首页为 `src/main/resources/static/index.html`，详情页为 `sheet.html`；`static/js/index.js` 负责筛选、分页和 URL 状态，`static/js/sheet-detail.js` 负责详情文件展示，纯函数位于 `static/js/sheet.js`。
+- 前端搜索测试使用 `npm.cmd run test:search`，覆盖 query 序列化、排序白名单、分页重置、空/错状态和 HTML 转义；浏览器验证应使用 API route mock，不连接真实 MySQL/OSS。
+
 - 修改 Java 代码后运行 `mvn -pl guitar -am test`。
 - 修改首页后启动服务并验证 `/` 与 `/api/health`。
 - 修改端口、名称或健康地址时，同步更新根 `AGENTS.md` 和 Website 主页入口。
