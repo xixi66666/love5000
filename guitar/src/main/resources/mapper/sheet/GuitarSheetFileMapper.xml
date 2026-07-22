@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.guitar.sheet.dao.GuitarSheetFileDao">
+
+    <resultMap id="GuitarSheetFileResultMap" type="com.example.guitar.sheet.model.GuitarSheetFile">
+        <id property="id" column="id"/>
+        <result property="sheetId" column="sheet_id"/>
+        <result property="objectKey" column="object_key"/>
+        <result property="originalFilename" column="original_filename"/>
+        <result property="mimeType" column="mime_type"/>
+        <result property="fileExtension" column="file_extension"/>
+        <result property="fileSize" column="file_size"/>
+        <result property="sortOrder" column="sort_order"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <select id="findBySheetId" resultMap="GuitarSheetFileResultMap">
+        SELECT id, sheet_id, object_key, original_filename, mime_type, file_extension, file_size, sort_order, create_time
+        FROM guitar_sheet_file
+        WHERE sheet_id = #{sheetId}
+        ORDER BY sort_order ASC, id ASC
+    </select>
+</mapper>

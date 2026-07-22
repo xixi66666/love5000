@@ -1,6 +1,6 @@
 # Guitar 服务
 
-`guitar` 是 `love530` 的独立 Spring Boot Web 模块，使用 Java 8、Spring Boot 2.6.13、MyBatis 和 MySQL，默认监听 `8088`。当前提供基础首页、健康检查，以及手机号注册登录、Session 和 CSRF 鉴权能力。
+`guitar` 是 `love530` 的独立 Spring Boot Web 模块，使用 Java 8、Spring Boot 2.6.13、MyBatis 和 MySQL，默认监听 `8088`。当前提供静态首页、健康检查、手机号注册登录、Session/CSRF 鉴权，以及公开曲谱检索和详情查询。
 
 ## 启动与测试
 
@@ -17,6 +17,8 @@ mvn -f guitar/pom.xml spring-boot:run
 
 ```text
 GET  /api/health
+GET  /api/sheets
+GET  /api/sheets/{id}
 GET  /api/auth/session
 POST /api/auth/register
 POST /api/auth/login
@@ -24,6 +26,8 @@ POST /api/auth/logout
 PUT  /api/users/me
 POST /api/users/me/avatar
 ```
+
+`GET /api/sheets` 和 `GET /api/sheets/{id}` 可匿名访问，只返回已发布且未删除的曲谱。列表可使用 `keyword`（歌名、歌手、编配者、关键词）、`songName`、`singer`、`sheetType`、`difficulty`、`keySignature`、`capoPosition`（0-12）、`tuning`、`sort`（`LATEST`、`MOST_FAVORITED`、`MOST_VIEWED`）筛选。分页默认 `page=1`、`size=20`，`size` 为 1-50。详情文件 URL 仅由 OSS 对象键生成，未配置可用 OSS 时返回 `OSS_UNAVAILABLE`，不会返回本地路径；读取详情会同时累计曲谱浏览量和 Asia/Shanghai 当日统计。
 
 `PUT /api/users/me` 请求体为 `{ "nickname": "..." }`；用户 ID 始终来自认证 Session。`POST /api/users/me/avatar` 使用 multipart 字段 `avatar`，只允许不超过 5MB 的 JPG/JPEG、PNG、WebP，并会校验文件魔数。头像对象键存入数据库而非公开 URL，需设置 `LOVE530_OSS_ENABLED=true` 及现有 `LOVE530_OSS_*` 配置后才可上传。旧头像删除失败会持久化到 `guitar_oss_cleanup_task`，不会回滚已成功的头像更新。
 
@@ -61,3 +65,4 @@ X-CSRF-Token: <data.csrfToken>
 - `/api/users/**`、`/api/favorite-folders/**` 和非 GET `/api/sheets/**` 要求登录。
 - `/api/admin/**` 要求 `ADMIN` 角色。
 - 未登录和权限不足分别返回 JSON 401、403，不进行页面跳转。
+- 静态首页为 `http://127.0.0.1:8088/`，健康检查为 `GET /api/health`。
