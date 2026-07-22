@@ -84,6 +84,8 @@ Guitar 的 `GET /api/sheets` 和 `GET /api/sheets/{id}` 可匿名访问。列表
 
 `POST /api/sheets` 使用 multipart 的 `metadata` JSON Part 和重复 `files` Part 创建并立即发布曲谱，必须使用登录 Session 和 `X-CSRF-Token`。`fileMode=PDF` 仅接受一个不超过 30MB、扩展名和 `%PDF` 文件头一致的 PDF；`fileMode=IMAGES` 接受 1-20 个不超过 10MB、扩展名和 JPEG/PNG/WebP 魔数一致的图片。服务端忽略客户端 MIME，预先生成服务器 UUID 对象键并使用校验后的类型上传到 `love530/guitar/sheets/{uuid}/pdf` 或 `/images`；公开 URL 在数据库写入前完成验证。OSS、URL 或数据库失败时会补偿所有已知对象，且清理失败会保留在原始异常中。
 
+曲谱所有者可通过 `PUT /api/sheets/{id}` 更新元数据，通过 multipart `PUT /api/sheets/{id}/files` 替换文件，或通过 `DELETE /api/sheets/{id}` 软删除曲谱。三个接口均从 Session 读取用户身份并要求 CSRF；管理员角色不绕过所有者校验。替换文件在数据库提交后才清理旧 OSS 对象，删除会同时清除收藏记录。失败的对象删除会写入 `guitar_oss_cleanup_task`，服务启动 60 秒后开始、每 5 分钟轮询最多 50 项；采用 5、30、120、720 分钟退避，连续第五次失败标记为 `FAILED`。
+
 Python 子服务：
 
 ```bash

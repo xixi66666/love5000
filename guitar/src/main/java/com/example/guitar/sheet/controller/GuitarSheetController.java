@@ -13,6 +13,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -51,5 +54,28 @@ public class GuitarSheetController {
         GuitarUserPrincipal current = guitarAuthService.currentSession(request).orElseThrow(() ->
                 new GuitarApiException(HttpStatus.UNAUTHORIZED, "AUTH_REQUIRED", "请先登录"));
         return ApiResponse.success(guitarSheetService.createSheet(current.getId(), current.getNickname(), metadata, files));
+    }
+
+    @PutMapping(value = "/{id}", consumes = "application/json")
+    public ApiResponse<SheetDetailResponse> updateMetadata(@PathVariable Long id, @RequestBody SheetSaveRequest metadata,
+                                                            HttpServletRequest request) {
+        return ApiResponse.success(guitarSheetService.updateSheetMetadata(currentUser(request).getId(), id, metadata));
+    }
+
+    @PutMapping(value = "/{id}/files", consumes = "multipart/form-data")
+    public ApiResponse<SheetDetailResponse> replaceFiles(@PathVariable Long id, @RequestPart("metadata") SheetSaveRequest metadata,
+                                                          @RequestPart("files") List<MultipartFile> files, HttpServletRequest request) {
+        return ApiResponse.success(guitarSheetService.replaceSheetFiles(currentUser(request).getId(), id, metadata, files));
+    }
+
+    @DeleteMapping("/{id}")
+    public ApiResponse<Void> delete(@PathVariable Long id, HttpServletRequest request) {
+        guitarSheetService.deleteSheet(currentUser(request).getId(), id);
+        return ApiResponse.success(null);
+    }
+
+    private GuitarUserPrincipal currentUser(HttpServletRequest request) {
+        return guitarAuthService.currentSession(request).orElseThrow(() ->
+                new GuitarApiException(HttpStatus.UNAUTHORIZED, "AUTH_REQUIRED", "请先登录"));
     }
 }

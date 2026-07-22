@@ -82,13 +82,55 @@ class GuitarSheetUploadControllerTest {
                 .andExpect(jsonPath("$.code").value("AUTH_REQUIRED"));
     }
 
+    @Test
+    void ownerMutationEndpointsRequireSessionAndCsrfThenPassSessionUserIdOnly() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        String csrf = csrfTokenService.getOrCreateToken(session);
+        when(authService.currentSession(any())).thenReturn(Optional.of(
+                new GuitarUserPrincipal(8L, "13800138000", "Uploader", null, "ADMIN")));
+        SheetDetailResponse response = new SheetDetailResponse(); response.setId(12L);
+        when(sheetService.updateSheetMetadata(any(), any(), any())).thenReturn(response);
+        when(sheetService.replaceSheetFiles(any(), any(), any(), any())).thenReturn(response);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/sheets/12")
+                        .session(session).header(CsrfTokenService.HEADER_NAME, csrf).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"songName\":\"Song\",\"singer\":\"Singer\",\"sheetType\":\"TAB\",\"difficulty\":\"BEGINNER\",\"keySignature\":\"C\",\"tuning\":\"Standard\",\"fileMode\":\"PDF\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true));
+        verify(sheetService).updateSheetMetadata(org.mockito.ArgumentMatchers.eq(8L), org.mockito.ArgumentMatchers.eq(12L), any());
+
+        MockMultipartHttpServletRequestBuilder replace = uploadRequest("/api/sheets/12/files");
+        replace.with(request -> { request.setMethod("PUT"); return request; }).session(session).header(CsrfTokenService.HEADER_NAME, csrf);
+        mockMvc.perform(replace).andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true));
+        verify(sheetService).replaceSheetFiles(org.mockito.ArgumentMatchers.eq(8L), org.mockito.ArgumentMatchers.eq(12L), any(), any());
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/sheets/12")
+                        .session(session).header(CsrfTokenService.HEADER_NAME, csrf))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true));
+        verify(sheetService).deleteSheet(8L, 12L);
+    }
+
+    @Test
+    void ownerMutationEndpointsReturnCsrfAndUnauthorizedJsonErrors() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/sheets/12"))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("CSRF_INVALID"));
+        MockHttpSession session = new MockHttpSession();
+        when(authService.currentSession(any())).thenReturn(Optional.empty());
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/sheets/12")
+                        .session(session).header(CsrfTokenService.HEADER_NAME, csrfTokenService.getOrCreateToken(session)))
+                .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value("AUTH_REQUIRED"));
+    }
+
     private MockMultipartHttpServletRequestBuilder uploadRequest() {
+        return uploadRequest("/api/sheets");
+    }
+
+    private MockMultipartHttpServletRequestBuilder uploadRequest(String url) {
         MockPart metadata = new MockPart("metadata", ("{\"songName\":\"Song\",\"singer\":\"Singer\","
                 + "\"sheetType\":\"TAB\",\"difficulty\":\"BEGINNER\",\"keySignature\":\"C\","
                 + "\"tuning\":\"Standard\",\"fileMode\":\"PDF\"}")
                 .getBytes(java.nio.charset.StandardCharsets.UTF_8));
         metadata.getHeaders().setContentType(MediaType.APPLICATION_JSON);
-        return org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/sheets")
+        return org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart(url)
                 .part(metadata)
                 .file(new MockMultipartFile("files", "song.pdf", "application/pdf",
                         "%PDF-1.7".getBytes(java.nio.charset.StandardCharsets.US_ASCII)));

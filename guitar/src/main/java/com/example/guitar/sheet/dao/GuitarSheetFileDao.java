@@ -12,4 +12,6 @@ public interface GuitarSheetFileDao {
     List<GuitarSheetFile> findBySheetId(@Param("sheetId") Long sheetId);
 
     int insertBatch(@Param("files") List<GuitarSheetFile> files);
+
+    int deleteBySheetId(@Param("sheetId") Long sheetId);
 }

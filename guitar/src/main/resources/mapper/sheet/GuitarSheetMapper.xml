@@ -102,4 +102,50 @@
             #{fileMode}, #{storageUuid}, #{status}
         )
     </insert>
+
+    <select id="findActiveByIdForOwner" resultMap="GuitarSheetResultMap">
+        SELECT <include refid="PublicSheetColumns"/>
+        FROM guitar_sheet s INNER JOIN guitar_user u ON u.id = s.uploader_id
+        WHERE s.id = #{id} AND s.uploader_id = #{ownerId} AND s.status != 'DELETED' AND s.deleted_at IS NULL
+    </select>
+
+    <select id="findActiveByIdForOwnerForUpdate" resultMap="GuitarSheetResultMap">
+        SELECT <include refid="PublicSheetColumns"/>
+        FROM guitar_sheet s INNER JOIN guitar_user u ON u.id = s.uploader_id
+        WHERE s.id = #{id} AND s.uploader_id = #{ownerId} AND s.status != 'DELETED' AND s.deleted_at IS NULL
+        FOR UPDATE
+    </select>
+
+    <select id="existsActiveById" resultType="int">
+        SELECT COUNT(1) FROM guitar_sheet WHERE id = #{id} AND status != 'DELETED' AND deleted_at IS NULL
+    </select>
+
+    <update id="updateMetadata">
+        UPDATE guitar_sheet SET song_name=#{sheet.songName}, singer=#{sheet.singer}, arranger=#{sheet.arranger},
+        description=#{sheet.description}, keywords=#{sheet.keywords}, sheet_type=#{sheet.sheetType},
+        difficulty=#{sheet.difficulty}, key_signature=#{sheet.keySignature}, capo_position=#{sheet.capoPosition},
+        tuning=#{sheet.tuning}, update_time=CURRENT_TIMESTAMP
+        WHERE id=#{sheet.id} AND uploader_id=#{sheet.uploaderId} AND status != 'DELETED' AND deleted_at IS NULL
+    </update>
+
+    <update id="updateMetadataAndFileMode">
+        UPDATE guitar_sheet SET song_name=#{sheet.songName}, singer=#{sheet.singer}, arranger=#{sheet.arranger},
+        description=#{sheet.description}, keywords=#{sheet.keywords}, sheet_type=#{sheet.sheetType},
+        difficulty=#{sheet.difficulty}, key_signature=#{sheet.keySignature}, capo_position=#{sheet.capoPosition},
+        tuning=#{sheet.tuning}, file_mode=#{sheet.fileMode}, update_time=CURRENT_TIMESTAMP
+        WHERE id=#{sheet.id} AND uploader_id=#{sheet.uploaderId} AND status != 'DELETED' AND deleted_at IS NULL
+    </update>
+
+    <update id="markDeleted">
+        UPDATE guitar_sheet SET status='DELETED', deleted_at=CURRENT_TIMESTAMP, favorite_count=0,
+        update_time=CURRENT_TIMESTAMP WHERE id=#{id} AND uploader_id=#{ownerId} AND status != 'DELETED' AND deleted_at IS NULL
+    </update>
+
+    <update id="resetFavoriteCount">
+        UPDATE guitar_sheet SET favorite_count=0, update_time=CURRENT_TIMESTAMP WHERE id=#{id} AND status='DELETED'
+    </update>
+
+    <delete id="deleteFavoritesBySheetId">
+        DELETE FROM guitar_favorite WHERE sheet_id=#{sheetId}
+    </delete>
 </mapper>

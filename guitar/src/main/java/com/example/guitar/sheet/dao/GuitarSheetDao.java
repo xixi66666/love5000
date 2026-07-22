@@ -22,4 +22,20 @@ public interface GuitarSheetDao {
     int incrementDailyViewCount(@Param("statDate") LocalDate statDate);
 
     int insert(GuitarSheet sheet);
+
+    GuitarSheet findActiveByIdForOwner(@Param("id") Long id, @Param("ownerId") Long ownerId);
+
+    int existsActiveById(@Param("id") Long id);
+
+    GuitarSheet findActiveByIdForOwnerForUpdate(@Param("id") Long id, @Param("ownerId") Long ownerId);
+
+    int updateMetadata(@Param("sheet") GuitarSheet sheet);
+
+    int updateMetadataAndFileMode(@Param("sheet") GuitarSheet sheet);
+
+    int markDeleted(@Param("id") Long id, @Param("ownerId") Long ownerId);
+
+    int resetFavoriteCount(@Param("id") Long id);
+
+    int deleteFavoritesBySheetId(@Param("sheetId") Long sheetId);
 }

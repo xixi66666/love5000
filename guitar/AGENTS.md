@@ -65,6 +65,9 @@ POST /api/users/me/avatar
 GET /api/sheets
 GET /api/sheets/{id}
 POST /api/sheets
+PUT  /api/sheets/{id}
+PUT  /api/sheets/{id}/files
+DELETE /api/sheets/{id}
 ```
 
 ### Public sheet query limits
@@ -78,5 +81,12 @@ POST /api/sheets
 - `fileMode=PDF` accepts exactly one `.pdf` no larger than 30MB with a `%PDF` header. `fileMode=IMAGES` accepts 1-20 JPG/JPEG, PNG, or WebP files no larger than 10MB each, with matching magic bytes.
 - Ignore client Content-Type and path segments. Derive the stored MIME type and extension, predeclare server-only object keys under `love530/guitar/sheets/{storageUuid}/pdf` or `/images`, upload outside the database transaction, and persist only those confirmed keys.
 - Precompute every public file URL before persistence. If upload, URL generation, or transactional persistence fails, compensate every predeclared object through `OssCleanupService`; cleanup failures are logged and attached to the original failure. Never expose `storageUuid` or object keys in API responses.
+
+### Owner sheet mutations and cleanup retry
+
+- `PUT /api/sheets/{id}` accepts JSON metadata and only updates the authenticated uploader's non-deleted sheet. `OFFLINE` remains `OFFLINE`; an ADMIN role does not bypass ownership.
+- `PUT /api/sheets/{id}/files` accepts the validated metadata JSON Part plus repeated `files`. Upload and URL precomputation occur before the isolated database transaction; old OSS objects are deleted or queued only after the new file rows commit.
+- `DELETE /api/sheets/{id}` soft-deletes the sheet, removes favorites, and sets the favorite count to zero in one transaction. A repeated delete returns `SHEET_NOT_FOUND`; post-commit cleanup never restores the row.
+- `OssCleanupRetryService` starts after 60 seconds and runs every 5 minutes. It selects at most 50 due PENDING rows, claims each with an expected-state update, recovers PROCESSING rows older than 15 minutes, and uses retry delays of 5, 30, 120, and 720 minutes before marking the fifth failure `FAILED`.
 
 列表参数为 `keyword`、`songName`、`singer`、`sheetType`、`difficulty`、`keySignature`、`capoPosition`、`tuning`、`sort`、`page`、`size`。`keyword` 覆盖歌名、歌手、编配者和关键词；`sheetType`、`difficulty`、`sort` 必须是稳定模型枚举，`sort` 仅允许 `LATEST`、`MOST_FAVORITED`、`MOST_VIEWED`。分页默认为 `page=1`、`size=20`，大小范围为 1-50，变调夹范围为 0-12。文件 URL 只从对象键生成，公开基础 URL 和 OSS 都不可用时返回稳定的 `OSS_UNAVAILABLE`，禁止泄露本地文件路径。静态首页仍为 `/`，健康检查仍为 `/api/health`。

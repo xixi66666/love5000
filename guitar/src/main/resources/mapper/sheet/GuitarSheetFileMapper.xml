@@ -30,4 +30,8 @@
             #{file.fileExtension}, #{file.fileSize}, #{file.sortOrder})
         </foreach>
     </insert>
+
+    <delete id="deleteBySheetId">
+        DELETE FROM guitar_sheet_file WHERE sheet_id=#{sheetId}
+    </delete>
 </mapper>

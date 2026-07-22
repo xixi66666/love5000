@@ -45,12 +45,22 @@ public class GuitarSheetServiceImpl implements GuitarSheetService {
     private final ObjectProvider<OssUtil> ossUtilProvider;
     private final OssCleanupService ossCleanupService;
     private final SheetUploadPersistenceService persistenceService;
+    private final GuitarSheetMutationService mutationService;
+
+    public GuitarSheetServiceImpl(GuitarSheetDao sheetDao, GuitarSheetFileDao fileDao,
+                                  SheetFileUrlService fileUrlService, SheetFileValidator sheetFileValidator,
+                                  ObjectProvider<OssUtil> ossUtilProvider, OssCleanupService ossCleanupService,
+                                  SheetUploadPersistenceService persistenceService) {
+        this(sheetDao, fileDao, fileUrlService, sheetFileValidator, ossUtilProvider, ossCleanupService,
+                persistenceService, null);
+    }
 
     @Autowired
     public GuitarSheetServiceImpl(GuitarSheetDao sheetDao, GuitarSheetFileDao fileDao,
                                   SheetFileUrlService fileUrlService, SheetFileValidator sheetFileValidator,
                                   ObjectProvider<OssUtil> ossUtilProvider, OssCleanupService ossCleanupService,
-                                  SheetUploadPersistenceService persistenceService) {
+                                  SheetUploadPersistenceService persistenceService,
+                                  GuitarSheetMutationService mutationService) {
         this.sheetDao = sheetDao;
         this.fileDao = fileDao;
         this.fileUrlService = fileUrlService;
@@ -58,6 +68,7 @@ public class GuitarSheetServiceImpl implements GuitarSheetService {
         this.ossUtilProvider = ossUtilProvider;
         this.ossCleanupService = ossCleanupService;
         this.persistenceService = persistenceService;
+        this.mutationService = mutationService;
     }
 
     @Override
@@ -126,6 +137,38 @@ public class GuitarSheetServiceImpl implements GuitarSheetService {
             throw exception;
         }
         return toUploadResponse(sheet, uploaderNickname, storedFiles, fileUrls);
+    }
+
+    @Override
+    public SheetDetailResponse updateSheetMetadata(Long uploaderId, Long sheetId, SheetSaveRequest request) {
+        GuitarSheet sheet = mutations().updateMetadata(uploaderId, sheetId, request);
+        List<GuitarSheetFile> files = fileDao.findBySheetId(sheet.getId());
+        SheetDetailResponse response = new SheetDetailResponse();
+        copySummary(sheet, response); response.setDescription(sheet.getDescription());
+        List<SheetDetailResponse.FileResponse> responses = new ArrayList<SheetDetailResponse.FileResponse>();
+        for (GuitarSheetFile file : files) responses.add(toFileResponse(file));
+        response.setFiles(responses);
+        return response;
+    }
+
+    @Override
+    public SheetDetailResponse replaceSheetFiles(Long uploaderId, Long sheetId, SheetSaveRequest request,
+                                                  List<MultipartFile> files) {
+        GuitarSheetMutationService.MutationFiles result = mutations().replaceFiles(uploaderId, sheetId, request, files);
+        SheetDetailResponse response = new SheetDetailResponse();
+        copySummary(result.getSheet(), response); response.setDescription(result.getSheet().getDescription());
+        List<SheetDetailResponse.FileResponse> responses = new ArrayList<SheetDetailResponse.FileResponse>();
+        for (GuitarSheetFile file : result.getFiles()) responses.add(toFileResponse(file, result.getUrls().get(file.getObjectKey())));
+        response.setFiles(responses);
+        return response;
+    }
+
+    @Override
+    public void deleteSheet(Long uploaderId, Long sheetId) { mutations().deleteSheet(uploaderId, sheetId); }
+
+    private GuitarSheetMutationService mutations() {
+        if (mutationService == null) throw new IllegalStateException("Sheet mutation service is unavailable");
+        return mutationService;
     }
 
     private GuitarSheet toSheet(Long uploaderId, SheetSaveRequest request) {

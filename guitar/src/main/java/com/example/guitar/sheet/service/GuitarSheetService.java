@@ -17,6 +17,13 @@ public interface GuitarSheetService {
     SheetDetailResponse createSheet(Long uploaderId, String uploaderNickname,
                                     SheetSaveRequest request, List<MultipartFile> files);
 
+    SheetDetailResponse updateSheetMetadata(Long uploaderId, Long sheetId, SheetSaveRequest request);
+
+    SheetDetailResponse replaceSheetFiles(Long uploaderId, Long sheetId, SheetSaveRequest request,
+                                          List<MultipartFile> files);
+
+    void deleteSheet(Long uploaderId, Long sheetId);
+
     final class SheetSearchResult {
         private final List<SheetSummaryResponse> records;
         private final long total;
