@@ -20,6 +20,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -89,24 +90,25 @@ class GuitarSheetUploadControllerTest {
         when(authService.currentSession(any())).thenReturn(Optional.of(
                 new GuitarUserPrincipal(8L, "13800138000", "Uploader", null, "ADMIN")));
         SheetDetailResponse response = new SheetDetailResponse(); response.setId(12L);
-        when(sheetService.updateSheetMetadata(any(), any(), any())).thenReturn(response);
-        when(sheetService.replaceSheetFiles(any(), any(), any(), any())).thenReturn(response);
+        when(sheetService.update(anyLong(), anyLong(), any())).thenReturn(response);
+        when(sheetService.replaceFiles(anyLong(), anyLong(), any(), any())).thenReturn(response);
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/sheets/12")
                         .session(session).header(CsrfTokenService.HEADER_NAME, csrf).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"songName\":\"Song\",\"singer\":\"Singer\",\"sheetType\":\"TAB\",\"difficulty\":\"BEGINNER\",\"keySignature\":\"C\",\"tuning\":\"Standard\",\"fileMode\":\"PDF\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true));
-        verify(sheetService).updateSheetMetadata(org.mockito.ArgumentMatchers.eq(8L), org.mockito.ArgumentMatchers.eq(12L), any());
+        verify(sheetService).update(org.mockito.ArgumentMatchers.eq(8L), org.mockito.ArgumentMatchers.eq(12L), any());
 
-        MockMultipartHttpServletRequestBuilder replace = uploadRequest("/api/sheets/12/files");
+        MockMultipartHttpServletRequestBuilder replace = replaceRequest("/api/sheets/12/files");
         replace.with(request -> { request.setMethod("PUT"); return request; }).session(session).header(CsrfTokenService.HEADER_NAME, csrf);
         mockMvc.perform(replace).andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true));
-        verify(sheetService).replaceSheetFiles(org.mockito.ArgumentMatchers.eq(8L), org.mockito.ArgumentMatchers.eq(12L), any(), any());
+        verify(sheetService).replaceFiles(org.mockito.ArgumentMatchers.eq(8L), org.mockito.ArgumentMatchers.eq(12L),
+                org.mockito.ArgumentMatchers.eq(com.example.guitar.sheet.model.FileMode.PDF), any());
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/sheets/12")
                         .session(session).header(CsrfTokenService.HEADER_NAME, csrf))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true));
-        verify(sheetService).deleteSheet(8L, 12L);
+        verify(sheetService).delete(8L, 12L);
     }
 
     @Test
@@ -134,5 +136,14 @@ class GuitarSheetUploadControllerTest {
                 .part(metadata)
                 .file(new MockMultipartFile("files", "song.pdf", "application/pdf",
                         "%PDF-1.7".getBytes(java.nio.charset.StandardCharsets.US_ASCII)));
+    }
+
+    private MockMultipartHttpServletRequestBuilder replaceRequest(String url) {
+        MockMultipartHttpServletRequestBuilder builder = org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .multipart(url)
+                .file(new MockMultipartFile("files", "song.pdf", "application/pdf",
+                        "%PDF-1.7".getBytes(java.nio.charset.StandardCharsets.US_ASCII)));
+        builder.param("mode", "PDF");
+        return builder;
     }
 }

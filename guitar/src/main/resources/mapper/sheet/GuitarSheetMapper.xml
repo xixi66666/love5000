@@ -128,11 +128,8 @@
         WHERE id=#{sheet.id} AND uploader_id=#{sheet.uploaderId} AND status != 'DELETED' AND deleted_at IS NULL
     </update>
 
-    <update id="updateMetadataAndFileMode">
-        UPDATE guitar_sheet SET song_name=#{sheet.songName}, singer=#{sheet.singer}, arranger=#{sheet.arranger},
-        description=#{sheet.description}, keywords=#{sheet.keywords}, sheet_type=#{sheet.sheetType},
-        difficulty=#{sheet.difficulty}, key_signature=#{sheet.keySignature}, capo_position=#{sheet.capoPosition},
-        tuning=#{sheet.tuning}, file_mode=#{sheet.fileMode}, update_time=CURRENT_TIMESTAMP
+    <update id="updateStorageAndFileMode">
+        UPDATE guitar_sheet SET file_mode=#{sheet.fileMode}, storage_uuid=#{sheet.storageUuid}, update_time=CURRENT_TIMESTAMP
         WHERE id=#{sheet.id} AND uploader_id=#{sheet.uploaderId} AND status != 'DELETED' AND deleted_at IS NULL
     </update>
 

@@ -140,8 +140,8 @@ public class GuitarSheetServiceImpl implements GuitarSheetService {
     }
 
     @Override
-    public SheetDetailResponse updateSheetMetadata(Long uploaderId, Long sheetId, SheetSaveRequest request) {
-        GuitarSheet sheet = mutations().updateMetadata(uploaderId, sheetId, request);
+    public SheetDetailResponse update(long userId, long sheetId, SheetSaveRequest request) {
+        GuitarSheet sheet = mutations().update(userId, sheetId, request);
         List<GuitarSheetFile> files = fileDao.findBySheetId(sheet.getId());
         SheetDetailResponse response = new SheetDetailResponse();
         copySummary(sheet, response); response.setDescription(sheet.getDescription());
@@ -152,9 +152,8 @@ public class GuitarSheetServiceImpl implements GuitarSheetService {
     }
 
     @Override
-    public SheetDetailResponse replaceSheetFiles(Long uploaderId, Long sheetId, SheetSaveRequest request,
-                                                  List<MultipartFile> files) {
-        GuitarSheetMutationService.MutationFiles result = mutations().replaceFiles(uploaderId, sheetId, request, files);
+    public SheetDetailResponse replaceFiles(long userId, long sheetId, FileMode mode, List<MultipartFile> files) {
+        GuitarSheetMutationService.MutationFiles result = mutations().replaceFiles(userId, sheetId, mode, files);
         SheetDetailResponse response = new SheetDetailResponse();
         copySummary(result.getSheet(), response); response.setDescription(result.getSheet().getDescription());
         List<SheetDetailResponse.FileResponse> responses = new ArrayList<SheetDetailResponse.FileResponse>();
@@ -164,7 +163,7 @@ public class GuitarSheetServiceImpl implements GuitarSheetService {
     }
 
     @Override
-    public void deleteSheet(Long uploaderId, Long sheetId) { mutations().deleteSheet(uploaderId, sheetId); }
+    public void delete(long userId, long sheetId) { mutations().delete(userId, sheetId); }
 
     private GuitarSheetMutationService mutations() {
         if (mutationService == null) throw new IllegalStateException("Sheet mutation service is unavailable");

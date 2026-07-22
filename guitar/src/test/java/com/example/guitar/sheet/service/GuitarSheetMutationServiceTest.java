@@ -15,6 +15,7 @@ import com.example.guitar.web.GuitarApiException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.mock.web.MockMultipartFile;
 
@@ -65,7 +66,7 @@ class GuitarSheetMutationServiceTest {
         when(sheetDao.findActiveByIdForOwner(8L, 5L)).thenReturn(offline);
         when(persistenceService.updateMetadata(eq(offline), any(SheetSaveRequest.class))).thenReturn(offline);
 
-        GuitarSheet result = service.updateMetadata(5L, 8L, request(FileMode.PDF));
+        GuitarSheet result = service.update(5L, 8L, request(FileMode.PDF));
 
         assertThat(result.getStatus()).isEqualTo("OFFLINE");
         verify(persistenceService).updateMetadata(eq(offline), any(SheetSaveRequest.class));
@@ -78,9 +79,19 @@ class GuitarSheetMutationServiceTest {
         when(sheetDao.findActiveByIdForOwner(8L, 6L)).thenReturn(null);
         when(sheetDao.existsActiveById(8L)).thenReturn(1);
 
-        assertApiError(() -> service.updateMetadata(6L, 8L, request(FileMode.PDF)), "FORBIDDEN");
-        assertApiError(() -> service.deleteSheet(6L, 8L), "FORBIDDEN");
+        assertApiError(() -> service.update(6L, 8L, request(FileMode.PDF)), "FORBIDDEN");
+        assertApiError(() -> service.delete(6L, 8L), "FORBIDDEN");
         verifyNoInteractions(persistenceService, cleanupService);
+    }
+
+    @Test
+    void ownershipIsCheckedBeforeMetadataOrFileValidation() {
+        when(sheetDao.findActiveByIdForOwner(8L, 6L)).thenReturn(null);
+        when(sheetDao.existsActiveById(8L)).thenReturn(1);
+
+        assertApiError(() -> service.update(6L, 8L, null), "FORBIDDEN");
+        assertApiError(() -> service.replaceFiles(6L, 8L, null, Collections.emptyList()), "FORBIDDEN");
+        verifyNoInteractions(persistenceService, cleanupService, ossProvider);
     }
 
     @Test
@@ -88,14 +99,15 @@ class GuitarSheetMutationServiceTest {
         when(sheetDao.findActiveByIdForOwner(8L, 5L)).thenReturn(null);
         when(sheetDao.existsActiveById(8L)).thenReturn(0);
 
-        assertApiError(() -> service.updateMetadata(5L, 8L, request(FileMode.PDF)), "SHEET_NOT_FOUND");
-        assertApiError(() -> service.deleteSheet(5L, 8L), "SHEET_NOT_FOUND");
+        assertApiError(() -> service.update(5L, 8L, request(FileMode.PDF)), "SHEET_NOT_FOUND");
+        assertApiError(() -> service.delete(5L, 8L), "SHEET_NOT_FOUND");
     }
 
     @Test
     void replacementUploadsAndGeneratesUrlsBeforeDatabaseThenCleansOldObjectsAfterCommit() {
         GuitarSheet sheet = sheet(8L, 5L, "PUBLISHED");
-        GuitarSheetFile old = file("old.pdf", 1);
+        String oldKey = "love530/guitar/sheets/123e4567-e89b-12d3-a456-426614174000/pdf/sheet.pdf";
+        GuitarSheetFile old = file(oldKey, 1);
         OssUtil oss = mock(OssUtil.class);
         when(sheetDao.findActiveByIdForOwner(8L, 5L)).thenReturn(sheet);
         when(fileDao.findBySheetId(8L)).thenReturn(Collections.singletonList(old));
@@ -104,13 +116,23 @@ class GuitarSheetMutationServiceTest {
                 .thenAnswer(invocation -> new OssUploadResult("bucket", invocation.getArgument(2), "", "", "", 1L));
         when(urlService.getFileUrl(anyString())).thenReturn("https://cdn.example/new.pdf");
 
-        service.replaceFiles(5L, 8L, request(FileMode.PDF), Collections.singletonList(pdf()));
+        service.replaceFiles(5L, 8L, FileMode.PDF, Collections.singletonList(pdf()));
+
+        ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
+        verify(oss).uploadWithObjectKey(any(InputStream.class), anyLong(), keyCaptor.capture(), anyString(), anyString());
+        assertThat(keyCaptor.getValue())
+                .matches("love530/guitar/sheets/[0-9a-f-]{36}/pdf/sheet\\.pdf")
+                .isNotEqualTo(oldKey)
+                .doesNotContain("123e4567-e89b-12d3-a456-426614174000");
 
         InOrder order = inOrder(oss, urlService, persistenceService, cleanupService);
         order.verify(oss).uploadWithObjectKey(any(InputStream.class), anyLong(), anyString(), anyString(), anyString());
         order.verify(urlService).getFileUrl(anyString());
-        order.verify(persistenceService).replaceFiles(eq(sheet), any(SheetSaveRequest.class), any());
-        order.verify(cleanupService).deleteOrEnqueue("old.pdf", "SHEET_REPLACE");
+        ArgumentCaptor<String> storageCaptor = ArgumentCaptor.forClass(String.class);
+        order.verify(persistenceService).replaceFiles(eq(sheet), storageCaptor.capture(), eq(FileMode.PDF), any());
+        order.verify(cleanupService).deleteOrEnqueue(oldKey, "SHEET_REPLACE");
+        assertThat(keyCaptor.getValue()).contains("/" + storageCaptor.getValue() + "/");
+        assertThat(sheet.getStorageUuid()).isEqualTo(storageCaptor.getValue());
     }
 
     @Test
@@ -123,9 +145,9 @@ class GuitarSheetMutationServiceTest {
         when(oss.uploadWithObjectKey(any(InputStream.class), anyLong(), anyString(), anyString(), anyString()))
                 .thenAnswer(invocation -> new OssUploadResult("bucket", invocation.getArgument(2), "", "", "", 1L));
         when(urlService.getFileUrl(anyString())).thenReturn("https://cdn.example/new.pdf");
-        doThrow(new IllegalStateException("db")).when(persistenceService).replaceFiles(any(), any(), any());
+        doThrow(new IllegalStateException("db")).when(persistenceService).replaceFiles(any(), anyString(), any(), any());
 
-        assertThatThrownBy(() -> service.replaceFiles(5L, 8L, request(FileMode.PDF), Collections.singletonList(pdf())))
+        assertThatThrownBy(() -> service.replaceFiles(5L, 8L, FileMode.PDF, Collections.singletonList(pdf())))
                 .isInstanceOf(IllegalStateException.class);
         verify(cleanupService).deleteOrEnqueue(org.mockito.ArgumentMatchers.matches("love530/guitar/sheets/[0-9a-f-]{36}/pdf/sheet.pdf"),
                 eq("SHEET_REPLACE_NEW"));
@@ -138,7 +160,7 @@ class GuitarSheetMutationServiceTest {
         when(sheetDao.findActiveByIdForOwner(8L, 5L)).thenReturn(sheet);
         when(fileDao.findBySheetId(8L)).thenReturn(Collections.singletonList(file("old.pdf", 1)));
 
-        service.deleteSheet(5L, 8L);
+        service.delete(5L, 8L);
 
         InOrder order = inOrder(persistenceService, cleanupService);
         order.verify(persistenceService).softDelete(eq(sheet));
@@ -153,7 +175,7 @@ class GuitarSheetMutationServiceTest {
         doThrow(new IllegalStateException("queue unavailable")).when(cleanupService)
                 .deleteOrEnqueue("old.pdf", "SHEET_DELETE");
 
-        service.deleteSheet(5L, 8L);
+        service.delete(5L, 8L);
 
         verify(persistenceService).softDelete(sheet);
     }

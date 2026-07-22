@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.UUID;
 
 /** Coordinates ownership checks, remote storage, and transactional mutation persistence. */
 @Service
@@ -43,29 +44,30 @@ public class GuitarSheetMutationService {
         this.ossProvider = ossProvider; this.cleanupService = cleanupService; this.persistenceService = persistenceService;
     }
 
-    public GuitarSheet updateMetadata(Long ownerId, Long sheetId, SheetSaveRequest request) {
+    public GuitarSheet update(long ownerId, long sheetId, SheetSaveRequest request) {
         requireOwnerId(ownerId);
-        validator.normalizeAndValidateMetadata(request);
         GuitarSheet current = requireOwner(sheetId, ownerId);
+        validator.normalizeAndValidateMetadata(request);
         return persistenceService.updateMetadata(current, request);
     }
 
-    public MutationFiles replaceFiles(Long ownerId, Long sheetId, SheetSaveRequest request,
+    public MutationFiles replaceFiles(long ownerId, long sheetId, FileMode mode,
                                                List<MultipartFile> multipartFiles) {
         requireOwnerId(ownerId);
-        validator.normalizeAndValidateMetadata(request);
         GuitarSheet current = requireOwner(sheetId, ownerId);
         List<GuitarSheetFile> oldFiles = fileDao.findBySheetId(current.getId());
-        List<SheetFileValidator.ValidatedSheetFile> validated = validator.validateFiles(request.getFileMode(), multipartFiles);
+        List<SheetFileValidator.ValidatedSheetFile> validated = validator.validateFiles(mode, multipartFiles);
         OssUtil oss = ossProvider.getIfAvailable();
         if (oss == null) throw ossUnavailable();
 
+        String newStorageUuid = nextStorageUuid(current.getStorageUuid());
         List<GuitarSheetFile> newFiles = new ArrayList<GuitarSheetFile>();
         try {
-            upload(oss, current.getStorageUuid(), request.getFileMode(), validated, newFiles);
+            upload(oss, newStorageUuid, mode, validated, newFiles);
             Map<String, String> urls = precomputeUrls(newFiles);
-            persistenceService.replaceFiles(current, request, newFiles);
-            applyResponseMetadata(current, request, true);
+            persistenceService.replaceFiles(current, newStorageUuid, mode, newFiles);
+            current.setStorageUuid(newStorageUuid);
+            current.setFileMode(mode.name());
             cleanupOldFiles(oldFiles, "SHEET_REPLACE");
             return new MutationFiles(current, newFiles, urls);
         } catch (RuntimeException failure) {
@@ -74,7 +76,7 @@ public class GuitarSheetMutationService {
         }
     }
 
-    public void deleteSheet(Long ownerId, Long sheetId) {
+    public void delete(long ownerId, long sheetId) {
         requireOwnerId(ownerId);
         GuitarSheet current = requireOwner(sheetId, ownerId);
         List<GuitarSheetFile> oldFiles = fileDao.findBySheetId(current.getId());
@@ -126,12 +128,12 @@ public class GuitarSheetMutationService {
         return mode == FileMode.PDF ? "sheet.pdf" : String.format("image-%02d.%s", file.getSortOrder(), file.getFileExtension());
     }
 
-    private void applyResponseMetadata(GuitarSheet sheet, SheetSaveRequest request, boolean includeFileMode) {
-        sheet.setSongName(request.getSongName()); sheet.setSinger(request.getSinger()); sheet.setArranger(request.getArranger());
-        sheet.setDescription(request.getDescription()); sheet.setKeywords(request.getKeywords());
-        sheet.setSheetType(request.getSheetType().name()); sheet.setDifficulty(request.getDifficulty().name());
-        sheet.setKeySignature(request.getKeySignature()); sheet.setCapoPosition(request.getCapoPosition()); sheet.setTuning(request.getTuning());
-        if (includeFileMode) sheet.setFileMode(request.getFileMode().name());
+    private String nextStorageUuid(String previous) {
+        String candidate;
+        do {
+            candidate = UUID.randomUUID().toString();
+        } while (candidate.equals(previous));
+        return candidate;
     }
 
     private void cleanupNewFiles(List<GuitarSheetFile> files, Throwable failure) { cleanup(files, "SHEET_REPLACE_NEW", failure); }

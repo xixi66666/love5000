@@ -2,6 +2,7 @@ package com.example.guitar.sheet.service;
 
 import com.example.guitar.sheet.dto.SheetSearchRequest;
 import com.example.guitar.sheet.dto.SheetSaveRequest;
+import com.example.guitar.sheet.model.FileMode;
 import com.example.guitar.sheet.vo.SheetDetailResponse;
 import com.example.guitar.sheet.vo.SheetSummaryResponse;
 import org.springframework.web.multipart.MultipartFile;
@@ -17,12 +18,11 @@ public interface GuitarSheetService {
     SheetDetailResponse createSheet(Long uploaderId, String uploaderNickname,
                                     SheetSaveRequest request, List<MultipartFile> files);
 
-    SheetDetailResponse updateSheetMetadata(Long uploaderId, Long sheetId, SheetSaveRequest request);
+    SheetDetailResponse update(long userId, long sheetId, SheetSaveRequest request);
 
-    SheetDetailResponse replaceSheetFiles(Long uploaderId, Long sheetId, SheetSaveRequest request,
-                                          List<MultipartFile> files);
+    SheetDetailResponse replaceFiles(long userId, long sheetId, FileMode mode, List<MultipartFile> files);
 
-    void deleteSheet(Long uploaderId, Long sheetId);
+    void delete(long userId, long sheetId);
 
     final class SheetSearchResult {
         private final List<SheetSummaryResponse> records;

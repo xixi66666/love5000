@@ -85,7 +85,7 @@ DELETE /api/sheets/{id}
 ### Owner sheet mutations and cleanup retry
 
 - `PUT /api/sheets/{id}` accepts JSON metadata and only updates the authenticated uploader's non-deleted sheet. `OFFLINE` remains `OFFLINE`; an ADMIN role does not bypass ownership.
-- `PUT /api/sheets/{id}/files` accepts the validated metadata JSON Part plus repeated `files`. Upload and URL precomputation occur before the isolated database transaction; old OSS objects are deleted or queued only after the new file rows commit.
+- `PUT /api/sheets/{id}/files` accepts a multipart `mode` parameter plus repeated `files` and does not update metadata. It generates a new storage UUID for every replacement; `storage_uuid`, `file_mode`, and file rows switch in one transaction. Upload and URL precomputation occur before that transaction, and old OSS objects are deleted or queued only after commit.
 - `DELETE /api/sheets/{id}` soft-deletes the sheet, removes favorites, and sets the favorite count to zero in one transaction. A repeated delete returns `SHEET_NOT_FOUND`; post-commit cleanup never restores the row.
 - `OssCleanupRetryService` starts after 60 seconds and runs every 5 minutes. It selects at most 50 due PENDING rows, claims each with an expected-state update, recovers PROCESSING rows older than 15 minutes, and uses retry delays of 5, 30, 120, and 720 minutes before marking the fifth failure `FAILED`.
 

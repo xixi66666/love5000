@@ -41,7 +41,8 @@ class GuitarSheetMapperContractTest {
         assertThat(mapperXml).contains("<select id=\"findActiveByIdForOwnerForUpdate\"");
         assertThat(mapperXml).contains("FOR UPDATE");
         assertThat(mapperXml).contains("<update id=\"updateMetadata\"");
-        assertThat(mapperXml).contains("<update id=\"updateMetadataAndFileMode\"");
+        assertThat(mapperXml).contains("<update id=\"updateStorageAndFileMode\"");
+        assertThat(mapperXml).contains("storage_uuid=#{sheet.storageUuid}");
         assertThat(mapperXml).contains("<update id=\"markDeleted\"");
         assertThat(mapperXml).contains("DELETE FROM guitar_favorite WHERE sheet_id=#{sheetId}");
         assertThat(mapperXml).doesNotContain("${");

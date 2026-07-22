@@ -31,7 +31,7 @@ public interface GuitarSheetDao {
 
     int updateMetadata(@Param("sheet") GuitarSheet sheet);
 
-    int updateMetadataAndFileMode(@Param("sheet") GuitarSheet sheet);
+    int updateStorageAndFileMode(@Param("sheet") GuitarSheet sheet);
 
     int markDeleted(@Param("id") Long id, @Param("ownerId") Long ownerId);
 
