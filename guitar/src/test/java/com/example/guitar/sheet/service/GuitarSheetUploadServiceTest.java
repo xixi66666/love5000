@@ -84,6 +84,29 @@ class GuitarSheetUploadServiceTest {
     }
 
     @Test
+    void usesPrecomputedUrlInUploadResponseWithoutResolvingItAgain() {
+        when(ossUtilProvider.getIfAvailable()).thenReturn(ossUtil);
+        when(ossUtil.uploadWithObjectKey(any(InputStream.class), anyLong(), anyString(), anyString(), anyString()))
+                .thenAnswer(invocation -> upload(invocation.getArgument(2)));
+        doAnswer(invocation -> {
+            ((GuitarSheet) invocation.getArgument(0)).setId(9L);
+            return null;
+        }).when(daoFixture.persistenceService).persist(any(GuitarSheet.class), any());
+        when(urlService.getFileUrl(anyString()))
+                .thenReturn("https://cdn.example/precomputed.pdf")
+                .thenThrow(new IllegalStateException("URL must not be resolved after persistence"));
+
+        SheetDetailResponse response = service.createSheet(3L, "Uploader", request(FileMode.PDF),
+                Collections.singletonList(pdf("song.pdf")));
+
+        assertThat(response.getId()).isEqualTo(9L);
+        assertThat(response.getFiles()).singleElement()
+                .extracting(SheetDetailResponse.FileResponse::getUrl)
+                .isEqualTo("https://cdn.example/precomputed.pdf");
+        verify(cleanupService, never()).deleteOrEnqueue(anyString(), eq("SHEET_UPLOAD"));
+    }
+
+    @Test
     void preservesImageOrderAndUsesGeneratedNamesAndDerivedMime() {
         when(ossUtilProvider.getIfAvailable()).thenReturn(ossUtil);
         when(ossUtil.uploadWithObjectKey(any(InputStream.class), anyLong(), anyString(), anyString(), anyString()))

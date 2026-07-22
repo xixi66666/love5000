@@ -228,7 +228,14 @@ public class GuitarSheetServiceImpl implements GuitarSheetService {
     }
 
     private SheetDetailResponse.FileResponse toFileResponse(GuitarSheetFile source, String url) {
-        SheetDetailResponse.FileResponse response = toFileResponse(source);
+        SheetDetailResponse.FileResponse response = new SheetDetailResponse.FileResponse();
+        response.setId(source.getId());
+        response.setOriginalFilename(source.getOriginalFilename());
+        response.setMimeType(source.getMimeType());
+        response.setFileExtension(source.getFileExtension());
+        response.setFileSize(source.getFileSize());
+        response.setSortOrder(source.getSortOrder());
+        response.setCreateTime(source.getCreateTime());
         response.setUrl(url);
         return response;
     }
