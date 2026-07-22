@@ -73,6 +73,37 @@ class OssCleanupServiceImplTest {
                 .hasMessage("Failed to persist OSS cleanup task");
     }
 
+    @Test
+    void deleteAndEnqueueFailurePreservesDeleteFailureAsSuppressedCause() {
+        OssUtil ossUtil = mock(OssUtil.class);
+        when(ossUtilProvider.getIfAvailable()).thenReturn(ossUtil);
+        IllegalStateException deleteFailure = new IllegalStateException("delete failed");
+        org.mockito.Mockito.doThrow(deleteFailure).when(ossUtil).delete("old/avatar.png");
+        when(cleanupTaskDao.insertPending(any())).thenReturn(0);
+
+        IllegalStateException failure = (IllegalStateException) org.assertj.core.api.Assertions.catchThrowable(
+                () -> service.deleteOrEnqueue("old/avatar.png", "AVATAR"));
+
+        assertThat(failure).hasMessage("Failed to persist OSS cleanup task");
+        assertThat(failure.getSuppressed()).contains(deleteFailure);
+    }
+
+    @Test
+    void daoInsertFailureIsSurfacedWithTheOriginalFailureAttached() {
+        OssUtil ossUtil = mock(OssUtil.class);
+        when(ossUtilProvider.getIfAvailable()).thenReturn(ossUtil);
+        IllegalStateException deleteFailure = new IllegalStateException("delete failed");
+        IllegalStateException insertFailure = new IllegalStateException("insert failed");
+        org.mockito.Mockito.doThrow(deleteFailure).when(ossUtil).delete("old/avatar.png");
+        when(cleanupTaskDao.insertPending(any())).thenThrow(insertFailure);
+
+        IllegalStateException failure = (IllegalStateException) org.assertj.core.api.Assertions.catchThrowable(
+                () -> service.deleteOrEnqueue("old/avatar.png", "AVATAR"));
+
+        assertThat(failure).isSameAs(insertFailure);
+        assertThat(failure.getSuppressed()).contains(deleteFailure);
+    }
+
     private OssCleanupTask capturedTask() {
         ArgumentCaptor<OssCleanupTask> captor = ArgumentCaptor.forClass(OssCleanupTask.class);
         verify(cleanupTaskDao).insertPending(captor.capture());

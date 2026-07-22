@@ -19,19 +19,24 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
 public class GuitarSheetServiceImpl implements GuitarSheetService {
 
     private static final ZoneId SHANGHAI_ZONE = ZoneId.of("Asia/Shanghai");
+    private static final Logger LOGGER = LoggerFactory.getLogger(GuitarSheetServiceImpl.class);
 
     private final GuitarSheetDao sheetDao;
     private final GuitarSheetFileDao fileDao;
@@ -111,17 +116,16 @@ public class GuitarSheetServiceImpl implements GuitarSheetService {
 
         GuitarSheet sheet = toSheet(uploaderId, request);
         List<GuitarSheetFile> storedFiles = new ArrayList<GuitarSheetFile>();
+        Map<String, String> fileUrls;
         try {
             uploadFiles(ossUtil, sheet.getStorageUuid(), request.getFileMode(), validatedFiles, storedFiles);
+            fileUrls = precomputeFileUrls(storedFiles);
             persistenceService.persist(sheet, storedFiles);
-        } catch (GuitarApiException exception) {
-            compensateUploadedObjects(storedFiles);
-            throw exception;
         } catch (RuntimeException exception) {
-            compensateUploadedObjects(storedFiles);
+            compensateUploadedObjects(storedFiles, exception);
             throw exception;
         }
-        return toUploadResponse(sheet, uploaderNickname, storedFiles);
+        return toUploadResponse(sheet, uploaderNickname, storedFiles, fileUrls);
     }
 
     private GuitarSheet toSheet(Long uploaderId, SheetSaveRequest request) {
@@ -151,26 +155,28 @@ public class GuitarSheetServiceImpl implements GuitarSheetService {
         String directory = "love530/guitar/sheets/" + storageUuid
                 + (fileMode == FileMode.PDF ? "/pdf" : "/images");
         for (SheetFileValidator.ValidatedSheetFile validated : validatedFiles) {
-            OssUploadResult uploadResult = upload(ossUtil, validated, directory, serverFilename(fileMode, validated));
-            String objectKey = uploadResult == null ? null : uploadResult.getObjectKey();
-            if (objectKey == null || objectKey.trim().isEmpty()) {
-                throw ossUnavailable();
-            }
             GuitarSheetFile file = new GuitarSheetFile();
-            file.setObjectKey(objectKey.trim());
+            file.setObjectKey(directory + "/" + serverFilename(fileMode, validated));
             file.setOriginalFilename(validated.getOriginalFilename());
             file.setMimeType(validated.getMimeType());
             file.setFileExtension(validated.getFileExtension());
             file.setFileSize(validated.getFileSize());
             file.setSortOrder(validated.getSortOrder());
+            // 在远程调用前登记预声明键，即使 OSS 已接受对象后本地抛错也能补偿。
             storedFiles.add(file);
+            OssUploadResult uploadResult = upload(ossUtil, validated, file.getObjectKey());
+            String objectKey = uploadResult == null ? null : uploadResult.getObjectKey();
+            if (objectKey == null || !file.getObjectKey().equals(objectKey.trim())) {
+                throw ossUnavailable();
+            }
         }
     }
 
     private OssUploadResult upload(OssUtil ossUtil, SheetFileValidator.ValidatedSheetFile validated,
-                                   String directory, String serverFilename) {
+                                   String objectKey) {
         try (InputStream input = validated.getMultipartFile().getInputStream()) {
-            return ossUtil.upload(input, validated.getFileSize(), serverFilename, validated.getMimeType(), directory);
+            return ossUtil.uploadWithObjectKey(input, validated.getFileSize(), objectKey,
+                    validated.getOriginalFilename(), validated.getMimeType());
         } catch (IOException | RuntimeException exception) {
             throw ossUnavailable();
         }
@@ -183,28 +189,56 @@ public class GuitarSheetServiceImpl implements GuitarSheetService {
         return String.format("image-%02d.%s", validated.getSortOrder(), validated.getFileExtension());
     }
 
-    private void compensateUploadedObjects(List<GuitarSheetFile> uploadedFiles) {
+    private Map<String, String> precomputeFileUrls(List<GuitarSheetFile> files) {
+        Map<String, String> fileUrls = new HashMap<String, String>();
+        for (GuitarSheetFile file : files) {
+            String url = fileUrlService.getFileUrl(file.getObjectKey());
+            if (url == null || url.trim().isEmpty()) {
+                throw ossUnavailable();
+            }
+            fileUrls.put(file.getObjectKey(), url);
+        }
+        return fileUrls;
+    }
+
+    private void compensateUploadedObjects(List<GuitarSheetFile> uploadedFiles, Throwable originalFailure) {
         for (GuitarSheetFile file : uploadedFiles) {
             try {
                 ossCleanupService.deleteOrEnqueue(file.getObjectKey(), "SHEET_UPLOAD");
-            } catch (RuntimeException ignored) {
-                // Keep the original upload or persistence failure as the API result.
+            } catch (RuntimeException cleanupFailure) {
+                originalFailure.addSuppressed(cleanupFailure);
+                LOGGER.warn("Failed to compensate sheet object, objectKey={}",
+                        sanitizeForLog(file.getObjectKey()), cleanupFailure);
             }
         }
     }
 
     private SheetDetailResponse toUploadResponse(GuitarSheet sheet, String uploaderNickname,
-                                                  List<GuitarSheetFile> files) {
+                                                  List<GuitarSheetFile> files, Map<String, String> fileUrls) {
         sheet.setUploaderNickname(uploaderNickname);
         SheetDetailResponse response = new SheetDetailResponse();
         copySummary(sheet, response);
         response.setDescription(sheet.getDescription());
         List<SheetDetailResponse.FileResponse> fileResponses = new ArrayList<SheetDetailResponse.FileResponse>();
         for (GuitarSheetFile file : files) {
-            fileResponses.add(toFileResponse(file));
+            fileResponses.add(toFileResponse(file, fileUrls.get(file.getObjectKey())));
         }
         response.setFiles(fileResponses);
         return response;
+    }
+
+    private SheetDetailResponse.FileResponse toFileResponse(GuitarSheetFile source, String url) {
+        SheetDetailResponse.FileResponse response = toFileResponse(source);
+        response.setUrl(url);
+        return response;
+    }
+
+    private String sanitizeForLog(String value) {
+        if (value == null) {
+            return "";
+        }
+        String sanitized = value.replaceAll("[\\p{Cntrl}]", "?");
+        return sanitized.length() > 200 ? sanitized.substring(0, 200) : sanitized;
     }
 
     private GuitarApiException ossUnavailable() {

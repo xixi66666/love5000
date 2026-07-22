@@ -309,7 +309,7 @@ website/video/
 ## 模块职责
 
 - `common/src/main/java/com/example/common/config`：公共配置和自动装配，例如 OSS 自动配置。
-- `common/src/main/java/com/example/common/util`：公共工具类，例如 `OssUtil`。
+- `common/src/main/java/com/example/common/util`：公共工具类，例如 `OssUtil`；预声明对象键上传必须先通过其格式校验。
 - `common/src/main/java/com/example/common/auth`：公共认证能力，包含 BCrypt 密码哈希、Session 登录状态、`/api/auth` 控制器、`@AuthRequired` 和拦截器。
 - `lovestory/controller`：恋爱相册 REST API，照片接口集中在 `/api/photos`，留言接口集中在 `/api/messages`，吉他视频接口集中在 `/api/guitar-videos`。
 - `lovestory/dao`：MyBatis DAO 接口层，照片表访问集中在 `PhotoDao`，吉他视频表访问集中在 `GuitarVideoDao`。
@@ -571,7 +571,7 @@ POST /api/auth/logout
 
 `GET /api/sheets` 和 `GET /api/sheets/{id}` 可匿名访问，列表仅返回 `PUBLISHED` 且未删除的曲谱。列表支持 `keyword`、`songName`、`singer`、`sheetType`、`difficulty`、`keySignature`、`capoPosition`、`tuning`、`sort`、`page`、`size`；`sort` 仅允许 `LATEST`、`MOST_FAVORITED`、`MOST_VIEWED`，分页默认 `page=1`、`size=20` 且 `size` 最大为 50。详情按 `sort_order` 返回文件 URL，URL 只能由 OSS 对象键生成；读取详情同时更新曲谱浏览量和 Asia/Shanghai 当日统计。
 
-`POST /api/sheets` 是受 Session 和 CSRF 保护的 multipart 上传接口：`metadata` 为 JSON Part，`files` 为重复文件 Part。元数据要求有效的 `sheetType`、`difficulty`、`keySignature`、`tuning` 与 `fileMode`，`fileMode=PDF` 仅允许一个不超过 30MB 的 `%PDF` PDF，`fileMode=IMAGES` 仅允许 1-20 个不超过 10MB 且魔数匹配 JPG/JPEG、PNG、WebP 的图片。客户端 Content-Type 不可信，服务端会派生 MIME 和扩展名；所有文件先上传至 `love530/guitar/sheets/{storageUuid}/pdf` 或 `/images`，再由独立事务写入曲谱和文件记录。上传或持久化失败会通过 OSS 清理队列补偿已上传对象，成功响应只返回经文件 URL 服务生成的 URL，不暴露对象键或存储 UUID。
+`POST /api/sheets` 是受 Session 和 CSRF 保护的 multipart 上传接口：`metadata` 为 JSON Part，`files` 为重复文件 Part。元数据要求有效的 `sheetType`、`difficulty`、`keySignature`、`tuning` 与 `fileMode`，`fileMode=PDF` 仅允许一个不超过 30MB 的 `%PDF` PDF，`fileMode=IMAGES` 仅允许 1-20 个不超过 10MB 且魔数匹配 JPG/JPEG、PNG、WebP 的图片。客户端 Content-Type 不可信，服务端会派生 MIME 和扩展名，并在 OSS 调用前生成 `love530/guitar/sheets/{storageUuid}/pdf` 或 `/images` 下的服务器对象键；所有 URL 在持久化前生成验证，再由独立事务写入曲谱和文件记录。上传、URL 生成或持久化失败会通过 OSS 清理队列补偿全部已知对象；清理失败必须记录并附加到原始异常，成功响应只返回经文件 URL 服务生成的 URL，不暴露对象键或存储 UUID。
 
 公开曲谱检索的文本参数必须在入库字段边界内：`keyword`、`songName`、`singer` 最大 120 个字符，`keySignature` 最大 20 个字符，`tuning` 最大 80 个字符；超长请求返回 `VALIDATION_ERROR`，不得静默截断。`page` 和 `size` 计算出的偏移量最大为 `5,000,000`（默认 `page=1`、`size=20`，`size` 为 1-50）；超过上限返回 `PAGE_TOO_LARGE`。
 

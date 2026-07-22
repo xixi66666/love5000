@@ -36,8 +36,15 @@ public class OssCleanupServiceImpl implements OssCleanupService {
         }
         try {
             ossUtil.delete(objectKey);
-        } catch (RuntimeException exception) {
-            enqueue(objectKey, businessType, "OSS deletion failed");
+        } catch (RuntimeException deleteFailure) {
+            try {
+                enqueue(objectKey, businessType, "OSS deletion failed");
+            } catch (RuntimeException enqueueFailure) {
+                enqueueFailure.addSuppressed(deleteFailure);
+                LOGGER.warn("Failed to compensate OSS object, objectKey={}",
+                        sanitizeForLog(objectKey), enqueueFailure);
+                throw enqueueFailure;
+            }
         }
     }
 
@@ -50,12 +57,20 @@ public class OssCleanupServiceImpl implements OssCleanupService {
         task.setNextRetryAt(LocalDateTime.now());
         task.setLastError(lastError);
         if (ossCleanupTaskDao.insertPending(task) != 1) {
-            LOGGER.warn("Failed to persist OSS cleanup task");
+            LOGGER.warn("Failed to persist OSS cleanup task, objectKey={}", sanitizeForLog(objectKey));
             throw new IllegalStateException("Failed to persist OSS cleanup task");
         }
     }
 
     private String normalizeBusinessType(String businessType) {
         return businessType == null || businessType.trim().isEmpty() ? "UNKNOWN" : businessType.trim();
+    }
+
+    private String sanitizeForLog(String value) {
+        if (value == null) {
+            return "";
+        }
+        String sanitized = value.replaceAll("[\\p{Cntrl}]", "?");
+        return sanitized.length() > 200 ? sanitized.substring(0, 200) : sanitized;
     }
 }

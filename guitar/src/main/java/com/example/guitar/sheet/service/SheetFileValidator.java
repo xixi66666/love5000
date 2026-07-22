@@ -79,7 +79,7 @@ public class SheetFileValidator {
         String originalFilename = sanitizeOriginalFilename(file.getOriginalFilename());
         String extension = extensionOf(originalFilename);
         long maximumSize = fileMode == FileMode.PDF ? MAX_PDF_SIZE : MAX_IMAGE_SIZE;
-        if (file.getSize() > maximumSize || !hasAllowedExtension(fileMode, extension)
+        if (originalFilename.length() > 255 || file.getSize() > maximumSize || !hasAllowedExtension(fileMode, extension)
                 || !hasExpectedMagic(file, extension)) {
             throw invalidFile();
         }

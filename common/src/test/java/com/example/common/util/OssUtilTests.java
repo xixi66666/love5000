@@ -3,6 +3,8 @@ package com.example.common.util;
 import com.example.common.config.OssProperties;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayInputStream;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class OssUtilTests {
@@ -35,5 +37,23 @@ class OssUtilTests {
 
         assertEquals("photo/test.png",
                 ossUtil.extractObjectKey("https://cdn.love530.com/files/photo/test.png?x-oss-process=image/resize"));
+    }
+
+    @Test
+    void shouldValidatePredeclaredObjectKeysWithoutCallingOss() {
+        OssProperties ossProperties = new OssProperties();
+        OssUtil ossUtil = new OssUtil(ossProperties);
+
+        assertEquals("love530/guitar/sheets/uuid/pdf/sheet.pdf",
+                ossUtil.validateObjectKey("love530/guitar/sheets/uuid/pdf/sheet.pdf"));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> ossUtil.validateObjectKey("/love530/guitar/sheets/uuid/pdf/sheet.pdf"));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> ossUtil.validateObjectKey("love530/guitar/sheets/uuid/../sheet.pdf"));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> ossUtil.validateObjectKey("love530/guitar/sheets/uuid/sheet.pdf?download=1"));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> ossUtil.uploadWithObjectKey(new ByteArrayInputStream(new byte[]{1}), 1L,
+                        "love530/guitar/sheets/uuid/../sheet.pdf", "sheet.pdf", "application/pdf"));
     }
 }

@@ -57,13 +57,13 @@ class GuitarSheetUploadServiceTest {
     @Test
     void uploadsPdfWithDerivedMimePersistsItAndReturnsOnlyPublicFileUrl() {
         when(ossUtilProvider.getIfAvailable()).thenReturn(ossUtil);
-        when(ossUtil.upload(any(InputStream.class), anyLong(), anyString(), anyString(), anyString()))
-                .thenReturn(upload("objects/a.pdf"));
+        when(ossUtil.uploadWithObjectKey(any(InputStream.class), anyLong(), anyString(), anyString(), anyString()))
+                .thenAnswer(invocation -> upload(invocation.getArgument(2)));
         doAnswer(invocation -> {
             ((GuitarSheet) invocation.getArgument(0)).setId(7L);
             return null;
         }).when(daoFixture.persistenceService).persist(any(GuitarSheet.class), any());
-        when(urlService.getFileUrl("objects/a.pdf")).thenReturn("https://cdn.example/a.pdf");
+        when(urlService.getFileUrl(anyString())).thenReturn("https://cdn.example/a.pdf");
 
         SheetDetailResponse response = service.createSheet(3L, "Uploader", request(FileMode.PDF),
                 Collections.singletonList(pdf("song.pdf")));
@@ -73,20 +73,21 @@ class GuitarSheetUploadServiceTest {
             assertThat(file.getUrl()).isEqualTo("https://cdn.example/a.pdf");
             assertThat(file.getMimeType()).isEqualTo("application/pdf");
         });
-        ArgumentCaptor<String> filename = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> objectKey = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> originalFilename = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<String> mime = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<String> directory = ArgumentCaptor.forClass(String.class);
-        verify(ossUtil).upload(any(InputStream.class), eq(8L), filename.capture(), mime.capture(), directory.capture());
-        assertThat(filename.getValue()).isEqualTo("sheet.pdf");
+        verify(ossUtil).uploadWithObjectKey(any(InputStream.class), eq(8L), objectKey.capture(),
+                originalFilename.capture(), mime.capture());
+        assertThat(objectKey.getValue()).matches("love530/guitar/sheets/[0-9a-f-]{36}/pdf/sheet.pdf");
+        assertThat(originalFilename.getValue()).isEqualTo("song.pdf");
         assertThat(mime.getValue()).isEqualTo("application/pdf");
-        assertThat(directory.getValue()).matches("love530/guitar/sheets/[0-9a-f-]{36}/pdf");
     }
 
     @Test
     void preservesImageOrderAndUsesGeneratedNamesAndDerivedMime() {
         when(ossUtilProvider.getIfAvailable()).thenReturn(ossUtil);
-        when(ossUtil.upload(any(InputStream.class), anyLong(), anyString(), anyString(), anyString()))
-                .thenReturn(upload("objects/one.jpg"), upload("objects/two.png"));
+        when(ossUtil.uploadWithObjectKey(any(InputStream.class), anyLong(), anyString(), anyString(), anyString()))
+                .thenAnswer(invocation -> upload(invocation.getArgument(2)));
         doAnswer(invocation -> {
             ((GuitarSheet) invocation.getArgument(0)).setId(8L);
             return null;
@@ -99,10 +100,12 @@ class GuitarSheetUploadServiceTest {
 
         assertThat(response.getFiles()).extracting(SheetDetailResponse.FileResponse::getSortOrder)
                 .containsExactly(1, 2);
-        ArgumentCaptor<String> filename = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> objectKey = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<String> mime = ArgumentCaptor.forClass(String.class);
-        verify(ossUtil, org.mockito.Mockito.times(2)).upload(any(InputStream.class), anyLong(), filename.capture(), mime.capture(), anyString());
-        assertThat(filename.getAllValues()).containsExactly("image-01.jpg", "image-02.png");
+        verify(ossUtil, org.mockito.Mockito.times(2)).uploadWithObjectKey(any(InputStream.class), anyLong(),
+                objectKey.capture(), anyString(), mime.capture());
+        assertThat(objectKey.getAllValues()).allMatch(value -> value.matches(
+                "love530/guitar/sheets/[0-9a-f-]{36}/images/image-0[12]\\.(jpg|png)"));
         assertThat(mime.getAllValues()).containsExactly("image/jpeg", "image/png");
     }
 
@@ -119,23 +122,91 @@ class GuitarSheetUploadServiceTest {
     @Test
     void compensatesObjectsWhenLaterUploadOrPersistenceFails() {
         when(ossUtilProvider.getIfAvailable()).thenReturn(ossUtil);
-        when(ossUtil.upload(any(InputStream.class), anyLong(), anyString(), anyString(), anyString()))
-                .thenReturn(upload("objects/one.jpg"))
+        when(ossUtil.uploadWithObjectKey(any(InputStream.class), anyLong(), anyString(), anyString(), anyString()))
+                .thenAnswer(invocation -> upload(invocation.getArgument(2)))
                 .thenThrow(new IllegalStateException("OSS down"));
 
         assertApiError(() -> service.createSheet(3L, "Uploader", request(FileMode.IMAGES), Arrays.asList(
                 image("first.jpg", new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF}),
                 image("second.png", pngHeader()))), "OSS_UNAVAILABLE");
-        verify(cleanupService).deleteOrEnqueue("objects/one.jpg", "SHEET_UPLOAD");
+        verify(cleanupService).deleteOrEnqueue(org.mockito.ArgumentMatchers.matches(
+                "love530/guitar/sheets/[0-9a-f-]{36}/images/image-01.jpg"), eq("SHEET_UPLOAD"));
         verifyNoInteractions(daoFixture.persistenceService);
 
-        when(ossUtil.upload(any(InputStream.class), anyLong(), anyString(), anyString(), anyString()))
-                .thenReturn(upload("objects/a.pdf"));
+        when(ossUtil.uploadWithObjectKey(any(InputStream.class), anyLong(), anyString(), anyString(), anyString()))
+                .thenAnswer(invocation -> upload(invocation.getArgument(2)));
         doThrow(new IllegalStateException("database failed")).when(daoFixture.persistenceService)
                 .persist(any(GuitarSheet.class), any());
+        when(urlService.getFileUrl(anyString())).thenReturn("https://cdn.example/file");
         assertThatThrownBy(() -> service.createSheet(3L, "Uploader", request(FileMode.PDF),
                 Collections.singletonList(pdf("song.pdf")))).isInstanceOf(IllegalStateException.class);
-        verify(cleanupService).deleteOrEnqueue("objects/a.pdf", "SHEET_UPLOAD");
+        verify(cleanupService).deleteOrEnqueue(org.mockito.ArgumentMatchers.matches(
+                "love530/guitar/sheets/[0-9a-f-]{36}/pdf/sheet.pdf"), eq("SHEET_UPLOAD"));
+    }
+
+    @Test
+    void urlFailureHappensBeforePersistenceAndCompensatesUploadedObject() {
+        when(ossUtilProvider.getIfAvailable()).thenReturn(ossUtil);
+        when(ossUtil.uploadWithObjectKey(any(InputStream.class), anyLong(), anyString(), anyString(), anyString()))
+                .thenAnswer(invocation -> upload(invocation.getArgument(2)));
+        when(urlService.getFileUrl(anyString())).thenThrow(new IllegalStateException("public URL unavailable"));
+
+        IllegalStateException failure = (IllegalStateException) org.assertj.core.api.Assertions.catchThrowable(
+                () -> service.createSheet(3L, "Uploader", request(FileMode.PDF),
+                        Collections.singletonList(pdf("song.pdf"))));
+
+        assertThat(failure).hasMessage("public URL unavailable");
+        verifyNoInteractions(daoFixture.persistenceService);
+        verify(cleanupService).deleteOrEnqueue(org.mockito.ArgumentMatchers.matches(
+                "love530/guitar/sheets/[0-9a-f-]{36}/pdf/sheet.pdf"), eq("SHEET_UPLOAD"));
+    }
+
+    @Test
+    void compensatesThePredeclaredObjectKeyWhenUploadThrowsAfterRemoteAcceptance() {
+        when(ossUtilProvider.getIfAvailable()).thenReturn(ossUtil);
+        when(ossUtil.uploadWithObjectKey(any(InputStream.class), anyLong(), anyString(), anyString(), anyString()))
+                .thenThrow(new IllegalStateException("local response handling failed"));
+
+        assertApiError(() -> service.createSheet(3L, "Uploader", request(FileMode.PDF),
+                Collections.singletonList(pdf("song.pdf"))), "OSS_UNAVAILABLE");
+
+        verify(cleanupService).deleteOrEnqueue(org.mockito.ArgumentMatchers.matches(
+                "love530/guitar/sheets/[0-9a-f-]{36}/pdf/sheet.pdf"), eq("SHEET_UPLOAD"));
+        verifyNoInteractions(daoFixture.persistenceService);
+    }
+
+    @Test
+    void rejectsAResponseThatDoesNotConfirmThePredeclaredObjectKey() {
+        when(ossUtilProvider.getIfAvailable()).thenReturn(ossUtil);
+        when(ossUtil.uploadWithObjectKey(any(InputStream.class), anyLong(), anyString(), anyString(), anyString()))
+                .thenReturn(upload("unexpected/client-controlled.pdf"));
+
+        assertApiError(() -> service.createSheet(3L, "Uploader", request(FileMode.PDF),
+                Collections.singletonList(pdf("song.pdf"))), "OSS_UNAVAILABLE");
+
+        verify(cleanupService).deleteOrEnqueue(org.mockito.ArgumentMatchers.matches(
+                "love530/guitar/sheets/[0-9a-f-]{36}/pdf/sheet.pdf"), eq("SHEET_UPLOAD"));
+        verifyNoInteractions(daoFixture.persistenceService);
+    }
+
+    @Test
+    void continuesCompensationAfterOneCleanupFailureAndPreservesIt() {
+        when(ossUtilProvider.getIfAvailable()).thenReturn(ossUtil);
+        when(ossUtil.uploadWithObjectKey(any(InputStream.class), anyLong(), anyString(), anyString(), anyString()))
+                .thenAnswer(invocation -> upload(invocation.getArgument(2)));
+        when(urlService.getFileUrl(anyString())).thenThrow(new IllegalStateException("public URL unavailable"));
+        IllegalStateException cleanupFailure = new IllegalStateException("cleanup queue unavailable");
+        doThrow(cleanupFailure).doNothing().when(cleanupService)
+                .deleteOrEnqueue(anyString(), eq("SHEET_UPLOAD"));
+
+        IllegalStateException failure = (IllegalStateException) org.assertj.core.api.Assertions.catchThrowable(
+                () -> service.createSheet(3L, "Uploader", request(FileMode.IMAGES), Arrays.asList(
+                        image("first.jpg", new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF}),
+                        image("second.png", pngHeader()))));
+
+        assertThat(failure.getSuppressed()).contains(cleanupFailure);
+        verify(cleanupService, org.mockito.Mockito.times(2)).deleteOrEnqueue(anyString(), eq("SHEET_UPLOAD"));
+        verifyNoInteractions(daoFixture.persistenceService);
     }
 
     @Test

@@ -76,7 +76,7 @@ POST /api/sheets
 
 - `POST /api/sheets` requires the authenticated Session and `X-CSRF-Token`; it accepts a JSON `metadata` part plus repeated `files` parts.
 - `fileMode=PDF` accepts exactly one `.pdf` no larger than 30MB with a `%PDF` header. `fileMode=IMAGES` accepts 1-20 JPG/JPEG, PNG, or WebP files no larger than 10MB each, with matching magic bytes.
-- Ignore client Content-Type and path segments. Derive the stored MIME type and extension, upload outside the database transaction to `love530/guitar/sheets/{storageUuid}/pdf` or `/images`, and persist only returned object keys.
-- If an upload or transactional persistence fails, compensate every uploaded object through `OssCleanupService`. Never expose `storageUuid` or object keys in API responses.
+- Ignore client Content-Type and path segments. Derive the stored MIME type and extension, predeclare server-only object keys under `love530/guitar/sheets/{storageUuid}/pdf` or `/images`, upload outside the database transaction, and persist only those confirmed keys.
+- Precompute every public file URL before persistence. If upload, URL generation, or transactional persistence fails, compensate every predeclared object through `OssCleanupService`; cleanup failures are logged and attached to the original failure. Never expose `storageUuid` or object keys in API responses.
 
 列表参数为 `keyword`、`songName`、`singer`、`sheetType`、`difficulty`、`keySignature`、`capoPosition`、`tuning`、`sort`、`page`、`size`。`keyword` 覆盖歌名、歌手、编配者和关键词；`sheetType`、`difficulty`、`sort` 必须是稳定模型枚举，`sort` 仅允许 `LATEST`、`MOST_FAVORITED`、`MOST_VIEWED`。分页默认为 `page=1`、`size=20`，大小范围为 1-50，变调夹范围为 0-12。文件 URL 只从对象键生成，公开基础 URL 和 OSS 都不可用时返回稳定的 `OSS_UNAVAILABLE`，禁止泄露本地文件路径。静态首页仍为 `/`，健康检查仍为 `/api/health`。

@@ -59,6 +59,8 @@ class SheetFileValidatorTest {
                 new byte[10 * 1024 * 1024 + 1])));
         assertInvalid(FileMode.PDF, Collections.singletonList(file("files", "large.pdf", null,
                 new byte[30 * 1024 * 1024 + 1])));
+        assertInvalid(FileMode.PDF, Collections.singletonList(file("files", repeat('a', 252) + ".pdf", null,
+                bytes("%PDF"))));
     }
 
     @Test

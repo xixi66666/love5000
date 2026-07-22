@@ -82,7 +82,7 @@ Guitar 已提供 `PUT /api/users/me` 更新昵称和 `POST /api/users/me/avatar`
 
 Guitar 的 `GET /api/sheets` 和 `GET /api/sheets/{id}` 可匿名访问。列表仅返回已发布且未删除的曲谱，支持 `keyword`、`songName`、`singer`、`sheetType`、`difficulty`、`keySignature`、`capoPosition`、`tuning` 和 `sort`（`LATEST`、`MOST_FAVORITED`、`MOST_VIEWED`）；分页默认 `page=1`、`size=20`，`size` 最大为 50。详情按文件排序返回可公开访问的文件 URL，并在亚洲/上海日期桶中记录浏览量。静态首页仍为 `http://127.0.0.1:8088/`，健康检查为 `GET /api/health`。
 
-`POST /api/sheets` 使用 multipart 的 `metadata` JSON Part 和重复 `files` Part 创建并立即发布曲谱，必须使用登录 Session 和 `X-CSRF-Token`。`fileMode=PDF` 仅接受一个不超过 30MB、扩展名和 `%PDF` 文件头一致的 PDF；`fileMode=IMAGES` 接受 1-20 个不超过 10MB、扩展名和 JPEG/PNG/WebP 魔数一致的图片。服务端忽略客户端 MIME，使用校验后的类型上传到 `love530/guitar/sheets/{uuid}/pdf` 或 `/images`，数据库只保存 OSS 对象键；OSS 或数据库失败时会补偿已上传对象。
+`POST /api/sheets` 使用 multipart 的 `metadata` JSON Part 和重复 `files` Part 创建并立即发布曲谱，必须使用登录 Session 和 `X-CSRF-Token`。`fileMode=PDF` 仅接受一个不超过 30MB、扩展名和 `%PDF` 文件头一致的 PDF；`fileMode=IMAGES` 接受 1-20 个不超过 10MB、扩展名和 JPEG/PNG/WebP 魔数一致的图片。服务端忽略客户端 MIME，预先生成服务器 UUID 对象键并使用校验后的类型上传到 `love530/guitar/sheets/{uuid}/pdf` 或 `/images`；公开 URL 在数据库写入前完成验证。OSS、URL 或数据库失败时会补偿所有已知对象，且清理失败会保留在原始异常中。
 
 Python 子服务：
 
