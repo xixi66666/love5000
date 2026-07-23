@@ -1,6 +1,6 @@
 ﻿# website
 
-`website` 是 `love530` 聚合工程中的个人主页/展示站点 Web 服务，默认端口 `8080`。它同时负责提供博客、提示词控制台、静态首页入口，以及 `python-a`、`quant-a`、`video` 三个独立 Python 子服务的自动启动和健康检查。
+`website` 是 `love530` 聚合工程中的个人主页/展示站点 Web 服务，默认端口 `8080`。它同时负责提供博客、提示词控制台、静态首页入口，并在首页放出 Prompt Console 入口，以及 `python-a`、`quant-a`、`video` 三个独立 Python 子服务的自动启动和健康检查。
 
 ## 功能
 

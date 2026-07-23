@@ -6,7 +6,7 @@
 
 - `common`：公共能力模块，提供 OSS 自动配置、上传工具，以及通用登录/注册/Session 鉴权能力。
 - `lovestory`：恋爱相册 Web 应用，提供静态页面、照片上传、照片列表、删除接口、留言板功能和吉他视频卡片模块。
-- `website`：个人主页/展示站点 Web 应用，包含主页静态资源、Web Demo、OSS Demo、Nacos Discovery 示例和个人博客微应用。
+- `website`：个人主页/展示站点 Web 应用，包含主页静态资源、Web Demo、OSS Demo、Nacos Discovery 示例、提示词控制台入口和个人博客微应用。
 - `imagetemplate`：图片提示词模板 Web 服务，提供模板库检索、prompt 渲染、直接提示词模板和 OpenAI 图片生成能力。
 - `guitar`：Guitar 曲谱平台 Web 微服务，提供基础首页、健康检查、手机号注册登录、Session/CSRF 鉴权、公开曲谱检索详情、安全上传、管理员曲谱下架/恢复和 MySQL 持久化基础能力。
 - `python-a`：A 股自选股 AI 研究台，作为独立 Python 微应用接入，不加入 Maven 聚合模块。
@@ -989,6 +989,6 @@ Single-context layout: root `CONTEXT.md` and `docs/adr/`, created lazily when ne
 
 第一期工作台页面包括 `guitar/src/main/resources/static/upload.html`（上传/编辑）、`favorites.html`（私人收藏夹）、`profile.html`（资料与我的公开上传）和 `admin.html`（管理员下架/恢复）。Node 校验脚本为 `npm.cmd run test:upload`、`npm.cmd run test:favorites`，Java 静态资源断言使用 `mvn -pl guitar -am -Dtest=GuitarApplicationTests -DfailIfNoTests=false test`。
 
-The Guitar static sheet-search homepage is `guitar/src/main/resources/static/index.html`; public detail is `sheet.html`, authentication is `auth.html`, with shared ES modules in `static/js/` and discovery styles in `static/css/discovery.css`. Run frontend checks from `guitar/` using `npm.cmd run test:api`, `npm.cmd run test:auth`, and `npm.cmd run test:search`; Java static-resource assertions run with the Guitar Maven test command.
+The Guitar homepage source lives in `guitar/src/main/frontend/` as a React/Vite app. Run `npm.cmd run dev` from `guitar/` for local frontend preview, `npm.cmd run build` to emit the served `/index.html` and hashed assets into `guitar/src/main/resources/static/`, and `npm.cmd run test:homepage` for the homepage-specific static checks. Public detail is `sheet.html`, authentication is `auth.html`, with shared ES modules in `static/js/`. Run frontend checks from `guitar/` using `npm.cmd run test:api`, `npm.cmd run test:auth`, and `npm.cmd run test:search`; Java static-resource assertions run with the Guitar Maven test command.
 
 

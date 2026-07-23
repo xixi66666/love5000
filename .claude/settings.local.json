@@ -2,11 +2,25 @@
   "permissions": {
     "allow": [
       "Bash(git push *)",
-      "Bash(git add *)",
-      "Bash(git commit *)",
-      "Bash(git reset *)",
-      "Bash(ping *)",
-      "Bash(GIT_HTTP_CONNECT_TIMEOUT=60 git push *)"
+      "Bash(python -m pip list)",
+      "Bash(python -c \"import uvicorn; print\\('uvicorn OK'\\)\")",
+      "Bash(python *)",
+      "Bash(pip config *)",
+      "Bash(unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy no_proxy NO_PROXY all_proxy ALL_PROXY)",
+      "Bash(pip install *)",
+      "Bash(env)",
+      "Bash(HTTP_PROXY=\"\" HTTPS_PROXY=\"\" http_proxy=\"\" https_proxy=\"\" NO_PROXY=\"*\" python -m pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn)",
+      "Bash(HTTP_PROXY=\"\" HTTPS_PROXY=\"\" http_proxy=\"\" https_proxy=\"\" NO_PROXY=\"*\" python -m pip install fastapi uvicorn pydantic duckdb pyyaml requests pytest httpx -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn)",
+      "Bash(HTTP_PROXY=\"\" HTTPS_PROXY=\"\" http_proxy=\"\" https_proxy=\"\" NO_PROXY=\"*\" python -m pip install fastapi uvicorn pydantic pyyaml requests pytest httpx tushare akshare -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn)",
+      "Bash(HTTP_PROXY=\"\" HTTPS_PROXY=\"\" http_proxy=\"\" https_proxy=\"\" NO_PROXY=\"*\" python -m pip install fastapi uvicorn pydantic pyyaml requests pytest httpx -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn)",
+      "Bash(HTTP_PROXY=\"\" HTTPS_PROXY=\"\" http_proxy=\"\" https_proxy=\"\" NO_PROXY=\"*\" python -m pip install \"pandas<2\" \"duckdb<1\" -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn)",
+      "Bash(HTTP_PROXY=\"\" HTTPS_PROXY=\"\" http_proxy=\"\" https_proxy=\"\" NO_PROXY=\"*\" python -m pip install duckdb --only-binary=:all: -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn)",
+      "Bash(HTTP_PROXY=\"\" HTTPS_PROXY=\"\" http_proxy=\"\" https_proxy=\"\" NO_PROXY=\"*\" python -m pip install tushare akshare --only-binary=pandas -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn)",
+      "Bash(HTTP_PROXY=\"\" HTTPS_PROXY=\"\" http_proxy=\"\" https_proxy=\"\" NO_PROXY=\"*\" python -m pip install tushare -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn)",
+      "Bash(HTTP_PROXY=\"\" HTTPS_PROXY=\"\" http_proxy=\"\" https_proxy=\"\" NO_PROXY=\"*\" python -m pip install tushare \"pandas<2\" -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn)",
+      "Bash(HTTP_PROXY=\"\" HTTPS_PROXY=\"\" http_proxy=\"\" https_proxy=\"\" NO_PROXY=\"*\" python -m pip install akshare -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn)",
+      "Bash(HTTP_PROXY=\"\" HTTPS_PROXY=\"\" http_proxy=\"\" https_proxy=\"\" NO_PROXY=\"*\" python -m pip install \"akshare<1.12\" -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn)",
+      "Bash(HTTP_PROXY=\"\" HTTPS_PROXY=\"\" http_proxy=\"\" https_proxy=\"\" NO_PROXY=\"*\" python -m pip install akshare --no-deps -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn)"
     ]
   }
 }

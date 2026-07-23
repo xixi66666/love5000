@@ -12,7 +12,7 @@ C:/Code/Java_Code/love5000/website
 
 - 提供个人主页静态站点。
 - 统一承载 `python-a`、`quant-a`、`video` 三个独立 Python 子服务的代码目录、首页入口、健康检测和自动启动配置。
-- 提供提示词控制台和静态提示词库页面。
+- 提供提示词控制台和静态提示词库页面，并在首页提供 Prompt Console 入口。
 - 提供基础 Spring MVC Web Demo。
 - 保留 OSS Demo 和 Nacos Discovery 示例代码。
 - 使用 MySQL 和 Druid 作为后端数据源配置。

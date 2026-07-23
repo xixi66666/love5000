@@ -50,9 +50,10 @@ class GuitarApplicationTests {
 		mockMvc.perform(get("/index.html"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentTypeCompatibleWith("text/html"))
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("GUITAR")))
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("/js/api.js")))
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("8088")));
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("Lumora")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"root\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("/assets/index-")))
+				.andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("/js/index.js"))));
 	}
 
 	@Test

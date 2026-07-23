@@ -3,10 +3,26 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5177",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4177",
     "test:api": "node --test src/test/js/api.test.js",
     "test:auth": "node --test src/test/js/auth-validation.test.js",
     "test:search": "node --test src/test/js/sheet-search.test.js",
     "test:upload": "node --test src/test/js/upload-validation.test.js",
-    "test:favorites": "node --test src/test/js/favorite-state.test.js"
+    "test:favorites": "node --test src/test/js/favorite-state.test.js",
+    "test:homepage": "node --test src/test/js/homepage-static.test.js"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "framer-motion": "^11.15.0",
+    "lucide-react": "^0.468.0",
+    "postcss": "^8.4.49",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5"
   }
 }

@@ -8,7 +8,7 @@ Maven 聚合模块：
 
 - `common`：公共 OSS 工具、自动配置和通用 Session 认证能力。
 - `lovestory`：恋爱相册、照片上传、留言板和吉他视频卡片 Web 应用。
-- `website`：个人主页/展示站点、博客、提示词控制台，以及 Python 子服务入口和自动启动。
+- `website`：个人主页/展示站点、博客、提示词控制台，以及 Python 子服务入口和自动启动，首页也提供 Prompt Console 入口。
 - `imagetemplate`：图片提示词模板库和 OpenAI Images API 生成服务。
 - `guitar`：Guitar 曲谱平台，提供手机号注册登录、Session/CSRF 鉴权、公开曲谱检索、安全上传、个人曲谱管理、多收藏夹和管理员曲谱下架/恢复，默认端口 `8088`。
 
@@ -82,6 +82,8 @@ Guitar 认证流程先调用 `GET http://127.0.0.1:8088/api/auth/session` 获取
 
 Guitar 已提供 `PUT /api/users/me` 更新昵称和 `POST /api/users/me/avatar` 上传头像。两个接口只使用认证 Session 中的用户身份；头像字段名为 `avatar`，限制为不超过 5MB 的 JPG/JPEG、PNG 或 WebP，并校验文件魔数。头像 OSS 存储通过 `LOVE530_OSS_ENABLED=true` 及现有 `LOVE530_OSS_*` 环境变量启用，数据库仅保存对象键；旧对象删除失败会落入 `guitar_oss_cleanup_task` 等待后续清理。
 
+Guitar 的首页当前由 React/Vite 构建，源码位于 `guitar/src/main/frontend/`，构建产物输出到 `guitar/src/main/resources/static/`，Spring Boot 直接从这里提供 `http://127.0.0.1:8088/`。前端开发和构建命令为 `npm.cmd run dev`、`npm.cmd run build` 和 `npm.cmd run test:homepage`，静态资源断言继续由 `GuitarApplicationTests` 覆盖。
+
 Guitar 的 `GET /api/sheets` 和 `GET /api/sheets/{id}` 可匿名访问。列表仅返回已发布且未删除的曲谱，支持 `keyword`、`songName`、`singer`、`sheetType`、`difficulty`、`keySignature`、`capoPosition`、`tuning` 和 `sort`（`LATEST`、`MOST_FAVORITED`、`MOST_VIEWED`）；分页默认 `page=1`、`size=20`，`size` 最大为 50。详情按文件排序返回可公开访问的文件 URL，并在亚洲/上海日期桶中记录浏览量。静态首页仍为 `http://127.0.0.1:8088/`，健康检查为 `GET /api/health`。
 
 `POST /api/sheets` 使用 multipart 的 `metadata` JSON Part 和重复 `files` Part 创建并立即发布曲谱，必须使用登录 Session 和 `X-CSRF-Token`。`fileMode=PDF` 仅接受一个不超过 30MB、扩展名和 `%PDF` 文件头一致的 PDF；`fileMode=IMAGES` 接受 1-20 个不超过 10MB、扩展名和 JPEG/PNG/WebP 魔数一致的图片。服务端忽略客户端 MIME，预先生成服务器 UUID 对象键并使用校验后的类型上传到 `love530/guitar/sheets/{uuid}/pdf` 或 `/images`；公开 URL 在数据库写入前完成验证。OSS、URL 或数据库失败时会补偿所有已知对象，且清理失败会保留在原始异常中。
@@ -125,4 +127,4 @@ cd website/video && python -m unittest discover -s tests -v
 
 第一期工作台页面包括 `upload.html`（上传/编辑）、`favorites.html`（私人收藏夹）、`profile.html`（资料与我的公开上传）和 `admin.html`（管理员下架/恢复）。新增 Node 校验脚本为 `npm.cmd run test:upload`、`npm.cmd run test:favorites`；页面静态资源由 `GuitarApplicationTests` 断言。
 
-Guitar 的静态曲谱搜索首页位于 `guitar/src/main/resources/static/index.html`，详情页为 `sheet.html`，认证页为 `auth.html`；共享 API、Session、搜索与详情模块位于 `static/js/`，检索页样式位于 `static/css/discovery.css`。前端 Node 测试从 `guitar/` 执行 `npm.cmd run test:api`、`npm.cmd run test:auth` 和 `npm.cmd run test:search`，Java 静态资源断言使用 Guitar 模块 Maven 测试命令。
+Guitar 的首页源码位于 `guitar/src/main/frontend/`，通过 `npm.cmd run build` 输出到 `guitar/src/main/resources/static/index.html`。详情页为 `sheet.html`，认证页为 `auth.html`，工作台页面仍包括 `upload.html`、`favorites.html`、`profile.html` 和 `admin.html`；共享 API、Session 与详情模块位于 `static/js/`。前端 Node 测试从 `guitar/` 执行 `npm.cmd run test:homepage`、`npm.cmd run test:api`、`npm.cmd run test:auth` 和 `npm.cmd run test:search`，Java 静态资源断言使用 Guitar 模块 Maven 测试命令。
