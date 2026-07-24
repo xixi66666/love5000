@@ -4,109 +4,166 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>西西小屋</title>
-    <link rel="icon" type="image/png" sizes="1024x1024" href="img/moon-icon.png?v=5.5">
-    <link rel="shortcut icon" href="favicon.ico?v=5.5">
-    <meta name="description" content="西西小子的个人微服务静夜入口，连接博客、恋爱相册、Guitar、AI 图片模板和 A 股 AI 研究台。">
-    <meta name="keywords" content="Spring Boot, AI, Blog, Microservice">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="css/style.css?v=5.8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>XiXi 小屋 · 个人服务宇宙</title>
+    <meta name="description" content="XiXi 小屋的电影化个人服务入口，连接恋爱相册、图片模板、博客、Prompt Console、Guitar 与 AI 研究工作台。">
+    <meta name="keywords" content="Spring Boot, AI, Blog, Guitar, Microservice">
+    <meta name="theme-color" content="#05080b">
+    <link rel="icon" type="image/png" sizes="1024x1024" href="img/moon-icon.png?v=6.0">
+    <link rel="shortcut icon" href="favicon.ico?v=6.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css?v=6.1">
 </head>
 
 <body>
-<a class="skip-link" href="#main-nav">跳到微服务入口</a>
+<a class="skip-link" href="#service-dock">跳到服务入口</a>
 
-<div class="cinematic-bg moon-bg" aria-hidden="true">
-    <video class="hero-video" autoplay muted loop playsinline poster="media/moon-wallpaper-poster.jpg">
-        <source src="media/moon-wallpaper.mp4" type="video/mp4">
-    </video>
-    <div class="moon-glow"></div>
-    <div class="hero-vignette"></div>
-    <div class="hero-grain"></div>
-    <div class="hero-scanline"></div>
-</div>
+<section class="cinematic-hero" id="home" aria-labelledby="hero-title">
+    <div class="scene-background" aria-hidden="true">
+        <video class="scene-video is-active" data-scene-video="0" autoplay muted loop playsinline preload="auto">
+            <source src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260702_081127_0992a171-d3c6-4978-8213-0ec5df8b6d63.mp4" type="video/mp4">
+        </video>
+        <video class="scene-video" data-scene-video="1" muted loop playsinline preload="metadata">
+            <source src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260702_092026_dd05b805-ea0f-40b2-8c52-332b88502592.mp4" type="video/mp4">
+        </video>
+        <video class="scene-video" data-scene-video="2" muted loop playsinline preload="metadata">
+            <source src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260702_081042_df7202bf-bd80-4b2b-bbc6-1f09ba2870e9.mp4" type="video/mp4">
+        </video>
+        <video class="scene-video" data-scene-video="3" muted loop playsinline preload="metadata">
+            <source src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260702_080959_4cac5234-3573-464e-a5b7-76b94b8a7d61.mp4" type="video/mp4">
+        </video>
+        <img class="scene-overlay" src="https://soft-zoom-63098134.figma.site/_assets/v11/0b4a435b2df2747593c43d7a1c9b4578f7d8d90c.png" alt="">
+        <div class="scene-shade"></div>
+        <div class="scene-grain"></div>
+    </div>
 
-<header class="site-header">
-    <a class="brand" href="#home" aria-label="返回首页">
-        <span class="brand-mark"></span>
-        <span>
-            <strong>XiXixiaozi</strong>
-        </span>
-    </a>
-    <nav class="nav-links" id="main-nav" aria-label="主导航">
-        <a href="#home">首页</a>
-        <a href="http://localhost:8081/login.html" target="_blank" rel="noopener">xixi & 5000</a>
-        <a href="http://localhost:8082/index.html" target="_blank" rel="noopener" data-auth-required="true" data-auth-target-name="图片模板">Photo</a>
-        <a href="blog/index.html">Blog</a>
-        <a href="prompt-console/index.html">Prompt</a>
-        <a href="http://127.0.0.1:8088/" target="_blank" rel="noopener">Guitar</a>
-        <a href="http://127.0.0.1:5174/" target="_blank" rel="noopener">股票分析台</a>
-        <a href="http://127.0.0.1:5175/" target="_blank" rel="noopener">Quant</a>
-        <a href="http://127.0.0.1:5176/" target="_blank" rel="noopener">视频工作台</a>
-        <a class="auth-login-button" href="javascript:void(0)">Login</a>
-        <a class="auth-register-button" href="javascript:void(0)">Register</a>
-        <a class="auth-logout-button" href="javascript:void(0)" style="display: none;">Logout</a>
-    </nav>
-</header>
+    <div class="page-shell">
+        <header class="site-header">
+            <a class="brand" href="#home" aria-label="返回 XiXi 小屋首页">
+                <span class="brand-orbit" aria-hidden="true"></span>
+                <span class="brand-name">XiXi</span>
+            </a>
 
-<main>
-    <section class="hero" id="home" aria-labelledby="hero-title">
-        <div class="hero-copy">
-            <h1 id="hero-title">西西小屋</h1>
-            <p class="hero-statement">我需要，最狂的风，和最静的海。</p>
+            <nav class="desktop-navigation liquid-glass" aria-label="账户操作">
+                <button class="nav-auth-link auth-login-button" type="button">登录</button>
+                <button class="nav-auth-link auth-register-button" type="button">注册</button>
+                <button class="nav-auth-link auth-logout-button" type="button" hidden>退出</button>
+            </nav>
+        </header>
+
+        <main class="hero-content">
+            <div class="hero-copy">
+                <p class="hero-badge liquid-glass">
+                    <span class="badge-pulse" aria-hidden="true"></span>
+                    8 个微服务，正在同一片宇宙中运行
+                </p>
+                <h1 id="hero-title">醉后不知天在水</h1>
+                <p class="hero-statement">
+                    满船清梦压星河
+                </p>
+                <div class="hero-actions">
+                    <a class="hero-primary-action" href="#service-dock">
+                        <span>探索我的服务</span>
+                        <svg aria-hidden="true" viewBox="0 0 24 24">
+                            <path d="M5 12h14M13 6l6 6-6 6"></path>
+                        </svg>
+                    </a>
+                    <button class="hero-secondary-action auth-login-button liquid-glass" type="button">登录工作台</button>
+                </div>
+
+                <div class="scene-switcher" role="group" aria-label="切换背景场景">
+                    <button class="scene-button is-active" type="button" data-scene-index="0" aria-pressed="true">
+                        <span>01</span> Golden Hour
+                    </button>
+                    <button class="scene-button" type="button" data-scene-index="1" aria-pressed="false">
+                        <span>02</span> Still Water
+                    </button>
+                    <button class="scene-button" type="button" data-scene-index="2" aria-pressed="false">
+                        <span>03</span> Deep Woods
+                    </button>
+                    <button class="scene-button" type="button" data-scene-index="3" aria-pressed="false">
+                        <span>04</span> Quiet Dawn
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <section class="service-dock liquid-glass" id="service-dock" aria-labelledby="services-title">
+            <div class="service-dock-heading">
+                <div>
+                    <span class="eyebrow">LIVE DIRECTORY</span>
+                    <h2 id="services-title">选择你的下一站</h2>
+                </div>
+                <span class="dock-hint">横向滑动探索全部服务</span>
+            </div>
+
             <nav class="service-grid" aria-label="微服务入口">
-                <a class="service-card service-card-love" href="http://localhost:8081/login.html" target="_blank" rel="noopener" data-health-url="http://localhost:8081/login.html" data-health-mode="no-cors">
-                    <strong>xixi & 5000 · 8081</strong>
+                <a class="service-card" href="http://localhost:8081/login.html" target="_blank" rel="noopener"
+                   data-health-url="http://localhost:8081/login.html" data-health-mode="no-cors">
+                    <span class="service-index">01</span>
+                    <span class="service-copy"><strong>恋爱相册</strong><small>LOVE STORY · 8081</small></span>
                     <span class="service-status" aria-label="检测中" title="检测中"></span>
                 </a>
-                <a class="service-card service-card-image" href="http://localhost:8082/index.html" target="_blank" rel="noopener" data-auth-required="true" data-auth-target-name="图片模板" data-health-url="http://localhost:8082/index.html" data-health-mode="no-cors">
-                    <strong>Photo · 8082</strong>
+                <a class="service-card" href="http://localhost:8082/index.html" target="_blank" rel="noopener"
+                   data-auth-required="true" data-auth-target-name="图片模板"
+                   data-health-url="http://localhost:8082/index.html" data-health-mode="no-cors">
+                    <span class="service-index">02</span>
+                    <span class="service-copy"><strong>图片模板</strong><small>IMAGE LAB · 8082</small></span>
                     <span class="service-status" aria-label="检测中" title="检测中"></span>
                 </a>
-                <a class="service-card service-card-blog" href="blog/index.html" data-health-url="/blog/index.html">
-                    <strong>Blog · 8080</strong>
+                <a class="service-card" href="blog/index.html" data-health-url="/blog/index.html">
+                    <span class="service-index">03</span>
+                    <span class="service-copy"><strong>个人博客</strong><small>JOURNAL · 8080</small></span>
                     <span class="service-status" aria-label="检测中" title="检测中"></span>
                 </a>
-                <a class="service-card service-card-prompt" href="prompt-console/index.html" data-health-url="/prompt-console/index.html">
-                    <strong>Prompt 路 8080</strong>
-                    <span class="service-status" aria-label="妫€娴嬩腑" title="妫€娴嬩腑"></span>
-                </a>
-                <a class="service-card service-card-guitar" href="http://127.0.0.1:8088/" target="_blank" rel="noopener" data-health-url="http://127.0.0.1:8088/api/health" data-health-mode="no-cors">
-                    <strong>Guitar · 8088</strong>
+                <a class="service-card" href="prompt-console/index.html" data-health-url="/prompt-console/index.html">
+                    <span class="service-index">04</span>
+                    <span class="service-copy"><strong>Prompt</strong><small>CONSOLE · 8080</small></span>
                     <span class="service-status" aria-label="检测中" title="检测中"></span>
                 </a>
-                <a class="service-card service-card-stock" href="http://127.0.0.1:5174/" target="_blank" rel="noopener" data-health-url="http://127.0.0.1:5174/api/health" data-health-mode="no-cors">
-                    <strong>股票分析台 · 5174</strong>
+                <a class="service-card" href="http://127.0.0.1:8088/" target="_blank" rel="noopener"
+                   data-health-url="http://127.0.0.1:8088/api/health" data-health-mode="no-cors">
+                    <span class="service-index">05</span>
+                    <span class="service-copy"><strong>Guitar</strong><small>SHEET LAB · 8088</small></span>
                     <span class="service-status" aria-label="检测中" title="检测中"></span>
                 </a>
-                <a class="service-card service-card-quant" href="http://127.0.0.1:5175/" target="_blank" rel="noopener" data-health-url="http://127.0.0.1:5175/api/health" data-health-mode="no-cors">
-                    <strong>Quant 研究台 · 5175</strong>
+                <a class="service-card" href="http://127.0.0.1:5174/" target="_blank" rel="noopener"
+                   data-health-url="http://127.0.0.1:5174/api/health" data-health-mode="no-cors">
+                    <span class="service-index">06</span>
+                    <span class="service-copy"><strong>A 股研究台</strong><small>AI RESEARCH · 5174</small></span>
                     <span class="service-status" aria-label="检测中" title="检测中"></span>
                 </a>
-                <a class="service-card service-card-video" href="http://127.0.0.1:5176/" target="_blank" rel="noopener" data-health-url="http://127.0.0.1:5176/api/health" data-health-mode="no-cors">
-                    <strong>AI 视频工作台 · 5176</strong>
+                <a class="service-card" href="http://127.0.0.1:5175/" target="_blank" rel="noopener"
+                   data-health-url="http://127.0.0.1:5175/api/health" data-health-mode="no-cors">
+                    <span class="service-index">07</span>
+                    <span class="service-copy"><strong>Quant 研究台</strong><small>QUANT LAB · 5175</small></span>
+                    <span class="service-status" aria-label="检测中" title="检测中"></span>
+                </a>
+                <a class="service-card" href="http://127.0.0.1:5176/" target="_blank" rel="noopener"
+                   data-health-url="http://127.0.0.1:5176/api/health" data-health-mode="no-cors">
+                    <span class="service-index">08</span>
+                    <span class="service-copy"><strong>AI 视频</strong><small>VIDEO STUDIO · 5176</small></span>
                     <span class="service-status" aria-label="检测中" title="检测中"></span>
                 </a>
             </nav>
-        </div>
+        </section>
+    </div>
 
-    </section>
-</main>
+</section>
 
-<footer class="site-footer">
-    <a href="https://github.com/xixi66666/love5000" target="_blank" rel="noopener">SourceCode</a>
-</footer>
-
-<div class="auth-pop-up">
-    <form class="auth-pop-up-main">
+<div class="auth-pop-up" aria-hidden="true">
+    <form class="auth-pop-up-main liquid-glass" novalidate>
         <button class="auth-pop-up-close" type="button" aria-label="关闭登录窗口">×</button>
-        <div class="auth-pop-up-title">Login</div>
+        <span class="auth-kicker">MEMBER ACCESS</span>
+        <div class="auth-pop-up-title">登录</div>
         <p class="auth-pop-up-copy">登录后可以访问受保护项目，并保持当前工作区连接。</p>
         <label>
             <span>用户名</span>
             <input class="auth-username" name="username" autocomplete="username" required>
         </label>
-        <label class="auth-display-name-wrap" style="display: none;">
+        <label class="auth-display-name-wrap" hidden>
             <span>显示名称</span>
             <input class="auth-display-name" name="displayName" autocomplete="nickname">
         </label>
@@ -115,11 +172,11 @@
             <input class="auth-password" name="password" type="password" autocomplete="current-password" required>
         </label>
         <div class="auth-message" aria-live="polite"></div>
-        <button class="auth-submit-button" type="submit">Continue</button>
+        <button class="auth-submit-button" type="submit">继续</button>
     </form>
 </div>
 
-<script src="js/script.js?v=5.8"></script>
+<script src="js/script.js?v=6.1"></script>
 </body>
 
 </html>
