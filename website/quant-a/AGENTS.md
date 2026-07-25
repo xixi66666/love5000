@@ -1,5 +1,10 @@
 ﻿# AGENTS.md
 
+## 健康检查协议
+
+`GET /api/health` 顶层返回 `success=true` 和 `service="quant-a"`。
+`website` 的 `ServiceHealthChecker` 使用该统一协议判断是否复用或启动 Uvicorn。
+
 ## 项目概述
 
 `website/quant-a` 是 `love5000` 当前接入的 A 股多因子量化研究台，作为独立 FastAPI 微服务运行，默认端口 `5175`。它不是 Java Maven 模块，不加入父 `pom.xml` 的 `<modules>`。

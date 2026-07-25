@@ -1,5 +1,13 @@
 ﻿# AGENTS.md
 
+## 统一健康检查职责
+
+`integration/health` 维护 `ServiceHealthChecker`、配置化服务清单、并行聚合器和
+`GET /api/services/health`。清单依次包含 `lovestory:8081`、`imagetemplate:8082`、
+`guitar:8088`、`python-a:5174`、`quant-a:5175`、`video:5176`。远程响应只有在
+HTTP 2xx 且顶层布尔值 `success=true` 时才健康；连接/读取超时默认 2000/3000ms。
+`website` 仍只自动启动三个 Python 服务。
+
 ## 项目概述
 
 `website` 是 `love530` Maven 聚合工程中的个人主页/展示站点 Web 微服务，路径：

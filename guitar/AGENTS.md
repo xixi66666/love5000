@@ -1,5 +1,10 @@
 # AGENTS.md
 
+## 统一健康检查
+
+`GET /api/health` 顶层返回 `success=true` 和 `service="guitar"`，供 `website`
+的 `ServiceHealthChecker` 聚合；该接口不访问 MySQL 或 OSS。
+
 ## 模块概述
 
 `guitar` 是 `love530` 的 Java 8 + Spring Boot 2.6.13 Web 子模块，默认端口为 `8088`。当前提供基础静态首页、健康检查、手机号注册登录、Session/CSRF 鉴权，以及 Guitar 曲谱平台的公开检索、安全上传、个人曲谱管理、私人多收藏夹、管理员曲谱下架/恢复和 MySQL 数据基础。

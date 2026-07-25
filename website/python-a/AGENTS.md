@@ -1,5 +1,10 @@
 ﻿# AGENTS.md
 
+## 健康检查协议
+
+`GET /api/health` 顶层返回 `success=true` 和 `service="python-a"`，同时保留已有
+`ok` 与运行信息字段。`website` 的 `ServiceHealthChecker` 使用该统一协议判断是否复用或启动进程。
+
 ## 项目概述
 
 `website/python-a` 是 `love5000` 当前接入的 A 股自选股 AI 研究台，作为独立 Python 微应用运行，默认端口 `5174`。它不是 Java Maven 模块，不加入父 `pom.xml` 的 `<modules>`。

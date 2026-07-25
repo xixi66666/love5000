@@ -1,5 +1,10 @@
 # Guitar 服务
 
+## 统一健康检查
+
+`GET /api/health` 顶层返回 `success=true` 和 `service="guitar"`，并纳入
+`website` 的 `GET /api/services/health` 聚合结果。
+
 `guitar` 是 `love530` 的独立 Spring Boot Web 模块，使用 Java 8、Spring Boot 2.6.13、MyBatis 和 MySQL，默认监听 `8088`。当前提供静态首页、健康检查、手机号注册登录、Session/CSRF 鉴权，以及公开曲谱检索、安全上传、个人曲谱管理、私人多收藏夹和管理员曲谱下架/恢复。
 
 ## 启动与测试

@@ -1,5 +1,10 @@
 ﻿# AGENTS.md
 
+## 健康检查
+
+`GET /api/health` 不调用 OpenAI，返回
+`{"success":true,"service":"imagetemplate"}`，供 `website` 的统一健康检查器聚合。
+
 ## 项目概述
 
 `imagetemplate` 是 `love530` Maven 聚合工程中的图片提示词模板 Web 服务，项目路径：

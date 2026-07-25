@@ -1,5 +1,13 @@
 ﻿# AGENTS.md
 
+## 统一服务健康检查
+
+六个独立服务 `lovestory`、`imagetemplate`、`guitar`、`python-a`、`quant-a`、`video`
+均提供 `GET /api/health`，响应顶层必须包含布尔值 `success=true` 和稳定的 `service`
+标识。`website` 使用 `ServiceHealthChecker` 统一探测，并通过
+`GET /api/services/health` 并行返回配置顺序一致的聚合结果；HTTP 200 表示聚合执行成功，
+顶层 `healthy` 表示是否所有服务均在线。连接/读取超时默认分别为 2000/3000ms。
+
 ## 项目概述
 
 `love5000` 是一个 Java 8 + Spring Boot 2.6.13 的 Maven 多模块项目，父工程 artifactId 为 `love530`。当前模块：
@@ -967,7 +975,7 @@ GET http://127.0.0.1:5176/api/config
 - 优先使用已有包结构、命名和配置前缀。
 - 小改动只跑相关模块测试；跨模块改动跑 `mvn test`。
 - 只改 `python-a` 时，不需要跑 Maven 测试；优先启动 Python 服务并验证 `/api/health` 和主要页面流程。
-- 只改 `video` 时，不需要跑 Maven 测试；当前 `video/tests` 已删除，优先启动 Python 服务并验证 `/api/health`、`/api/config` 和主要页面流程。
+- 只改 `video` 时，不需要跑 Maven 测试；运行 `cd website/video && python -m pytest`，并验证 `/api/health`、`/api/config` 和主要页面流程。
 - 修改配置文件时检查是否包含密钥，能改成环境变量就改成环境变量。
 - 不修改 `.idea/`、`target/`、运行时生成文件，除非任务明确要求。
 - 后续数据库 CRUD 使用 MyBatis DAO + XML Mapper，不新增 `JdbcTemplate`、JPA Repository 或 Java 内联 SQL。

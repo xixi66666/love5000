@@ -1,5 +1,9 @@
 ﻿# AI 原创动漫短片自动生成工具
 
+健康检查 `GET /api/health` 顶层返回 `success=true` 和 `service="video"`；
+`website` 使用统一 `ServiceHealthChecker` 探测，并将结果纳入
+`GET /api/services/health`。
+
 这是一个本地 Python 命令行工具和 Web 工作台，用于从一句主题自动生成国风动漫动态分镜短片。
 
 当前能力：

@@ -1,5 +1,9 @@
 ﻿# quant-a
 
+健康检查 `GET /api/health` 顶层返回 `success=true` 和 `service="quant-a"`；
+`website` 使用统一 `ServiceHealthChecker` 探测，并将结果纳入
+`GET /api/services/health`。
+
 `quant-a` 是 `love5000/website` 下独立运行的 FastAPI A 股多因子量化研究微服务，用于本地量化研究台、评分实验、组合候选排序和回测辅助。它不是 Java Maven 模块，不加入根目录 `pom.xml` 的 `<modules>`，也不执行 `mvn -pl quant-a ...`。
 
 ## 服务边界

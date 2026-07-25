@@ -1,5 +1,18 @@
 ﻿# website
 
+## 聚合健康检查
+
+`GET /api/services/health` 使用统一 `ServiceHealthChecker` 并行检查
+`lovestory`、`imagetemplate`、`guitar`、`python-a`、`quant-a` 和 `video`。
+HTTP 200 表示聚合请求已执行，顶层 `healthy` 表示是否全部在线，`services`
+保留配置顺序并包含状态码、耗时和安全失败摘要。默认连接/读取超时为 2000/3000ms。
+
+健康检查聚焦测试：
+
+```bash
+mvn -pl website -am '-Dtest=ServiceHealthCheckerTest,ServiceHealthAggregatorTest,ServiceHealthControllerTest,*AutoStartRunnerTest' -DfailIfNoTests=false test
+```
+
 `website` 是 `love530` 聚合工程中的个人主页/展示站点 Web 服务，默认端口 `8080`。它同时负责提供博客、提示词控制台、静态首页入口，并在首页放出 Prompt Console 入口，以及 `python-a`、`quant-a`、`video` 三个独立 Python 子服务的自动启动和健康检查。
 
 ## 功能

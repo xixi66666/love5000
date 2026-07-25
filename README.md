@@ -1,5 +1,19 @@
 ﻿# love5000 / love530
 
+## 统一健康检查
+
+`lovestory`、`imagetemplate`、`guitar`、`python-a`、`quant-a` 和 `video`
+统一提供 `GET /api/health`，响应顶层包含 `success=true` 与稳定的 `service`。
+启动 `website` 后可访问 `GET http://127.0.0.1:8080/api/services/health` 并行查看六个服务；
+HTTP 200 表示聚合成功，`healthy` 表示是否全部在线。Java 探测默认连接/读取超时为
+2000/3000ms。
+
+相关 Java 回归命令：
+
+```bash
+mvn -pl website,lovestory,imagetemplate,guitar -am test
+```
+
 `love5000` 是一个 Java 8 + Spring Boot 2.6.13 的 Maven 多模块项目，父工程 artifactId 为 `love530`。仓库同时托管三个独立 Python 微应用，用于 A 股研究、量化研究和 AI 动漫短片生成。
 
 ## 模块

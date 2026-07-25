@@ -1,5 +1,9 @@
 ﻿# A 股自选股 AI 研究台
 
+健康检查 `GET /api/health` 顶层返回 `success=true` 和 `service="python-a"`；
+`website` 使用统一 `ServiceHealthChecker` 探测，并将结果纳入
+`GET /api/services/health`。
+
 > 当前版本：2026-06-14
 > 定位：围绕用户自己维护的少量 A 股自选股，做行情跟踪、多维度股票分析、AI 研究辅助和 Obsidian 长期记忆写入。
 > 边界：本项目只做研究辅助、信息整理、风险提示和复盘沉淀，不构成投资建议，不承诺收益，也不替代人工判断。
