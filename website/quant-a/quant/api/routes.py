@@ -58,11 +58,14 @@ def _run_daily_sync(pipeline: QuantPipeline, request: SyncRequest) -> None:
 
 @router.get("/health")
 def health():
-    return success({
+    return {
+        **success({
+            "service": "quant-a",
+            "status": "ok",
+            "port": 5175,
+        }),
         "service": "quant-a",
-        "status": "ok",
-        "port": 5175,
-    })
+    }
 
 
 @router.get("/status")

@@ -1250,6 +1250,8 @@ class AShareHandler(SimpleHTTPRequestHandler):
             json_response(
                 self,
                 {
+                    "success": True,
+                    "service": "python-a",
                     "ok": True,
                     "time": now_iso(),
                     "obsidian_root": str(OBSIDIAN_ROOT),
