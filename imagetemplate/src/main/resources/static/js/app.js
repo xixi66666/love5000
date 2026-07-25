@@ -42,9 +42,23 @@
         emptyImageState: document.getElementById('emptyImageState'),
         generatedImage: document.getElementById('generatedImage'),
         downloadImageButton: document.getElementById('downloadImageButton'),
-        imageStatusLine: document.getElementById('imageStatusLine')
+        imageStatusLine: document.getElementById('imageStatusLine'),
+        sceneStatus: document.getElementById('sceneStatus'),
+        scenePrevButton: document.getElementById('scenePrevButton'),
+        sceneNextButton: document.getElementById('sceneNextButton'),
+        dockProgressBar: document.getElementById('dockProgressBar'),
+        scenePanels: document.querySelectorAll('.scene[data-scene]'),
+        dockSteps: document.querySelectorAll('.dock-step[data-scene-target]')
     };
 
+    var sceneOrder = ['discover', 'deconstruct', 'direct', 'render'];
+    var sceneLabels = {
+        discover: '灵感大厅',
+        deconstruct: '模板解构',
+        direct: 'Prompt 编导台',
+        render: '图片生成舱'
+    };
+    var activeScene = 'discover';
     var SESSION_API_KEY_STORAGE = 'imagetemplate.openaiApiKey';
     var MAX_REFERENCE_IMAGE_COUNT = 16;
     var MAX_REFERENCE_IMAGE_SIZE = 50 * 1024 * 1024;
@@ -83,6 +97,61 @@
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#039;');
+    }
+
+    function setActiveScene(sceneName, shouldFocus) {
+        var sceneIndex = sceneOrder.indexOf(sceneName);
+        if (sceneIndex < 0) {
+            return;
+        }
+
+        activeScene = sceneName;
+        var activePanel = null;
+        Array.prototype.forEach.call(elements.scenePanels, function (panel) {
+            var isActive = panel.getAttribute('data-scene') === sceneName;
+            panel.classList.toggle('is-active', isActive);
+            if (isActive) {
+                panel.removeAttribute('aria-hidden');
+                activePanel = panel;
+            } else {
+                panel.setAttribute('aria-hidden', 'true');
+            }
+        });
+
+        Array.prototype.forEach.call(elements.dockSteps, function (button) {
+            var isActive = button.getAttribute('data-scene-target') === sceneName;
+            button.classList.toggle('is-active', isActive);
+            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+
+        if (elements.sceneStatus) {
+            elements.sceneStatus.textContent =
+                (sceneIndex < 9 ? '0' : '') + (sceneIndex + 1) + ' · ' + sceneLabels[sceneName];
+        }
+        if (elements.dockProgressBar) {
+            elements.dockProgressBar.style.width =
+                ((sceneIndex + 1) / sceneOrder.length * 100) + '%';
+        }
+        if (elements.scenePrevButton) {
+            elements.scenePrevButton.disabled = sceneIndex === 0;
+        }
+        if (elements.sceneNextButton) {
+            elements.sceneNextButton.disabled = sceneIndex === sceneOrder.length - 1;
+        }
+
+        if (shouldFocus && activePanel) {
+            var heading = activePanel.querySelector('h1');
+            if (heading) {
+                heading.focus();
+            }
+        }
+    }
+
+    function moveScene(offset) {
+        var nextIndex = sceneOrder.indexOf(activeScene) + offset;
+        if (nextIndex >= 0 && nextIndex < sceneOrder.length) {
+            setActiveScene(sceneOrder[nextIndex], true);
+        }
     }
 
     function loadCategories() {
@@ -582,6 +651,18 @@
         }
     });
 
+    document.addEventListener('click', function (event) {
+        var sceneTarget = event.target.closest('[data-scene-target]');
+        if (sceneTarget) {
+            setActiveScene(sceneTarget.getAttribute('data-scene-target'), true);
+        }
+    });
+    elements.scenePrevButton.addEventListener('click', function () {
+        moveScene(-1);
+    });
+    elements.sceneNextButton.addEventListener('click', function () {
+        moveScene(1);
+    });
     elements.renderPromptButton.addEventListener('click', renderPrompt);
     elements.copyPromptButton.addEventListener('click', copyPrompt);
     elements.generateImageButton.addEventListener('click', generateImage);
@@ -603,6 +684,7 @@
     renderReferenceImagePreview();
     updateImageSizeUi();
     loadSessionApiKey();
+    setActiveScene('discover', false);
 
     Promise.all([loadCategories(), loadTemplates()]).catch(function () {
         elements.statusLine.textContent = '模板加载失败。';
