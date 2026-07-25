@@ -15,6 +15,7 @@ class ImageTemplateHomepageStaticAssetsTest {
         String html = read("static/index.html");
 
         assertThat(html)
+                .contains("rel=\"icon\"")
                 .contains("data-scene=\"discover\"")
                 .contains("data-scene=\"deconstruct\"")
                 .contains("data-scene=\"direct\"")
@@ -44,6 +45,7 @@ class ImageTemplateHomepageStaticAssetsTest {
 
         assertThat(css)
                 .contains("--gold:")
+                .contains("--minimum-target: 44px;")
                 .contains(".cinematic-backdrop")
                 .contains(".scene.is-active")
                 .contains("@media (prefers-reduced-motion: reduce)");

@@ -16,6 +16,7 @@
     --warning: #f0bd6d;
     --topbar-height: 76px;
     --dock-height: 92px;
+    --minimum-target: 44px;
     --ease-cinematic: cubic-bezier(.22, 1, .36, 1);
 }
 
@@ -269,7 +270,7 @@ button:disabled {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 36px;
+    min-height: var(--minimum-target);
     padding: 0 13px;
     border: 1px solid var(--line);
     border-radius: 999px;
@@ -485,6 +486,9 @@ button:disabled {
 
 .text-action {
     position: relative;
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--minimum-target);
     padding: 9px 0;
     color: var(--muted);
     text-decoration: none;
@@ -628,7 +632,7 @@ input::placeholder {
 
 .category-tabs button {
     flex: 0 0 auto;
-    min-height: 34px;
+    min-height: var(--minimum-target);
     padding: 0 12px;
     border: 1px solid transparent;
     border-radius: 999px;
@@ -1012,7 +1016,7 @@ input::placeholder {
 }
 
 .reference-upload button {
-    min-height: 34px;
+    min-height: var(--minimum-target);
     padding: 0 11px;
     border: 1px solid var(--line);
     color: var(--gold-bright);
@@ -1191,7 +1195,7 @@ input::placeholder {
 }
 
 .generation-actions a {
-    min-height: 40px;
+    min-height: var(--minimum-target);
     padding: 0 15px;
 }
 
@@ -1463,7 +1467,7 @@ select:focus-visible,
     }
 
     .source-link {
-        min-height: 36px;
+        min-height: var(--minimum-target);
         padding: 0 11px;
         font-size: 10px;
     }
