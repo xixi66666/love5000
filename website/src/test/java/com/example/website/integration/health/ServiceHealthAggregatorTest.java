@@ -89,6 +89,24 @@ class ServiceHealthAggregatorTest {
         assertThat(future.get(2, TimeUnit.SECONDS).isHealthy()).isTrue();
     }
 
+    @Test
+    void isolatesExecutorRejectionAsAServiceFailure() {
+        ServiceHealthDefinition guitar = definition("guitar", 8088);
+        ServiceHealthProperties properties = properties(guitar);
+        ServiceHealthChecker checker = mock(ServiceHealthChecker.class);
+
+        ServiceHealthSummary summary = new ServiceHealthAggregator(
+                properties,
+                checker,
+                command -> {
+                    throw new java.util.concurrent.RejectedExecutionException("busy");
+                }).checkAll();
+
+        assertThat(summary.isSuccess()).isTrue();
+        assertThat(summary.isHealthy()).isFalse();
+        assertThat(summary.getServices().get(0).getMessage()).isEqualTo("Health check unavailable");
+    }
+
     private ServiceHealthDefinition definition(String name, int port) {
         return new ServiceHealthDefinition(name, "http://127.0.0.1:" + port + "/api/health");
     }

@@ -16,7 +16,6 @@ public class ServiceHealthConfiguration {
         executor.setQueueCapacity(poolSize);
         executor.setThreadNamePrefix("service-health-");
         executor.setWaitForTasksToCompleteOnShutdown(true);
-        executor.initialize();
         return executor;
     }
 }

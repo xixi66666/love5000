@@ -26,12 +26,18 @@ public class ServiceHealthAggregator {
     public ServiceHealthSummary checkAll() {
         List<CompletableFuture<ServiceHealthResult>> futures = new ArrayList<>();
         for (ServiceHealthDefinition definition : properties.getServices()) {
-            futures.add(CompletableFuture
-                    .supplyAsync(() -> checker.check(definition), executor)
-                    .handle((result, error) -> error == null
-                            ? result
-                            : ServiceHealthResult.unhealthy(
-                                    definition, null, 0, "Health check failed")));
+            try {
+                futures.add(CompletableFuture
+                        .supplyAsync(() -> checker.check(definition), executor)
+                        .handle((result, error) -> error == null
+                                ? result
+                                : ServiceHealthResult.unhealthy(
+                                        definition, null, 0, "Health check failed")));
+            } catch (RuntimeException e) {
+                futures.add(CompletableFuture.completedFuture(
+                        ServiceHealthResult.unhealthy(
+                                definition, null, 0, "Health check unavailable")));
+            }
         }
 
         List<ServiceHealthResult> results = new ArrayList<>();

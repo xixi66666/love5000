@@ -65,6 +65,17 @@ class ServiceHealthPropertiesTest {
                 .hasMessageContaining("connect-timeout-ms");
     }
 
+    @Test
+    void rejectsHttpUrlsWithoutAHost() {
+        ServiceHealthProperties properties = propertiesWith(
+                new ServiceHealthDefinition("broken", "http:/api/health"));
+
+        assertThatThrownBy(properties::validate)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("broken")
+                .hasMessageContaining("invalid health URL");
+    }
+
     private ServiceHealthProperties propertiesWith(ServiceHealthDefinition... definitions) {
         ServiceHealthProperties properties = new ServiceHealthProperties();
         properties.setServices(Arrays.asList(definitions));

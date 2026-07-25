@@ -49,10 +49,12 @@ public class ServiceHealthProperties {
             throw new IllegalStateException("service " + name + " has an invalid health URL");
         }
         try {
-            String scheme = new URI(url).getScheme();
+            URI uri = new URI(url);
+            String scheme = uri.getScheme();
             String normalizedScheme = scheme == null ? "" : scheme.toLowerCase(Locale.ROOT);
-            if (!"http".equals(normalizedScheme) && !"https".equals(normalizedScheme)) {
-                throw new IllegalStateException("service " + name + " has an invalid health URL scheme");
+            if ((!"http".equals(normalizedScheme) && !"https".equals(normalizedScheme))
+                    || isBlank(uri.getHost())) {
+                throw new IllegalStateException("service " + name + " has an invalid health URL");
             }
         } catch (URISyntaxException e) {
             throw new IllegalStateException("service " + name + " has an invalid health URL");
