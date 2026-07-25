@@ -13,6 +13,9 @@
 - 自定义图片尺寸校验。
 - OpenAI Images API 调用，返回 base64/data URL 图片。
 - 原生 HTML/CSS/JavaScript 单页前端，无 npm 构建。
+- 黑金艺术画廊风格的四场景电影化工作台：灵感大厅 → 模板解构 → Prompt 编导台 → 图片生成舱。
+- 底部液态玻璃 Dock 切换场景时保留已选模板、Prompt、生成参数和生成结果。
+- 支持移动端自然滚动和 `prefers-reduced-motion` 动效降级。
 
 ## 运行
 
@@ -49,7 +52,7 @@ POST /api/image-templates/{id}/generate
 mvn -pl imagetemplate -am test
 ```
 
-OpenAI 图片生成测试不得真实调用外部 API。新增模板时必须同步更新模板数量、分类断言和前端展示。
+OpenAI 图片生成测试不得真实调用外部 API。新增模板时必须同步更新模板数量、分类断言和前端展示。电影化页面静态契约由 `ImageTemplateHomepageStaticAssetsTest` 覆盖。
 
 ## 文档维护
 

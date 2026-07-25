@@ -15,7 +15,7 @@
 - `common`：公共能力模块，提供 OSS 自动配置、上传工具，以及通用登录/注册/Session 鉴权能力。
 - `lovestory`：恋爱相册 Web 应用，提供静态页面、照片上传、照片列表、删除接口、留言板功能和吉他视频卡片模块。
 - `website`：个人主页/展示站点 Web 应用，包含主页静态资源、Web Demo、OSS Demo、Nacos Discovery 示例、提示词控制台入口和个人博客微应用。
-- `imagetemplate`：图片提示词模板 Web 服务，提供模板库检索、prompt 渲染、直接提示词模板和 OpenAI 图片生成能力。
+- `imagetemplate`：图片提示词模板 Web 服务，提供模板库检索、prompt 渲染、直接提示词模板和 OpenAI 图片生成能力；前端采用黑金艺术画廊风格的四场景电影化工作台。
 - `guitar`：Guitar 曲谱平台 Web 微服务，提供基础首页、健康检查、手机号注册登录、Session/CSRF 鉴权、公开曲谱检索详情、安全上传、管理员曲谱下架/恢复和 MySQL 持久化基础能力。
 - `python-a`：A 股自选股 AI 研究台，作为独立 Python 微应用接入，不加入 Maven 聚合模块。
 - `quant-a`：A 股量化研究台，作为独立 FastAPI 微服务接入，不加入 Maven 聚合模块，不写入 `website/python-a` 的 Obsidian 目录。
@@ -331,7 +331,7 @@ website/video/
 - `imagetemplate/controller`：图片模板 API。
 - `imagetemplate/service`：模板加载、prompt 渲染、OpenAI 图片生成服务。
 - `imagetemplate/src/main/resources/templates`：图片提示词模板 JSON 数据源。
-- `imagetemplate/src/main/resources/static`：图片模板库单页前端。
+- `imagetemplate/src/main/resources/static`：图片模板库黑金电影化单页前端，按“灵感大厅 → 模板解构 → Prompt 编导台 → 图片生成舱”组织，底部 Dock 只切换场景、不清空用户状态。
 - `guitar/src/main/java/com/example/guitar/controller`：Guitar 基础 HTTP 接口，当前提供 `/api/health`。
 - `guitar/src/main/java/com/example/guitar/auth`：Guitar 手机号注册登录、Session、CSRF 和 API 权限拦截能力；数据库写入由独立事务服务提交成功后，认证服务才轮换 Session。
 - `guitar/src/main/java/com/example/guitar/user`：Guitar 用户模型和 MyBatis DAO，SQL 位于 `guitar/src/main/resources/mapper/user`。
@@ -685,7 +685,7 @@ GET  /api/assets/{project_name}/video/final
 - `website` 主页资源放在 `website/src/main/resources/static/css`、`static/js`、`static/img`。
 - `website` 博客资源放在 `website/src/main/resources/static/blog`。
 - `website` 静态提示词库资源放在 `website/src/main/resources/static/prompt-console`，分类采用“大分类 -> 小分类”两级结构。
-- `imagetemplate` 页面放在 `imagetemplate/src/main/resources/static`，模板 JSON 放在 `imagetemplate/src/main/resources/templates`。
+- `imagetemplate` 页面放在 `imagetemplate/src/main/resources/static`，模板 JSON 放在 `imagetemplate/src/main/resources/templates`；页面保持原生 HTML/CSS/JavaScript 四场景单视口结构，移动端和 `prefers-reduced-motion` 必须可用。
 - `guitar` 页面放在 `guitar/src/main/resources/static`，健康接口放在 `com.example.guitar.controller`。
 - `python-a` 页面放在 `website/python-a/index.html`、`website/python-a/app.js`、`website/python-a/styles.css`，由 `website/python-a/server.py` 直接提供静态访问。
 - `quant-a` 页面放在 `website/quant-a/web`，由 `website/quant-a/main.py` 通过 FastAPI 静态资源能力提供访问。

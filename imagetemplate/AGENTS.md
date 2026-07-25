@@ -20,7 +20,7 @@ C:/Code/Java_Code/love5000/imagetemplate
 - 支持按分类、关键词检索模板。
 - 支持将模板 JSON 和用户变量渲染为可直接传给图片生成接口的 prompt；直接提示词模板选中后可直接使用 `promptTemplate`。
 - 支持调用 OpenAI 图片生成接口，返回 base64 图片和 data URL。
-- 前端提供模板选择、变量编辑、自定义尺寸校验、prompt 复制、图片生成和下载能力。
+- 前端提供模板选择、变量编辑、自定义尺寸校验、prompt 复制、图片生成和下载能力，并使用“灵感大厅 → 模板解构 → Prompt 编导台 → 图片生成舱”四场景黑金电影化工作台。
 
 技术栈：
 
@@ -169,7 +169,7 @@ imagetemplate/
 - `service/OpenAiImageGenerationService.java`：读取 OpenAI 配置，调用 `/images/generations`，解析 `b64_json`。
 - `model/ImagePromptTemplate.java`：模板模型，对应 JSON 中的 `id`、`title`、`categorySlug`、`jsonTemplate`、`promptTemplate` 等字段。
 - `dto/*`：前后端请求和响应对象。
-- `static/index.html`、`static/css/app.css`、`static/js/app.js`：单页前端，不使用 npm 构建。
+- `static/index.html`、`static/css/app.css`、`static/js/app.js`：黑金艺术画廊风格的四场景单视口前端，不使用 npm 构建；底部 Dock 切换场景时不得清空模板、Prompt、生成参数或结果状态。
 - `templates/image-prompt-templates.json`：模板库唯一数据源。
 
 ## 配置约定
@@ -357,6 +357,8 @@ Spring 约定：
 - 交互逻辑放在 `static/js/app.js`。
 - API 路径保持相对路径，例如 `/api/image-templates/categories`。
 - 前端保存 API Key 时只允许使用会话级或用户明确选择的浏览器存储，不写入源码。
+- 四个场景固定为 `discover`、`deconstruct`、`direct`、`render`；场景导航只管理可见性、焦点、Dock 进度和无障碍状态。
+- 桌面端保持单视口，移动端允许场景内容自然滚动；CSS 必须保留 `prefers-reduced-motion` 降级。
 
 ## 测试策略
 
@@ -384,6 +386,7 @@ mvn -pl imagetemplate -am test
 ```text
 src/test/java/com/example/imagetemplate/service/ImagePromptTemplateServiceTest.java
 src/test/java/com/example/imagetemplate/service/OpenAiImageGenerationServiceTest.java
+src/test/java/com/example/imagetemplate/ImageTemplateHomepageStaticAssetsTest.java
 ```
 
 测试要求：
