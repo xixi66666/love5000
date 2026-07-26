@@ -1,17 +1,26 @@
 package com.example.imagetemplate.service;
 
+import com.example.imagetemplate.dto.ImageTemplateMetaResponse;
+import com.example.imagetemplate.dto.ImageTemplatePageResponse;
+import com.example.imagetemplate.dto.ImageTemplateQuery;
 import com.example.imagetemplate.dto.PromptRenderRequest;
 import com.example.imagetemplate.model.ImagePromptTemplate;
+import com.example.imagetemplate.model.PromptLibraryEntry;
+import com.example.imagetemplate.model.PromptLibraryLoadResult;
+import com.example.imagetemplate.model.PromptLibrarySource;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class ImagePromptTemplateServiceTest {
 
@@ -19,19 +28,43 @@ class ImagePromptTemplateServiceTest {
 
     @BeforeEach
     void setUp() {
-        imagePromptTemplateService = new ImagePromptTemplateService(new ObjectMapper());
+        ObjectMapper objectMapper = new ObjectMapper();
+        imagePromptTemplateService = new ImagePromptTemplateService(
+                objectMapper,
+                new PromptLibraryLoader(objectMapper),
+                new ImagePromptTemplateAdapter());
     }
 
     @Test
-    void listTemplatesLoadsAllCuratedTemplates() {
-        assertThat(imagePromptTemplateService.listTemplates(null, null)).hasSize(47);
+    void aggregatesCuratedAndSharedLibrariesWithoutDroppingRows() {
+        ImageTemplateMetaResponse meta = imagePromptTemplateService.getMeta();
+
+        assertThat(meta.getStatus().getStatus()).isEqualTo("READY");
+        assertThat(meta.getStatus().getLoadedCuratedCount()).isEqualTo(47);
+        assertThat(meta.getStatus().getLoadedLibraryCount()).isEqualTo(4409);
+        assertThat(meta.getTotal()).isEqualTo(4456);
+        assertThat(meta.getSources()).hasSize(7);
+    }
+
+    @Test
+    void aggregateIdsAreUniqueAndCuratedTemplatesRemainFirst() {
+        List<ImagePromptTemplate> templates = imagePromptTemplateService.listTemplates(null, null);
+
+        assertThat(templates).hasSize(4456);
+        assertThat(templates).extracting("id").doesNotHaveDuplicates();
+        assertThat(templates.subList(0, 47)).allMatch(ImagePromptTemplate::isCurated);
+    }
+
+    @Test
+    void listTemplatesLoadsAllCuratedCategories() {
         assertThat(imagePromptTemplateService.listCategories()).extracting("slug")
                 .contains("character", "visual-design", "commerce", "editing", "direct-prompt");
     }
 
     @Test
     void listTemplatesLoadsDirectPromptTemplatesWithEmptyJsonTemplate() {
-        List<ImagePromptTemplate> templates = imagePromptTemplateService.listTemplates("direct-prompt", null);
+        List<ImagePromptTemplate> templates =
+                imagePromptTemplateService.listTemplates("direct-prompt", null);
 
         assertThat(templates).hasSize(20);
         assertThat(templates).allSatisfy(template -> {
@@ -42,12 +75,14 @@ class ImagePromptTemplateServiceTest {
             assertThat(template.getPromptTemplate()).doesNotContain("<");
             assertThat(template.getPromptTemplate().length()).isGreaterThan(80);
             assertThat(template.getSourceUrl()).startsWith("https://github.com/");
+            assertThat(template.getTemplateKind()).isEqualTo("DIRECT");
         });
     }
 
     @Test
     void listTemplatesIncludesCuratedGithubPromptSources() {
-        List<ImagePromptTemplate> templates = imagePromptTemplateService.listTemplates(null, null);
+        List<ImagePromptTemplate> templates =
+                imagePromptTemplateService.listTemplates(null, null);
 
         assertThat(hasSourceUrlContaining(templates, "YouMind-OpenLab/awesome-gpt-image-2")).isTrue();
         assertThat(hasSourceUrlContaining(templates, "EvoLinkAI/awesome-gpt-image-2-prompts")).isTrue();
@@ -55,7 +90,7 @@ class ImagePromptTemplateServiceTest {
     }
 
     @Test
-    void listTemplatesIncludesNewStructuredGithubTemplates() {
+    void listTemplatesIncludesStructuredGithubTemplates() {
         assertThat(imagePromptTemplateService.findById("brand-launch-key-visual").getJsonTemplate()).isNotEmpty();
         assertThat(imagePromptTemplateService.findById("knowledge-card-explainer").getJsonTemplate()).isNotEmpty();
         assertThat(imagePromptTemplateService.findById("mobile-app-store-screenshot").getJsonTemplate()).isNotEmpty();
@@ -69,6 +104,67 @@ class ImagePromptTemplateServiceTest {
         assertThat(imagePromptTemplateService.listTemplates("character", "头像"))
                 .extracting("id")
                 .contains("id-photo-headshot", "social-avatar");
+    }
+
+    @Test
+    void pagesAndFiltersTemplatesUsingSummaryResults() {
+        ImageTemplateQuery query = new ImageTemplateQuery();
+        query.setPage(1);
+        query.setSize(48);
+        query.setSource("youmind-awesome-gpt-image-2");
+        query.setImageOnly(true);
+
+        ImageTemplatePageResponse page = imagePromptTemplateService.search(query);
+
+        assertThat(page.getTemplates()).hasSizeLessThanOrEqualTo(48);
+        assertThat(page.getTotal()).isGreaterThan(0);
+        assertThat(page.getTemplates()).allMatch(item ->
+                "youmind-awesome-gpt-image-2".equals(item.getSourceId())
+                        && item.isImageRelated());
+    }
+
+    @Test
+    void directTemplateReturnsOriginalPromptAndAppendsDirectorNote() {
+        ImageTemplateQuery query = new ImageTemplateQuery();
+        query.setSource("prompt123");
+        ImagePromptTemplate template =
+                imagePromptTemplateService.findById(imagePromptTemplateService.search(query)
+                        .getTemplates().get(0).getId());
+        PromptRenderRequest request = new PromptRenderRequest();
+        request.setExtraInstruction("改成适合图像生成的构图。");
+
+        assertThat(imagePromptTemplateService.renderPrompt(template.getId(), request))
+                .startsWith(template.getPromptTemplate())
+                .endsWith("用户补充要求：改成适合图像生成的构图。");
+    }
+
+    @Test
+    void rejectsInvalidPagination() {
+        ImageTemplateQuery invalidPage = new ImageTemplateQuery();
+        invalidPage.setPage(0);
+        ImageTemplateQuery invalidSize = new ImageTemplateQuery();
+        invalidSize.setSize(101);
+
+        assertThatThrownBy(() -> imagePromptTemplateService.search(invalidPage))
+                .isInstanceOf(ImageTemplateQueryValidationException.class);
+        assertThatThrownBy(() -> imagePromptTemplateService.search(invalidSize))
+                .isInstanceOf(ImageTemplateQueryValidationException.class);
+    }
+
+    @Test
+    void reportsDegradedLibraryAndKeepsCuratedTemplates() {
+        PromptLibraryLoader degradedLoader = mock(PromptLibraryLoader.class);
+        when(degradedLoader.loadDefault()).thenReturn(new PromptLibraryLoadResult(
+                Collections.<PromptLibrarySource>emptyList(),
+                Collections.<PromptLibraryEntry>emptyList(),
+                1,
+                "大库资源解析失败"));
+        ImagePromptTemplateService degradedService = new ImagePromptTemplateService(
+                new ObjectMapper(), degradedLoader, new ImagePromptTemplateAdapter());
+
+        assertThat(degradedService.getMeta().getStatus().getStatus()).isEqualTo("DEGRADED");
+        assertThat(degradedService.getMeta().getTotal()).isEqualTo(47);
+        assertThat(degradedService.search(new ImageTemplateQuery()).getTemplates()).hasSize(47);
     }
 
     @Test
@@ -91,12 +187,8 @@ class ImagePromptTemplateServiceTest {
 
     @Test
     void findByIdThrowsWhenTemplateIsMissing() {
-        assertThatThrownBy(new org.assertj.core.api.ThrowableAssert.ThrowingCallable() {
-            @Override
-            public void call() {
-                imagePromptTemplateService.findById("missing");
-            }
-        }).isInstanceOf(ImagePromptTemplateNotFoundException.class);
+        assertThatThrownBy(() -> imagePromptTemplateService.findById("missing"))
+                .isInstanceOf(ImagePromptTemplateNotFoundException.class);
     }
 
     private boolean hasSourceUrlContaining(List<ImagePromptTemplate> templates, String value) {

@@ -1,8 +1,16 @@
 package com.example.imagetemplate.service;
 
+import com.example.imagetemplate.dto.ImageTemplateMetaResponse;
+import com.example.imagetemplate.dto.ImageTemplatePageResponse;
+import com.example.imagetemplate.dto.ImageTemplateQuery;
+import com.example.imagetemplate.dto.ImageTemplateSummaryResponse;
 import com.example.imagetemplate.dto.PromptRenderRequest;
 import com.example.imagetemplate.dto.TemplateCategoryResponse;
+import com.example.imagetemplate.dto.TemplateSourceResponse;
 import com.example.imagetemplate.model.ImagePromptTemplate;
+import com.example.imagetemplate.model.LibraryAggregationStatus;
+import com.example.imagetemplate.model.PromptLibraryLoadResult;
+import com.example.imagetemplate.model.PromptLibrarySource;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.core.io.ClassPathResource;
@@ -10,6 +18,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -18,10 +27,88 @@ import java.util.Map;
 @Service
 public class ImagePromptTemplateService {
 
+    private static final int EXPECTED_CURATED_COUNT = 47;
+
+    private static final int EXPECTED_LIBRARY_COUNT = 4409;
+
     private final List<ImagePromptTemplate> templates;
 
-    public ImagePromptTemplateService(ObjectMapper objectMapper) {
-        this.templates = loadTemplates(objectMapper);
+    private final Map<String, ImagePromptTemplate> templatesById;
+
+    private final LibraryAggregationStatus aggregationStatus;
+
+    private final List<TemplateSourceResponse> sources;
+
+    private String curatedLoadMessage = "";
+
+    public ImagePromptTemplateService(ObjectMapper objectMapper,
+                                      PromptLibraryLoader promptLibraryLoader,
+                                      ImagePromptTemplateAdapter adapter) {
+        List<ImagePromptTemplate> curated = loadCuratedTemplates(objectMapper);
+        decorateCurated(curated);
+
+        PromptLibraryLoadResult libraryResult = promptLibraryLoader.loadDefault();
+        List<ImagePromptTemplate> imported = adapter.adapt(libraryResult.getEntries());
+
+        List<ImagePromptTemplate> aggregated = new ArrayList<ImagePromptTemplate>();
+        aggregated.addAll(curated);
+        aggregated.addAll(imported);
+        this.templates = Collections.unmodifiableList(aggregated);
+        this.templatesById = Collections.unmodifiableMap(indexById(aggregated));
+        this.aggregationStatus =
+                buildStatus(curated.size(), imported.size(), libraryResult);
+        this.sources = Collections.unmodifiableList(
+                buildSources(libraryResult.getSources(), aggregated));
+    }
+
+    public ImageTemplatePageResponse search(ImageTemplateQuery query) {
+        ImageTemplateQuery actual = query == null ? new ImageTemplateQuery() : query;
+        validate(actual);
+
+        String normalizedSource = normalize(actual.getSource());
+        String normalizedCategory = normalize(actual.getCategory());
+        String normalizedKeyword = normalize(actual.getKeyword());
+        List<ImagePromptTemplate> filtered = new ArrayList<ImagePromptTemplate>();
+        for (ImagePromptTemplate template : templates) {
+            if (!matchesSource(template, normalizedSource)
+                    || !matchesCategory(template, normalizedCategory)
+                    || (actual.isImageOnly() && !template.isImageRelated())
+                    || !matchesKeyword(template, normalizedKeyword)) {
+                continue;
+            }
+            filtered.add(template);
+        }
+
+        long fromLong = ((long) actual.getPage() - 1L) * actual.getSize();
+        int fromIndex = fromLong >= filtered.size() ? filtered.size() : (int) fromLong;
+        int toIndex = Math.min(filtered.size(), fromIndex + actual.getSize());
+        List<ImageTemplateSummaryResponse> summaries =
+                new ArrayList<ImageTemplateSummaryResponse>();
+        for (ImagePromptTemplate template : filtered.subList(fromIndex, toIndex)) {
+            summaries.add(ImageTemplateSummaryResponse.from(template));
+        }
+
+        ImageTemplatePageResponse response = new ImageTemplatePageResponse();
+        response.setTotal(filtered.size());
+        response.setPage(actual.getPage());
+        response.setSize(actual.getSize());
+        response.setHasMore(toIndex < filtered.size());
+        response.setLibraryStatus(aggregationStatus.getStatus());
+        response.setMessage(aggregationStatus.getMessage());
+        response.setTemplates(summaries);
+        return response;
+    }
+
+    public ImageTemplateMetaResponse getMeta() {
+        ImageTemplateMetaResponse response = new ImageTemplateMetaResponse();
+        response.setTotal(templates.size());
+        response.setCuratedCount(aggregationStatus.getLoadedCuratedCount());
+        response.setLibraryCount(aggregationStatus.getLoadedLibraryCount());
+        response.setImageRelatedCount(countImageRelated());
+        response.setStatus(aggregationStatus);
+        response.setSources(new ArrayList<TemplateSourceResponse>(sources));
+        response.setCategories(listCategories());
+        return response;
     }
 
     public List<ImagePromptTemplate> listTemplates(String category, String keyword) {
@@ -41,11 +128,13 @@ public class ImagePromptTemplateService {
     }
 
     public List<TemplateCategoryResponse> listCategories() {
-        Map<String, TemplateCategoryResponse> categories = new LinkedHashMap<String, TemplateCategoryResponse>();
+        Map<String, TemplateCategoryResponse> categories =
+                new LinkedHashMap<String, TemplateCategoryResponse>();
         for (ImagePromptTemplate template : templates) {
             TemplateCategoryResponse category = categories.get(template.getCategorySlug());
             if (category == null) {
-                category = new TemplateCategoryResponse(template.getCategory(), template.getCategorySlug(), 0);
+                category = new TemplateCategoryResponse(
+                        template.getCategory(), template.getCategorySlug(), 0);
                 categories.put(template.getCategorySlug(), category);
             }
             category.setCount(category.getCount() + 1);
@@ -54,20 +143,27 @@ public class ImagePromptTemplateService {
     }
 
     public ImagePromptTemplate findById(String id) {
-        for (ImagePromptTemplate template : templates) {
-            if (template.getId().equals(id)) {
-                return template;
-            }
+        ImagePromptTemplate template = templatesById.get(id);
+        if (template == null) {
+            throw new ImagePromptTemplateNotFoundException(id);
         }
-        throw new ImagePromptTemplateNotFoundException(id);
+        return template;
     }
 
     public String renderPrompt(String id, PromptRenderRequest request) {
         ImagePromptTemplate template = findById(id);
         Map<String, Object> variables = request == null ? null : request.getVariables();
         String extraInstruction = request == null ? null : request.getExtraInstruction();
-        Map<String, Object> resolvedTemplate = resolveTemplate(template.getJsonTemplate(), variables);
+        if ("DIRECT".equals(template.getTemplateKind())) {
+            StringBuilder direct = new StringBuilder(template.getPromptTemplate().trim());
+            if (hasText(extraInstruction)) {
+                direct.append("\n\n用户补充要求：").append(extraInstruction.trim());
+            }
+            return direct.toString();
+        }
 
+        Map<String, Object> resolvedTemplate =
+                resolveTemplate(template.getJsonTemplate(), variables);
         StringBuilder prompt = new StringBuilder();
         prompt.append("图像生成任务：").append(template.getTitle()).append("\n\n");
         prompt.append("常规模板：").append(template.getPromptTemplate()).append("\n\n");
@@ -80,15 +176,124 @@ public class ImagePromptTemplateService {
         return prompt.toString();
     }
 
-    private List<ImagePromptTemplate> loadTemplates(ObjectMapper objectMapper) {
+    private List<ImagePromptTemplate> loadCuratedTemplates(ObjectMapper objectMapper) {
         try {
             return objectMapper.readValue(
                     new ClassPathResource("templates/image-prompt-templates.json").getInputStream(),
                     new TypeReference<List<ImagePromptTemplate>>() {
                     });
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to load image prompt templates", e);
+        } catch (IOException | RuntimeException exception) {
+            curatedLoadMessage = "精选模板加载失败：" + exception.getMessage();
+            return new ArrayList<ImagePromptTemplate>();
         }
+    }
+
+    private void decorateCurated(List<ImagePromptTemplate> curated) {
+        for (ImagePromptTemplate template : curated) {
+            template.setSourceId("curated");
+            template.setSourceName("精选模板");
+            template.setTemplateKind("direct-prompt".equals(template.getCategorySlug())
+                    ? "DIRECT"
+                    : "STRUCTURED");
+            template.setImageRelated(true);
+            template.setCurated(true);
+        }
+    }
+
+    private Map<String, ImagePromptTemplate> indexById(List<ImagePromptTemplate> values) {
+        Map<String, ImagePromptTemplate> indexed =
+                new LinkedHashMap<String, ImagePromptTemplate>();
+        for (ImagePromptTemplate template : values) {
+            if (indexed.containsKey(template.getId())) {
+                throw new IllegalStateException("Duplicate aggregate template id: "
+                        + template.getId());
+            }
+            indexed.put(template.getId(), template);
+        }
+        return indexed;
+    }
+
+    private LibraryAggregationStatus buildStatus(int curatedCount,
+                                                 int libraryCount,
+                                                 PromptLibraryLoadResult libraryResult) {
+        List<String> messages = new ArrayList<String>();
+        if (hasText(curatedLoadMessage)) {
+            messages.add(curatedLoadMessage);
+        }
+        if (curatedCount != EXPECTED_CURATED_COUNT) {
+            messages.add("精选模板预期 " + EXPECTED_CURATED_COUNT + "，实际 " + curatedCount);
+        }
+        if (hasText(libraryResult.getMessage())) {
+            messages.add(libraryResult.getMessage());
+        }
+        if (libraryCount != EXPECTED_LIBRARY_COUNT) {
+            messages.add("大库有效条目预期 " + EXPECTED_LIBRARY_COUNT
+                    + "，实际 " + libraryCount);
+        }
+
+        LibraryAggregationStatus status = new LibraryAggregationStatus();
+        status.setExpectedCuratedCount(EXPECTED_CURATED_COUNT);
+        status.setLoadedCuratedCount(curatedCount);
+        status.setExpectedLibraryCount(EXPECTED_LIBRARY_COUNT);
+        status.setLoadedLibraryCount(libraryCount);
+        status.setTotal(curatedCount + libraryCount);
+        status.setMessage(join(messages));
+        status.setStatus(messages.isEmpty() ? "READY" : "DEGRADED");
+        return status;
+    }
+
+    private List<TemplateSourceResponse> buildSources(
+            List<PromptLibrarySource> librarySources,
+            List<ImagePromptTemplate> aggregated) {
+        Map<String, Integer> counts = new LinkedHashMap<String, Integer>();
+        for (ImagePromptTemplate template : aggregated) {
+            String id = template.getSourceId();
+            counts.put(id, counts.containsKey(id) ? counts.get(id) + 1 : 1);
+        }
+
+        List<TemplateSourceResponse> result = new ArrayList<TemplateSourceResponse>();
+        result.add(new TemplateSourceResponse(
+                "curated", "精选模板", "", count(counts, "curated")));
+        if (librarySources != null) {
+            for (PromptLibrarySource source : librarySources) {
+                result.add(new TemplateSourceResponse(
+                        source.getId(),
+                        source.getName(),
+                        source.getUrl(),
+                        count(counts, source.getId())));
+            }
+        }
+        return result;
+    }
+
+    private int count(Map<String, Integer> counts, String sourceId) {
+        Integer count = counts.get(sourceId);
+        return count == null ? 0 : count;
+    }
+
+    private int countImageRelated() {
+        int count = 0;
+        for (ImagePromptTemplate template : templates) {
+            if (template.isImageRelated()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private void validate(ImageTemplateQuery query) {
+        if (query.getPage() < 1) {
+            throw new ImageTemplateQueryValidationException("page 必须大于等于 1");
+        }
+        if (query.getSize() < 1 || query.getSize() > 100) {
+            throw new ImageTemplateQueryValidationException("size 必须在 1 到 100 之间");
+        }
+    }
+
+    private boolean matchesSource(ImagePromptTemplate template, String normalizedSource) {
+        return !hasText(normalizedSource)
+                || "all".equals(normalizedSource)
+                || normalize(template.getSourceId()).equals(normalizedSource);
     }
 
     private boolean matchesCategory(ImagePromptTemplate template, String normalizedCategory) {
@@ -107,6 +312,7 @@ public class ImagePromptTemplateService {
         haystack.append(template.getTitle()).append(' ')
                 .append(template.getSummary()).append(' ')
                 .append(template.getCategory()).append(' ')
+                .append(template.getSourceName()).append(' ')
                 .append(template.getPromptTemplate());
         if (template.getTags() != null) {
             for (String tag : template.getTags()) {
@@ -116,7 +322,8 @@ public class ImagePromptTemplateService {
         return normalize(haystack.toString()).contains(normalizedKeyword);
     }
 
-    private Map<String, Object> resolveTemplate(Map<String, Object> jsonTemplate, Map<String, Object> variables) {
+    private Map<String, Object> resolveTemplate(Map<String, Object> jsonTemplate,
+                                                Map<String, Object> variables) {
         Map<String, Object> resolved = new LinkedHashMap<String, Object>();
         if (jsonTemplate == null) {
             return resolved;
@@ -187,6 +394,17 @@ public class ImagePromptTemplateService {
             spaces.append("  ");
         }
         return spaces.toString();
+    }
+
+    private String join(List<String> messages) {
+        StringBuilder joined = new StringBuilder();
+        for (String message : messages) {
+            if (joined.length() > 0) {
+                joined.append("；");
+            }
+            joined.append(message);
+        }
+        return joined.toString();
     }
 
     private String normalize(String value) {
