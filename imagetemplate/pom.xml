@@ -25,6 +25,19 @@
   </dependencies>
 
   <build>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+      </resource>
+      <resource>
+        <directory>${project.basedir}/../website/src/main/resources/static/prompt-console/data</directory>
+        <includes>
+          <include>prompt-library.json</include>
+        </includes>
+        <targetPath>templates/prompt-console</targetPath>
+        <filtering>false</filtering>
+      </resource>
+    </resources>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
