@@ -15,7 +15,7 @@
 - `common`：公共能力模块，提供 OSS 自动配置、上传工具，以及通用登录/注册/Session 鉴权能力。
 - `lovestory`：恋爱相册 Web 应用，提供静态页面、照片上传、照片列表、删除接口、留言板功能和吉他视频卡片模块。
 - `website`：个人主页/展示站点 Web 应用，包含主页静态资源、Web Demo、OSS Demo、Nacos Discovery 示例、提示词控制台入口和个人博客微应用。
-- `imagetemplate`：图片提示词模板 Web 服务，聚合 47 条精选模板和 Prompt Console 的 4409 条公开提示词，总计 4456 条，提供分页检索、按需详情、prompt 渲染、直接提示词和 OpenAI 图片生成能力；前端采用黑金艺术画廊风格的四场景电影化工作台。
+- `imagetemplate`：图片提示词模板 Web 服务，聚合 47 条精选模板和 Prompt Console 的 4409 条公开提示词，总计 4456 条，按 15 个一级功能与二级场景导航，提供分页检索、按需详情、prompt 渲染、直接提示词和 OpenAI 图片生成能力；前端采用黑金艺术画廊风格的四场景电影化工作台。
 - `guitar`：Guitar 曲谱平台 Web 微服务，提供基础首页、健康检查、手机号注册登录、Session/CSRF 鉴权、公开曲谱检索详情、安全上传、管理员曲谱下架/恢复和 MySQL 持久化基础能力。
 - `python-a`：A 股自选股 AI 研究台，作为独立 Python 微应用接入，不加入 Maven 聚合模块。
 - `quant-a`：A 股量化研究台，作为独立 FastAPI 微服务接入，不加入 Maven 聚合模块，不写入 `website/python-a` 的 Obsidian 目录。
@@ -329,10 +329,10 @@ website/video/
 - `website/src/main/resources/static/prompt-console`：静态提示词库页面、数据和两级分类映射。`prompt-category-groups.js` 维护“大分类 -> 小分类”映射，新增提示词小类时优先补充该文件；未映射小类自动归入“其他”。
 - `website/demos`：示例性质的 Web、OSS、Nacos Discovery 代码。
 - `imagetemplate/controller`：图片模板 API。
-- `imagetemplate/service`：精选模板加载、大库加载适配、聚合分页、prompt 渲染和 OpenAI 图片生成服务。
+- `imagetemplate/service`：精选模板加载、大库加载适配、两级功能分类、聚合分页、prompt 渲染和 OpenAI 图片生成服务；功能规则集中在 `TemplateFunctionClassifier`，不扫描完整 Prompt。
 - `imagetemplate/src/main/resources/templates/image-prompt-templates.json`：47 条精选图片模板数据源。
 - `website/src/main/resources/static/prompt-console/data/prompt-library.json`：4409 条 Prompt Console 大库唯一源码；Maven 构建 imagetemplate 时复制到 classpath 的 `templates/prompt-console/prompt-library.json`。
-- `imagetemplate/src/main/resources/static`：图片模板库黑金电影化单页前端，按“灵感大厅 → 模板解构 → Prompt 编导台 → 图片生成舱”组织；模板列表默认 48 条，支持来源、分类、仅图片相关、搜索防抖和加载更多，底部 Dock 只切换场景、不清空用户状态。
+- `imagetemplate/src/main/resources/static`：图片模板库黑金电影化单页前端，按“灵感大厅 → 模板解构 → Prompt 编导台 → 图片生成舱”组织；模板列表默认 48 条，以一级功能和二级场景为主导航，来源和原始分类位于默认收起的高级筛选，支持仅图片相关、搜索防抖和加载更多，底部 Dock 只切换场景、不清空用户状态。
 - `guitar/src/main/java/com/example/guitar/controller`：Guitar 基础 HTTP 接口，当前提供 `/api/health`。
 - `guitar/src/main/java/com/example/guitar/auth`：Guitar 手机号注册登录、Session、CSRF 和 API 权限拦截能力；数据库写入由独立事务服务提交成功后，认证服务才轮换 Session。
 - `guitar/src/main/java/com/example/guitar/user`：Guitar 用户模型和 MyBatis DAO，SQL 位于 `guitar/src/main/resources/mapper/user`。
@@ -559,7 +559,7 @@ GET  /api/auth/me
 `imagetemplate` 图片模板接口：
 
 ```text
-GET  /api/image-templates?page=1&size=48&keyword=&source=&category=&imageOnly=false
+GET  /api/image-templates?page=1&size=48&keyword=&functionCategory=&functionScene=&source=&category=&imageOnly=false
 GET  /api/image-templates/meta
 GET  /api/image-templates/categories
 GET  /api/image-templates/{id}
@@ -567,7 +567,7 @@ POST /api/image-templates/{id}/prompt
 POST /api/image-templates/{id}/generate
 ```
 
-`GET /api/image-templates` 默认 `page=1`、`size=48`，`size` 最大为 100，列表只返回摘要；完整 Prompt 由详情接口按需返回。`GET /api/image-templates/meta` 返回 4456 总量、7 个来源、分类计数和 `READY` / `DEGRADED` 聚合状态。大库异常时页面必须显示预期数量、实际数量和错误原因。
+`GET /api/image-templates` 默认 `page=1`、`size=48`，`size` 最大为 100，列表只返回摘要；`functionCategory` 和 `functionScene` 分别按一级功能与二级场景 slug 筛选，旧 `source` 和 `category` 参数继续兼容。完整 Prompt 由详情接口按需返回。`GET /api/image-templates/meta` 返回 4456 总量、15 个一级功能及二级场景树、7 个来源、原始分类计数和 `READY` / `DEGRADED` 聚合状态。大库异常时页面必须显示预期数量、实际数量和错误原因。
 
 `guitar` 接口：
 
@@ -835,7 +835,7 @@ http://127.0.0.1:5176/api/config
 - `lovestory` 数据库相关测试 mock DAO 或使用隔离测试配置，不连接远程 MySQL。
 - `lovestory` 吉他视频新增或修改逻辑时，覆盖上传成功、标题为空、非法视频后缀、封面上传、删除和 OSS 不可用等主要分支。
 - `website/blog` 新增 controller/service/dao 逻辑必须覆盖成功路径和主要失败路径。
-- `imagetemplate` 模板聚合测试必须覆盖 47 + 4409 = 4456、ID 唯一、来源/分类/关键词/仅图片相关筛选、分页摘要、详情、DIRECT/STRUCTURED 渲染、`DEGRADED` 降级和模板不存在。
+- `imagetemplate` 模板聚合测试必须覆盖 47 + 4409 = 4456、ID 唯一、全部模板具有一级功能和二级场景、功能树计数闭合、编程分类样例、功能/来源/原始分类/关键词/仅图片相关筛选、分页摘要、详情、DIRECT/STRUCTURED 渲染、`DEGRADED` 降级和模板不存在。
 - `imagetemplate` 图片尺寸测试必须覆盖合法 4K、非法格式、非 16 倍数、单边超限、像素过少、像素过多和比例超限。
 - `guitar` 新增 Controller 时使用 Spring Boot Test + MockMvc 覆盖状态码和响应结构，不依赖数据库或外部服务。
 - OpenAI 图片生成测试不得真实调用外部 API；使用 mock 或可注入 HTTP 客户端。

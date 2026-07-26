@@ -9,7 +9,8 @@
 
 ## 功能
 
-- 4456 条聚合模板的分页浏览、7 个来源筛选、分类筛选、仅图片相关和关键词检索。
+- 4456 条聚合模板按“一级功能 + 二级场景”分页浏览；提供 15 个一级功能，其中“编程与技术开发”细分代码生成、调试、前后端、数据库、DevOps、安全等场景。
+- 来源与原始分类保留在默认收起的高级筛选中，并可与功能分类、仅图片相关和关键词组合检索。
 - 列表默认返回 48 条摘要，最多 100 条；点击卡片后按需加载完整 Prompt。
 - 大库加载不完整时显示 `DEGRADED` 告警，不静默退回精选库。
 - 结构化变量渲染 prompt。
@@ -43,7 +44,7 @@ mvn -pl imagetemplate -am spring-boot:run
 ## API
 
 ```text
-GET  /api/image-templates?page=1&size=48&keyword=&source=&category=&imageOnly=false
+GET  /api/image-templates?page=1&size=48&keyword=&functionCategory=&functionScene=&source=&category=&imageOnly=false
 GET  /api/image-templates/meta
 GET  /api/image-templates/categories
 GET  /api/image-templates/{id}
@@ -51,7 +52,7 @@ POST /api/image-templates/{id}/prompt
 POST /api/image-templates/{id}/generate
 ```
 
-列表接口只返回摘要，`size` 最大为 100；详情接口返回完整 `promptTemplate` 和 `jsonTemplate`。`/meta` 返回总量、来源、分类及 `READY` / `DEGRADED` 聚合状态。
+列表接口只返回摘要，`size` 最大为 100；详情接口返回完整 `promptTemplate` 和 `jsonTemplate`。`/meta` 返回总量、15 个一级功能及二级场景计数、来源、原始分类及 `READY` / `DEGRADED` 聚合状态。每条模板由 `TemplateFunctionClassifier` 根据 ID、标题、原始分类和标签确定一个主功能与主场景，不扫描完整 Prompt。
 
 ## 测试
 
@@ -61,7 +62,7 @@ mvn -pl imagetemplate -am clean package -DskipTests
 jar tf imagetemplate/target/imagetemplate-0.0.1-SNAPSHOT.jar | Select-String "templates/prompt-console/prompt-library.json"
 ```
 
-OpenAI 图片生成测试不得真实调用外部 API。聚合测试固定验证 47 + 4409 = 4456、ID 唯一、分页、筛选、详情和降级状态。电影化页面静态契约由 `ImageTemplateHomepageStaticAssetsTest` 覆盖。
+OpenAI 图片生成测试不得真实调用外部 API。聚合测试固定验证 47 + 4409 = 4456、ID 唯一、两级功能分类计数、分页、兼容筛选、详情和降级状态。电影化页面静态契约由 `ImageTemplateHomepageStaticAssetsTest` 覆盖。
 
 ## 文档维护
 

@@ -18,7 +18,8 @@ C:/Code/Java_Code/love5000/imagetemplate
 - 提供 GPT Image 提示词模板库页面。
 - 从 `templates/image-prompt-templates.json` 加载 47 个精选图片模板，其中包含 20 个 `direct-prompt` 直接提示词模板。
 - 聚合构建时复制到 `templates/prompt-console/prompt-library.json` 的 4409 条 Prompt Console 提示词，总计 4456 条。
-- 支持按来源、分类、关键词、仅图片相关组合筛选，并以默认 48、最大 100 的分页摘要返回。
+- 使用 `TemplateFunctionClassifier` 为每条模板确定一个一级功能和一个二级场景；分类只读取 ID、标题、原始分类、标签和低优先级来源默认值，不扫描完整 Prompt。
+- 支持按一级功能、二级场景、来源、原始分类、关键词、仅图片相关组合筛选，并以默认 48、最大 100 的分页摘要返回。
 - 支持将模板 JSON 和用户变量渲染为可直接传给图片生成接口的 prompt；直接提示词模板选中后可直接使用 `promptTemplate`。
 - 支持调用 OpenAI 图片生成接口，返回 base64 图片和 data URL。
 - 前端提供模板选择、变量编辑、自定义尺寸校验、prompt 复制、图片生成和下载能力，并使用“灵感大厅 → 模板解构 → Prompt 编导台 → 图片生成舱”四场景黑金电影化工作台。
@@ -175,11 +176,12 @@ imagetemplate/
 - `controller/ImagePromptTemplateController.java`：模板分页查询、聚合元数据、详情、prompt 渲染和图片生成 API。
 - `service/PromptLibraryLoader.java`：加载并验证 4409 条 Prompt Console 大库，失败时返回可诊断降级结果。
 - `service/ImagePromptTemplateAdapter.java`：将大库条目映射为 DIRECT 模板，生成稳定唯一 ID 和图片相关标记。
+- `service/TemplateFunctionClassifier.java`：维护 15 个一级功能、二级场景和确定性匹配规则；“编程与技术开发”覆盖代码生成、重构、调试、测试、前后端、移动端、架构、数据库、DevOps、安全和自动化脚本。
 - `service/ImagePromptTemplateService.java`：聚合 47 + 4409 条模板，负责过滤、分页、元数据、详情和两种 prompt 渲染。
 - `service/OpenAiImageGenerationService.java`：读取 OpenAI 配置，调用 `/images/generations`，解析 `b64_json`。
 - `model/ImagePromptTemplate.java`：模板模型，对应 JSON 中的 `id`、`title`、`categorySlug`、`jsonTemplate`、`promptTemplate` 等字段。
 - `dto/*`：前后端请求和响应对象。
-- `static/index.html`、`static/css/app.css`、`static/js/app.js`：黑金艺术画廊风格的四场景单视口前端，不使用 npm 构建；灵感大厅使用分页摘要、来源筛选、分类下拉、图片开关、300ms 防抖、加载更多和详情按需加载；底部 Dock 切换场景时不得清空模板、Prompt、生成参数或结果状态。
+- `static/index.html`、`static/css/app.css`、`static/js/app.js`：黑金艺术画廊风格的四场景单视口前端，不使用 npm 构建；灵感大厅以一级功能和二级场景为主导航，来源和原始分类放在默认收起的高级筛选中，同时保留图片开关、300ms 防抖、加载更多和详情按需加载；底部 Dock 切换场景时不得清空模板、Prompt、生成参数或结果状态。
 - `templates/image-prompt-templates.json`：精选库数据源。
 - `templates/prompt-console/prompt-library.json`：构建产物中的聚合大库，不在 imagetemplate 源码中维护。
 
@@ -230,7 +232,7 @@ openai:
 当前接口：
 
 ```text
-GET  /api/image-templates?page=1&size=48&keyword=&source=&category=&imageOnly=false
+GET  /api/image-templates?page=1&size=48&keyword=&functionCategory=&functionScene=&source=&category=&imageOnly=false
 GET  /api/image-templates/meta
 GET  /api/image-templates/categories
 GET  /api/image-templates/{id}
@@ -238,12 +240,14 @@ POST /api/image-templates/{id}/prompt
 POST /api/image-templates/{id}/generate
 ```
 
-列表接口只返回摘要字段，不返回完整 `promptTemplate` 和 `jsonTemplate`；`size` 最大为 100。详情接口返回完整模板。`/meta` 返回 4456 总量、7 个来源、分类计数、图片相关数量和 `READY` / `DEGRADED` 聚合状态；加载不完整时页面必须显示预期数量、实际数量和错误原因。
+列表接口只返回摘要字段，不返回完整 `promptTemplate` 和 `jsonTemplate`；`size` 最大为 100。详情接口返回完整模板。`/meta` 返回 4456 总量、15 个一级功能及二级场景计数、7 个来源、原始分类计数、图片相关数量和 `READY` / `DEGRADED` 聚合状态；功能树一级计数总和必须等于实际模板总数。加载不完整时页面必须显示预期数量、实际数量和错误原因。
 
 列表查询参数：
 
 ```text
 category
+functionCategory
+functionScene
 keyword
 ```
 

@@ -23,7 +23,7 @@ Maven 聚合模块：
 - `common`：公共 OSS 工具、自动配置和通用 Session 认证能力。
 - `lovestory`：恋爱相册、照片上传、留言板和吉他视频卡片 Web 应用。
 - `website`：电影化个人主页/展示站点、博客、提示词控制台，以及 8 个服务入口、实时健康状态和 Python 子服务自动启动；首页提供四场景视频切换与响应式液态玻璃服务 Dock。
-- `imagetemplate`：聚合 47 条精选图片模板和 Prompt Console 的 4409 条公开提示词，总计 4456 条，并提供分页检索、按需详情和 OpenAI Images API 生成服务；前端采用黑金艺术画廊风格的四场景电影化工作台。
+- `imagetemplate`：聚合 47 条精选图片模板和 Prompt Console 的 4409 条公开提示词，总计 4456 条，并按 15 个一级功能与二级场景检索；提供按需详情和 OpenAI Images API 生成服务，前端采用黑金艺术画廊风格的四场景电影化工作台。
 - `guitar`：Guitar 曲谱平台，提供手机号注册登录、Session/CSRF 鉴权、公开曲谱检索、安全上传、个人曲谱管理、多收藏夹和管理员曲谱下架/恢复，默认端口 `8088`。
 
 独立 Python 微应用：
@@ -53,9 +53,9 @@ mvn -pl website -am spring-boot:run
 
 首页是无需前端构建的单视口原生页面，集中展示恋爱相册、图片模板、博客、Prompt Console、Guitar、A 股研究台、Quant 研究台和 AI 视频工作台。每个入口保留端口标识和实时状态；顶部只保留登录、注册账户操作，登录后切换为退出，移动端继续使用横向可滑动服务 Dock。
 
-`imagetemplate` 首页同样无需前端构建，按“灵感大厅 → 模板解构 → Prompt 编导台 → 图片生成舱”组织为黑金电影化单视口。灵感大厅默认每页 48 条，支持 7 个来源、分类、仅图片相关、300ms 搜索防抖和加载更多；完整 Prompt 在选中卡片后按需读取。底部 Dock 切换场景时会保留已选模板、Prompt、生成参数和结果；移动端允许场景内容自然滚动，并提供减少动态效果降级。
+`imagetemplate` 首页同样无需前端构建，按“灵感大厅 → 模板解构 → Prompt 编导台 → 图片生成舱”组织为黑金电影化单视口。灵感大厅默认每页 48 条，以“一级功能 + 二级场景”为主导航；15 个一级功能包含明确的“编程与技术开发”，来源和原始分类移入默认收起的高级筛选。页面同时支持仅图片相关、300ms 搜索防抖和加载更多；完整 Prompt 在选中卡片后按需读取。底部 Dock 切换场景时会保留已选模板、Prompt、生成参数和结果；移动端允许场景内容自然滚动，并提供减少动态效果降级。
 
-Prompt Console 大库的唯一源码是 `website/src/main/resources/static/prompt-console/data/prompt-library.json`。构建 imagetemplate 时 Maven 会将它复制到 jar 的 `templates/prompt-console/prompt-library.json`，运行时不要求 website 服务在线；`GET /api/image-templates/meta` 可检查 4456 条聚合数据是否处于 `READY` 状态。
+Prompt Console 大库的唯一源码是 `website/src/main/resources/static/prompt-console/data/prompt-library.json`。构建 imagetemplate 时 Maven 会将它复制到 jar 的 `templates/prompt-console/prompt-library.json`，运行时不要求 website 服务在线；`GET /api/image-templates/meta` 可检查 4456 条聚合数据、功能分类树及其 `READY` 状态。
 
 其他服务：
 
