@@ -82,19 +82,34 @@
                             <input id="keywordInput" type="search" placeholder="搜索模板、标签或场景" autocomplete="off">
                         </div>
                         <div id="libraryAlert" class="library-alert" role="alert" hidden></div>
-                        <div id="sourceFilters" class="source-filters" aria-label="提示词来源"></div>
-                        <div class="library-filters">
-                            <label for="categorySelect">
-                                <span>分类</span>
-                                <select id="categorySelect">
-                                    <option value="">全部分类</option>
-                                </select>
-                            </label>
+                        <div id="functionCategoryFilters" class="function-filters"
+                             aria-label="一级功能分类"></div>
+                        <div id="functionSceneFilters" class="function-scenes"
+                             aria-label="二级功能场景"></div>
+                        <div class="library-primary-filters">
                             <label class="image-only-control" for="imageOnlyToggle">
                                 <input id="imageOnlyToggle" type="checkbox">
                                 <span>仅图片相关</span>
                             </label>
                         </div>
+                        <details id="advancedFilters" class="advanced-filters">
+                            <summary>高级筛选</summary>
+                            <div class="advanced-filter-content">
+                                <div>
+                                    <span class="filter-caption">模板来源</span>
+                                    <div id="sourceFilters" class="source-filters"
+                                         aria-label="提示词来源"></div>
+                                </div>
+                                <div class="library-filters">
+                                    <label for="categorySelect">
+                                        <span>原始分类</span>
+                                        <select id="categorySelect">
+                                            <option value="">全部原始分类</option>
+                                        </select>
+                                    </label>
+                                </div>
+                            </div>
+                        </details>
                         <div id="listStatus" class="list-status" role="status"></div>
                         <div class="template-list" id="templateList" aria-live="polite"></div>
                         <button id="loadMoreButton" class="load-more" type="button" hidden>加载更多</button>

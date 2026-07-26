@@ -633,11 +633,115 @@ input::placeholder {
     line-height: 1.6;
 }
 
+.function-filters,
+.function-scenes {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 8px;
+    width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+}
+
+.function-filters {
+    padding: 14px 0 7px;
+}
+
+.function-scenes {
+    padding: 2px 0 9px;
+    border-bottom: 1px solid rgba(214, 179, 106, .1);
+}
+
+.function-filters button,
+.function-scenes button {
+    flex: 0 0 auto;
+    min-height: var(--minimum-target);
+    border: 1px solid transparent;
+    border-radius: 999px;
+    color: var(--muted);
+    background: rgba(255, 255, 255, .025);
+    white-space: nowrap;
+    transition: color .2s ease, border-color .2s ease, background-color .2s ease;
+}
+
+.function-filters button {
+    padding: 0 14px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.function-scenes button {
+    min-height: 36px;
+    padding: 0 11px;
+    font-size: 10px;
+}
+
+.function-filters button:hover,
+.function-filters button.active,
+.function-scenes button:hover,
+.function-scenes button.active {
+    border-color: var(--line-strong);
+    color: var(--gold-bright);
+    background: rgba(214, 179, 106, .1);
+}
+
+.library-primary-filters {
+    display: flex;
+    justify-content: flex-end;
+    padding: 8px 0;
+}
+
+.advanced-filters {
+    flex: 0 0 auto;
+    margin-bottom: 8px;
+    border-top: 1px solid rgba(214, 179, 106, .1);
+    border-bottom: 1px solid rgba(214, 179, 106, .1);
+}
+
+.advanced-filters summary {
+    display: flex;
+    align-items: center;
+    min-height: 38px;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    cursor: pointer;
+    list-style: none;
+}
+
+.advanced-filters summary::-webkit-details-marker {
+    display: none;
+}
+
+.advanced-filters summary::after {
+    content: "＋";
+    margin-left: auto;
+    color: var(--gold);
+    font-size: 14px;
+}
+
+.advanced-filters[open] summary::after {
+    content: "－";
+}
+
+.advanced-filter-content {
+    padding: 0 0 10px;
+}
+
+.filter-caption {
+    color: var(--muted);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .14em;
+}
+
 .source-filters {
     display: flex;
     flex: 0 0 auto;
     gap: 8px;
-    padding: 14px 0 10px;
+    padding: 6px 0 10px;
     overflow-x: auto;
 }
 
@@ -666,7 +770,7 @@ input::placeholder {
     align-items: end;
     gap: 12px;
     flex: 0 0 auto;
-    padding-bottom: 9px;
+    padding-bottom: 0;
 }
 
 .library-filters > label:first-child {

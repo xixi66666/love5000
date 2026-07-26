@@ -27,7 +27,8 @@ class ImageTemplateHomepageStaticAssetsTest {
 
         String[] existingIds = {
                 "keywordInput", "templateList", "templateCount",
-                "libraryAlert", "sourceFilters", "categorySelect", "imageOnlyToggle",
+                "libraryAlert", "functionCategoryFilters", "functionSceneFilters",
+                "advancedFilters", "sourceFilters", "categorySelect", "imageOnlyToggle",
                 "loadMoreButton", "listStatus",
                 "detailCategory", "detailTitle", "detailSummary", "jsonTemplate",
                 "promptTemplate", "variablesInput", "extraInstructionInput",
@@ -38,6 +39,13 @@ class ImageTemplateHomepageStaticAssetsTest {
         for (String id : existingIds) {
             assertThat(html).contains("id=\"" + id + "\"");
         }
+        assertThat(html)
+                .contains("<details id=\"advancedFilters\"")
+                .contains("<summary>高级筛选</summary>");
+        assertThat(html.indexOf("id=\"sourceFilters\""))
+                .isGreaterThan(html.indexOf("id=\"advancedFilters\""));
+        assertThat(html.indexOf("id=\"categorySelect\""))
+                .isGreaterThan(html.indexOf("id=\"advancedFilters\""));
     }
 
     @Test
@@ -51,6 +59,9 @@ class ImageTemplateHomepageStaticAssetsTest {
                 .contains(".cinematic-backdrop")
                 .contains(".scene.is-active")
                 .contains(".library-alert")
+                .contains(".function-filters")
+                .contains(".function-scenes")
+                .contains(".advanced-filters")
                 .contains(".source-filters")
                 .contains(".template-badge")
                 .contains(".load-more")
