@@ -76,7 +76,16 @@ class ImageTemplateHomepageStaticAssetsTest {
                 .contains("loadMeta")
                 .contains("loadTemplatePage")
                 .contains("loadTemplateDetail")
-                .contains("resetPagination");
+                .contains("resetPagination")
+                .contains("functionCategories")
+                .contains("activeFunctionCategory")
+                .contains("activeFunctionScene")
+                .contains("functionCategory")
+                .contains("functionScene")
+                .contains("data-function-category")
+                .contains("data-function-scene")
+                .contains("state.activeFunctionCategory = '';")
+                .contains("state.activeFunctionScene = '';");
     }
 
     private String read(String path) throws Exception {

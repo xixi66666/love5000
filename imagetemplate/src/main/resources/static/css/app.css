@@ -954,6 +954,11 @@ input::placeholder {
     color: var(--warning);
 }
 
+.template-badge.is-scene {
+    border-color: rgba(244, 240, 228, .16);
+    color: var(--ivory);
+}
+
 .template-card p {
     display: -webkit-box;
     margin: 9px 0 13px;
@@ -963,6 +968,16 @@ input::placeholder {
     line-height: 1.6;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
+}
+
+.template-source {
+    display: block;
+    margin: -4px 0 10px;
+    overflow: hidden;
+    color: #7e7464;
+    font-size: 9px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .tag-row {

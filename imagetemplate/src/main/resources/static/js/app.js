@@ -2,6 +2,8 @@
     var state = {
         activeSource: '',
         activeCategory: '',
+        activeFunctionCategory: '',
+        activeFunctionScene: '',
         keyword: '',
         imageOnly: false,
         page: 1,
@@ -12,6 +14,7 @@
         templates: [],
         sources: [],
         categories: [],
+        functionCategories: [],
         libraryStatus: null,
         selected: null,
         renderedPromptEdited: false,
@@ -21,6 +24,8 @@
     var elements = {
         keywordInput: document.getElementById('keywordInput'),
         libraryAlert: document.getElementById('libraryAlert'),
+        functionCategoryFilters: document.getElementById('functionCategoryFilters'),
+        functionSceneFilters: document.getElementById('functionSceneFilters'),
         sourceFilters: document.getElementById('sourceFilters'),
         categorySelect: document.getElementById('categorySelect'),
         imageOnlyToggle: document.getElementById('imageOnlyToggle'),
@@ -176,6 +181,7 @@
         return fetchJson('/api/image-templates/meta').then(function (payload) {
             state.sources = payload.sources || [];
             state.categories = payload.categories || [];
+            state.functionCategories = payload.functionCategories || [];
             state.libraryStatus = payload.status || null;
             state.catalogTotal = payload.total || 0;
             state.total = payload.total || 0;
@@ -194,6 +200,12 @@
         }
         if (state.activeCategory) {
             params.set('category', state.activeCategory);
+        }
+        if (state.activeFunctionCategory) {
+            params.set('functionCategory', state.activeFunctionCategory);
+        }
+        if (state.activeFunctionScene) {
+            params.set('functionScene', state.activeFunctionScene);
         }
         if (state.keyword) {
             params.set('keyword', state.keyword);
@@ -249,6 +261,8 @@
     }
 
     function renderMeta() {
+        renderFunctionFilters();
+
         var sourceButtons = [
             '<button type="button" class="' + (!state.activeSource ? 'active' : '') +
             '" data-source="">全部 ' + state.catalogTotal + '</button>'
@@ -290,11 +304,60 @@
         }
     }
 
+    function renderFunctionFilters() {
+        var categoryButtons = [
+            '<button type="button" class="' +
+            (!state.activeFunctionCategory ? 'active' : '') +
+            '" data-function-category="">全部功能 ' +
+            state.catalogTotal + '</button>'
+        ];
+        state.functionCategories.forEach(function (category) {
+            categoryButtons.push(
+                '<button type="button" class="' +
+                (state.activeFunctionCategory === category.slug ? 'active' : '') +
+                '" data-function-category="' + escapeHtml(category.slug) + '">' +
+                escapeHtml(category.name) + ' ' + category.count +
+                '</button>'
+            );
+        });
+        elements.functionCategoryFilters.innerHTML = categoryButtons.join('');
+
+        var selectedCategory = null;
+        state.functionCategories.forEach(function (category) {
+            if (category.slug === state.activeFunctionCategory) {
+                selectedCategory = category;
+            }
+        });
+        if (!selectedCategory) {
+            elements.functionSceneFilters.innerHTML = '';
+            elements.functionSceneFilters.hidden = true;
+            return;
+        }
+
+        var sceneButtons = [
+            '<button type="button" class="' +
+            (!state.activeFunctionScene ? 'active' : '') +
+            '" data-function-scene="">全部场景 ' +
+            selectedCategory.count + '</button>'
+        ];
+        (selectedCategory.scenes || []).forEach(function (scene) {
+            sceneButtons.push(
+                '<button type="button" class="' +
+                (state.activeFunctionScene === scene.slug ? 'active' : '') +
+                '" data-function-scene="' + escapeHtml(scene.slug) + '">' +
+                escapeHtml(scene.name) + ' ' + scene.count +
+                '</button>'
+            );
+        });
+        elements.functionSceneFilters.innerHTML = sceneButtons.join('');
+        elements.functionSceneFilters.hidden = false;
+    }
+
     function renderTemplates() {
         if (!state.templates.length) {
             elements.templateList.innerHTML =
                 '<div class="template-empty"><h3>没有匹配结果</h3>' +
-                '<p>调整分类或关键词后重试。</p>' +
+                '<p>调整功能、场景或关键词后重试。</p>' +
                 '<button type="button" data-clear-filters>清除筛选</button></div>';
             return;
         }
@@ -304,7 +367,10 @@
             }).join('');
             var badges =
                 '<span class="template-badge">' +
-                escapeHtml(template.curated ? '精选' : (template.sourceName || '公开来源')) +
+                escapeHtml(template.functionCategory || '其他工具') +
+                '</span>' +
+                '<span class="template-badge is-scene">' +
+                escapeHtml(template.functionScene || '通用提示词') +
                 '</span>' +
                 (template.imageRelated
                     ? ''
@@ -313,6 +379,8 @@
                 '<div class="template-badges">' + badges + '</div>' +
                 '<h3>' + escapeHtml(template.title) + '</h3>' +
                 '<p>' + escapeHtml(template.summary) + '</p>' +
+                '<small class="template-source">' +
+                escapeHtml(template.sourceName || '未知来源') + '</small>' +
                 '<div class="tag-row">' + tags + '</div>' +
                 '</button>';
         }).join('');
@@ -335,7 +403,9 @@
             return;
         }
         elements.detailCategory.textContent =
-            (template.sourceName || '未知来源') + ' · ' + template.category;
+            (template.functionCategory || '其他工具') + ' · ' +
+            (template.functionScene || '通用提示词') + ' ｜ ' +
+            (template.sourceName || '未知来源');
         elements.detailTitle.textContent = template.title;
         elements.detailSummary.textContent = template.summary;
         elements.jsonTemplate.textContent = JSON.stringify(template.jsonTemplate, null, 2);
@@ -764,6 +834,35 @@
         }, SEARCH_DEBOUNCE_MS);
     });
 
+    elements.functionCategoryFilters.addEventListener('click', function (event) {
+        var button = event.target.closest('button[data-function-category]');
+        if (!button) {
+            return;
+        }
+        state.activeFunctionCategory =
+            button.getAttribute('data-function-category') || '';
+        state.activeFunctionScene = '';
+        renderMeta();
+        resetPagination().catch(function () {
+            elements.libraryAlert.hidden = false;
+            elements.libraryAlert.textContent = '功能分类筛选失败，请稍后重试。';
+        });
+    });
+
+    elements.functionSceneFilters.addEventListener('click', function (event) {
+        var button = event.target.closest('button[data-function-scene]');
+        if (!button) {
+            return;
+        }
+        state.activeFunctionScene =
+            button.getAttribute('data-function-scene') || '';
+        renderMeta();
+        resetPagination().catch(function () {
+            elements.libraryAlert.hidden = false;
+            elements.libraryAlert.textContent = '功能场景筛选失败，请稍后重试。';
+        });
+    });
+
     elements.sourceFilters.addEventListener('click', function (event) {
         var button = event.target.closest('button[data-source]');
         if (!button) {
@@ -806,6 +905,8 @@
         if (clearButton) {
             state.activeSource = '';
             state.activeCategory = '';
+            state.activeFunctionCategory = '';
+            state.activeFunctionScene = '';
             state.keyword = '';
             state.imageOnly = false;
             elements.keywordInput.value = '';
