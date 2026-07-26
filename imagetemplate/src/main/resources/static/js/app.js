@@ -1,9 +1,18 @@
 (function () {
     var state = {
-        activeCategory: 'all',
+        activeSource: '',
+        activeCategory: '',
         keyword: '',
+        imageOnly: false,
+        page: 1,
+        size: 48,
+        catalogTotal: 0,
+        total: 0,
+        hasMore: false,
         templates: [],
+        sources: [],
         categories: [],
+        libraryStatus: null,
         selected: null,
         renderedPromptEdited: false,
         referenceImages: []
@@ -11,7 +20,12 @@
 
     var elements = {
         keywordInput: document.getElementById('keywordInput'),
-        categoryTabs: document.getElementById('categoryTabs'),
+        libraryAlert: document.getElementById('libraryAlert'),
+        sourceFilters: document.getElementById('sourceFilters'),
+        categorySelect: document.getElementById('categorySelect'),
+        imageOnlyToggle: document.getElementById('imageOnlyToggle'),
+        loadMoreButton: document.getElementById('loadMoreButton'),
+        listStatus: document.getElementById('listStatus'),
         templateList: document.getElementById('templateList'),
         templateCount: document.getElementById('templateCount'),
         detailCategory: document.getElementById('detailCategory'),
@@ -68,6 +82,10 @@
     var MAX_IMAGE_SIDE = 3840;
     var MAX_IMAGE_RATIO = 3;
     var EXPERIMENTAL_IMAGE_PIXELS = 2560 * 1440;
+    var SEARCH_DEBOUNCE_MS = 300;
+    var searchTimer = null;
+    var listRequestSequence = 0;
+    var detailRequestSequence = 0;
     var DEFAULT_SIZE_HINT = '尺寸需为宽x高，宽高为 16 的倍数，单边不超过 3840。';
     var CUSTOM_SIZE_HINT = DEFAULT_SIZE_HINT + ' 总像素 655360 到 8294400，最长边/最短边不超过 3。';
 
@@ -154,58 +172,145 @@
         }
     }
 
-    function loadCategories() {
-        return fetchJson('/api/image-templates/categories').then(function (payload) {
+    function loadMeta() {
+        return fetchJson('/api/image-templates/meta').then(function (payload) {
+            state.sources = payload.sources || [];
             state.categories = payload.categories || [];
-            renderCategories();
+            state.libraryStatus = payload.status || null;
+            state.catalogTotal = payload.total || 0;
+            state.total = payload.total || 0;
+            elements.templateCount.textContent = String(state.total);
+            renderMeta();
         });
     }
 
-    function loadTemplates() {
+    function loadTemplatePage(append) {
+        var requestSequence = ++listRequestSequence;
         var params = new URLSearchParams();
-        if (state.activeCategory !== 'all') {
+        params.set('page', String(state.page));
+        params.set('size', String(state.size));
+        if (state.activeSource) {
+            params.set('source', state.activeSource);
+        }
+        if (state.activeCategory) {
             params.set('category', state.activeCategory);
         }
         if (state.keyword) {
             params.set('keyword', state.keyword);
         }
-        return fetchJson('/api/image-templates' + (params.toString() ? '?' + params.toString() : ''))
+        if (state.imageOnly) {
+            params.set('imageOnly', 'true');
+        }
+        elements.listStatus.textContent = append ? '正在加载更多模板…' : '正在检索模板…';
+        elements.loadMoreButton.disabled = true;
+        if (!append) {
+            elements.templateList.innerHTML =
+                '<div class="template-card is-skeleton" aria-hidden="true"></div>' +
+                '<div class="template-card is-skeleton" aria-hidden="true"></div>';
+        }
+        return fetchJson('/api/image-templates?' + params.toString())
             .then(function (payload) {
-                state.templates = payload.templates || [];
-                if (!state.selected || !state.templates.some(function (item) { return item.id === state.selected.id; })) {
-                    state.selected = state.templates[0] || null;
+                if (requestSequence !== listRequestSequence) {
+                    return;
                 }
+                var incoming = payload.templates || [];
+                state.templates = append ? state.templates.concat(incoming) : incoming;
+                state.total = payload.total || 0;
+                state.hasMore = Boolean(payload.hasMore);
+                elements.templateCount.textContent = String(state.total);
+                elements.listStatus.textContent =
+                    '已展示 ' + state.templates.length + ' / ' + state.total + ' 条';
+                elements.loadMoreButton.hidden = !state.hasMore;
                 renderTemplates();
-                renderDetail();
+                if (!state.selected && state.templates.length) {
+                    return loadTemplateDetail(state.templates[0].id);
+                }
+            })
+            .catch(function (error) {
+                if (requestSequence === listRequestSequence) {
+                    elements.listStatus.textContent = error.message || '模板列表加载失败。';
+                }
+                throw error;
+            })
+            .finally(function () {
+                if (requestSequence === listRequestSequence) {
+                    elements.loadMoreButton.disabled = false;
+                }
             });
     }
 
-    function renderCategories() {
-        var allCount = state.categories.reduce(function (sum, category) {
-            return sum + category.count;
-        }, 0);
-        var buttons = ['<button type="button" class="' + (state.activeCategory === 'all' ? 'active' : '') + '" data-category="all">全部 ' + allCount + '</button>'];
-        state.categories.forEach(function (category) {
-            buttons.push(
-                '<button type="button" class="' + (state.activeCategory === category.slug ? 'active' : '') + '" data-category="' + escapeHtml(category.slug) + '">' +
-                escapeHtml(category.name) + ' ' + category.count +
+    function resetPagination() {
+        state.page = 1;
+        state.templates = [];
+        elements.templateList.innerHTML =
+            '<div class="template-card is-skeleton" aria-hidden="true"></div>' +
+            '<div class="template-card is-skeleton" aria-hidden="true"></div>';
+        return loadTemplatePage(false);
+    }
+
+    function renderMeta() {
+        var sourceButtons = [
+            '<button type="button" class="' + (!state.activeSource ? 'active' : '') +
+            '" data-source="">全部 ' + state.catalogTotal + '</button>'
+        ];
+        state.sources.forEach(function (source) {
+            sourceButtons.push(
+                '<button type="button" class="' +
+                (state.activeSource === source.id ? 'active' : '') +
+                '" data-source="' + escapeHtml(source.id) + '">' +
+                escapeHtml(source.name) + ' ' + source.count +
                 '</button>'
             );
         });
-        elements.categoryTabs.innerHTML = buttons.join('');
+        elements.sourceFilters.innerHTML = sourceButtons.join('');
+
+        var categoryOptions = ['<option value="">全部分类</option>'];
+        state.categories.forEach(function (category) {
+            categoryOptions.push(
+                '<option value="' + escapeHtml(category.slug) + '">' +
+                escapeHtml(category.name) + ' · ' + category.count +
+                '</option>'
+            );
+        });
+        elements.categorySelect.innerHTML = categoryOptions.join('');
+        elements.categorySelect.value = state.activeCategory;
+
+        if (state.libraryStatus && state.libraryStatus.status === 'DEGRADED') {
+            elements.libraryAlert.hidden = false;
+            elements.libraryAlert.textContent =
+                '模板库未完整加载：精选 ' +
+                state.libraryStatus.loadedCuratedCount + ' / ' +
+                state.libraryStatus.expectedCuratedCount + '，大库 ' +
+                state.libraryStatus.loadedLibraryCount + ' / ' +
+                state.libraryStatus.expectedLibraryCount + '。' +
+                (state.libraryStatus.message ? ' ' + state.libraryStatus.message : '');
+        } else {
+            elements.libraryAlert.hidden = true;
+            elements.libraryAlert.textContent = '';
+        }
     }
 
     function renderTemplates() {
-        elements.templateCount.textContent = state.templates.length;
         if (!state.templates.length) {
-            elements.templateList.innerHTML = '<div class="template-card"><h3>没有匹配结果</h3><p>调整分类或关键词后重试。</p></div>';
+            elements.templateList.innerHTML =
+                '<div class="template-empty"><h3>没有匹配结果</h3>' +
+                '<p>调整分类或关键词后重试。</p>' +
+                '<button type="button" data-clear-filters>清除筛选</button></div>';
             return;
         }
         elements.templateList.innerHTML = state.templates.map(function (template) {
             var tags = (template.tags || []).slice(0, 4).map(function (tag) {
                 return '<span>' + escapeHtml(tag) + '</span>';
             }).join('');
+            var badges =
+                '<span class="template-badge">' +
+                escapeHtml(template.curated ? '精选' : (template.sourceName || '公开来源')) +
+                '</span>' +
+                (template.imageRelated
+                    ? ''
+                    : '<span class="template-badge is-general">通用提示词</span>');
             return '<button type="button" class="template-card ' + (state.selected && state.selected.id === template.id ? 'active' : '') + '" data-id="' + escapeHtml(template.id) + '">' +
+                '<div class="template-badges">' + badges + '</div>' +
                 '<h3>' + escapeHtml(template.title) + '</h3>' +
                 '<p>' + escapeHtml(template.summary) + '</p>' +
                 '<div class="tag-row">' + tags + '</div>' +
@@ -221,19 +326,23 @@
             elements.detailTitle.textContent = '模板详情';
             elements.detailSummary.textContent = '';
             elements.jsonTemplate.textContent = '{}';
-        elements.promptTemplate.textContent = '';
-        elements.variablesInput.value = '{}';
-        elements.renderedPrompt.value = '';
-        state.renderedPromptEdited = false;
-        resetGeneratedImage();
-        return;
-    }
-        elements.detailCategory.textContent = template.category;
+            elements.promptTemplate.textContent = '';
+            elements.variablesInput.value = '{}';
+            elements.variablesInput.disabled = false;
+            elements.renderedPrompt.value = '';
+            state.renderedPromptEdited = false;
+            resetGeneratedImage();
+            return;
+        }
+        elements.detailCategory.textContent =
+            (template.sourceName || '未知来源') + ' · ' + template.category;
         elements.detailTitle.textContent = template.title;
         elements.detailSummary.textContent = template.summary;
         elements.jsonTemplate.textContent = JSON.stringify(template.jsonTemplate, null, 2);
         elements.promptTemplate.textContent = template.promptTemplate;
-        if (template.categorySlug === 'direct-prompt') {
+        var direct = template.templateKind === 'DIRECT';
+        elements.variablesInput.disabled = direct;
+        if (direct) {
             elements.variablesInput.value = '{}';
             elements.renderedPrompt.value = template.promptTemplate || '';
         } else {
@@ -241,6 +350,9 @@
             elements.renderedPrompt.value = '';
         }
         state.renderedPromptEdited = false;
+        if (!template.imageRelated) {
+            elements.statusLine.textContent = '这是通用提示词，请先调整为适合图片生成的描述。';
+        }
         resetGeneratedImage();
     }
 
@@ -255,12 +367,24 @@
         return JSON.stringify(seed, null, 2);
     }
 
-    function selectTemplate(id) {
-        state.selected = state.templates.find(function (template) {
-            return template.id === id;
-        }) || state.selected;
-        renderTemplates();
-        renderDetail();
+    function loadTemplateDetail(id) {
+        var requestSequence = ++detailRequestSequence;
+        elements.statusLine.textContent = '正在读取完整模板…';
+        return fetchJson('/api/image-templates/' + encodeURIComponent(id))
+            .then(function (payload) {
+                if (requestSequence !== detailRequestSequence) {
+                    return;
+                }
+                state.selected = payload.template || null;
+                renderTemplates();
+                renderDetail();
+            })
+            .catch(function (error) {
+                if (requestSequence === detailRequestSequence) {
+                    elements.statusLine.textContent =
+                        (error.message || '模板详情加载失败') + '，请重试。';
+                }
+            });
     }
 
     function renderPrompt() {
@@ -631,23 +755,69 @@
 
     elements.keywordInput.addEventListener('input', function () {
         state.keyword = elements.keywordInput.value.trim();
-        loadTemplates();
+        window.clearTimeout(searchTimer);
+        searchTimer = window.setTimeout(function () {
+            resetPagination().catch(function () {
+                elements.libraryAlert.hidden = false;
+                elements.libraryAlert.textContent = '模板搜索失败，请稍后重试。';
+            });
+        }, SEARCH_DEBOUNCE_MS);
     });
 
-    elements.categoryTabs.addEventListener('click', function (event) {
-        var button = event.target.closest('button[data-category]');
+    elements.sourceFilters.addEventListener('click', function (event) {
+        var button = event.target.closest('button[data-source]');
         if (!button) {
             return;
         }
-        state.activeCategory = button.getAttribute('data-category');
-        renderCategories();
-        loadTemplates();
+        state.activeSource = button.getAttribute('data-source') || '';
+        renderMeta();
+        resetPagination().catch(function () {
+            elements.libraryAlert.hidden = false;
+            elements.libraryAlert.textContent = '来源筛选失败，请稍后重试。';
+        });
+    });
+
+    elements.categorySelect.addEventListener('change', function () {
+        state.activeCategory = elements.categorySelect.value;
+        resetPagination().catch(function () {
+            elements.libraryAlert.hidden = false;
+            elements.libraryAlert.textContent = '分类筛选失败，请稍后重试。';
+        });
+    });
+
+    elements.imageOnlyToggle.addEventListener('change', function () {
+        state.imageOnly = elements.imageOnlyToggle.checked;
+        resetPagination().catch(function () {
+            elements.libraryAlert.hidden = false;
+            elements.libraryAlert.textContent = '图片相关筛选失败，请稍后重试。';
+        });
+    });
+
+    elements.loadMoreButton.addEventListener('click', function () {
+        var previousPage = state.page;
+        state.page += 1;
+        loadTemplatePage(true).catch(function () {
+            state.page = previousPage;
+        });
     });
 
     elements.templateList.addEventListener('click', function (event) {
+        var clearButton = event.target.closest('button[data-clear-filters]');
+        if (clearButton) {
+            state.activeSource = '';
+            state.activeCategory = '';
+            state.keyword = '';
+            state.imageOnly = false;
+            elements.keywordInput.value = '';
+            elements.categorySelect.value = '';
+            elements.imageOnlyToggle.checked = false;
+            renderMeta();
+            resetPagination();
+            return;
+        }
         var button = event.target.closest('button[data-id]');
         if (button) {
-            selectTemplate(button.getAttribute('data-id'));
+            loadTemplateDetail(button.getAttribute('data-id'));
         }
     });
 
@@ -686,7 +856,11 @@
     loadSessionApiKey();
     setActiveScene('discover', false);
 
-    Promise.all([loadCategories(), loadTemplates()]).catch(function () {
-        elements.statusLine.textContent = '模板加载失败。';
+    loadMeta().then(function () {
+        return loadTemplatePage(false);
+    }).catch(function (error) {
+        elements.libraryAlert.hidden = false;
+        elements.libraryAlert.textContent = error.message || '模板库加载失败。';
+        elements.listStatus.textContent = '模板加载失败。';
     });
 })();

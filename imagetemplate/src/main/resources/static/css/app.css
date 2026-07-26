@@ -771,6 +771,45 @@ input::placeholder {
     transform: scaleY(1);
 }
 
+.template-card.is-skeleton {
+    border-color: rgba(214, 179, 106, .08);
+    background:
+        linear-gradient(105deg, transparent 30%, rgba(244, 217, 155, .08) 48%, transparent 66%),
+        rgba(255, 255, 255, .025);
+    background-size: 220% 100%;
+    animation: image-loading 1.8s linear infinite;
+    pointer-events: none;
+}
+
+.template-empty {
+    grid-column: 1 / -1;
+    padding: 28px;
+    border: 1px dashed var(--line);
+    color: var(--muted);
+    text-align: center;
+}
+
+.template-empty h3 {
+    margin: 0;
+    color: var(--ivory);
+    font-family: "Songti SC", "STSong", serif;
+    font-weight: 400;
+}
+
+.template-empty p {
+    margin: 8px 0 16px;
+    font-size: 11px;
+}
+
+.template-empty button {
+    min-height: var(--minimum-target);
+    padding: 0 16px;
+    border: 1px solid var(--line);
+    color: var(--gold-bright);
+    background: rgba(214, 179, 106, .06);
+    font-size: 11px;
+}
+
 .template-card h3 {
     margin: 0;
     font-family: "Songti SC", "STSong", serif;
