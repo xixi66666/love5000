@@ -41,7 +41,10 @@ class ImageTemplateHomepageStaticAssetsTest {
         }
         assertThat(html)
                 .contains("<details id=\"advancedFilters\"")
-                .contains("<summary>高级筛选</summary>");
+                .contains("<summary>高级筛选</summary>")
+                .contains("15 个一级功能")
+                .contains("查看数据出处")
+                .doesNotContain("6 个公开提示词来源");
         assertThat(html.indexOf("id=\"sourceFilters\""))
                 .isGreaterThan(html.indexOf("id=\"advancedFilters\""));
         assertThat(html.indexOf("id=\"categorySelect\""))
