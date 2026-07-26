@@ -45,7 +45,7 @@
                         <p class="scene-kicker"><span>01</span> CURATE THE IDEA</p>
                         <h1 id="discoverTitle" tabindex="-1">让灵感，先成为一件<span>值得凝视的作品。</span></h1>
                         <p class="scene-lead">
-                            从精心整理的 GPT Image 模板中选择叙事骨架，再将它编排成属于你的画面。
+                            精选图片模板与 6 个公开提示词来源汇聚于此。选择叙事骨架，再将它编排成属于你的画面。
                         </p>
                         <div class="intro-actions">
                             <button class="primary-action" type="button" data-scene-target="deconstruct">
@@ -81,8 +81,23 @@
                             <span aria-hidden="true">⌕</span>
                             <input id="keywordInput" type="search" placeholder="搜索模板、标签或场景" autocomplete="off">
                         </div>
-                        <div class="category-tabs" id="categoryTabs" aria-label="模板分类"></div>
+                        <div id="libraryAlert" class="library-alert" role="alert" hidden></div>
+                        <div id="sourceFilters" class="source-filters" aria-label="提示词来源"></div>
+                        <div class="library-filters">
+                            <label for="categorySelect">
+                                <span>分类</span>
+                                <select id="categorySelect">
+                                    <option value="">全部分类</option>
+                                </select>
+                            </label>
+                            <label class="image-only-control" for="imageOnlyToggle">
+                                <input id="imageOnlyToggle" type="checkbox">
+                                <span>仅图片相关</span>
+                            </label>
+                        </div>
+                        <div id="listStatus" class="list-status" role="status"></div>
                         <div class="template-list" id="templateList" aria-live="polite"></div>
+                        <button id="loadMoreButton" class="load-more" type="button" hidden>加载更多</button>
                     </div>
                 </div>
             </div>

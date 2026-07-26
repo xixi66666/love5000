@@ -26,7 +26,9 @@ class ImageTemplateHomepageStaticAssetsTest {
                 .contains("id=\"sceneNextButton\"");
 
         String[] existingIds = {
-                "keywordInput", "categoryTabs", "templateList", "templateCount",
+                "keywordInput", "templateList", "templateCount",
+                "libraryAlert", "sourceFilters", "categorySelect", "imageOnlyToggle",
+                "loadMoreButton", "listStatus",
                 "detailCategory", "detailTitle", "detailSummary", "jsonTemplate",
                 "promptTemplate", "variablesInput", "extraInstructionInput",
                 "renderedPrompt", "renderPromptButton", "copyPromptButton",
@@ -48,13 +50,22 @@ class ImageTemplateHomepageStaticAssetsTest {
                 .contains("--minimum-target: 44px;")
                 .contains(".cinematic-backdrop")
                 .contains(".scene.is-active")
+                .contains(".library-alert")
+                .contains(".source-filters")
+                .contains(".template-badge")
+                .contains(".load-more")
                 .contains("@media (prefers-reduced-motion: reduce)");
         assertThat(js)
                 .contains("activeScene")
                 .contains("setActiveScene")
                 .contains("aria-selected")
                 .contains("scenePrevButton")
-                .contains("sceneNextButton");
+                .contains("sceneNextButton")
+                .contains("SEARCH_DEBOUNCE_MS = 300")
+                .contains("loadMeta")
+                .contains("loadTemplatePage")
+                .contains("loadTemplateDetail")
+                .contains("resetPagination");
     }
 
     private String read(String path) throws Exception {
