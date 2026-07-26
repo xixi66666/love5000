@@ -12,6 +12,10 @@ public class ImageTemplateQuery {
 
     private String category;
 
+    private String functionCategory;
+
+    private String functionScene;
+
     private boolean imageOnly;
 
     public int getPage() {
@@ -52,6 +56,22 @@ public class ImageTemplateQuery {
 
     public void setCategory(String category) {
         this.category = category;
+    }
+
+    public String getFunctionCategory() {
+        return functionCategory;
+    }
+
+    public void setFunctionCategory(String functionCategory) {
+        this.functionCategory = functionCategory;
+    }
+
+    public String getFunctionScene() {
+        return functionScene;
+    }
+
+    public void setFunctionScene(String functionScene) {
+        this.functionScene = functionScene;
     }
 
     public boolean isImageOnly() {

@@ -23,6 +23,14 @@ public class ImageTemplateSummaryResponse {
 
     private String sourceName;
 
+    private String functionCategory;
+
+    private String functionCategorySlug;
+
+    private String functionScene;
+
+    private String functionSceneSlug;
+
     private String templateKind;
 
     private boolean imageRelated;
@@ -41,6 +49,10 @@ public class ImageTemplateSummaryResponse {
                 : new ArrayList<String>(template.getTags());
         response.sourceId = template.getSourceId();
         response.sourceName = template.getSourceName();
+        response.functionCategory = template.getFunctionCategory();
+        response.functionCategorySlug = template.getFunctionCategorySlug();
+        response.functionScene = template.getFunctionScene();
+        response.functionSceneSlug = template.getFunctionSceneSlug();
         response.templateKind = template.getTemplateKind();
         response.imageRelated = template.isImageRelated();
         response.curated = template.isCurated();
@@ -77,6 +89,22 @@ public class ImageTemplateSummaryResponse {
 
     public String getSourceName() {
         return sourceName;
+    }
+
+    public String getFunctionCategory() {
+        return functionCategory;
+    }
+
+    public String getFunctionCategorySlug() {
+        return functionCategorySlug;
+    }
+
+    public String getFunctionScene() {
+        return functionScene;
+    }
+
+    public String getFunctionSceneSlug() {
+        return functionSceneSlug;
     }
 
     public String getTemplateKind() {

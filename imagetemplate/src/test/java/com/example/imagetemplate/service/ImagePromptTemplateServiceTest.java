@@ -159,6 +159,51 @@ class ImagePromptTemplateServiceTest {
     }
 
     @Test
+    void filtersByFunctionCategoryAndSceneWhileKeepingLegacyFilters() {
+        ImageTemplateQuery programming = new ImageTemplateQuery();
+        programming.setFunctionCategory("programming-development");
+        ImageTemplatePageResponse programmingPage =
+                imagePromptTemplateService.search(programming);
+
+        assertThat(programmingPage.getTotal()).isGreaterThan(0);
+        assertThat(programmingPage.getTemplates()).allSatisfy(item -> {
+            assertThat(item.getFunctionCategorySlug())
+                    .isEqualTo("programming-development");
+            assertThat(item.getFunctionSceneSlug()).isNotBlank();
+        });
+
+        ImageTemplateQuery debugging = new ImageTemplateQuery();
+        debugging.setFunctionCategory("programming-development");
+        debugging.setFunctionScene("debugging");
+        ImageTemplatePageResponse debuggingPage =
+                imagePromptTemplateService.search(debugging);
+
+        assertThat(debuggingPage.getTotal()).isGreaterThan(0);
+        assertThat(debuggingPage.getTemplates()).allSatisfy(item -> {
+            assertThat(item.getFunctionCategorySlug())
+                    .isEqualTo("programming-development");
+            assertThat(item.getFunctionSceneSlug()).isEqualTo("debugging");
+        });
+
+        ImageTemplateQuery sourceOnly = new ImageTemplateQuery();
+        sourceOnly.setSource("prompt123");
+        assertThat(imagePromptTemplateService.search(sourceOnly).getTemplates())
+                .allMatch(item -> "prompt123".equals(item.getSourceId()));
+    }
+
+    @Test
+    void sceneOnlyQueryMatchesAcrossCategories() {
+        ImageTemplateQuery query = new ImageTemplateQuery();
+        query.setFunctionScene("debugging");
+
+        ImageTemplatePageResponse page = imagePromptTemplateService.search(query);
+
+        assertThat(page.getTotal()).isGreaterThan(0);
+        assertThat(page.getTemplates())
+                .allMatch(item -> "debugging".equals(item.getFunctionSceneSlug()));
+    }
+
+    @Test
     void directTemplateReturnsOriginalPromptAndAppendsDirectorNote() {
         ImageTemplateQuery query = new ImageTemplateQuery();
         query.setSource("prompt123");

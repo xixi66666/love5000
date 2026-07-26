@@ -66,6 +66,10 @@ public class ImagePromptTemplateController {
             @RequestParam(value = "keyword", required = false) String keyword,
             @RequestParam(value = "source", required = false) String source,
             @RequestParam(value = "category", required = false) String category,
+            @RequestParam(value = "functionCategory", required = false)
+                    String functionCategory,
+            @RequestParam(value = "functionScene", required = false)
+                    String functionScene,
             @RequestParam(value = "imageOnly", defaultValue = "false") boolean imageOnly) {
         ImageTemplateQuery query = new ImageTemplateQuery();
         query.setPage(page);
@@ -73,6 +77,8 @@ public class ImagePromptTemplateController {
         query.setKeyword(keyword);
         query.setSource(source);
         query.setCategory(category);
+        query.setFunctionCategory(functionCategory);
+        query.setFunctionScene(functionScene);
         query.setImageOnly(imageOnly);
         return imagePromptTemplateService.search(query);
     }

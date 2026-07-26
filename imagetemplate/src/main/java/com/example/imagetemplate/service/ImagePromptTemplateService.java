@@ -76,11 +76,16 @@ public class ImagePromptTemplateService {
 
         String normalizedSource = normalize(actual.getSource());
         String normalizedCategory = normalize(actual.getCategory());
+        String normalizedFunctionCategory =
+                normalize(actual.getFunctionCategory());
+        String normalizedFunctionScene = normalize(actual.getFunctionScene());
         String normalizedKeyword = normalize(actual.getKeyword());
         List<ImagePromptTemplate> filtered = new ArrayList<ImagePromptTemplate>();
         for (ImagePromptTemplate template : templates) {
             if (!matchesSource(template, normalizedSource)
                     || !matchesCategory(template, normalizedCategory)
+                    || !matchesFunctionCategory(template, normalizedFunctionCategory)
+                    || !matchesFunctionScene(template, normalizedFunctionScene)
                     || (actual.isImageOnly() && !template.isImageRelated())
                     || !matchesKeyword(template, normalizedKeyword)) {
                 continue;
@@ -363,6 +368,22 @@ public class ImagePromptTemplateService {
         }
         return normalize(template.getCategorySlug()).equals(normalizedCategory)
                 || normalize(template.getCategory()).equals(normalizedCategory);
+    }
+
+    private boolean matchesFunctionCategory(ImagePromptTemplate template,
+                                            String normalizedCategory) {
+        return !hasText(normalizedCategory)
+                || "all".equals(normalizedCategory)
+                || normalize(template.getFunctionCategorySlug()).equals(normalizedCategory)
+                || normalize(template.getFunctionCategory()).equals(normalizedCategory);
+    }
+
+    private boolean matchesFunctionScene(ImagePromptTemplate template,
+                                         String normalizedScene) {
+        return !hasText(normalizedScene)
+                || "all".equals(normalizedScene)
+                || normalize(template.getFunctionSceneSlug()).equals(normalizedScene)
+                || normalize(template.getFunctionScene()).equals(normalizedScene);
     }
 
     private boolean matchesKeyword(ImagePromptTemplate template, String normalizedKeyword) {

@@ -57,7 +57,28 @@ class ImagePromptTemplateControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.total").value(4456))
                 .andExpect(jsonPath("$.status.status").value("READY"))
-                .andExpect(jsonPath("$.sources.length()").value(7));
+                .andExpect(jsonPath("$.sources.length()").value(7))
+                .andExpect(jsonPath("$.functionCategories.length()").value(15))
+                .andExpect(jsonPath("$.functionCategories[6].slug")
+                        .value("programming-development"));
+    }
+
+    @Test
+    void listFiltersByFunctionAndReturnsFunctionalSummaryFields() throws Exception {
+        mockMvc.perform(get("/api/image-templates")
+                        .param("functionCategory", "programming-development")
+                        .param("functionScene", "debugging"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(
+                        org.hamcrest.Matchers.greaterThan(0)))
+                .andExpect(jsonPath("$.templates[0].functionCategory")
+                        .value("编程与技术开发"))
+                .andExpect(jsonPath("$.templates[0].functionCategorySlug")
+                        .value("programming-development"))
+                .andExpect(jsonPath("$.templates[0].functionScene")
+                        .value("Bug 排查与调试"))
+                .andExpect(jsonPath("$.templates[0].functionSceneSlug")
+                        .value("debugging"));
     }
 
     @Test
