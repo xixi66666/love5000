@@ -15,7 +15,7 @@
 - `common`：公共能力模块，提供 OSS 自动配置、上传工具，以及通用登录/注册/Session 鉴权能力。
 - `lovestory`：恋爱相册 Web 应用，提供静态页面、照片上传、照片列表、删除接口、留言板功能和吉他视频卡片模块。
 - `website`：个人主页/展示站点 Web 应用，包含主页静态资源、Web Demo、OSS Demo、Nacos Discovery 示例、提示词控制台入口和个人博客微应用。
-- `imagetemplate`：图片提示词模板 Web 服务，提供模板库检索、prompt 渲染、直接提示词模板和 OpenAI 图片生成能力；前端采用黑金艺术画廊风格的四场景电影化工作台。
+- `imagetemplate`：图片提示词模板 Web 服务，聚合 47 条精选模板和 Prompt Console 的 4409 条公开提示词，总计 4456 条，提供分页检索、按需详情、prompt 渲染、直接提示词和 OpenAI 图片生成能力；前端采用黑金艺术画廊风格的四场景电影化工作台。
 - `guitar`：Guitar 曲谱平台 Web 微服务，提供基础首页、健康检查、手机号注册登录、Session/CSRF 鉴权、公开曲谱检索详情、安全上传、管理员曲谱下架/恢复和 MySQL 持久化基础能力。
 - `python-a`：A 股自选股 AI 研究台，作为独立 Python 微应用接入，不加入 Maven 聚合模块。
 - `quant-a`：A 股量化研究台，作为独立 FastAPI 微服务接入，不加入 Maven 聚合模块，不写入 `website/python-a` 的 Obsidian 目录。
@@ -329,9 +329,10 @@ website/video/
 - `website/src/main/resources/static/prompt-console`：静态提示词库页面、数据和两级分类映射。`prompt-category-groups.js` 维护“大分类 -> 小分类”映射，新增提示词小类时优先补充该文件；未映射小类自动归入“其他”。
 - `website/demos`：示例性质的 Web、OSS、Nacos Discovery 代码。
 - `imagetemplate/controller`：图片模板 API。
-- `imagetemplate/service`：模板加载、prompt 渲染、OpenAI 图片生成服务。
-- `imagetemplate/src/main/resources/templates`：图片提示词模板 JSON 数据源。
-- `imagetemplate/src/main/resources/static`：图片模板库黑金电影化单页前端，按“灵感大厅 → 模板解构 → Prompt 编导台 → 图片生成舱”组织，底部 Dock 只切换场景、不清空用户状态。
+- `imagetemplate/service`：精选模板加载、大库加载适配、聚合分页、prompt 渲染和 OpenAI 图片生成服务。
+- `imagetemplate/src/main/resources/templates/image-prompt-templates.json`：47 条精选图片模板数据源。
+- `website/src/main/resources/static/prompt-console/data/prompt-library.json`：4409 条 Prompt Console 大库唯一源码；Maven 构建 imagetemplate 时复制到 classpath 的 `templates/prompt-console/prompt-library.json`。
+- `imagetemplate/src/main/resources/static`：图片模板库黑金电影化单页前端，按“灵感大厅 → 模板解构 → Prompt 编导台 → 图片生成舱”组织；模板列表默认 48 条，支持来源、分类、仅图片相关、搜索防抖和加载更多，底部 Dock 只切换场景、不清空用户状态。
 - `guitar/src/main/java/com/example/guitar/controller`：Guitar 基础 HTTP 接口，当前提供 `/api/health`。
 - `guitar/src/main/java/com/example/guitar/auth`：Guitar 手机号注册登录、Session、CSRF 和 API 权限拦截能力；数据库写入由独立事务服务提交成功后，认证服务才轮换 Session。
 - `guitar/src/main/java/com/example/guitar/user`：Guitar 用户模型和 MyBatis DAO，SQL 位于 `guitar/src/main/resources/mapper/user`。
@@ -558,12 +559,15 @@ GET  /api/auth/me
 `imagetemplate` 图片模板接口：
 
 ```text
-GET  /api/image-templates
+GET  /api/image-templates?page=1&size=48&keyword=&source=&category=&imageOnly=false
+GET  /api/image-templates/meta
 GET  /api/image-templates/categories
 GET  /api/image-templates/{id}
 POST /api/image-templates/{id}/prompt
 POST /api/image-templates/{id}/generate
 ```
+
+`GET /api/image-templates` 默认 `page=1`、`size=48`，`size` 最大为 100，列表只返回摘要；完整 Prompt 由详情接口按需返回。`GET /api/image-templates/meta` 返回 4456 总量、7 个来源、分类计数和 `READY` / `DEGRADED` 聚合状态。大库异常时页面必须显示预期数量、实际数量和错误原因。
 
 `guitar` 接口：
 
@@ -685,7 +689,7 @@ GET  /api/assets/{project_name}/video/final
 - `website` 主页资源放在 `website/src/main/resources/static/css`、`static/js`、`static/img`。
 - `website` 博客资源放在 `website/src/main/resources/static/blog`。
 - `website` 静态提示词库资源放在 `website/src/main/resources/static/prompt-console`，分类采用“大分类 -> 小分类”两级结构。
-- `imagetemplate` 页面放在 `imagetemplate/src/main/resources/static`，模板 JSON 放在 `imagetemplate/src/main/resources/templates`；页面保持原生 HTML/CSS/JavaScript 四场景单视口结构，移动端和 `prefers-reduced-motion` 必须可用。
+- `imagetemplate` 页面放在 `imagetemplate/src/main/resources/static`；47 条精选模板位于模块 `templates`，4409 条大库由 Maven 从 website 唯一源复制进 classpath。页面保持原生 HTML/CSS/JavaScript 四场景单视口结构，列表禁止一次请求或渲染全部 4456 条，移动端和 `prefers-reduced-motion` 必须可用。
 - `guitar` 页面放在 `guitar/src/main/resources/static`，健康接口放在 `com.example.guitar.controller`。
 - `python-a` 页面放在 `website/python-a/index.html`、`website/python-a/app.js`、`website/python-a/styles.css`，由 `website/python-a/server.py` 直接提供静态访问。
 - `quant-a` 页面放在 `website/quant-a/web`，由 `website/quant-a/main.py` 通过 FastAPI 静态资源能力提供访问。
@@ -831,7 +835,7 @@ http://127.0.0.1:5176/api/config
 - `lovestory` 数据库相关测试 mock DAO 或使用隔离测试配置，不连接远程 MySQL。
 - `lovestory` 吉他视频新增或修改逻辑时，覆盖上传成功、标题为空、非法视频后缀、封面上传、删除和 OSS 不可用等主要分支。
 - `website/blog` 新增 controller/service/dao 逻辑必须覆盖成功路径和主要失败路径。
-- `imagetemplate` 模板渲染测试必须覆盖分类、关键词、变量替换和模板不存在。
+- `imagetemplate` 模板聚合测试必须覆盖 47 + 4409 = 4456、ID 唯一、来源/分类/关键词/仅图片相关筛选、分页摘要、详情、DIRECT/STRUCTURED 渲染、`DEGRADED` 降级和模板不存在。
 - `imagetemplate` 图片尺寸测试必须覆盖合法 4K、非法格式、非 16 倍数、单边超限、像素过少、像素过多和比例超限。
 - `guitar` 新增 Controller 时使用 Spring Boot Test + MockMvc 覆盖状态码和响应结构，不依赖数据库或外部服务。
 - OpenAI 图片生成测试不得真实调用外部 API；使用 mock 或可注入 HTTP 客户端。
@@ -868,7 +872,7 @@ mvn -pl imagetemplate -am test
 - **关键**：新增公共能力优先放入 `common`。
 - **关键**：修改数据库字段时，同步更新 Mapper XML、DAO、模型类和测试。
 - **关键**：修改 `lovestory` 吉他视频表字段时，同步更新 `GuitarVideoRecord`、`GuitarVideoDao`、`GuitarVideoMapper.xml`、`GuitarVideoServiceImplTests` 和前端展示字段。
-- **关键**：修改 `imagetemplate` 模板 JSON 时，同步更新模板数量、分类断言和前端展示；当前模板库包含 47 个模板，其中 20 个属于 `direct-prompt` / “直接提示词”分类。
+- **关键**：`imagetemplate` 当前聚合总量为 4456：47 条精选模板（其中 20 条属于 `direct-prompt`）+ 4409 条 Prompt Console 大库。精选库修改时同步数量和分类断言；大库只修改 website 唯一源，重新构建 imagetemplate 即可同步，禁止在模块源码中复制第二份 12.9MB 文件。
 - **关键**：修改 `imagetemplate` 图片尺寸选项或规则时，同步更新前端校验、后端校验和 `OpenAiImageGenerationServiceTest`。
 - **关键**：修改 `guitar` 的端口、名称或健康接口时，同步更新 Website 主页入口、根 `AGENTS.md` 和 `guitar/AGENTS.md`。
 - **关键**：修改 `website/python-a` 时不要提交 `deepseek.local.json`、`.env`、`__pycache__/`、`server.err.log`、`server.out.log`。
@@ -882,10 +886,11 @@ mvn -pl imagetemplate -am test
 
 1. 修改 `imagetemplate/src/main/resources/templates/image-prompt-templates.json`。
 2. 保证 `id` 唯一、`categorySlug` 稳定。
-3. 如新增 `direct-prompt` 直接提示词模板，`category` 固定为 `直接提示词`，`categorySlug` 固定为 `direct-prompt`，`jsonTemplate` 使用 `{}`，`promptTemplate` 必须是可直接用于图片生成的完整中文提示词，不使用 `<...>` 占位符。
-4. 外部提示词来源优先使用 GitHub 仓库并保留 `sourceUrl`，当前已集成来源包括 `YouMind-OpenLab/awesome-gpt-image-2`、`EvoLinkAI/awesome-gpt-image-2-prompts`、`freestylefly/awesome-gpt-image-2`。
-5. 更新 `ImagePromptTemplateServiceTest` 的数量或分类断言。
-6. 运行：
+3. 如果更新 4409 条公开大库，只修改 `website/src/main/resources/static/prompt-console/data/prompt-library.json`；不要手工修改 `target/classes` 或在 imagetemplate 源码中复制大库。
+4. 如新增 `direct-prompt` 直接提示词模板，`category` 固定为 `直接提示词`，`categorySlug` 固定为 `direct-prompt`，`jsonTemplate` 使用 `{}`，`promptTemplate` 必须是可直接用于图片生成的完整中文提示词，不使用 `<...>` 占位符。
+5. 外部提示词来源优先使用 GitHub 仓库并保留 `sourceUrl`，当前已集成来源包括 `YouMind-OpenLab/awesome-gpt-image-2`、`EvoLinkAI/awesome-gpt-image-2-prompts`、`freestylefly/awesome-gpt-image-2`。
+6. 更新 `ImagePromptTemplateServiceTest` 的聚合数量或分类断言。
+7. 运行：
 
 ```bash
 mvn -pl imagetemplate test

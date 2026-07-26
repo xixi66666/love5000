@@ -16,8 +16,9 @@ C:/Code/Java_Code/love5000/imagetemplate
 核心功能：
 
 - 提供 GPT Image 提示词模板库页面。
-- 从 `templates/image-prompt-templates.json` 加载 47 个图片生成模板，其中包含 20 个 `direct-prompt` 直接提示词模板。
-- 支持按分类、关键词检索模板。
+- 从 `templates/image-prompt-templates.json` 加载 47 个精选图片模板，其中包含 20 个 `direct-prompt` 直接提示词模板。
+- 聚合构建时复制到 `templates/prompt-console/prompt-library.json` 的 4409 条 Prompt Console 提示词，总计 4456 条。
+- 支持按来源、分类、关键词、仅图片相关组合筛选，并以默认 48、最大 100 的分页摘要返回。
 - 支持将模板 JSON 和用户变量渲染为可直接传给图片生成接口的 prompt；直接提示词模板选中后可直接使用 `promptTemplate`。
 - 支持调用 OpenAI 图片生成接口，返回 base64 图片和 data URL。
 - 前端提供模板选择、变量编辑、自定义尺寸校验、prompt 复制、图片生成和下载能力，并使用“灵感大厅 → 模板解构 → Prompt 编导台 → 图片生成舱”四场景黑金电影化工作台。
@@ -38,9 +39,10 @@ C:/Code/Java_Code/love5000/imagetemplate
 
 - `pom.xml`：Maven 模块依赖、Java 8 编译配置、Spring Boot 打包配置。
 - `src/main/resources/application.yml`：端口、静态资源路径、OpenAI API、超时和代理配置。
-- `src/main/resources/templates/image-prompt-templates.json`：图片提示词模板数据源。
+- `src/main/resources/templates/image-prompt-templates.json`：47 条精选图片模板数据源。
+- `../website/src/main/resources/static/prompt-console/data/prompt-library.json`：4409 条大库唯一源码，Maven 构建时复制到模块 classpath。
 
-**关键**：该模块没有数据库，不依赖 MySQL、MyBatis、OSS 或 `common` 模块。模板数据来自 classpath JSON 文件，运行时图片生成通过 OpenAI API 完成。
+**关键**：该模块没有数据库，不依赖 MySQL、MyBatis、OSS 或 `common` 模块。运行时从两份 classpath JSON 聚合模板，打包后的 jar 不依赖 website 服务；图片生成通过 OpenAI API 完成。
 
 **文档同步约定**：每次修改 `imagetemplate` 的模板数量、模板字段、API、图片生成参数、尺寸规则、OpenAI 配置、前端控件或测试方式时，必须同步更新本文件、`imagetemplate/README.md`，以及根目录 `AGENTS.md` / `README.md` 中相关内容。
 
@@ -92,6 +94,12 @@ mvn -pl imagetemplate -am clean package
 
 ```bash
 mvn -pl imagetemplate -am clean package -DskipTests
+```
+
+验证独立 jar 包含聚合大库：
+
+```powershell
+jar tf imagetemplate/target/imagetemplate-0.0.1-SNAPSHOT.jar | Select-String "templates/prompt-console/prompt-library.json"
 ```
 
 检查依赖树：
@@ -164,13 +172,16 @@ imagetemplate/
 核心职责：
 
 - `ImageTemplateApplication.java`：Spring Boot 启动类。
-- `controller/ImagePromptTemplateController.java`：模板查询、分类查询、prompt 渲染、图片生成 API。
-- `service/ImagePromptTemplateService.java`：加载模板 JSON、过滤模板、渲染结构化 prompt。
+- `controller/ImagePromptTemplateController.java`：模板分页查询、聚合元数据、详情、prompt 渲染和图片生成 API。
+- `service/PromptLibraryLoader.java`：加载并验证 4409 条 Prompt Console 大库，失败时返回可诊断降级结果。
+- `service/ImagePromptTemplateAdapter.java`：将大库条目映射为 DIRECT 模板，生成稳定唯一 ID 和图片相关标记。
+- `service/ImagePromptTemplateService.java`：聚合 47 + 4409 条模板，负责过滤、分页、元数据、详情和两种 prompt 渲染。
 - `service/OpenAiImageGenerationService.java`：读取 OpenAI 配置，调用 `/images/generations`，解析 `b64_json`。
 - `model/ImagePromptTemplate.java`：模板模型，对应 JSON 中的 `id`、`title`、`categorySlug`、`jsonTemplate`、`promptTemplate` 等字段。
 - `dto/*`：前后端请求和响应对象。
-- `static/index.html`、`static/css/app.css`、`static/js/app.js`：黑金艺术画廊风格的四场景单视口前端，不使用 npm 构建；底部 Dock 切换场景时不得清空模板、Prompt、生成参数或结果状态。
-- `templates/image-prompt-templates.json`：模板库唯一数据源。
+- `static/index.html`、`static/css/app.css`、`static/js/app.js`：黑金艺术画廊风格的四场景单视口前端，不使用 npm 构建；灵感大厅使用分页摘要、来源筛选、分类下拉、图片开关、300ms 防抖、加载更多和详情按需加载；底部 Dock 切换场景时不得清空模板、Prompt、生成参数或结果状态。
+- `templates/image-prompt-templates.json`：精选库数据源。
+- `templates/prompt-console/prompt-library.json`：构建产物中的聚合大库，不在 imagetemplate 源码中维护。
 
 ## 配置约定
 
@@ -219,12 +230,15 @@ openai:
 当前接口：
 
 ```text
-GET  /api/image-templates
+GET  /api/image-templates?page=1&size=48&keyword=&source=&category=&imageOnly=false
+GET  /api/image-templates/meta
 GET  /api/image-templates/categories
 GET  /api/image-templates/{id}
 POST /api/image-templates/{id}/prompt
 POST /api/image-templates/{id}/generate
 ```
+
+列表接口只返回摘要字段，不返回完整 `promptTemplate` 和 `jsonTemplate`；`size` 最大为 100。详情接口返回完整模板。`/meta` 返回 4456 总量、7 个来源、分类计数、图片相关数量和 `READY` / `DEGRADED` 聚合状态；加载不完整时页面必须显示预期数量、实际数量和错误原因。
 
 列表查询参数：
 
@@ -295,13 +309,13 @@ X-OpenAI-Api-Key: sk-your-key
 
 ## 模板数据约定
 
-模板文件：
+精选模板文件：
 
 ```text
 src/main/resources/templates/image-prompt-templates.json
 ```
 
-每个模板必须包含：
+精选模板每条必须包含：
 
 ```json
 {
@@ -325,7 +339,19 @@ src/main/resources/templates/image-prompt-templates.json
 - `promptTemplate` 是自然语言模板，用于展示和渲染 prompt。
 - `direct-prompt` 分类用于直接提示词模板：`category` 固定为 `直接提示词`，`categorySlug` 固定为 `direct-prompt`，`jsonTemplate` 使用 `{}`，`promptTemplate` 必须是可直接用于图片生成的完整中文提示词，不使用 `<...>` 占位符。
 - 外部提示词来源优先使用 GitHub 仓库并保留 `sourceUrl`，当前已集成来源包括 `YouMind-OpenLab/awesome-gpt-image-2`、`EvoLinkAI/awesome-gpt-image-2-prompts`、`freestylefly/awesome-gpt-image-2`。
-- 新增模板后必须更新测试中模板数量断言。
+- 新增精选模板后必须更新 47 条精选数量和 4456 条聚合总量断言。
+
+Prompt Console 大库唯一源码：
+
+```text
+../website/src/main/resources/static/prompt-console/data/prompt-library.json
+```
+
+- 当前包含 4409 条、6 个来源；构建时复制到 `templates/prompt-console/prompt-library.json`。
+- 不删除重复内容；适配层用来源、原始 ID、内容指纹和出现次序生成稳定唯一 ID。
+- 三个图片专用来源固定标记为图片相关，其他来源依据分类和标签关键词判定。
+- 大库条目映射为 `templateKind=DIRECT`，非图片专用条目可编辑并生成，但前端必须提示。
+- 大库缺失、非法或数量异常时返回 `DEGRADED`，不得静默假装 47 条就是完整数据。
 
 ## 代码规范
 
@@ -355,7 +381,9 @@ Spring 约定：
 - 页面结构放在 `static/index.html`。
 - 样式放在 `static/css/app.css`。
 - 交互逻辑放在 `static/js/app.js`。
-- API 路径保持相对路径，例如 `/api/image-templates/categories`。
+- API 路径保持相对路径；前端先请求 `/api/image-templates/meta`，再分页请求 `/api/image-templates`，点击卡片后请求详情。
+- 禁止一次请求或渲染全部 4456 条；默认 48 条、加载更多追加下一页，搜索防抖固定为 300ms。
+- 大库状态为 `DEGRADED` 时必须显示聚合告警，不能只显示 47 条而不解释。
 - 前端保存 API Key 时只允许使用会话级或用户明确选择的浏览器存储，不写入源码。
 - 四个场景固定为 `discover`、`deconstruct`、`direct`、`render`；场景导航只管理可见性、焦点、Dock 进度和无障碍状态。
 - 桌面端保持单视口，移动端允许场景内容自然滚动；CSS 必须保留 `prefers-reduced-motion` 降级。
@@ -385,13 +413,18 @@ mvn -pl imagetemplate -am test
 
 ```text
 src/test/java/com/example/imagetemplate/service/ImagePromptTemplateServiceTest.java
+src/test/java/com/example/imagetemplate/service/PromptLibraryLoaderTest.java
+src/test/java/com/example/imagetemplate/service/ImagePromptTemplateAdapterTest.java
+src/test/java/com/example/imagetemplate/controller/ImagePromptTemplateControllerTest.java
+src/test/java/com/example/imagetemplate/PromptLibraryPackagingTest.java
 src/test/java/com/example/imagetemplate/service/OpenAiImageGenerationServiceTest.java
 src/test/java/com/example/imagetemplate/ImageTemplateHomepageStaticAssetsTest.java
 ```
 
 测试要求：
 
-- 新增模板时，更新 `listTemplatesLoadsAllCuratedTemplates` 的数量断言。
+- 新增精选模板或更新大库时，更新 47、4409、4456 三层数量断言。
+- 聚合测试必须覆盖所有 ID 唯一、精选优先、分页默认 48/最大 100、来源/分类/关键词/图片筛选、摘要不泄露完整 Prompt、详情和 `DEGRADED`。
 - 新增分类时，测试必须覆盖 `categorySlug`。
 - 新增 `direct-prompt` 模板时，测试必须覆盖分类名、分类 slug、模板数量、空 `jsonTemplate`、GitHub `sourceUrl` 和可直接使用的中文 `promptTemplate`。
 - 修改 prompt 渲染规则时，必须覆盖变量替换、嵌套 JSON、列表字段和 `extraInstruction`。
@@ -432,6 +465,7 @@ http://localhost:8082/
 - **关键**：修改模板数量、模板字段、API、图片生成参数、尺寸规则、OpenAI 配置、前端控件或测试方式时，同步更新 `imagetemplate/AGENTS.md`、`imagetemplate/README.md` 和根文档。
 - **关键**：不要提交 `target/`、IDE 缓存、真实 OpenAI API Key。
 - **关键**：模板 JSON 必须保持合法 JSON，不能有注释或尾逗号。
+- **关键**：4409 条大库只维护 website 唯一源码；禁止在 imagetemplate 源目录复制第二份大文件，更新后重新构建模块。
 - **关键**：新增模板字段时，同步更新 `ImagePromptTemplate`、前端渲染和测试。
 - **关键**：新增或修改图片尺寸选项时，必须同步更新前端校验、后端校验和 `OpenAiImageGenerationServiceTest`。
 - **关键**：生成图片接口失败时必须返回可读 `message`，不要吞掉 OpenAI 错误。
@@ -445,8 +479,9 @@ http://localhost:8082/
 1. 修改 `src/main/resources/templates/image-prompt-templates.json`。
 2. 确保 `id` 唯一、`categorySlug` 稳定。
 3. 如新增分类，确认 `/api/image-templates/categories` 能统计到该分类。
-4. 更新 `ImagePromptTemplateServiceTest` 中的模板数量或分类断言。
-5. 运行：
+4. 如更新公开大库，只修改 `../website/src/main/resources/static/prompt-console/data/prompt-library.json`。
+5. 更新 `ImagePromptTemplateServiceTest` 中的精选数量、聚合总量或分类断言。
+6. 运行：
 
 ```bash
 mvn -pl imagetemplate test
