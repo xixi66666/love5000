@@ -25,6 +25,7 @@
         keywordInput: document.getElementById('keywordInput'),
         libraryAlert: document.getElementById('libraryAlert'),
         functionCategoryFilters: document.getElementById('functionCategoryFilters'),
+        functionCategorySelect: document.getElementById('functionCategorySelect'),
         functionSceneFilters: document.getElementById('functionSceneFilters'),
         sourceFilters: document.getElementById('sourceFilters'),
         categorySelect: document.getElementById('categorySelect'),
@@ -322,6 +323,19 @@
         });
         elements.functionCategoryFilters.innerHTML = categoryButtons.join('');
 
+        var categoryOptions = [
+            '<option value="">全部功能 · ' + state.catalogTotal + '</option>'
+        ];
+        state.functionCategories.forEach(function (category) {
+            categoryOptions.push(
+                '<option value="' + escapeHtml(category.slug) + '">' +
+                escapeHtml(category.name) + ' · ' + category.count +
+                '</option>'
+            );
+        });
+        elements.functionCategorySelect.innerHTML = categoryOptions.join('');
+        elements.functionCategorySelect.value = state.activeFunctionCategory;
+
         var selectedCategory = null;
         state.functionCategories.forEach(function (category) {
             if (category.slug === state.activeFunctionCategory) {
@@ -351,6 +365,13 @@
         });
         elements.functionSceneFilters.innerHTML = sceneButtons.join('');
         elements.functionSceneFilters.hidden = false;
+    }
+
+    function selectFunctionCategory(categorySlug) {
+        state.activeFunctionCategory = categorySlug || '';
+        state.activeFunctionScene = '';
+        renderMeta();
+        return resetPagination();
     }
 
     function renderTemplates() {
@@ -839,14 +860,20 @@
         if (!button) {
             return;
         }
-        state.activeFunctionCategory =
-            button.getAttribute('data-function-category') || '';
-        state.activeFunctionScene = '';
-        renderMeta();
-        resetPagination().catch(function () {
+        selectFunctionCategory(
+            button.getAttribute('data-function-category')
+        ).catch(function () {
             elements.libraryAlert.hidden = false;
             elements.libraryAlert.textContent = '功能分类筛选失败，请稍后重试。';
         });
+    });
+
+    elements.functionCategorySelect.addEventListener('change', function () {
+        selectFunctionCategory(elements.functionCategorySelect.value)
+            .catch(function () {
+                elements.libraryAlert.hidden = false;
+                elements.libraryAlert.textContent = '功能分类筛选失败，请稍后重试。';
+            });
     });
 
     elements.functionSceneFilters.addEventListener('click', function (event) {

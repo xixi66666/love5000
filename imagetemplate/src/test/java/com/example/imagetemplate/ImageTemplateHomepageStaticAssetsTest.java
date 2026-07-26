@@ -27,7 +27,8 @@ class ImageTemplateHomepageStaticAssetsTest {
 
         String[] existingIds = {
                 "keywordInput", "templateList", "templateCount",
-                "libraryAlert", "functionCategoryFilters", "functionSceneFilters",
+                "libraryAlert", "functionCategoryFilters", "functionCategorySelect",
+                "functionSceneFilters",
                 "advancedFilters", "sourceFilters", "categorySelect", "imageOnlyToggle",
                 "loadMoreButton", "listStatus",
                 "detailCategory", "detailTitle", "detailSummary", "jsonTemplate",
@@ -62,8 +63,12 @@ class ImageTemplateHomepageStaticAssetsTest {
                 .contains(".cinematic-backdrop")
                 .contains(".scene.is-active")
                 .contains(".library-alert")
+                .contains(".function-category-toolbar")
+                .contains(".function-category-select")
                 .contains(".function-filters")
                 .contains(".function-scenes")
+                .contains("grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));")
+                .contains("@media (min-width: 1320px)")
                 .contains(".advanced-filters")
                 .contains(".source-filters")
                 .contains(".template-badge")
@@ -81,6 +86,8 @@ class ImageTemplateHomepageStaticAssetsTest {
                 .contains("loadTemplateDetail")
                 .contains("resetPagination")
                 .contains("functionCategories")
+                .contains("functionCategorySelect")
+                .contains("selectFunctionCategory")
                 .contains("activeFunctionCategory")
                 .contains("activeFunctionScene")
                 .contains("functionCategory")
