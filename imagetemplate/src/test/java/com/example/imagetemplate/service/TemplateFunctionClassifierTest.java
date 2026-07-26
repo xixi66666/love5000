@@ -81,6 +81,57 @@ class TemplateFunctionClassifierTest {
                 Collections.<String>emptyList(), "other-tools", "general-prompt");
     }
 
+    @Test
+    void ignoresNoisyPrompt123TagsWhenTheTitleDoesNotCorroborateThem() {
+        ImagePromptTemplate template = new ImagePromptTemplate();
+        template.setId("prompt123-real-estate");
+        template.setSourceId("prompt123");
+        template.setTitle("房地产行业");
+        template.setCategory("kimi");
+        template.setTags(Arrays.asList(
+                "Prompt123", "编程", "DeepSeek/Kimi", "kimi"));
+
+        TemplateFunctionClassification classification = classifier.classify(template);
+
+        assertThat(classification.getCategorySlug()).isNotEqualTo(
+                "programming-development");
+    }
+
+    @Test
+    void classifiesCommonProfessionalTitlesByTheirActualFunction() {
+        assertClassification("税务会计", "kimi",
+                Collections.<String>emptyList(),
+                "professional-consulting", "finance-tax");
+        assertClassification("法律顾问", "kimi",
+                Collections.<String>emptyList(),
+                "professional-consulting", "legal-compliance");
+        assertClassification("房地产行业", "kimi",
+                Collections.<String>emptyList(),
+                "professional-consulting", "industry-expert");
+        assertClassification("物流运输业", "kimi",
+                Collections.<String>emptyList(),
+                "professional-consulting", "industry-expert");
+        assertClassification("职业导航", "kimi",
+                Collections.<String>emptyList(),
+                "office-workplace", "career-interview");
+        assertClassification("项目经理", "精选",
+                Collections.<String>emptyList(),
+                "office-workplace", "project-management");
+    }
+
+    @Test
+    void prioritizesTheExplicitTaskInAmbiguousTitles() {
+        assertClassification("逻辑漏洞分析与修补器", "精选",
+                Collections.<String>emptyList(),
+                "writing-content", "rewriting-polish");
+        assertClassification("产品经理", "架构",
+                Collections.<String>emptyList(),
+                "office-workplace", "project-management");
+        assertClassification("YouTube 频道、数据库和配置文件的详细数据分析", "开发",
+                Collections.<String>emptyList(),
+                "data-research", "data-analysis");
+    }
+
     private void assertClassification(String title,
                                       String category,
                                       List<String> tags,

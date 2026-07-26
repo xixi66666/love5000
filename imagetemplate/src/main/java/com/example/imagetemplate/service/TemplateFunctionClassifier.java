@@ -85,6 +85,9 @@ public class TemplateFunctionClassifier {
     private String joinMetadata(ImagePromptTemplate template) {
         StringBuilder text = new StringBuilder();
         append(text, template.getCategory());
+        if ("prompt123".equals(normalize(template.getSourceId()))) {
+            return text.toString();
+        }
         if (template.getTags() != null) {
             for (String tag : template.getTags()) {
                 append(text, tag);
@@ -253,6 +256,13 @@ public class TemplateFunctionClassifier {
     private static List<Rule> buildHighTitleRules() {
         List<Rule> rules = new ArrayList<Rule>();
 
+        rules.add(rule("writing-content", "rewriting-polish",
+                "逻辑漏洞分析", "逻辑漏洞修补"));
+        rules.add(rule("office-workplace", "project-management",
+                "产品经理", "产品管理"));
+        rules.add(rule("data-research", "data-analysis",
+                "数据分析", "统计分析", "数据洞察"));
+
         rules.add(rule("programming-development", "debugging",
                 "bug", "debug", "调试", "排错", "报错", "故障定位", "错误修复"));
         rules.add(rule("programming-development", "software-testing",
@@ -282,6 +292,21 @@ public class TemplateFunctionClassifier {
         rules.add(rule("programming-development", "code-generation",
                 "代码生成", "编程助手", "程序员", "开发工程师", "写代码",
                 "java", "javascript", "typescript", "python", "golang", "c++", "php"));
+
+        rules.add(rule("professional-consulting", "legal-compliance",
+                "法律顾问", "律师", "法务", "法律咨询", "合规顾问"));
+        rules.add(rule("professional-consulting", "finance-tax",
+                "税务", "会计", "财务", "金融顾问", "投资顾问", "审计师"));
+        rules.add(rule("professional-consulting", "health-psychology",
+                "心理咨询", "心理健康", "医生", "医疗顾问", "营养师"));
+        rules.add(rule("professional-consulting", "business-management",
+                "企业管理", "风险管理", "采购管理", "人力资源"));
+        rules.add(rule("professional-consulting", "industry-expert",
+                "房地产行业", "物流运输", "供应链", "行业顾问", "行业专家"));
+        rules.add(rule("office-workplace", "career-interview",
+                "职业导航", "职业顾问", "职业发展"));
+        rules.add(rule("office-workplace", "project-management",
+                "项目经理", "项目管理"));
 
         rules.add(rule("social-media", "xiaohongshu", "小红书", "xiaohongshu"));
         rules.add(rule("social-media", "wechat-official", "公众号", "微信推文"));
