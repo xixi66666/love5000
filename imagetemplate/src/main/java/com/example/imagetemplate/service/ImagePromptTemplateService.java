@@ -6,11 +6,14 @@ import com.example.imagetemplate.dto.ImageTemplateQuery;
 import com.example.imagetemplate.dto.ImageTemplateSummaryResponse;
 import com.example.imagetemplate.dto.PromptRenderRequest;
 import com.example.imagetemplate.dto.TemplateCategoryResponse;
+import com.example.imagetemplate.dto.TemplateFunctionCategoryResponse;
+import com.example.imagetemplate.dto.TemplateFunctionSceneResponse;
 import com.example.imagetemplate.dto.TemplateSourceResponse;
 import com.example.imagetemplate.model.ImagePromptTemplate;
 import com.example.imagetemplate.model.LibraryAggregationStatus;
 import com.example.imagetemplate.model.PromptLibraryLoadResult;
 import com.example.imagetemplate.model.PromptLibrarySource;
+import com.example.imagetemplate.model.TemplateFunctionClassification;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.core.io.ClassPathResource;
@@ -39,11 +42,14 @@ public class ImagePromptTemplateService {
 
     private final List<TemplateSourceResponse> sources;
 
+    private final List<TemplateFunctionCategoryResponse> functionCategories;
+
     private String curatedLoadMessage = "";
 
     public ImagePromptTemplateService(ObjectMapper objectMapper,
                                       PromptLibraryLoader promptLibraryLoader,
-                                      ImagePromptTemplateAdapter adapter) {
+                                      ImagePromptTemplateAdapter adapter,
+                                      TemplateFunctionClassifier functionClassifier) {
         List<ImagePromptTemplate> curated = loadCuratedTemplates(objectMapper);
         decorateCurated(curated);
 
@@ -53,12 +59,15 @@ public class ImagePromptTemplateService {
         List<ImagePromptTemplate> aggregated = new ArrayList<ImagePromptTemplate>();
         aggregated.addAll(curated);
         aggregated.addAll(imported);
+        decorateFunctionalClassifications(aggregated, functionClassifier);
         this.templates = Collections.unmodifiableList(aggregated);
         this.templatesById = Collections.unmodifiableMap(indexById(aggregated));
         this.aggregationStatus =
                 buildStatus(curated.size(), imported.size(), libraryResult);
         this.sources = Collections.unmodifiableList(
                 buildSources(libraryResult.getSources(), aggregated));
+        this.functionCategories = Collections.unmodifiableList(
+                buildFunctionCategories(functionClassifier, aggregated));
     }
 
     public ImageTemplatePageResponse search(ImageTemplateQuery query) {
@@ -108,6 +117,8 @@ public class ImagePromptTemplateService {
         response.setStatus(aggregationStatus);
         response.setSources(new ArrayList<TemplateSourceResponse>(sources));
         response.setCategories(listCategories());
+        response.setFunctionCategories(
+                new ArrayList<TemplateFunctionCategoryResponse>(functionCategories));
         return response;
     }
 
@@ -198,6 +209,56 @@ public class ImagePromptTemplateService {
             template.setImageRelated(true);
             template.setCurated(true);
         }
+    }
+
+    private void decorateFunctionalClassifications(
+            List<ImagePromptTemplate> values,
+            TemplateFunctionClassifier functionClassifier) {
+        for (ImagePromptTemplate template : values) {
+            TemplateFunctionClassification classification =
+                    functionClassifier.classify(template);
+            template.setFunctionCategory(classification.getCategoryName());
+            template.setFunctionCategorySlug(classification.getCategorySlug());
+            template.setFunctionScene(classification.getSceneName());
+            template.setFunctionSceneSlug(classification.getSceneSlug());
+        }
+    }
+
+    private List<TemplateFunctionCategoryResponse> buildFunctionCategories(
+            TemplateFunctionClassifier functionClassifier,
+            List<ImagePromptTemplate> values) {
+        Map<String, Integer> categoryCounts = new LinkedHashMap<String, Integer>();
+        Map<String, Integer> sceneCounts = new LinkedHashMap<String, Integer>();
+        for (ImagePromptTemplate template : values) {
+            increment(categoryCounts, template.getFunctionCategorySlug());
+            increment(sceneCounts, template.getFunctionCategorySlug()
+                    + "/" + template.getFunctionSceneSlug());
+        }
+
+        List<TemplateFunctionCategoryResponse> result =
+                new ArrayList<TemplateFunctionCategoryResponse>();
+        for (TemplateFunctionClassifier.CategoryDefinition category
+                : functionClassifier.getCatalog()) {
+            List<TemplateFunctionSceneResponse> scenes =
+                    new ArrayList<TemplateFunctionSceneResponse>();
+            for (TemplateFunctionClassifier.SceneDefinition scene
+                    : category.getScenes()) {
+                scenes.add(new TemplateFunctionSceneResponse(
+                        scene.getName(),
+                        scene.getSlug(),
+                        count(sceneCounts, category.getSlug() + "/" + scene.getSlug())));
+            }
+            result.add(new TemplateFunctionCategoryResponse(
+                    category.getName(),
+                    category.getSlug(),
+                    count(categoryCounts, category.getSlug()),
+                    scenes));
+        }
+        return result;
+    }
+
+    private void increment(Map<String, Integer> counts, String key) {
+        counts.put(key, counts.containsKey(key) ? counts.get(key) + 1 : 1);
     }
 
     private Map<String, ImagePromptTemplate> indexById(List<ImagePromptTemplate> values) {

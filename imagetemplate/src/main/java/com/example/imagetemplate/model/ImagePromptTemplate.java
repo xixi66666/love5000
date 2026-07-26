@@ -29,6 +29,14 @@ public class ImagePromptTemplate {
 
     private String sourceName;
 
+    private String functionCategory;
+
+    private String functionCategorySlug;
+
+    private String functionScene;
+
+    private String functionSceneSlug;
+
     private String templateKind;
 
     private boolean imageRelated;
@@ -121,6 +129,38 @@ public class ImagePromptTemplate {
 
     public void setSourceName(String sourceName) {
         this.sourceName = sourceName;
+    }
+
+    public String getFunctionCategory() {
+        return functionCategory;
+    }
+
+    public void setFunctionCategory(String functionCategory) {
+        this.functionCategory = functionCategory;
+    }
+
+    public String getFunctionCategorySlug() {
+        return functionCategorySlug;
+    }
+
+    public void setFunctionCategorySlug(String functionCategorySlug) {
+        this.functionCategorySlug = functionCategorySlug;
+    }
+
+    public String getFunctionScene() {
+        return functionScene;
+    }
+
+    public void setFunctionScene(String functionScene) {
+        this.functionScene = functionScene;
+    }
+
+    public String getFunctionSceneSlug() {
+        return functionSceneSlug;
+    }
+
+    public void setFunctionSceneSlug(String functionSceneSlug) {
+        this.functionSceneSlug = functionSceneSlug;
     }
 
     public String getTemplateKind() {

@@ -4,6 +4,7 @@ import com.example.imagetemplate.dto.ImageTemplateMetaResponse;
 import com.example.imagetemplate.dto.ImageTemplatePageResponse;
 import com.example.imagetemplate.dto.ImageTemplateQuery;
 import com.example.imagetemplate.dto.PromptRenderRequest;
+import com.example.imagetemplate.dto.TemplateFunctionCategoryResponse;
 import com.example.imagetemplate.model.ImagePromptTemplate;
 import com.example.imagetemplate.model.PromptLibraryEntry;
 import com.example.imagetemplate.model.PromptLibraryLoadResult;
@@ -32,7 +33,8 @@ class ImagePromptTemplateServiceTest {
         imagePromptTemplateService = new ImagePromptTemplateService(
                 objectMapper,
                 new PromptLibraryLoader(objectMapper),
-                new ImagePromptTemplateAdapter());
+                new ImagePromptTemplateAdapter(),
+                new TemplateFunctionClassifier());
     }
 
     @Test
@@ -53,6 +55,39 @@ class ImagePromptTemplateServiceTest {
         assertThat(templates).hasSize(4456);
         assertThat(templates).extracting("id").doesNotHaveDuplicates();
         assertThat(templates.subList(0, 47)).allMatch(ImagePromptTemplate::isCurated);
+    }
+
+    @Test
+    void assignsACompleteFunctionClassificationToEveryTemplate() {
+        assertThat(imagePromptTemplateService.listTemplates(null, null))
+                .hasSize(4456)
+                .allSatisfy(template -> {
+                    assertThat(template.getFunctionCategory()).isNotBlank();
+                    assertThat(template.getFunctionCategorySlug()).isNotBlank();
+                    assertThat(template.getFunctionScene()).isNotBlank();
+                    assertThat(template.getFunctionSceneSlug()).isNotBlank();
+                });
+    }
+
+    @Test
+    void buildsAnOrderedFunctionalTreeWhoseCountsCoverTheAggregate() {
+        List<TemplateFunctionCategoryResponse> categories =
+                imagePromptTemplateService.getMeta().getFunctionCategories();
+
+        assertThat(categories).hasSize(15);
+        assertThat(categories).extracting("slug")
+                .contains("programming-development");
+        assertThat(categories.stream().mapToInt(
+                TemplateFunctionCategoryResponse::getCount).sum()).isEqualTo(4456);
+
+        TemplateFunctionCategoryResponse programming = categories.stream()
+                .filter(category -> "programming-development".equals(category.getSlug()))
+                .findFirst()
+                .orElseThrow(AssertionError::new);
+        assertThat(programming.getCount()).isGreaterThan(0);
+        assertThat(programming.getScenes()).isNotEmpty();
+        assertThat(programming.getScenes().stream().mapToInt(
+                scene -> scene.getCount()).sum()).isEqualTo(programming.getCount());
     }
 
     @Test
@@ -160,7 +195,10 @@ class ImagePromptTemplateServiceTest {
                 1,
                 "大库资源解析失败"));
         ImagePromptTemplateService degradedService = new ImagePromptTemplateService(
-                new ObjectMapper(), degradedLoader, new ImagePromptTemplateAdapter());
+                new ObjectMapper(),
+                degradedLoader,
+                new ImagePromptTemplateAdapter(),
+                new TemplateFunctionClassifier());
 
         assertThat(degradedService.getMeta().getStatus().getStatus()).isEqualTo("DEGRADED");
         assertThat(degradedService.getMeta().getTotal()).isEqualTo(47);

@@ -4,6 +4,7 @@ import com.example.imagetemplate.service.ImagePromptTemplateAdapter;
 import com.example.imagetemplate.service.ImagePromptTemplateService;
 import com.example.imagetemplate.service.OpenAiImageGenerationService;
 import com.example.imagetemplate.service.PromptLibraryLoader;
+import com.example.imagetemplate.service.TemplateFunctionClassifier;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -25,7 +26,8 @@ class ImagePromptTemplateControllerTest {
         ImagePromptTemplateService templateService = new ImagePromptTemplateService(
                 objectMapper,
                 new PromptLibraryLoader(objectMapper),
-                new ImagePromptTemplateAdapter());
+                new ImagePromptTemplateAdapter(),
+                new TemplateFunctionClassifier());
         ImagePromptTemplateController controller = new ImagePromptTemplateController(
                 templateService,
                 mock(OpenAiImageGenerationService.class),

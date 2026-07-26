@@ -24,6 +24,9 @@ public class ImageTemplateMetaResponse {
     private List<TemplateCategoryResponse> categories =
             new ArrayList<TemplateCategoryResponse>();
 
+    private List<TemplateFunctionCategoryResponse> functionCategories =
+            new ArrayList<TemplateFunctionCategoryResponse>();
+
     public boolean isSuccess() {
         return success;
     }
@@ -82,5 +85,14 @@ public class ImageTemplateMetaResponse {
 
     public void setCategories(List<TemplateCategoryResponse> categories) {
         this.categories = categories;
+    }
+
+    public List<TemplateFunctionCategoryResponse> getFunctionCategories() {
+        return functionCategories;
+    }
+
+    public void setFunctionCategories(
+            List<TemplateFunctionCategoryResponse> functionCategories) {
+        this.functionCategories = functionCategories;
     }
 }
