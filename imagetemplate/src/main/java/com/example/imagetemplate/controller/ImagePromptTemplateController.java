@@ -6,12 +6,15 @@ import com.example.imagetemplate.dto.PromptRenderRequest;
 import com.example.imagetemplate.dto.PromptRenderResponse;
 import com.example.imagetemplate.dto.ImageGenerationRequest;
 import com.example.imagetemplate.dto.ImageGenerationResponse;
+import com.example.imagetemplate.dto.ImageTemplateMetaResponse;
+import com.example.imagetemplate.dto.ImageTemplatePageResponse;
+import com.example.imagetemplate.dto.ImageTemplateQuery;
 import com.example.imagetemplate.dto.ReferenceImageInput;
 import com.example.imagetemplate.dto.TemplateCategoryResponse;
-import com.example.imagetemplate.model.ImagePromptTemplate;
 import com.example.imagetemplate.service.ImageGenerationException;
 import com.example.imagetemplate.service.ImagePromptTemplateNotFoundException;
 import com.example.imagetemplate.service.ImagePromptTemplateService;
+import com.example.imagetemplate.service.ImageTemplateQueryValidationException;
 import com.example.imagetemplate.service.OpenAiImageGenerationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,14 +60,21 @@ public class ImagePromptTemplateController {
     }
 
     @GetMapping
-    public Map<String, Object> listTemplates(@RequestParam(value = "category", required = false) String category,
-                                             @RequestParam(value = "keyword", required = false) String keyword) {
-        List<ImagePromptTemplate> templates = imagePromptTemplateService.listTemplates(category, keyword);
-        Map<String, Object> result = new HashMap<String, Object>();
-        result.put("success", true);
-        result.put("templates", templates);
-        result.put("total", templates.size());
-        return result;
+    public ImageTemplatePageResponse listTemplates(
+            @RequestParam(value = "page", defaultValue = "1") int page,
+            @RequestParam(value = "size", defaultValue = "48") int size,
+            @RequestParam(value = "keyword", required = false) String keyword,
+            @RequestParam(value = "source", required = false) String source,
+            @RequestParam(value = "category", required = false) String category,
+            @RequestParam(value = "imageOnly", defaultValue = "false") boolean imageOnly) {
+        ImageTemplateQuery query = new ImageTemplateQuery();
+        query.setPage(page);
+        query.setSize(size);
+        query.setKeyword(keyword);
+        query.setSource(source);
+        query.setCategory(category);
+        query.setImageOnly(imageOnly);
+        return imagePromptTemplateService.search(query);
     }
 
     @GetMapping("/categories")
@@ -74,6 +84,11 @@ public class ImagePromptTemplateController {
         result.put("success", true);
         result.put("categories", categories);
         return result;
+    }
+
+    @GetMapping("/meta")
+    public ImageTemplateMetaResponse getMeta() {
+        return imagePromptTemplateService.getMeta();
     }
 
     @GetMapping("/{id}")
@@ -154,6 +169,16 @@ public class ImagePromptTemplateController {
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public Map<String, Object> handleNotFound(ImagePromptTemplateNotFoundException exception) {
         Map<String, Object> result = new HashMap<String, Object>();
+        result.put("success", false);
+        result.put("message", exception.getMessage());
+        return result;
+    }
+
+    @ExceptionHandler(ImageTemplateQueryValidationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, Object> handleQueryValidation(
+            ImageTemplateQueryValidationException exception) {
+        Map<String, Object> result = new LinkedHashMap<String, Object>();
         result.put("success", false);
         result.put("message", exception.getMessage());
         return result;
