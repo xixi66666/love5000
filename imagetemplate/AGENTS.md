@@ -20,9 +20,9 @@ C:/Code/Java_Code/love5000/imagetemplate
 - 聚合构建时复制到 `templates/prompt-console/prompt-library.json` 的 4409 条 Prompt Console 提示词，总计 4456 条。
 - 使用 `TemplateFunctionClassifier` 为每条模板确定一个一级功能和一个二级场景；分类只读取 ID、标题、原始分类、标签和低优先级来源默认值，不扫描完整 Prompt。
 - 支持按一级功能、二级场景、来源、原始分类、关键词、仅图片相关组合筛选，并以默认 48、最大 100 的分页摘要返回。
-- 支持将模板 JSON 和用户变量渲染为可直接传给图片生成接口的 prompt；直接提示词模板选中后可直接使用 `promptTemplate`。
+- 支持将模板 JSON 和用户变量渲染为可直接传给图片生成接口的 prompt；直接提示词模板选中后使用 `promptTemplate`，并将非空用户变量追加到最终 prompt。
 - 支持调用 OpenAI 图片生成接口，返回 base64 图片和 data URL。
-- 前端提供模板选择、变量编辑、自定义尺寸校验、prompt 复制、图片生成和下载能力，并使用“灵感大厅 → 模板解构 → Prompt 编导台 → 图片生成舱”四场景黑金电影化工作台。
+- 前端提供模板选择、模板 JSON 与变量剧本编辑、自定义尺寸校验、prompt 复制、图片生成和下载能力，并使用“灵感大厅 → 模板解构 → Prompt 编导台 → 图片生成舱”四场景亮色 AI 创作工作台；背景复用 website 首页 `03 Deep Woods` 视频，前景采用雾白玻璃、深林蓝、苔藓绿和树皮橙配色；模板 JSON 进入编导台前必须校验为对象并同步到变量剧本，灵感大厅采用顶部搜索、左侧筛选和右侧结果网格。
 
 技术栈：
 
@@ -181,7 +181,7 @@ imagetemplate/
 - `service/OpenAiImageGenerationService.java`：读取 OpenAI 配置，调用 `/images/generations`，解析 `b64_json`。
 - `model/ImagePromptTemplate.java`：模板模型，对应 JSON 中的 `id`、`title`、`categorySlug`、`jsonTemplate`、`promptTemplate` 等字段。
 - `dto/*`：前后端请求和响应对象。
-- `static/index.html`、`static/css/app.css`、`static/js/app.js`：黑金艺术画廊风格的四场景单视口前端，不使用 npm 构建；灵感大厅以一级功能和二级场景为主导航，来源和原始分类放在默认收起的高级筛选中，同时保留图片开关、300ms 防抖、加载更多和详情按需加载；底部 Dock 切换场景时不得清空模板、Prompt、生成参数或结果状态。
+- `static/index.html`、`static/css/app.css`、`static/js/app.js`：亮色 AI 创作风格的四场景单视口前端，不使用 npm 构建；背景使用 website 首页 `03 Deep Woods` 的同一远程视频资源，工作区以视频可见性优先：外层约 6% 雾白色膜并仅做约 1px 轻微模糊，结果区约 3%、卡片约 16%，搜索与 Prompt 输入保留较高不透明度以确保可读性；信息文字、说明、统计和标签使用近黑色层级，深色主按钮保留白字，“加载更多提示词”使用与工作区相同的透明玻璃，交互状态使用苔藓绿，并保留 `prefers-reduced-motion` 装饰动画降级；流程导航在桌面端使用页面左侧居中的紧凑悬浮步骤器，900px 以下恢复为底部横向排列；灵感大厅顶部常驻搜索、仅图片开关和清除筛选，内容区左侧集中展示一级功能、二级场景及默认收起的来源/原始分类，右侧为结果网格，同时保留 300ms 防抖、加载更多和详情按需加载；模板解构 JSON 使用可编辑文本域，修改后进入 Prompt 编导台时校验并同步，变量剧本对所有模板类型保持可编辑；移动端改为单列自然滚动；流程导航切换场景时不得清空模板、Prompt、生成参数或结果状态。
 - `templates/image-prompt-templates.json`：精选库数据源。
 - `templates/prompt-console/prompt-library.json`：构建产物中的聚合大库，不在 imagetemplate 源码中维护。
 
@@ -341,7 +341,7 @@ src/main/resources/templates/image-prompt-templates.json
 - `categorySlug` 使用小写英文，前端分类筛选依赖该字段。
 - `jsonTemplate` 是结构化模板，字段名要稳定；用户变量通过同名 key 覆盖默认值。
 - `promptTemplate` 是自然语言模板，用于展示和渲染 prompt。
-- `direct-prompt` 分类用于直接提示词模板：`category` 固定为 `直接提示词`，`categorySlug` 固定为 `direct-prompt`，`jsonTemplate` 使用 `{}`，`promptTemplate` 必须是可直接用于图片生成的完整中文提示词，不使用 `<...>` 占位符。
+- `direct-prompt` 分类用于直接提示词模板：`category` 固定为 `直接提示词`，`categorySlug` 固定为 `direct-prompt`，`jsonTemplate` 使用 `{}`，`promptTemplate` 必须是可直接用于图片生成的完整中文提示词，不使用 `<...>` 占位符；用户手工填写的非空变量会以“用户变量”段落追加到最终 prompt。
 - 外部提示词来源优先使用 GitHub 仓库并保留 `sourceUrl`，当前已集成来源包括 `YouMind-OpenLab/awesome-gpt-image-2`、`EvoLinkAI/awesome-gpt-image-2-prompts`、`freestylefly/awesome-gpt-image-2`。
 - 新增精选模板后必须更新 47 条精选数量和 4456 条聚合总量断言。
 

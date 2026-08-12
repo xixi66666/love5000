@@ -3,13 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#070604">
+    <meta name="theme-color" content="#182c41">
     <title>绘境 · Image Prompt Atelier</title>
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23070604'/%3E%3Cpath d='M32 8 56 32 32 56 8 32Z' fill='none' stroke='%23d6b36a' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='8' fill='%23f4d99b'/%3E%3C/svg%3E">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ffffff'/%3E%3Cpath d='M32 8 56 32 32 56 8 32Z' fill='none' stroke='%230f766e' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='8' fill='%2314b8a6'/%3E%3C/svg%3E">
     <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
 <div class="cinematic-backdrop" aria-hidden="true">
+    <video class="deep-woods-video" autoplay muted loop playsinline preload="auto">
+        <source src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260702_081042_df7202bf-bd80-4b2b-bbc6-1f09ba2870e9.mp4"
+                type="video/mp4">
+    </video>
+    <div class="deep-woods-shade"></div>
+    <div class="deep-woods-grain"></div>
     <div class="backdrop-orb backdrop-orb-one"></div>
     <div class="backdrop-orb backdrop-orb-two"></div>
     <div class="golden-trace golden-trace-one"></div>
@@ -42,86 +48,104 @@
             <div class="scene-scroll">
                 <div class="discover-layout">
                     <div class="scene-intro discover-intro">
-                        <p class="scene-kicker"><span>01</span> CURATE THE IDEA</p>
-                        <h1 id="discoverTitle" tabindex="-1">让灵感，先成为一件<span>值得凝视的作品。</span></h1>
-                        <p class="scene-lead">
-                            全部提示词已按 15 个一级功能与细分场景重新编排。先选择你的任务，再找到适合的创作骨架。
-                        </p>
-                        <div class="intro-actions">
-                            <button class="primary-action" type="button" data-scene-target="deconstruct">
-                                解构已选模板 <span aria-hidden="true">↗</span>
-                            </button>
-                            <a class="text-action" target="_blank" rel="noopener"
-                               href="https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#section-templates">
-                                查看数据出处
-                            </a>
+                        <div>
+                            <p class="scene-kicker"><span>01</span> DISCOVER PROMPTS</p>
+                            <h1 id="discoverTitle" tabindex="-1">更快找到，<span>真正能用的提示词。</span></h1>
+                            <p class="scene-lead">从 15 个一级功能和细分场景开始筛选，再按来源细化。选中模板后可继续解构、编辑与生成图片。</p>
                         </div>
-                        <div class="collection-meta">
-                            <div>
-                                <strong id="templateCount">0</strong>
-                                <span>件模板藏品</span>
-                            </div>
-                            <div>
-                                <strong>4</strong>
-                                <span>幕创作流程</span>
-                            </div>
+                        <div class="discover-summary" aria-label="模板库概览">
+                            <div><strong id="templateCount">0</strong><span>当前结果</span></div>
+                            <div><strong>15</strong><span>一级功能</span></div>
+                            <button class="primary-action" type="button" data-scene-target="deconstruct">
+                                查看已选模板 <span aria-hidden="true">→</span>
+                            </button>
                         </div>
                     </div>
 
                     <div class="gallery-panel">
-                        <div class="panel-heading">
-                            <div>
-                                <p class="panel-index">THE COLLECTION</p>
-                                <h2>灵感展廊</h2>
+                        <div class="browser-toolbar">
+                            <div class="search-row">
+                                <label class="sr-only" for="keywordInput">搜索提示词</label>
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.35-4.35m2.35-5.65a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z"/></svg>
+                                <input id="keywordInput" type="search" placeholder="搜索标题、标签、用途或场景" autocomplete="off">
                             </div>
-                            <span>选择一件模板开始</span>
-                        </div>
-                        <div class="search-row">
-                            <label class="sr-only" for="keywordInput">搜索模板</label>
-                            <span aria-hidden="true">⌕</span>
-                            <input id="keywordInput" type="search" placeholder="搜索模板、标签或场景" autocomplete="off">
-                        </div>
-                        <div id="libraryAlert" class="library-alert" role="alert" hidden></div>
-                        <div class="function-category-toolbar">
-                            <span class="filter-caption">一级功能</span>
-                            <label class="function-category-select" for="functionCategorySelect">
-                                <span class="sr-only">选择一级功能</span>
-                                <select id="functionCategorySelect" aria-label="选择一级功能">
-                                    <option value="">全部功能</option>
-                                </select>
-                            </label>
-                        </div>
-                        <div id="functionCategoryFilters" class="function-filters"
-                             aria-label="一级功能分类"></div>
-                        <div id="functionSceneFilters" class="function-scenes"
-                             aria-label="二级功能场景"></div>
-                        <div class="library-primary-filters">
                             <label class="image-only-control" for="imageOnlyToggle">
                                 <input id="imageOnlyToggle" type="checkbox">
-                                <span>仅图片相关</span>
+                                <span>仅看图片提示词</span>
                             </label>
+                            <button id="clearFiltersButton" class="clear-filters" type="button">清除筛选</button>
                         </div>
-                        <details id="advancedFilters" class="advanced-filters">
-                            <summary>高级筛选</summary>
-                            <div class="advanced-filter-content">
-                                <div>
-                                    <span class="filter-caption">模板来源</span>
-                                    <div id="sourceFilters" class="source-filters"
-                                         aria-label="提示词来源"></div>
+                        <div id="libraryAlert" class="library-alert" role="alert" hidden></div>
+
+                        <div class="prompt-browser">
+                            <aside class="filter-sidebar" aria-label="提示词筛选条件">
+                                <div class="filter-sidebar-heading">
+                                    <div>
+                                        <p class="panel-index">FILTERS</p>
+                                        <h2>筛选提示词</h2>
+                                    </div>
+                                    <span>先选任务，再选场景</span>
                                 </div>
-                                <div class="library-filters">
-                                    <label for="categorySelect">
-                                        <span>原始分类</span>
-                                        <select id="categorySelect">
-                                            <option value="">全部原始分类</option>
-                                        </select>
-                                    </label>
+
+                                <section class="filter-group" aria-labelledby="functionFilterTitle">
+                                    <div class="filter-group-title">
+                                        <strong id="functionFilterTitle">一级功能</strong>
+                                        <span>必选入口</span>
+                                    </div>
+                                    <div class="function-category-toolbar">
+                                        <label class="function-category-select" for="functionCategorySelect">
+                                            <span class="sr-only">选择一级功能</span>
+                                            <select id="functionCategorySelect" aria-label="选择一级功能">
+                                                <option value="">全部功能</option>
+                                            </select>
+                                        </label>
+                                    </div>
+                                    <div id="functionCategoryFilters" class="function-filters"
+                                         aria-label="一级功能分类"></div>
+                                </section>
+
+                                <section class="filter-group scene-filter-group" aria-labelledby="sceneFilterTitle">
+                                    <div class="filter-group-title">
+                                        <strong id="sceneFilterTitle">二级场景</strong>
+                                        <span>随功能变化</span>
+                                    </div>
+                                    <div id="functionSceneFilters" class="function-scenes"
+                                         aria-label="二级功能场景"></div>
+                                    <p class="scene-filter-empty">选择一级功能后显示对应场景</p>
+                                </section>
+
+                                <details id="advancedFilters" class="advanced-filters">
+                                    <summary>更多筛选</summary>
+                                    <div class="advanced-filter-content">
+                                        <div>
+                                            <span class="filter-caption">模板来源</span>
+                                            <div id="sourceFilters" class="source-filters"
+                                                 aria-label="提示词来源"></div>
+                                        </div>
+                                        <div class="library-filters">
+                                            <label for="categorySelect">
+                                                <span>原始分类</span>
+                                                <select id="categorySelect">
+                                                    <option value="">全部原始分类</option>
+                                                </select>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </details>
+                            </aside>
+
+                            <section class="results-panel" aria-labelledby="resultTitle">
+                                <div class="panel-heading">
+                                    <div>
+                                        <p class="panel-index">PROMPT RESULTS</p>
+                                        <h2 id="resultTitle">提示词结果</h2>
+                                    </div>
+                                    <div id="listStatus" class="list-status" role="status"></div>
                                 </div>
-                            </div>
-                        </details>
-                        <div id="listStatus" class="list-status" role="status"></div>
-                        <div class="template-list" id="templateList" aria-live="polite"></div>
-                        <button id="loadMoreButton" class="load-more" type="button" hidden>加载更多</button>
+                                <div class="template-list" id="templateList" aria-live="polite"></div>
+                                <button id="loadMoreButton" class="load-more" type="button" hidden>加载更多提示词</button>
+                            </section>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -151,9 +175,13 @@
                         <section class="field-block">
                             <div class="field-title">
                                 <span>STRUCTURED BLUEPRINT</span>
-                                <strong>JSON 模板</strong>
+                                <strong>JSON 模板（可编辑）</strong>
                             </div>
-                            <pre id="jsonTemplate" class="code-block">{}</pre>
+                            <textarea id="jsonTemplate" class="code-block" spellcheck="false"
+                                      aria-describedby="jsonTemplateStatus">{}</textarea>
+                            <div id="jsonTemplateStatus" class="editor-status" role="status">
+                                可直接修改；进入 Prompt 编导台时会同步到变量剧本。
+                            </div>
                         </section>
                         <section class="field-block">
                             <div class="field-title">
@@ -355,6 +383,10 @@
     </main>
 
     <nav class="scene-dock" aria-label="工作台场景">
+        <div class="dock-rail-heading" aria-hidden="true">
+            <small>WORKFLOW</small>
+            <strong>创作流程</strong>
+        </div>
         <div class="dock-progress" aria-hidden="true"><span id="dockProgressBar"></span></div>
         <div class="dock-steps" role="tablist" aria-label="创作流程">
             <button class="dock-step is-active" type="button" role="tab"

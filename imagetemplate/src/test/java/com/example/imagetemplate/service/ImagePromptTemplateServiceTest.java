@@ -219,6 +219,25 @@ class ImagePromptTemplateServiceTest {
     }
 
     @Test
+    void directTemplateAppendsManuallyEnteredVariables() {
+        ImageTemplateQuery query = new ImageTemplateQuery();
+        query.setSource("prompt123");
+        ImagePromptTemplate template =
+                imagePromptTemplateService.findById(imagePromptTemplateService.search(query)
+                        .getTemplates().get(0).getId());
+        PromptRenderRequest request = new PromptRenderRequest();
+        Map<String, Object> variables = new LinkedHashMap<String, Object>();
+        variables.put("主体", "月光下的白色小屋");
+        variables.put("画幅", "竖版 4:5");
+        request.setVariables(variables);
+
+        assertThat(imagePromptTemplateService.renderPrompt(template.getId(), request))
+                .contains("用户变量：")
+                .contains("主体: 月光下的白色小屋")
+                .contains("画幅: 竖版 4:5");
+    }
+
+    @Test
     void rejectsInvalidPagination() {
         ImageTemplateQuery invalidPage = new ImageTemplateQuery();
         invalidPage.setPage(0);
