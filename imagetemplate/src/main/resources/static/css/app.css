@@ -1696,6 +1696,7 @@ textarea.code-block.is-invalid + .editor-status {
     width: 2px;
     height: auto;
     overflow: hidden;
+    display: none;
     background: rgba(255, 255, 255, .16);
 }
 
@@ -1733,19 +1734,34 @@ textarea.code-block.is-invalid + .editor-status {
     transition: color .25s ease, background-color .25s ease;
 }
 
+.dock-step::before {
+    content: "";
+    position: absolute;
+    top: 52%;
+    bottom: -52%;
+    left: 20px;
+    width: 1px;
+    background: rgba(255, 255, 255, .18);
+    transform: translateY(2px);
+}
+
+.dock-step:last-child::before {
+    display: none;
+}
+
 .dock-step span {
     display: grid;
     flex: 0 0 auto;
     place-items: center;
     width: 24px;
     height: 24px;
-    border: 1px solid rgba(255, 255, 255, .16);
+    border: 1px solid rgba(212, 162, 79, .5);
     border-radius: 50%;
-    color: rgba(255, 255, 255, .6);
+    color: var(--tiger);
     background: transparent;
     font-family: Georgia, serif;
     font-size: 13px;
-    transition: color .25s ease;
+    transition: color .25s ease, background-color .25s ease, border-color .25s ease, box-shadow .25s ease;
 }
 
 .dock-step strong {
@@ -1759,14 +1775,20 @@ textarea.code-block.is-invalid + .editor-status {
 .dock-step:hover,
 .dock-step.is-active {
     color: #ffffff;
-    background: rgba(22, 24, 28, .88);
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, .35), 0 8px 20px rgba(0, 0, 0, .35);
+    background: transparent;
 }
 
+.dock-step:hover span,
 .dock-step.is-active span {
-    border-color: rgba(255, 255, 255, .34);
+    border-color: var(--tiger);
     color: #ffffff;
-    background: transparent;
+    background: var(--tiger);
+    box-shadow: 0 0 12px rgba(212, 162, 79, .45);
+}
+
+.dock-step.is-active::before,
+.dock-step:hover::before {
+    background: rgba(212, 162, 79, .55);
 }
 
 .dock-arrows {
@@ -2319,12 +2341,11 @@ input::placeholder {
 .dock-step:hover,
 .dock-step.is-active {
     color: #ffffff;
-    background: rgba(22, 24, 28, .88);
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, .35);
+    background: transparent;
 }
 
 .dock-step span {
-    color: rgba(255, 255, 255, .7);
+    color: var(--tiger);
 }
 
 .dock-arrows button {
@@ -2503,12 +2524,17 @@ input::placeholder {
     }
 
     .dock-progress {
+        display: block;
         top: 0;
         right: 22px;
         bottom: auto;
         left: 22px;
         width: auto;
         height: 1px;
+    }
+
+    .dock-step::before {
+        display: none;
     }
 
     .dock-progress span {
