@@ -1661,31 +1661,70 @@ textarea.code-block.is-invalid + .editor-status {
     flex-direction: column;
     align-items: stretch;
     overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, .14);
-    border-radius: 28px;
-    background: transparent;
+    border: 1px solid rgba(255, 255, 255, .16);
+    border-radius: 22px;
+    background-image:
+        linear-gradient(180deg, rgba(212, 162, 79, .8), rgba(212, 162, 79, .8)),
+        linear-gradient(90deg, rgba(212, 162, 79, .8), rgba(212, 162, 79, .8)),
+        linear-gradient(180deg, rgba(212, 162, 79, .8), rgba(212, 162, 79, .8)),
+        linear-gradient(270deg, rgba(212, 162, 79, .8), rgba(212, 162, 79, .8)),
+        linear-gradient(0deg, rgba(212, 162, 79, .8), rgba(212, 162, 79, .8)),
+        linear-gradient(90deg, rgba(212, 162, 79, .8), rgba(212, 162, 79, .8)),
+        linear-gradient(0deg, rgba(212, 162, 79, .8), rgba(212, 162, 79, .8)),
+        linear-gradient(270deg, rgba(212, 162, 79, .8), rgba(212, 162, 79, .8));
+    background-position:
+        14px 14px, 14px 14px,
+        calc(100% - 14px) 14px, calc(100% - 14px) 14px,
+        14px calc(100% - 14px), 14px calc(100% - 14px),
+        calc(100% - 14px) calc(100% - 14px), calc(100% - 14px) calc(100% - 14px);
+    background-size:
+        1px 13px, 13px 1px,
+        1px 13px, 13px 1px,
+        1px 13px, 13px 1px,
+        1px 13px, 13px 1px;
+    background-repeat: no-repeat;
     box-shadow: 0 18px 46px rgba(0, 0, 0, .28), inset 0 1px rgba(255, 255, 255, .08);
     backdrop-filter: blur(4px) saturate(1.04);
     -webkit-backdrop-filter: blur(4px) saturate(1.04);
     transform: translateY(-50%);
 }
 
+.scene-dock::before {
+    content: "";
+    position: absolute;
+    top: -14%;
+    right: 10px;
+    left: 10px;
+    height: 26px;
+    pointer-events: none;
+    background: linear-gradient(180deg, transparent, rgba(212, 162, 79, .16), transparent);
+    animation: dock-scan 7s linear infinite;
+    will-change: top;
+}
+
 .dock-rail-heading {
     display: grid;
-    gap: 2px;
+    gap: 3px;
     padding: 2px 10px 12px;
 }
 
 .dock-rail-heading small {
     color: var(--muted);
-    font-size: 8px;
-    font-weight: 800;
-    letter-spacing: .18em;
+    font-family: Consolas, "SFMono-Regular", monospace;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: .22em;
+}
+
+.dock-rail-heading small::before {
+    content: "// ";
+    color: var(--tiger);
 }
 
 .dock-rail-heading strong {
     color: var(--tiger);
     font-size: 12px;
+    letter-spacing: .06em;
 }
 
 .dock-progress {
@@ -1751,6 +1790,7 @@ textarea.code-block.is-invalid + .editor-status {
 
 .dock-step span {
     display: grid;
+    position: relative;
     flex: 0 0 auto;
     place-items: center;
     width: 24px;
@@ -1762,6 +1802,22 @@ textarea.code-block.is-invalid + .editor-status {
     font-family: Georgia, serif;
     font-size: 13px;
     transition: color .25s ease, background-color .25s ease, border-color .25s ease, box-shadow .25s ease;
+}
+
+.dock-step span::after {
+    content: "";
+    position: absolute;
+    inset: -5px;
+    border: 1px dashed rgba(212, 162, 79, .35);
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity .25s ease;
+    animation: dock-ring-spin 12s linear infinite;
+}
+
+.dock-step:hover span::after,
+.dock-step.is-active span::after {
+    opacity: 1;
 }
 
 .dock-step strong {
@@ -1783,7 +1839,7 @@ textarea.code-block.is-invalid + .editor-status {
     border-color: var(--tiger);
     color: #ffffff;
     background: var(--tiger);
-    box-shadow: 0 0 12px rgba(212, 162, 79, .45);
+    box-shadow: 0 0 10px rgba(212, 162, 79, .55), 0 0 22px rgba(212, 162, 79, .25);
 }
 
 .dock-step.is-active::before,
@@ -2330,7 +2386,6 @@ input::placeholder {
 
 .scene-dock {
     border-color: rgba(255, 255, 255, .14);
-    background: transparent;
     box-shadow: 0 16px 38px rgba(0, 0, 0, .28);
 }
 
@@ -2359,6 +2414,21 @@ input::placeholder {
     }
     to {
         transform: translate3d(11%, 10%, 0) scale(1.12) rotate(7deg);
+    }
+}
+
+@keyframes dock-scan {
+    0% {
+        top: -14%;
+    }
+    100% {
+        top: 114%;
+    }
+}
+
+@keyframes dock-ring-spin {
+    to {
+        transform: rotate(360deg);
     }
 }
 
@@ -2534,6 +2604,10 @@ input::placeholder {
     }
 
     .dock-step::before {
+        display: none;
+    }
+
+    .scene-dock::before {
         display: none;
     }
 
