@@ -16,6 +16,7 @@ class ImageTemplateHomepageStaticAssetsTest {
 
         assertThat(html)
                 .contains("rel=\"icon\"")
+                .contains("src=\"js/app.js\"")
                 .contains("data-scene=\"discover\"")
                 .contains("data-scene=\"deconstruct\"")
                 .contains("data-scene=\"direct\"")
@@ -45,7 +46,7 @@ class ImageTemplateHomepageStaticAssetsTest {
                 .contains("<details id=\"advancedFilters\"")
                 .contains("<summary>更多筛选</summary>")
                 .contains("class=\"deep-woods-video\"")
-                .contains("hf_20260702_081042_df7202bf-bd80-4b2b-bbc6-1f09ba2870e9.mp4")
+                .contains("media/moon-wallpaper.mp4")
                 .contains("<textarea id=\"jsonTemplate\"")
                 .contains("15 个一级功能")
                 .contains("class=\"filter-sidebar\"")
@@ -58,6 +59,40 @@ class ImageTemplateHomepageStaticAssetsTest {
     }
 
     @Test
+    void discoverScenePrioritizesTheTemplateSelectionArea() throws Exception {
+        String html = read("static/index.html");
+        String css = read("static/css/app.css");
+
+        assertThat(html)
+                .contains("href=\"css/app.css\"")
+                .contains("class=\"discover-summary\"")
+                .contains("class=\"primary-action\"");
+        assertThat(css)
+                .contains("grid-template-columns: minmax(260px, 310px) minmax(0, 1fr);")
+                .contains("grid-template-columns: repeat(2, minmax(0, 1fr));")
+                .contains("overflow-x: auto;")
+                .contains("min-height: 0;");
+    }
+
+    @Test
+    void discoverSceneUsesMoonNightVisualSystem() throws Exception {
+        String css = read("static/css/app.css");
+        String normalizedCss = css.replace("\r\n", "\n");
+
+        assertThat(css)
+                .contains("--page-bg: #0e1418;")
+                .contains("--ink: #e6edf5;")
+                .contains("--muted: #8fa3b5;")
+                .contains("--gold: #9cc0e8;")
+                .contains("--gold-bright: #cfe3f8;")
+                .contains(".cinematic-backdrop")
+                .contains(".deep-woods-video")
+                .contains("@keyframes aurora-breathe")
+                .contains("backdrop-filter: blur(24px) saturate(1.35)")
+                .contains(".scene.is-active");
+    }
+
+    @Test
     void cinematicStylesAndSceneControllerHaveAccessibilityFallbacks() throws Exception {
         String css = read("static/css/app.css");
         String js = read("static/js/app.js");
@@ -65,8 +100,8 @@ class ImageTemplateHomepageStaticAssetsTest {
         assertThat(css)
                 .contains("--gold:")
                 .contains("--deep-woods-ink: #182c41;")
-                .contains("--ink: #080d0b;")
-                .contains("--page-bg: #dfe7dd;")
+                .contains("--ink: #e6edf5;")
+                .contains("--page-bg: #0e1418;")
                 .contains("--minimum-target: 44px;")
                 .contains(".cinematic-backdrop")
                 .contains(".deep-woods-video")
@@ -76,15 +111,14 @@ class ImageTemplateHomepageStaticAssetsTest {
                 .contains(".scene.is-active")
                 .contains("--workflow-rail-width: 118px;")
                 .contains("grid-template-rows: repeat(4, 56px);")
-                .contains("background: rgba(244, 250, 244, .03);")
-                .contains("background: rgba(239, 247, 239, .06);")
+                .contains("background: rgba(190, 215, 235, .03);")
+                .contains("background: rgba(190, 215, 235, .06);")
                 .contains("backdrop-filter: blur(1px) saturate(1.02)")
                 .contains(".library-alert")
                 .contains(".function-category-toolbar")
                 .contains(".function-category-select")
                 .contains(".function-filters")
                 .contains(".function-scenes")
-                .contains("grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));")
                 .contains("@media (min-width: 1320px)")
                 .contains("width: min(1900px, 100%);")
                 .contains("height: clamp(600px, 74vh, 860px);")
@@ -118,6 +152,10 @@ class ImageTemplateHomepageStaticAssetsTest {
                 .contains("data-function-scene")
                 .contains("state.activeFunctionCategory = '';")
                 .contains("state.activeFunctionScene = '';");
+        int firstOptionalSourceGuard = js.indexOf("if (elements.sourceFilters)");
+        assertThat(firstOptionalSourceGuard).isGreaterThan(-1);
+        assertThat(js.lastIndexOf("if (elements.sourceFilters)"))
+                .isGreaterThan(firstOptionalSourceGuard);
     }
 
     private String read(String path) throws Exception {
