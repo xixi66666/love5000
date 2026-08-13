@@ -181,7 +181,7 @@ imagetemplate/
 - `service/OpenAiImageGenerationService.java`：读取 OpenAI 配置，调用 `/images/generations`，解析 `b64_json`。
 - `model/ImagePromptTemplate.java`：模板模型，对应 JSON 中的 `id`、`title`、`categorySlug`、`jsonTemplate`、`promptTemplate` 等字段。
 - `dto/*`：前后端请求和响应对象。
-- `static/index.html`、`static/css/app.css`、`static/js/app.js`：黑色调 AI 创作风格的四场景单视口前端，不使用 npm 构建；背景使用本地 `media/moon-wallpaper.mp4` 月亮视频，页面底色为黑色、视频保持原有色调，工作区以视频可见性优先：外层约 6% 透通膜并仅做约 1px 轻微模糊，面板与卡片使用白色透明磨砂玻璃（约 40%-60% 不透明）不遮挡背景，搜索与 Prompt 输入保留较高白色底色以确保可读性；信息文字、说明、统计和标签使用深灰层级，主按钮为深灰渐变保留白字，交互状态使用白色磨砂增强，错误态使用浅红玻璃；并保留 `prefers-reduced-motion` 装饰动画降级；流程导航在桌面端使用页面左侧居中的紧凑悬浮步骤器，900px 以下恢复为底部横向排列；灵感大厅顶部常驻搜索、仅图片开关和清除筛选，内容区左侧集中展示一级功能、二级场景及默认收起的来源/原始分类，右侧为结果网格，同时保留 300ms 防抖、加载更多和详情按需加载；模板解构 JSON 使用可编辑文本域，修改后进入 Prompt 编导台时校验并同步，变量剧本对所有模板类型保持可编辑；移动端改为单列自然滚动；流程导航切换场景时不得清空模板、Prompt、生成参数或结果状态。
+- `static/index.html`、`static/css/app.css`、`static/js/app.js`：黑色调 AI 创作风格的四场景单视口前端，不使用 npm 构建；背景使用本地 `media/moon-wallpaper.mp4` 月亮视频，页面底色为黑色、视频保持原有色调，工作区以视频可见性优先：外层约 6% 雾白膜并仅做约 1px 轻微模糊，面板与卡片使用白色透明磨砂玻璃不遮挡背景，搜索与 Prompt 输入保留较高白色底色以确保可读性；信息文字、说明、统计和标签使用白色/浅灰层级，主按钮为深灰渐变保留白字，交互状态使用白色磨砂增强，错误态使用浅红玻璃；并保留 `prefers-reduced-motion` 装饰动画降级；流程导航在桌面端使用页面左侧居中的紧凑悬浮步骤器，900px 以下恢复为底部横向排列；灵感大厅顶部常驻搜索、仅图片开关和清除筛选，内容区左侧集中展示一级功能、二级场景及默认收起的来源/原始分类，右侧为结果网格，同时保留 300ms 防抖、加载更多和详情按需加载；模板解构 JSON 使用可编辑文本域，修改后进入 Prompt 编导台时校验并同步，变量剧本对所有模板类型保持可编辑；移动端改为单列自然滚动；流程导航切换场景时不得清空模板、Prompt、生成参数或结果状态。
 - `templates/image-prompt-templates.json`：精选库数据源。
 - `templates/prompt-console/prompt-library.json`：构建产物中的聚合大库，不在 imagetemplate 源码中维护。
 

@@ -332,7 +332,7 @@ website/video/
 - `imagetemplate/service`：精选模板加载、大库加载适配、两级功能分类、聚合分页、prompt 渲染和 OpenAI 图片生成服务；功能规则集中在 `TemplateFunctionClassifier`，不扫描完整 Prompt。
 - `imagetemplate/src/main/resources/templates/image-prompt-templates.json`：47 条精选图片模板数据源。
 - `website/src/main/resources/static/prompt-console/data/prompt-library.json`：4409 条 Prompt Console 大库唯一源码；Maven 构建 imagetemplate 时复制到 classpath 的 `templates/prompt-console/prompt-library.json`。
-- `imagetemplate/src/main/resources/static`：图片模板库黑色调 AI 创作单页前端，背景使用本地 `media/moon-wallpaper.mp4` 月亮视频，页面底色为黑色、视频保持原有色调；工作区以视频可见性优先：外层约 6% 透通膜、约 1px 轻微模糊，面板与卡片使用白色透明磨砂玻璃（约 40%-60% 不透明）不遮挡背景，输入控件保留较高白色底色；信息文字、说明、统计和标签统一使用深灰层级，主按钮为深灰渐变保留白字；并保留 `prefers-reduced-motion` 装饰动画降级；按“灵感大厅 → 模板解构 → Prompt 编导台 → 图片生成舱”组织，桌面端使用页面左侧居中的紧凑悬浮步骤器，900px 以下恢复为底部横向流程；灵感大厅顶部常驻搜索、仅图片开关和清除筛选，内容区左侧集中展示一级功能、二级场景及默认收起的来源/原始分类，右侧为默认 48 条的结果网格，支持搜索防抖和加载更多；模板解构 JSON 与编导台变量均允许手工编辑，JSON 在进入编导台前校验并同步；流程导航只切换场景、不清空用户状态。
+- `imagetemplate/src/main/resources/static`：图片模板库黑色调 AI 创作单页前端，背景使用本地 `media/moon-wallpaper.mp4` 月亮视频，页面底色为黑色、视频保持原有色调；工作区以视频可见性优先：外层约 6% 雾白膜、约 1px 轻微模糊，面板与卡片使用白色透明磨砂玻璃不遮挡背景，输入控件保留较高白色底色；信息文字、说明、统计和标签统一使用白色/浅灰层级，主按钮为深灰渐变保留白字；并保留 `prefers-reduced-motion` 装饰动画降级；按“灵感大厅 → 模板解构 → Prompt 编导台 → 图片生成舱”组织，桌面端使用页面左侧居中的紧凑悬浮步骤器，900px 以下恢复为底部横向流程；灵感大厅顶部常驻搜索、仅图片开关和清除筛选，内容区左侧集中展示一级功能、二级场景及默认收起的来源/原始分类，右侧为默认 48 条的结果网格，支持搜索防抖和加载更多；模板解构 JSON 与编导台变量均允许手工编辑，JSON 在进入编导台前校验并同步；流程导航只切换场景、不清空用户状态。
 - `guitar/src/main/java/com/example/guitar/controller`：Guitar 基础 HTTP 接口，当前提供 `/api/health`。
 - `guitar/src/main/java/com/example/guitar/auth`：Guitar 手机号注册登录、Session、CSRF 和 API 权限拦截能力；数据库写入由独立事务服务提交成功后，认证服务才轮换 Session。
 - `guitar/src/main/java/com/example/guitar/user`：Guitar 用户模型和 MyBatis DAO，SQL 位于 `guitar/src/main/resources/mapper/user`。
