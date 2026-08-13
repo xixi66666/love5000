@@ -10,11 +10,12 @@
     --gold-deep: rgba(255, 255, 255, .42);
     --ivory: #f2f5f8;
     --muted: rgba(255, 255, 255, .68);
-    --line: rgba(255, 255, 255, .14);
-    --line-strong: rgba(255, 255, 255, .35);
+    --line: rgba(255, 255, 255, .24);
+    --line-strong: rgba(255, 255, 255, .45);
     --page-bg: #000000;
     --soft-bg: rgba(255, 255, 255, .05);
     --accent: #e8eef6;
+    --tiger: #d4a24f;
     --danger: #f87171;
     --success: #4ade80;
     --warning: #fbbf24;
@@ -243,7 +244,7 @@ button:disabled {
     height: var(--topbar-height);
     padding: 0 clamp(20px, 3vw, 52px);
     border-bottom: 1px solid var(--line);
-    background: rgba(255, 255, 255, .08);
+    background: transparent;
     box-shadow: 0 4px 24px rgba(0, 0, 0, .12);
     backdrop-filter: blur(24px) saturate(1.25);
     -webkit-backdrop-filter: blur(24px) saturate(1.25);
@@ -325,7 +326,7 @@ button:disabled {
     border: 1px solid var(--line);
     border-radius: 999px;
     color: var(--ivory);
-    background: rgba(255, 255, 255, .1);
+    background: transparent;
     text-decoration: none;
     font-size: 11px;
     font-weight: 700;
@@ -345,7 +346,7 @@ button:disabled {
 .source-link:hover {
     border-color: var(--line-strong);
     color: var(--gold-bright);
-    background: rgba(255, 255, 255, .18);
+    background: transparent;
 }
 
 .source-link-muted {
@@ -493,7 +494,7 @@ button:disabled {
     padding: 10px;
     border: 1px solid var(--line);
     border-radius: 16px;
-    background: rgba(255, 255, 255, .08);
+    background: transparent;
     box-shadow: 0 12px 30px rgba(0, 0, 0, .15);
 }
 
@@ -576,14 +577,14 @@ button:disabled {
 .ghost-action,
 .copy-button {
     color: var(--gold-bright);
-    background: rgba(255, 255, 255, .1);
+    background: transparent;
     box-shadow: none;
 }
 
 .ghost-action:hover,
 .copy-button:hover {
     border-color: var(--gold-bright);
-    background: rgba(255, 255, 255, .18);
+    background: transparent;
 }
 
 .text-action {
@@ -649,9 +650,7 @@ button:disabled {
 .prompt-builder,
 .generation-panel {
     border: 1px solid var(--line);
-    background:
-        linear-gradient(145deg, rgba(255, 255, 255, .045), transparent 34%),
-        var(--surface);
+    background: transparent;
     box-shadow:
         0 26px 80px rgba(0, 0, 0, .25),
         inset 0 1px rgba(255, 255, 255, .05);
@@ -754,7 +753,7 @@ input::placeholder {
     border: 1px solid var(--line);
     outline: 0;
     color: var(--ivory);
-    background: rgba(255, 255, 255, .28);
+    background: transparent;
     font-size: 12px;
 }
 
@@ -786,7 +785,7 @@ input::placeholder {
     border: 1px solid transparent;
     border-radius: 999px;
     color: var(--muted);
-    background: rgba(255, 255, 255, .06);
+    background: transparent;
     white-space: nowrap;
     transition: color .2s ease, border-color .2s ease, background-color .2s ease;
 }
@@ -813,7 +812,7 @@ input::placeholder {
 .function-scenes button.active {
     border-color: var(--line-strong);
     color: #ffffff;
-    background: rgba(255, 255, 255, .26);
+    background: transparent;
 }
 
 .library-primary-filters {
@@ -882,7 +881,7 @@ input::placeholder {
     border: 1px solid transparent;
     border-radius: 999px;
     color: var(--muted);
-    background: rgba(255, 255, 255, .06);
+    background: transparent;
     font-size: 11px;
     transition: color .2s ease, border-color .2s ease, background-color .2s ease;
 }
@@ -891,7 +890,7 @@ input::placeholder {
 .source-filters button.active {
     border-color: var(--line-strong);
     color: #ffffff;
-    background: rgba(255, 255, 255, .26);
+    background: transparent;
 }
 
 .library-filters {
@@ -920,7 +919,7 @@ input::placeholder {
     border-radius: 0;
     outline: 0;
     color: var(--ivory);
-    background: rgba(255, 255, 255, .28);
+    background: transparent;
     font-size: 11px;
 }
 
@@ -932,7 +931,7 @@ input::placeholder {
     padding: 0 12px;
     border: 1px solid var(--line);
     color: var(--muted);
-    background: rgba(255, 255, 255, .06);
+    background: transparent;
     font-size: 11px;
     cursor: pointer;
 }
@@ -940,7 +939,7 @@ input::placeholder {
 .image-only-control:has(input:checked) {
     border-color: var(--line-strong);
     color: var(--gold-bright);
-    background: rgba(255, 255, 255, .16);
+    background: transparent;
 }
 
 .image-only-control input {
@@ -971,7 +970,7 @@ input::placeholder {
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, .14);
     color: var(--ivory);
-    background: rgba(255, 255, 255, .1);
+    background: transparent;
     text-align: left;
     transition:
         transform .35s var(--ease-cinematic),
@@ -1040,7 +1039,7 @@ input::placeholder {
     padding: 0 16px;
     border: 1px solid var(--line);
     color: var(--gold-bright);
-    background: rgba(255, 255, 255, .1);
+    background: transparent;
     font-size: 11px;
 }
 
@@ -1074,7 +1073,7 @@ input::placeholder {
     border: 1px solid rgba(255, 255, 255, .3);
     border-radius: 999px;
     color: #ffffff;
-    background: rgba(255, 255, 255, .16);
+    background: transparent;
     font-size: 8px;
     line-height: 1;
 }
@@ -1121,7 +1120,7 @@ input::placeholder {
     border: 1px solid rgba(255, 255, 255, .3);
     border-radius: 999px;
     color: #ffffff;
-    background: rgba(255, 255, 255, .16);
+    background: transparent;
     font-size: 9px;
 }
 
@@ -1130,8 +1129,8 @@ input::placeholder {
     min-height: var(--minimum-target);
     margin-top: 10px;
     border: 1px solid var(--line);
-    color: var(--ink);
-    background: rgba(255, 255, 255, .06);
+    color: var(--tiger);
+    background: transparent;
     box-shadow: inset 0 1px rgba(255, 255, 255, .08);
     backdrop-filter: blur(1px) saturate(1.02);
     -webkit-backdrop-filter: blur(1px) saturate(1.02);
@@ -1143,7 +1142,7 @@ input::placeholder {
 
 .load-more:hover {
     border-color: var(--line-strong);
-    background: rgba(255, 255, 255, .14);
+    background: transparent;
 }
 
 .scene-heading-row {
@@ -1208,7 +1207,7 @@ input::placeholder {
     min-width: 0;
     overflow: hidden;
     border: 1px solid var(--line);
-    background: rgba(255, 255, 255, .06);
+    background: transparent;
 }
 
 .field-title {
@@ -1308,7 +1307,7 @@ textarea.code-block.is-invalid + .editor-status {
 .prompt-output {
     padding: 18px;
     border: 1px solid var(--line);
-    background: rgba(255, 255, 255, .06);
+    background: transparent;
 }
 
 .prompt-builder label,
@@ -1339,7 +1338,7 @@ textarea.code-block.is-invalid + .editor-status {
     border-radius: 0;
     outline: 0;
     color: var(--ivory);
-    background: rgba(255, 255, 255, .3);
+    background: transparent;
     transition: border-color .2s ease, box-shadow .2s ease;
 }
 
@@ -1390,9 +1389,7 @@ textarea.code-block.is-invalid + .editor-status {
 #renderedPrompt {
     min-height: 318px;
     color: #ffffff;
-    background:
-        linear-gradient(145deg, rgba(255, 255, 255, .04), transparent 42%),
-        rgba(255, 255, 255, .3);
+    background: transparent;
 }
 
 .status-line {
@@ -1417,7 +1414,7 @@ textarea.code-block.is-invalid + .editor-status {
     min-width: 0;
     padding: clamp(18px, 2.2vw, 28px);
     border: 1px solid var(--line);
-    background: rgba(255, 255, 255, .06);
+    background: transparent;
 }
 
 .generation-controls .builder-head {
@@ -1456,7 +1453,7 @@ textarea.code-block.is-invalid + .editor-status {
     margin-top: 18px;
     padding: 14px;
     border: 1px solid var(--line);
-    background: rgba(255, 255, 255, .04);
+    background: transparent;
 }
 
 .reference-upload button {
@@ -1484,7 +1481,7 @@ textarea.code-block.is-invalid + .editor-status {
     padding: 7px 10px;
     border: 1px solid var(--line);
     color: var(--ivory);
-    background: rgba(255, 255, 255, .1);
+    background: transparent;
 }
 
 .reference-preview {
@@ -1505,7 +1502,7 @@ textarea.code-block.is-invalid + .editor-status {
     padding: 6px 8px;
     border: 1px solid var(--line);
     color: var(--ivory);
-    background: rgba(255, 255, 255, .07);
+    background: transparent;
 }
 
 .reference-chip span {
@@ -1666,9 +1663,7 @@ textarea.code-block.is-invalid + .editor-status {
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, .14);
     border-radius: 28px;
-    background:
-        linear-gradient(110deg, rgba(255, 255, 255, .1), transparent 32%),
-        rgba(255, 255, 255, .08);
+    background: transparent;
     box-shadow: 0 18px 46px rgba(0, 0, 0, .28), inset 0 1px rgba(255, 255, 255, .08);
     backdrop-filter: blur(4px) saturate(1.04);
     -webkit-backdrop-filter: blur(4px) saturate(1.04);
@@ -1689,7 +1684,7 @@ textarea.code-block.is-invalid + .editor-status {
 }
 
 .dock-rail-heading strong {
-    color: var(--ink);
+    color: var(--tiger);
     font-size: 12px;
 }
 
@@ -1747,7 +1742,7 @@ textarea.code-block.is-invalid + .editor-status {
     border: 1px solid rgba(255, 255, 255, .16);
     border-radius: 50%;
     color: rgba(255, 255, 255, .6);
-    background: rgba(255, 255, 255, .08);
+    background: transparent;
     font-family: Georgia, serif;
     font-size: 13px;
     transition: color .25s ease;
@@ -1771,7 +1766,7 @@ textarea.code-block.is-invalid + .editor-status {
 .dock-step.is-active span {
     border-color: rgba(255, 255, 255, .34);
     color: #ffffff;
-    background: rgba(255, 255, 255, .12);
+    background: transparent;
 }
 
 .dock-arrows {
@@ -1789,14 +1784,14 @@ textarea.code-block.is-invalid + .editor-status {
     border: 1px solid var(--line);
     border-radius: 50%;
     color: var(--gold-bright);
-    background: rgba(255, 255, 255, .08);
+    background: transparent;
     transition: border-color .2s ease, background-color .2s ease, transform .2s ease;
 }
 
 .dock-arrows button:hover:not(:disabled) {
     transform: translateY(-1px);
     border-color: var(--line-strong);
-    background: rgba(255, 255, 255, .16);
+    background: transparent;
 }
 
 .dock-arrows button:disabled {
@@ -1821,7 +1816,7 @@ select:focus-visible,
 .generation-panel {
     border-color: var(--line);
     border-radius: 20px;
-    background: var(--surface);
+    background: transparent;
     box-shadow: 0 18px 46px rgba(0, 0, 0, .2), inset 0 1px rgba(255, 255, 255, .08);
     backdrop-filter: blur(1px) saturate(1.02);
     -webkit-backdrop-filter: blur(1px) saturate(1.02);
@@ -1848,7 +1843,7 @@ select:focus-visible,
     flex: 0 0 auto;
     padding: 16px;
     border-bottom: 1px solid var(--line);
-    background: rgba(255, 255, 255, .06);
+    background: transparent;
 }
 
 .search-row {
@@ -1857,9 +1852,7 @@ select:focus-visible,
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, .3);
     border-radius: 16px;
-    background:
-        linear-gradient(115deg, rgba(255, 255, 255, .28), rgba(255, 255, 255, .14)),
-        rgba(255, 255, 255, .22);
+    background: transparent;
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, .12),
         0 10px 30px rgba(0, 0, 0, .2);
@@ -1875,7 +1868,7 @@ select:focus-visible,
     z-index: -1;
     border-radius: inherit;
     opacity: .56;
-    background: linear-gradient(105deg, rgba(255, 255, 255, .12), transparent 38%, rgba(255, 255, 255, .06));
+    background: transparent;
 }
 
 .search-row svg {
@@ -1904,7 +1897,7 @@ input::placeholder {
 .search-row:focus-within {
     transform: translateY(-1px);
     border-color: rgba(255, 255, 255, .5);
-    background: rgba(255, 255, 255, .32);
+    background: transparent;
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, .15),
         0 0 0 4px rgba(255, 255, 255, .2),
@@ -1922,7 +1915,7 @@ input::placeholder {
     border: 1px solid var(--line);
     border-radius: 12px;
     color: var(--ink-soft);
-    background: rgba(255, 255, 255, .08);
+    background: transparent;
     font-size: 12px;
     font-weight: 700;
     white-space: nowrap;
@@ -1933,7 +1926,7 @@ input::placeholder {
 .image-only-control:has(input:checked) {
     border-color: var(--line-strong);
     color: var(--gold-deep);
-    background: rgba(255, 255, 255, .18);
+    background: transparent;
 }
 
 .image-only-control input {
@@ -1972,7 +1965,7 @@ input::placeholder {
     padding: 18px 16px;
     overflow-y: auto;
     border-right: 1px solid var(--line);
-    background: rgba(255, 255, 255, .05);
+    background: transparent;
 }
 
 .filter-sidebar-heading,
@@ -2037,7 +2030,7 @@ input::placeholder {
     border: 1px solid transparent;
     border-radius: 9px;
     color: rgba(255, 255, 255, .75);
-    background: rgba(255, 255, 255, .07);
+    background: transparent;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1);
     text-align: left;
 }
@@ -2073,7 +2066,7 @@ input::placeholder {
 .source-filters button.active {
     border-color: var(--line-strong);
     color: #ffffff;
-    background: rgba(255, 255, 255, .26);
+    background: transparent;
     box-shadow: none;
 }
 
@@ -2083,7 +2076,7 @@ input::placeholder {
     border: 1px dashed rgba(255, 255, 255, .35);
     border-radius: 9px;
     color: var(--muted);
-    background: rgba(255, 255, 255, .06);
+    background: transparent;
     font-size: 10px;
     line-height: 1.5;
     text-align: center;
@@ -2139,7 +2132,7 @@ input::placeholder {
     border: 1px solid rgba(255, 255, 255, .25);
     border-radius: 9px;
     color: var(--ink);
-    background: rgba(255, 255, 255, .12);
+    background: transparent;
 }
 
 .results-panel {
@@ -2148,7 +2141,7 @@ input::placeholder {
     min-height: 0;
     padding: 18px;
     flex-direction: column;
-    background: rgba(255, 255, 255, .04);
+    background: transparent;
 }
 
 .results-panel .panel-heading {
@@ -2175,7 +2168,7 @@ input::placeholder {
     border-color: rgba(255, 255, 255, .16);
     border-radius: 12px;
     color: var(--ink);
-    background: rgba(255, 255, 255, .1);
+    background: transparent;
     box-shadow: 0 4px 14px rgba(0, 0, 0, .18);
     transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
 }
@@ -2189,7 +2182,7 @@ input::placeholder {
 .template-card.active {
     transform: translateY(-2px);
     border-color: var(--line-strong);
-    background: rgba(255, 255, 255, .18);
+    background: transparent;
     box-shadow: 0 10px 22px rgba(0, 0, 0, .2);
 }
 
@@ -2223,13 +2216,13 @@ input::placeholder {
 .tag-row span {
     border-color: rgba(255, 255, 255, .3);
     color: #ffffff;
-    background: rgba(255, 255, 255, .16);
+    background: transparent;
 }
 
 .template-badge.is-scene {
     border-color: rgba(255, 255, 255, .3);
     color: #ffffff;
-    background: rgba(255, 255, 255, .16);
+    background: transparent;
 }
 
 .template-badge.is-general {
@@ -2252,12 +2245,16 @@ input::placeholder {
     border-color: rgba(255, 255, 255, .25);
     border-radius: 10px;
     color: var(--ink);
-    background: rgba(255, 255, 255, .06);
+    background: transparent;
+}
+
+.load-more {
+    color: var(--tiger);
 }
 
 .load-more:hover {
     border-color: var(--gold);
-    background: rgba(255, 255, 255, .14);
+    background: transparent;
 }
 
 .field-block,
@@ -2267,7 +2264,7 @@ input::placeholder {
 .result-gallery {
     border-color: var(--line);
     border-radius: 12px;
-    background: rgba(255, 255, 255, .06);
+    background: transparent;
 }
 
 .code-block,
@@ -2279,7 +2276,7 @@ input::placeholder {
 #renderedPrompt {
     color: var(--ink);
     border-color: rgba(255, 255, 255, .22);
-    background: rgba(255, 255, 255, .3);
+    background: transparent;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), 0 8px 22px rgba(0, 0, 0, .14);
     backdrop-filter: blur(18px) saturate(1.2);
     -webkit-backdrop-filter: blur(18px) saturate(1.2);
@@ -2301,7 +2298,7 @@ input::placeholder {
 .remember-key-row,
 .reference-chip {
     border-color: var(--line);
-    background: rgba(255, 255, 255, .1);
+    background: transparent;
 }
 
 .image-result {
@@ -2311,7 +2308,7 @@ input::placeholder {
 
 .scene-dock {
     border-color: rgba(255, 255, 255, .14);
-    background: rgba(255, 255, 255, .08);
+    background: transparent;
     box-shadow: 0 16px 38px rgba(0, 0, 0, .28);
 }
 
@@ -2332,7 +2329,7 @@ input::placeholder {
 
 .dock-arrows button {
     color: var(--gold);
-    background: rgba(255, 255, 255, .1);
+    background: transparent;
 }
 
 @keyframes orb-drift {
