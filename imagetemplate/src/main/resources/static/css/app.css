@@ -9,7 +9,7 @@
     --gold-bright: #ffffff;
     --gold-deep: rgba(255, 255, 255, .42);
     --ivory: #f2f5f8;
-    --muted: rgba(255, 255, 255, .62);
+    --muted: rgba(255, 255, 255, .68);
     --line: rgba(255, 255, 255, .14);
     --line-strong: rgba(255, 255, 255, .35);
     --page-bg: #000000;
@@ -264,7 +264,7 @@ button:disabled {
     border: 1px solid var(--line-strong);
     border-radius: 12px;
     color: #ffffff;
-    background: linear-gradient(145deg, #3a3f46, #16181c);
+    background: linear-gradient(145deg, #4a5058, #2a2e34);
     box-shadow: 0 8px 20px rgba(0, 0, 0, .25);
     font-family: "Songti SC", "STSong", serif;
     font-size: 20px;
@@ -534,10 +534,10 @@ button:disabled {
     min-height: 46px;
     padding: 0 18px;
     overflow: hidden;
-    border: 1px solid var(--gold);
+    border: 1px solid rgba(255, 255, 255, .4);
     border-radius: 999px;
     color: #ffffff;
-    background: linear-gradient(135deg, #16181c, #3a3f46);
+    background: linear-gradient(135deg, #2a2e34, #4a5058);
     box-shadow: 0 10px 24px rgba(0, 0, 0, .28);
     font-size: 12px;
     font-weight: 800;
@@ -812,8 +812,8 @@ input::placeholder {
 .function-scenes button:hover,
 .function-scenes button.active {
     border-color: var(--line-strong);
-    color: var(--gold-bright);
-    background: rgba(255, 255, 255, .16);
+    color: #ffffff;
+    background: rgba(255, 255, 255, .26);
 }
 
 .library-primary-filters {
@@ -890,8 +890,8 @@ input::placeholder {
 .source-filters button:hover,
 .source-filters button.active {
     border-color: var(--line-strong);
-    color: var(--gold-bright);
-    background: rgba(255, 255, 255, .16);
+    color: #ffffff;
+    background: rgba(255, 255, 255, .26);
 }
 
 .library-filters {
@@ -1071,10 +1071,10 @@ input::placeholder {
     align-items: center;
     min-height: 20px;
     padding: 2px 7px;
-    border: 1px solid rgba(255, 255, 255, .18);
+    border: 1px solid rgba(255, 255, 255, .3);
     border-radius: 999px;
     color: #ffffff;
-    background: rgba(255, 255, 255, .08);
+    background: rgba(255, 255, 255, .16);
     font-size: 8px;
     line-height: 1;
 }
@@ -1118,10 +1118,10 @@ input::placeholder {
 
 .tag-row span {
     padding: 3px 7px;
-    border: 1px solid rgba(255, 255, 255, .14);
+    border: 1px solid rgba(255, 255, 255, .3);
     border-radius: 999px;
-    color: rgba(255, 255, 255, .78);
-    background: rgba(255, 255, 255, .07);
+    color: #ffffff;
+    background: rgba(255, 255, 255, .16);
     font-size: 9px;
 }
 
@@ -1765,7 +1765,7 @@ textarea.code-block.is-invalid + .editor-status {
 .dock-step.is-active {
     color: #ffffff;
     background: rgba(22, 24, 28, .88);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, .35);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, .35), 0 8px 20px rgba(0, 0, 0, .35);
 }
 
 .dock-step.is-active span {
@@ -2072,8 +2072,8 @@ input::placeholder {
 .source-filters button:hover,
 .source-filters button.active {
     border-color: var(--line-strong);
-    color: var(--gold-deep);
-    background: rgba(255, 255, 255, .18);
+    color: #ffffff;
+    background: rgba(255, 255, 255, .26);
     box-shadow: none;
 }
 
@@ -2221,15 +2221,15 @@ input::placeholder {
 
 .template-badge,
 .tag-row span {
-    border-color: rgba(255, 255, 255, .2);
+    border-color: rgba(255, 255, 255, .3);
     color: #ffffff;
-    background: rgba(255, 255, 255, .1);
+    background: rgba(255, 255, 255, .16);
 }
 
 .template-badge.is-scene {
-    border-color: rgba(255, 255, 255, .2);
+    border-color: rgba(255, 255, 255, .3);
     color: #ffffff;
-    background: rgba(255, 255, 255, .1);
+    background: rgba(255, 255, 255, .16);
 }
 
 .template-badge.is-general {
@@ -2323,6 +2323,7 @@ input::placeholder {
 .dock-step.is-active {
     color: #ffffff;
     background: rgba(22, 24, 28, .88);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, .35);
 }
 
 .dock-step span {

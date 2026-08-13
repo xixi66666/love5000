@@ -82,7 +82,7 @@ class ImageTemplateHomepageStaticAssetsTest {
         assertThat(css)
                 .contains("--page-bg: #000000;")
                 .contains("--ink: #f2f5f8;")
-                .contains("--muted: rgba(255, 255, 255, .62);")
+                .contains("--muted: rgba(255, 255, 255, .68);")
                 .contains("--gold: rgba(255, 255, 255, .78);")
                 .contains("--gold-bright: #ffffff;")
                 .contains("--surface: rgba(255, 255, 255, .06);")
