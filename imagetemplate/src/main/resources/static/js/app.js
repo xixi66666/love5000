@@ -294,7 +294,9 @@
                 '</button>'
             );
         });
-        elements.sourceFilters.innerHTML = sourceButtons.join('');
+        if (elements.sourceFilters) {
+            elements.sourceFilters.innerHTML = sourceButtons.join('');
+        }
 
         var categoryOptions = ['<option value="">全部分类</option>'];
         state.categories.forEach(function (category) {
@@ -961,18 +963,20 @@
         });
     });
 
-    elements.sourceFilters.addEventListener('click', function (event) {
-        var button = event.target.closest('button[data-source]');
-        if (!button) {
-            return;
-        }
-        state.activeSource = button.getAttribute('data-source') || '';
-        renderMeta();
-        resetPagination().catch(function () {
-            elements.libraryAlert.hidden = false;
-            elements.libraryAlert.textContent = '来源筛选失败，请稍后重试。';
+    if (elements.sourceFilters) {
+        elements.sourceFilters.addEventListener('click', function (event) {
+            var button = event.target.closest('button[data-source]');
+            if (!button) {
+                return;
+            }
+            state.activeSource = button.getAttribute('data-source') || '';
+            renderMeta();
+            resetPagination().catch(function () {
+                elements.libraryAlert.hidden = false;
+                elements.libraryAlert.textContent = '来源筛选失败，请稍后重试。';
+            });
         });
-    });
+    }
 
     elements.categorySelect.addEventListener('change', function () {
         state.activeCategory = elements.categorySelect.value;
@@ -1015,6 +1019,19 @@
         if (button) {
             loadTemplateDetail(button.getAttribute('data-id'));
         }
+    });
+
+    elements.templateList.addEventListener('dblclick', function (event) {
+        var button = event.target.closest('button[data-id]');
+        if (!button) {
+            return;
+        }
+        var id = button.getAttribute('data-id');
+        loadTemplateDetail(id).then(function () {
+            if (state.selected && state.selected.id === id) {
+                setActiveScene('deconstruct', true);
+            }
+        });
     });
 
     elements.jsonTemplate.addEventListener('input', function () {
