@@ -172,6 +172,10 @@ public class ImagePromptTemplateService {
         String extraInstruction = request == null ? null : request.getExtraInstruction();
         if ("DIRECT".equals(template.getTemplateKind())) {
             StringBuilder direct = new StringBuilder(template.getPromptTemplate().trim());
+            if (variables != null && !variables.isEmpty()) {
+                direct.append("\n\n用户变量：\n");
+                appendMap(direct, variables, 0);
+            }
             if (hasText(extraInstruction)) {
                 direct.append("\n\n用户补充要求：").append(extraInstruction.trim());
             }

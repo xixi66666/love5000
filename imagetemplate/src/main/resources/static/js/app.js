@@ -17,6 +17,7 @@
         functionCategories: [],
         libraryStatus: null,
         selected: null,
+        jsonTemplateEdited: false,
         renderedPromptEdited: false,
         referenceImages: []
     };
@@ -30,6 +31,7 @@
         sourceFilters: document.getElementById('sourceFilters'),
         categorySelect: document.getElementById('categorySelect'),
         imageOnlyToggle: document.getElementById('imageOnlyToggle'),
+        clearFiltersButton: document.getElementById('clearFiltersButton'),
         loadMoreButton: document.getElementById('loadMoreButton'),
         listStatus: document.getElementById('listStatus'),
         templateList: document.getElementById('templateList'),
@@ -38,6 +40,7 @@
         detailTitle: document.getElementById('detailTitle'),
         detailSummary: document.getElementById('detailSummary'),
         jsonTemplate: document.getElementById('jsonTemplate'),
+        jsonTemplateStatus: document.getElementById('jsonTemplateStatus'),
         promptTemplate: document.getElementById('promptTemplate'),
         variablesInput: document.getElementById('variablesInput'),
         extraInstructionInput: document.getElementById('extraInstructionInput'),
@@ -128,6 +131,9 @@
         if (sceneIndex < 0) {
             return;
         }
+        if (sceneIndex >= sceneOrder.indexOf('direct') && !syncJsonTemplateToVariables()) {
+            return;
+        }
 
         activeScene = sceneName;
         var activePanel = null;
@@ -152,10 +158,7 @@
             elements.sceneStatus.textContent =
                 (sceneIndex < 9 ? '0' : '') + (sceneIndex + 1) + ' · ' + sceneLabels[sceneName];
         }
-        if (elements.dockProgressBar) {
-            elements.dockProgressBar.style.width =
-                ((sceneIndex + 1) / sceneOrder.length * 100) + '%';
-        }
+        updateDockProgress(sceneIndex);
         if (elements.scenePrevButton) {
             elements.scenePrevButton.disabled = sceneIndex === 0;
         }
@@ -175,6 +178,20 @@
         var nextIndex = sceneOrder.indexOf(activeScene) + offset;
         if (nextIndex >= 0 && nextIndex < sceneOrder.length) {
             setActiveScene(sceneOrder[nextIndex], true);
+        }
+    }
+
+    function updateDockProgress(sceneIndex) {
+        if (!elements.dockProgressBar) {
+            return;
+        }
+        var progress = ((sceneIndex + 1) / sceneOrder.length * 100) + '%';
+        if (window.matchMedia('(max-width: 900px)').matches) {
+            elements.dockProgressBar.style.width = progress;
+            elements.dockProgressBar.style.height = '100%';
+        } else {
+            elements.dockProgressBar.style.width = '100%';
+            elements.dockProgressBar.style.height = progress;
         }
     }
 
@@ -374,6 +391,20 @@
         return resetPagination();
     }
 
+    function clearFilters() {
+        state.activeSource = '';
+        state.activeCategory = '';
+        state.activeFunctionCategory = '';
+        state.activeFunctionScene = '';
+        state.keyword = '';
+        state.imageOnly = false;
+        elements.keywordInput.value = '';
+        elements.categorySelect.value = '';
+        elements.imageOnlyToggle.checked = false;
+        renderMeta();
+        return resetPagination();
+    }
+
     function renderTemplates() {
         if (!state.templates.length) {
             elements.templateList.innerHTML =
@@ -414,7 +445,9 @@
             elements.detailCategory.textContent = '请选择模板';
             elements.detailTitle.textContent = '模板详情';
             elements.detailSummary.textContent = '';
-            elements.jsonTemplate.textContent = '{}';
+            elements.jsonTemplate.value = '{}';
+            state.jsonTemplateEdited = false;
+            resetJsonTemplateStatus();
             elements.promptTemplate.textContent = '';
             elements.variablesInput.value = '{}';
             elements.variablesInput.disabled = false;
@@ -429,10 +462,12 @@
             (template.sourceName || '未知来源');
         elements.detailTitle.textContent = template.title;
         elements.detailSummary.textContent = template.summary;
-        elements.jsonTemplate.textContent = JSON.stringify(template.jsonTemplate, null, 2);
+        elements.jsonTemplate.value = JSON.stringify(template.jsonTemplate, null, 2);
+        state.jsonTemplateEdited = false;
+        resetJsonTemplateStatus();
         elements.promptTemplate.textContent = template.promptTemplate;
         var direct = template.templateKind === 'DIRECT';
-        elements.variablesInput.disabled = direct;
+        elements.variablesInput.disabled = false;
         if (direct) {
             elements.variablesInput.value = '{}';
             elements.renderedPrompt.value = template.promptTemplate || '';
@@ -456,6 +491,42 @@
             }
         });
         return JSON.stringify(seed, null, 2);
+    }
+
+    function resetJsonTemplateStatus() {
+        elements.jsonTemplate.removeAttribute('aria-invalid');
+        elements.jsonTemplate.classList.remove('is-invalid');
+        elements.jsonTemplateStatus.textContent =
+            '可直接修改；进入 Prompt 编导台时会同步到变量剧本。';
+    }
+
+    function syncJsonTemplateToVariables() {
+        if (!state.jsonTemplateEdited) {
+            return true;
+        }
+        var editedTemplate;
+        try {
+            editedTemplate = JSON.parse(elements.jsonTemplate.value || '{}');
+        } catch (error) {
+            elements.jsonTemplate.setAttribute('aria-invalid', 'true');
+            elements.jsonTemplate.classList.add('is-invalid');
+            elements.jsonTemplateStatus.textContent = 'JSON 格式不正确，请修正后再进入编导台。';
+            elements.jsonTemplate.focus();
+            return false;
+        }
+        if (!editedTemplate || Array.isArray(editedTemplate) || typeof editedTemplate !== 'object') {
+            elements.jsonTemplate.setAttribute('aria-invalid', 'true');
+            elements.jsonTemplate.classList.add('is-invalid');
+            elements.jsonTemplateStatus.textContent = 'JSON 模板的最外层必须是对象。';
+            elements.jsonTemplate.focus();
+            return false;
+        }
+        elements.variablesInput.value = JSON.stringify(editedTemplate, null, 2);
+        elements.jsonTemplate.removeAttribute('aria-invalid');
+        elements.jsonTemplate.classList.remove('is-invalid');
+        elements.jsonTemplateStatus.textContent = '已同步到 Prompt 编导台的变量剧本。';
+        state.jsonTemplateEdited = false;
+        return true;
     }
 
     function loadTemplateDetail(id) {
@@ -919,6 +990,13 @@
         });
     });
 
+    elements.clearFiltersButton.addEventListener('click', function () {
+        clearFilters().catch(function () {
+            elements.libraryAlert.hidden = false;
+            elements.libraryAlert.textContent = '清除筛选失败，请稍后重试。';
+        });
+    });
+
     elements.loadMoreButton.addEventListener('click', function () {
         var previousPage = state.page;
         state.page += 1;
@@ -930,23 +1008,20 @@
     elements.templateList.addEventListener('click', function (event) {
         var clearButton = event.target.closest('button[data-clear-filters]');
         if (clearButton) {
-            state.activeSource = '';
-            state.activeCategory = '';
-            state.activeFunctionCategory = '';
-            state.activeFunctionScene = '';
-            state.keyword = '';
-            state.imageOnly = false;
-            elements.keywordInput.value = '';
-            elements.categorySelect.value = '';
-            elements.imageOnlyToggle.checked = false;
-            renderMeta();
-            resetPagination();
+            clearFilters();
             return;
         }
         var button = event.target.closest('button[data-id]');
         if (button) {
             loadTemplateDetail(button.getAttribute('data-id'));
         }
+    });
+
+    elements.jsonTemplate.addEventListener('input', function () {
+        state.jsonTemplateEdited = true;
+        elements.jsonTemplate.removeAttribute('aria-invalid');
+        elements.jsonTemplate.classList.remove('is-invalid');
+        elements.jsonTemplateStatus.textContent = '内容已修改；进入 Prompt 编导台时会同步。';
     });
 
     document.addEventListener('click', function (event) {
@@ -960,6 +1035,9 @@
     });
     elements.sceneNextButton.addEventListener('click', function () {
         moveScene(1);
+    });
+    window.addEventListener('resize', function () {
+        updateDockProgress(sceneOrder.indexOf(activeScene));
     });
     elements.renderPromptButton.addEventListener('click', renderPrompt);
     elements.copyPromptButton.addEventListener('click', copyPrompt);
