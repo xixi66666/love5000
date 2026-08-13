@@ -46,7 +46,7 @@ class ImageTemplateHomepageStaticAssetsTest {
                 .contains("<details id=\"advancedFilters\"")
                 .contains("<summary>更多筛选</summary>")
                 .contains("class=\"deep-woods-video\"")
-                .contains("media/moon-wallpaper.mp4")
+                .contains("media/background.png")
                 .contains("<textarea id=\"jsonTemplate\"")
                 .contains("15 个一级功能")
                 .contains("class=\"filter-sidebar\"")

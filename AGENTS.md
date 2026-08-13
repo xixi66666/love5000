@@ -15,7 +15,7 @@
 - `common`：公共能力模块，提供 OSS 自动配置、上传工具，以及通用登录/注册/Session 鉴权能力。
 - `lovestory`：恋爱相册 Web 应用，提供静态页面、照片上传、照片列表、删除接口、留言板功能和吉他视频卡片模块。
 - `website`：个人主页/展示站点 Web 应用，包含主页静态资源、Web Demo、OSS Demo、Nacos Discovery 示例、提示词控制台入口和个人博客微应用。
-- `imagetemplate`：图片提示词模板 Web 服务，聚合 47 条精选模板和 Prompt Console 的 4409 条公开提示词，总计 4456 条，按 15 个一级功能与二级场景导航，提供分页检索、按需详情、prompt 渲染、直接提示词和 OpenAI 图片生成能力；前端采用黑色调 AI 创作工作台，背景为本地月亮视频，页面使用白色透明磨砂玻璃不遮挡背景，灵感大厅使用顶部搜索、左侧筛选和右侧结果网格。
+- `imagetemplate`：图片提示词模板 Web 服务，聚合 47 条精选模板和 Prompt Console 的 4409 条公开提示词，总计 4456 条，按 15 个一级功能与二级场景导航，提供分页检索、按需详情、prompt 渲染、直接提示词和 OpenAI 图片生成能力；前端采用黑色调 AI 创作工作台，背景为本地背景图片，页面使用白色透明磨砂玻璃不遮挡背景，灵感大厅使用顶部搜索、左侧筛选和右侧结果网格。
 - `guitar`：Guitar 曲谱平台 Web 微服务，提供基础首页、健康检查、手机号注册登录、Session/CSRF 鉴权、公开曲谱检索详情、安全上传、管理员曲谱下架/恢复和 MySQL 持久化基础能力。
 - `python-a`：A 股自选股 AI 研究台，作为独立 Python 微应用接入，不加入 Maven 聚合模块。
 - `quant-a`：A 股量化研究台，作为独立 FastAPI 微服务接入，不加入 Maven 聚合模块，不写入 `website/python-a` 的 Obsidian 目录。
@@ -332,7 +332,7 @@ website/video/
 - `imagetemplate/service`：精选模板加载、大库加载适配、两级功能分类、聚合分页、prompt 渲染和 OpenAI 图片生成服务；功能规则集中在 `TemplateFunctionClassifier`，不扫描完整 Prompt。
 - `imagetemplate/src/main/resources/templates/image-prompt-templates.json`：47 条精选图片模板数据源。
 - `website/src/main/resources/static/prompt-console/data/prompt-library.json`：4409 条 Prompt Console 大库唯一源码；Maven 构建 imagetemplate 时复制到 classpath 的 `templates/prompt-console/prompt-library.json`。
-- `imagetemplate/src/main/resources/static`：图片模板库黑色调 AI 创作单页前端，背景使用本地 `media/moon-wallpaper.mp4` 月亮视频，页面底色为黑色、视频保持原有色调；工作区以视频可见性优先：外层约 6% 雾白膜、约 1px 轻微模糊，面板与卡片使用白色透明磨砂玻璃不遮挡背景，输入控件保留较高白色底色；信息文字、说明、统计和标签统一使用白色/浅灰层级，主按钮为深灰渐变保留白字；并保留 `prefers-reduced-motion` 装饰动画降级；按“灵感大厅 → 模板解构 → Prompt 编导台 → 图片生成舱”组织，桌面端使用页面左侧居中的紧凑悬浮步骤器，900px 以下恢复为底部横向流程；灵感大厅顶部常驻搜索、仅图片开关和清除筛选，内容区左侧集中展示一级功能、二级场景及默认收起的来源/原始分类，右侧为默认 48 条的结果网格，支持搜索防抖和加载更多；模板解构 JSON 与编导台变量均允许手工编辑，JSON 在进入编导台前校验并同步；流程导航只切换场景、不清空用户状态。
+- `imagetemplate/src/main/resources/static`：图片模板库黑色调 AI 创作单页前端，背景使用本地 `media/background.png` 图片，页面底色为黑色、图片保持原有色调；工作区以视频可见性优先：外层约 6% 雾白膜、约 1px 轻微模糊，面板与卡片使用白色透明磨砂玻璃不遮挡背景，输入控件保留较高白色底色；信息文字、说明、统计和标签统一使用白色/浅灰层级，主按钮为深灰渐变保留白字；并保留 `prefers-reduced-motion` 装饰动画降级；按“灵感大厅 → 模板解构 → Prompt 编导台 → 图片生成舱”组织，桌面端使用页面左侧居中的紧凑悬浮步骤器，900px 以下恢复为底部横向流程；灵感大厅顶部常驻搜索、仅图片开关和清除筛选，内容区左侧集中展示一级功能、二级场景及默认收起的来源/原始分类，右侧为默认 48 条的结果网格，支持搜索防抖和加载更多；模板解构 JSON 与编导台变量均允许手工编辑，JSON 在进入编导台前校验并同步；流程导航只切换场景、不清空用户状态。
 - `guitar/src/main/java/com/example/guitar/controller`：Guitar 基础 HTTP 接口，当前提供 `/api/health`。
 - `guitar/src/main/java/com/example/guitar/auth`：Guitar 手机号注册登录、Session、CSRF 和 API 权限拦截能力；数据库写入由独立事务服务提交成功后，认证服务才轮换 Session。
 - `guitar/src/main/java/com/example/guitar/user`：Guitar 用户模型和 MyBatis DAO，SQL 位于 `guitar/src/main/resources/mapper/user`。
