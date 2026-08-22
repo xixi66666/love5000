@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Guitar 个人资料与我的上传"><title>个人资料 · Guitar</title><link rel="stylesheet" href="/css/app.css"></head>
+<body>
+<a class="skip-link" href="#main">跳到主要内容</a>
+<header class="site-header"><div class="header-inner"><a class="brand" href="/"><span>GUITAR</span><small>LOVE530 SHEET LIBRARY</small></a><nav class="nav" aria-label="主导航"><a href="/">曲谱库</a><a href="/favorites.html">收藏夹</a><a href="/upload.html" class="primary">上传</a></nav></div></header>
+<main id="main" class="page workspace-page"><div id="profile-app" hidden>
+  <header class="profile-head"><div class="avatar-placeholder" id="profile-initial" aria-hidden="true">G</div><div><p class="eyebrow">个人资料</p><h1 id="profile-name">用户</h1><p id="profile-phone" class="muted"></p></div><a id="admin-entry" class="button secondary" href="/admin.html" hidden>管理后台</a></header>
+  <div class="profile-layout"><section class="panel" aria-labelledby="settings-title"><div class="section-head"><h2 id="settings-title">资料设置</h2></div><form id="nickname-form" class="compact-form"><div class="field"><label for="nickname">昵称</label><input id="nickname" name="nickname" maxlength="30" required></div><p id="nickname-error" class="field-error" role="alert"></p><button class="button primary" type="submit">保存昵称</button></form><form id="avatar-form" class="compact-form divided-form"><div class="field"><label for="avatar">头像</label><input id="avatar" name="avatar" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" required></div><p id="avatar-error" class="field-error" role="alert"></p><button class="button secondary" type="submit">上传头像</button></form></section>
+    <section aria-labelledby="uploads-title"><div class="section-head list-section-head"><div><p class="eyebrow">创作者</p><h2 id="uploads-title">我的上传</h2></div><p id="uploads-status" aria-live="polite"></p></div><div id="my-uploads" class="compact-list"></div></section></div>
+  </div></main>
+<dialog id="delete-sheet-dialog" class="modal"><div class="modal-head"><h2>删除曲谱</h2></div><p>确认删除“<strong id="delete-sheet-name"></strong>”？此操作会同时移除相关收藏。</p><p id="delete-sheet-error" class="field-error" role="alert"></p><div class="modal-actions"><button id="delete-sheet-cancel" class="button secondary" type="button">取消</button><button id="delete-sheet-action" class="button danger" type="button">确认删除</button></div></dialog>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div><script type="module" src="/js/profile.js"></script>
+</body></html>

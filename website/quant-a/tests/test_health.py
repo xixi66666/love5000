@@ -11,6 +11,7 @@ def test_health_returns_success_payload():
     assert response.status_code == 200
     assert response.json() == {
         "success": True,
+        "service": "quant-a",
         "data": {
             "service": "quant-a",
             "status": "ok",

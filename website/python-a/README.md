@@ -1,5 +1,9 @@
 ﻿# A 股自选股 AI 研究台
 
+健康检查 `GET /api/health` 顶层返回 `success=true` 和 `service="python-a"`；
+`website` 使用统一 `ServiceHealthChecker` 探测，并将结果纳入
+`GET /api/services/health`。
+
 > 当前版本：2026-06-14
 > 定位：围绕用户自己维护的少量 A 股自选股，做行情跟踪、多维度股票分析、AI 研究辅助和 Obsidian 长期记忆写入。
 > 边界：本项目只做研究辅助、信息整理、风险提示和复盘沉淀，不构成投资建议，不承诺收益，也不替代人工判断。
@@ -56,6 +60,8 @@ app.js                             前端交互、图表渲染、AI 生成按钮
 server.py                          本地后端：行情网关、DeepSeek 调用、Obsidian 写入
 package.json                       启动脚本
 services/                          账户、交易、存储、Obsidian、股票元数据、知识图谱、截图解析等服务拆分
+services/stock_metadata_service.py 股票元数据缓存读取、字段归一化和离线降级
+services/knowledge_graph_service.py Obsidian 知识图谱双链、节点文件和风险模式生成
 tests/                             unittest 测试
 deepseek.local.json                本地 DeepSeek API key 配置，已被 .gitignore 忽略
 obsidian-vault/A股AI/data/          自选股数据
@@ -243,6 +249,8 @@ data/stock-metadata/{股票代码}.json
 ```
 
 保存内容包括行情快照、分析重点、技术结构、量能与换手、基本面与板块、风险与反证、观察计划、AI 维度分析、研究结论、AI 对话记录和知识图谱链接。交易复盘模块额外保存本金流水、账户快照、成交记录、每日复盘和交易心得总纲。
+
+`server.py` 启动时会加载股票元数据和知识图谱服务。元数据服务只读取本地缓存并接受行情数据作为降级值，因此缓存缺失或损坏不会阻止服务启动；知识图谱服务会在保存复盘时按需创建节点目录。
 
 ## 安全与合规边界
 

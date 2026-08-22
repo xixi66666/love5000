@@ -61,17 +61,26 @@ public class OssUtil {
         Assert.notNull(inputStream, "Upload stream must not be null");
 
         String objectKey = buildObjectKey(directory, originalFilename);
+        return uploadWithObjectKey(inputStream, contentLength, objectKey, originalFilename, contentType);
+    }
+
+    /** 使用调用方预先生成的对象键上传，避免 OSS 接受对象后本地才知道对象位置。 */
+    public OssUploadResult uploadWithObjectKey(InputStream inputStream, long contentLength,
+                                               String objectKey, String originalFilename,
+                                               String contentType) {
+        Assert.notNull(inputStream, "Upload stream must not be null");
+        String validatedObjectKey = validateObjectKey(objectKey);
         ObjectMetadata metadata = buildMetadata(contentLength, originalFilename, contentType);
 
         OSS ossClient = createClient();
         try {
             PutObjectRequest putObjectRequest =
-                    new PutObjectRequest(ossProperties.getBucketName(), objectKey, inputStream, metadata);
+                    new PutObjectRequest(ossProperties.getBucketName(), validatedObjectKey, inputStream, metadata);
             PutObjectResult result = ossClient.putObject(putObjectRequest);
             return new OssUploadResult(
                     ossProperties.getBucketName(),
-                    objectKey,
-                    getObjectUrl(objectKey),
+                    validatedObjectKey,
+                    getObjectUrl(validatedObjectKey),
                     result.getETag(),
                     originalFilename,
                     contentLength
@@ -81,6 +90,45 @@ public class OssUtil {
         } finally {
             ossClient.shutdown();
         }
+    }
+
+    public OssUploadResult uploadWithObjectKey(MultipartFile file, String objectKey, String contentType) {
+        Assert.notNull(file, "Upload file must not be null");
+        if (file.isEmpty()) {
+            throw new IllegalArgumentException("Upload file must not be empty");
+        }
+        try (InputStream inputStream = file.getInputStream()) {
+            return uploadWithObjectKey(inputStream, file.getSize(), objectKey,
+                    file.getOriginalFilename(), contentType);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Failed to read upload file", exception);
+        }
+    }
+
+    public String validateObjectKey(String objectKey) {
+        if (!StringUtils.hasText(objectKey)) {
+            throw new IllegalArgumentException("OSS object key must not be blank");
+        }
+        String candidate = objectKey.trim();
+        if (candidate.length() > 500 || candidate.startsWith("/") || candidate.endsWith("/")) {
+            throw new IllegalArgumentException("Illegal OSS object key");
+        }
+        if (candidate.indexOf('\\') >= 0 || candidate.indexOf("//") >= 0
+                || candidate.indexOf('?') >= 0 || candidate.indexOf('#') >= 0) {
+            throw new IllegalArgumentException("Illegal OSS object key");
+        }
+        for (int index = 0; index < candidate.length(); index++) {
+            if (Character.isISOControl(candidate.charAt(index))) {
+                throw new IllegalArgumentException("Illegal OSS object key");
+            }
+        }
+        String[] segments = candidate.split("/");
+        for (String segment : segments) {
+            if (segment.isEmpty() || ".".equals(segment) || "..".equals(segment)) {
+                throw new IllegalArgumentException("Illegal OSS object key");
+            }
+        }
+        return candidate;
     }
 
     public boolean exists(String objectKeyOrUrl) {

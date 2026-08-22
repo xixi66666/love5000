@@ -13,6 +13,12 @@ const state = {
   generatedDimensionAnalysis: "",
   generatedResearchConclusion: "",
   latestProfessionalReport: "",
+  research: {
+    activeTab: "overview",
+    byCode: {},
+    loading: {},
+    aiSnapshot: null,
+  },
 };
 
 const tradingState = {
@@ -39,6 +45,30 @@ function formatMoney(value) {
   if (Math.abs(value) >= 100000000) return `${(value / 100000000).toFixed(2)}亿`;
   if (Math.abs(value) >= 10000) return `${(value / 10000).toFixed(2)}万`;
   return value.toFixed(2);
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function safeExternalUrl(value) {
+  const allowedHosts = new Set([
+    "pdf.dfcfw.com",
+    "www.cninfo.com.cn",
+    "disc.static.szse.cn",
+    "np-anotice-stock.eastmoney.com",
+  ]);
+  try {
+    const url = new URL(String(value || ""));
+    return url.protocol === "https:" && allowedHosts.has(url.hostname) ? url.href : null;
+  } catch {
+    return null;
+  }
 }
 
 function signedPercent(value) {
@@ -129,8 +159,12 @@ function renderAll() {
   renderMarketSummary();
   renderWatchlist();
   renderSelectedStock();
+  renderResearchSection();
   renderAiChat();
   renderReviewDraft();
+  if (selectedStock() && window.location.protocol !== "file:") {
+    loadResearchSection("overview").catch((error) => showToast(error.message));
+  }
 }
 
 function renderTradingDashboard() {
@@ -254,6 +288,312 @@ function renderSelectedStock() {
   $("#aiConclusion").textContent = stock.conclusion || "等待真实行情加载。";
   $("#stockMemoryPath").textContent = `Obsidian/股票/${stock.code}-${stock.name}.md`;
   renderChart(stock);
+}
+
+function researchEntry(code = state.selectedCode) {
+  if (!code) return null;
+  if (!state.research.byCode[code]) {
+    state.research.byCode[code] = {
+      overview: null,
+      capital: null,
+      events: { reports: null, announcements: null },
+    };
+  }
+  return state.research.byCode[code];
+}
+
+function providerName(provider) {
+  const names = {
+    tencent: "腾讯财经",
+    eastmoney: "东方财富",
+    sina: "新浪财经",
+    cninfo: "巨潮资讯",
+    szse: "深交所",
+    tushare: "Tushare",
+    fallback: "本地档案",
+    local: "本地档案",
+  };
+  return names[provider] || provider || "未知来源";
+}
+
+function blockSource(block) {
+  if (!block?.success) return "数据暂不可用";
+  const timestamp = block.data_date || block.fetched_at?.replace("T", " ").slice(0, 16) || "时间待确认";
+  return `${providerName(block.provider)} · ${timestamp}${block.fallback_used ? " · 备用源" : ""}`;
+}
+
+function researchLoadingKey(code, section, kind = "all") {
+  return `${code}:${section}:${kind}`;
+}
+
+async function loadResearchSection(section, force = false, options = {}) {
+  const code = state.selectedCode;
+  if (!code) return;
+  const entry = researchEntry(code);
+  const kind = options.kind || "all";
+  const page = options.page || 1;
+  const pageSize = options.pageSize || 10;
+  if (!force) {
+    if (section !== "events" && entry[section]) return;
+    if (section === "events" && kind !== "all" && entry.events[kind] && page === 1) return;
+    if (section === "events" && kind === "all" && entry.events.reports && entry.events.announcements) return;
+  }
+
+  const loadingKey = researchLoadingKey(code, section, kind);
+  if (state.research.loading[loadingKey]) return;
+  state.research.loading[loadingKey] = true;
+  renderResearchSection();
+  try {
+    const query = new URLSearchParams();
+    if (force) query.set("force", "1");
+    if (section === "events") {
+      query.set("kind", kind);
+      query.set("page", String(page));
+      query.set("page_size", String(pageSize));
+    }
+    const suffix = query.toString() ? `?${query}` : "";
+    const payload = await requestJson(`/api/stocks/${encodeURIComponent(code)}/research/${section}${suffix}`, {
+      cache: "no-store",
+    });
+    if (state.selectedCode !== code) return;
+    if (section === "events") {
+      Object.entries(payload.blocks || {}).forEach(([blockName, block]) => {
+        const existing = entry.events[blockName];
+        if (page > 1 && existing?.success && block?.success) {
+          entry.events[blockName] = {
+            ...block,
+            data: {
+              ...block.data,
+              items: [...(existing.data?.items || []), ...(block.data?.items || [])],
+            },
+          };
+        } else {
+          entry.events[blockName] = block;
+        }
+      });
+    } else {
+      entry[section] = payload;
+    }
+  } finally {
+    delete state.research.loading[loadingKey];
+    if (state.selectedCode === code) renderResearchSection();
+  }
+}
+
+function renderResearchSection() {
+  const code = state.selectedCode;
+  const entry = researchEntry(code);
+  document.querySelectorAll("[data-research-tab]").forEach((button) => {
+    const active = button.dataset.researchTab === state.research.activeTab;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", String(active));
+  });
+  ["overview", "capital", "events"].forEach((section) => {
+    const panel = $(`#research${section[0].toUpperCase()}${section.slice(1)}Panel`);
+    if (panel) panel.hidden = section !== state.research.activeTab;
+  });
+
+  if (!code || !entry) {
+    $("#researchSectionStatus").textContent = "等待选择股票";
+    $("#researchOverviewContent").innerHTML = researchEmpty("选择自选股后加载研究数据");
+    ["fundFlowBlock", "marginBlock", "shareholdersBlock", "lockupsBlock"].forEach((id) => {
+      $(`#${id}`).innerHTML = researchEmpty("等待选择股票");
+    });
+    $("#reportsList").innerHTML = researchEmpty("等待选择股票");
+    $("#announcementsList").innerHTML = researchEmpty("等待选择股票");
+    return;
+  }
+
+  const activeLoading = Object.keys(state.research.loading).some((key) =>
+    key.startsWith(`${code}:${state.research.activeTab}:`),
+  );
+  $("#researchSectionStatus").textContent = activeLoading ? "正在更新" : "按来源实时校验";
+  renderResearchOverview(entry.overview, activeLoading && state.research.activeTab === "overview");
+  renderResearchCapital(entry.capital, activeLoading && state.research.activeTab === "capital");
+  renderResearchEvents(entry.events, activeLoading && state.research.activeTab === "events");
+}
+
+function researchEmpty(message) {
+  return `<div class="research-empty">${escapeHtml(message)}</div>`;
+}
+
+function researchSkeleton(lines = 3) {
+  return `<div class="research-loading" aria-label="数据加载中">${Array.from(
+    { length: lines },
+    (_, index) => `<span style="--skeleton-width:${82 - index * 13}%"></span>`,
+  ).join("")}</div>`;
+}
+
+function metricValue(value, suffix = "") {
+  return typeof value === "number" && Number.isFinite(value) ? `${value.toFixed(2)}${suffix}` : "--";
+}
+
+function renderResearchOverview(payload, loading) {
+  const container = $("#researchOverviewContent");
+  if (!payload) {
+    container.innerHTML = loading ? researchSkeleton(4) : researchEmpty("概览将在选择股票后自动加载");
+    return;
+  }
+  const valuation = payload.blocks?.valuation;
+  const metadata = payload.blocks?.metadata;
+  const data = valuation?.data || {};
+  const metrics = [
+    ["PE(TTM)", metricValue(data.pe_ttm)],
+    ["PB", metricValue(data.pb)],
+    ["总市值", metricValue(data.market_cap_yi, " 亿")],
+    ["流通市值", metricValue(data.float_market_cap_yi, " 亿")],
+    ["量比", metricValue(data.volume_ratio)],
+    ["振幅", metricValue(data.amplitude, "%")],
+  ];
+  const concepts = metadata?.data?.concepts || [];
+  container.innerHTML = `
+    <div class="research-metric-grid">
+      ${metrics
+        .map(([label, value]) => `<div><span>${label}</span><strong>${escapeHtml(value)}</strong></div>`)
+        .join("")}
+    </div>
+    <div class="research-overview-details">
+      <div><span>行业</span><strong>${escapeHtml(metadata?.data?.industry || "待映射")}</strong></div>
+      <div><span>涨停 / 跌停</span><strong>${escapeHtml(metricValue(data.limit_up))} / ${escapeHtml(metricValue(data.limit_down))}</strong></div>
+    </div>
+    <div class="concept-chip-list">
+      ${concepts.length ? concepts.map((concept) => `<span>${escapeHtml(concept)}</span>`).join("") : "<span>暂无概念标签</span>"}
+    </div>
+    <div class="research-source-row">
+      <span>${escapeHtml(blockSource(valuation))}</span>
+      <span>${escapeHtml(blockSource(metadata))}</span>
+    </div>
+  `;
+}
+
+function renderResearchCapital(payload, loading) {
+  const blocks = payload?.blocks || {};
+  const configurations = [
+    ["fundFlowBlock", "资金流", blocks.fund_flow, (data) => [
+      ["当日主力净流入", formatMoney(data.today_main_net)],
+      ["近 5 日", data.five_day_direction || "--"],
+      ["近 20 日", data.twenty_day_direction || "--"],
+    ]],
+    ["marginBlock", "融资融券", blocks.margin, (data) => [
+      ["融资余额", formatMoney(data.latest_balance)],
+      ["较上一期", formatMoney(data.balance_change)],
+      ["两融合计", formatMoney(data.total_balance)],
+    ]],
+    ["shareholdersBlock", "股东户数", blocks.shareholders, (data) => [
+      ["最新户数", data.holder_count ?? "--"],
+      ["环比变化", metricValue(data.change_ratio, "%")],
+      ["户均持股", metricValue(data.average_shares)],
+    ]],
+    ["lockupsBlock", "未来 90 天解禁", blocks.lockups, (data) => {
+      const first = data.upcoming?.[0];
+      return [
+        ["待解禁批次", data.upcoming?.length ?? 0],
+        ["最近日期", first?.date || "暂无"],
+        ["实际可流通", first ? metricValue(first.able_shares, " 万股") : "--"],
+      ];
+    }],
+  ];
+  configurations.forEach(([id, title, block, rows]) => {
+    const element = $(`#${id}`);
+    if (!payload) {
+      element.innerHTML = loading ? researchSkeleton(3) : researchEmpty("打开标签后加载");
+      return;
+    }
+    if (!block?.success) {
+      element.innerHTML = `<div class="research-data-title"><h4>${title}</h4></div>${researchEmpty(block?.message || "数据暂不可用")}`;
+      return;
+    }
+    element.innerHTML = `
+      <div class="research-data-title"><h4>${title}</h4><span>${escapeHtml(blockSource(block))}</span></div>
+      <dl>${rows(block.data || {})
+        .map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`)
+        .join("")}</dl>
+    `;
+  });
+}
+
+function renderResearchEvents(events, loading) {
+  renderResearchEventList("reports", events?.reports, loading);
+  renderResearchEventList("announcements", events?.announcements, loading);
+}
+
+function renderResearchEventList(kind, block, loading) {
+  const list = kind === "reports" ? $("#reportsList") : $("#announcementsList");
+  const source = kind === "reports" ? $("#reportsSource") : $("#announcementsSource");
+  const button = kind === "reports" ? $("#loadMoreReportsBtn") : $("#loadMoreAnnouncementsBtn");
+  if (!block) {
+    list.innerHTML = loading ? researchSkeleton(4) : researchEmpty("打开标签后加载");
+    source.textContent = "--";
+    button.hidden = true;
+    return;
+  }
+  source.textContent = blockSource(block);
+  if (!block.success) {
+    list.innerHTML = researchEmpty(block.message || "数据暂不可用");
+    button.hidden = true;
+    return;
+  }
+  const items = block.data?.items || [];
+  list.innerHTML = items.length
+    ? items
+        .map((item) => {
+          const url = safeExternalUrl(item.url);
+          const title = escapeHtml(item.title || "未命名记录");
+          const titleHtml = url
+            ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${title}</a>`
+            : `<span>${title}</span>`;
+          const meta =
+            kind === "reports"
+              ? `${item.date || "--"} · ${item.organization || "机构待确认"} · ${item.rating || "未评级"}`
+              : `${item.date || "--"} · ${item.type || "公告"}`;
+          return `<article>${titleHtml}<small>${escapeHtml(meta)}</small></article>`;
+        })
+        .join("")
+    : researchEmpty("暂无数据");
+  button.hidden = !block.data?.has_more;
+  button.disabled = loading;
+}
+
+function buildClientResearchSnapshot() {
+  const entry = researchEntry();
+  if (!entry) return null;
+  const flatten = (section) => {
+    const result = {};
+    Object.entries(section?.blocks || section || {}).forEach(([name, block]) => {
+      if (!block) return;
+      result[name] = block.success
+        ? {
+            success: true,
+            provider: block.provider,
+            data_date: block.data_date,
+            fallback_used: Boolean(block.fallback_used),
+            ...(block.data || {}),
+          }
+        : { success: false, message: block.message };
+    });
+    return result;
+  };
+  return {
+    code: state.selectedCode,
+    overview: flatten(entry.overview),
+    capital: flatten(entry.capital),
+    events: flatten(entry.events),
+  };
+}
+
+function switchResearchTab(tab) {
+  state.research.activeTab = tab;
+  renderResearchSection();
+  loadResearchSection(tab).catch((error) => showToast(error.message));
+}
+
+function loadMoreResearchEvents(kind) {
+  const entry = researchEntry();
+  const current = entry?.events?.[kind];
+  const nextPage = (current?.data?.page || 1) + 1;
+  loadResearchSection("events", false, { kind, page: nextPage, pageSize: 10 }).catch((error) =>
+    showToast(error.message),
+  );
 }
 
 function renderChart(stock) {
@@ -542,6 +882,7 @@ async function generateDimensionAnalysis() {
         review: getReviewState(),
       }),
     });
+    state.research.aiSnapshot = result.research_snapshot || null;
     state.latestAiAnalysis = result.analysis.research_conclusion || result.analysis.dimension_analysis || "";
     setReviewState(result.analysis);
     saveAiChatState();
@@ -571,6 +912,7 @@ async function generateProfessionalReport() {
   status.textContent = "正在连接 SpringAI";
   output.value = "正在生成综合型专业研究报告，请稍候...";
   try {
+    await Promise.all([loadResearchSection("capital"), loadResearchSection("events")]);
     const researchQuestion = [
       `请为 ${stock.code} ${stock.name} 生成一份综合型专业股票研究报告。`,
       "全程使用中文，报告标题、章节标题、正文、表格字段和风险提示都必须是中文。",
@@ -591,6 +933,7 @@ async function generateProfessionalReport() {
       researchQuestion,
       includeTradingReview: true,
       autoPersist: false,
+      researchSnapshot: state.research.aiSnapshot || buildClientResearchSnapshot(),
     };
     const result = await requestJson(`${SPRING_AI_AGENT_BASE_URL}/api/agent/reports/stock`, {
       method: "POST",
@@ -648,6 +991,7 @@ async function saveStockReview(event) {
       ma_state: stock.ma_state,
       risk: stock.risk || "--",
     },
+    research_snapshot: state.research.aiSnapshot || buildClientResearchSnapshot(),
   };
   try {
     const result = await requestJson("/api/obsidian/stock-daily-review", {
@@ -748,7 +1092,15 @@ function bindEvents() {
   $("#tradingDate").value = today();
   $("#addStockForm").addEventListener("submit", addStock);
   $("#deleteStockBtn").addEventListener("click", deleteSelectedStock);
-  $("#refreshBtn").addEventListener("click", () => loadWatchlist(true));
+  $("#refreshBtn").addEventListener("click", async () => {
+    await loadWatchlist(true);
+    await loadResearchSection(state.research.activeTab, true).catch((error) => showToast(error.message));
+  });
+  document.querySelectorAll("[data-research-tab]").forEach((button) => {
+    button.addEventListener("click", () => switchResearchTab(button.dataset.researchTab));
+  });
+  $("#loadMoreReportsBtn").addEventListener("click", () => loadMoreResearchEvents("reports"));
+  $("#loadMoreAnnouncementsBtn").addEventListener("click", () => loadMoreResearchEvents("announcements"));
   document.querySelectorAll(".main-tab").forEach((button) => {
     button.addEventListener("click", () => switchMainView(button.dataset.view));
   });
@@ -765,6 +1117,9 @@ function bindEvents() {
   $("#selfStockList").addEventListener("click", (event) => {
     const row = event.target.closest("[data-code]");
     if (!row) return;
+    if (state.selectedCode !== row.dataset.code) {
+      state.research.aiSnapshot = null;
+    }
     state.selectedCode = row.dataset.code;
     renderAll();
   });

@@ -1,5 +1,10 @@
 ﻿# AGENTS.md
 
+## 健康检查协议
+
+`GET /api/health` 顶层返回 `success=true` 和 `service="video"`。
+`website` 的 `ServiceHealthChecker` 使用该统一协议判断是否复用或启动进程。
+
 ## 项目概述
 
 `website/video` 是 `love5000` 当前接入的 AI 原创动漫短片生成工作台，作为独立 Python 微应用运行，默认端口 `5176`。它不是 Java Maven 模块，不加入父 `pom.xml` 的 `<modules>`。

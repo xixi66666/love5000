@@ -1,5 +1,8 @@
 ﻿# lovestory
 
+健康检查：`GET /api/health`，返回顶层 `success=true` 和
+`service="lovestory"`；该接口只检查 HTTP 进程存活，不访问 MySQL 或 OSS。
+
 `lovestory` 是 `love530` 聚合工程中的恋爱相册 Web 应用，默认端口 `8081`。它提供相册静态页面、照片上传、留言板、小游戏页面和吉他视频卡片模块。
 
 ## 功能

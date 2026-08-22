@@ -1,5 +1,10 @@
 ﻿# AGENTS.md
 
+## 健康检查
+
+`GET /api/health` 不访问 MySQL 或 OSS，返回
+`{"success":true,"service":"lovestory"}`，供 `website` 的统一健康检查器聚合。
+
 ## 项目概述
 
 `lovestory` 是 `love530` Maven 聚合工程中的恋爱相册 Web 微服务，路径：

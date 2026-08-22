@@ -106,7 +106,7 @@ common/
 
 - `config/OssAutoConfiguration.java`：根据 `love530.oss.enabled` 自动创建 `OssUtil` Bean。
 - `config/OssProperties.java`：承载 `love530.oss` 配置项。
-- `util/OssUtil.java`：封装 OSS 上传、删除、URL 拼接和 object key 解析。
+- `util/OssUtil.java`：封装 OSS 上传、删除、URL 拼接和 object key 解析；`uploadWithObjectKey` 仅接收经过校验的预声明对象键，适用于业务服务在远程上传前确定可补偿的存储位置。
 - `util/OssUploadResult.java`：上传结果 DTO。
 - `auth/config/AuthAutoConfiguration.java`：通用认证自动配置入口。
 - `auth/controller/AuthController.java`：注册、登录、登出、当前用户接口。
@@ -177,6 +177,7 @@ mvn -pl common test
 
 - `OssUtil#getObjectUrl`
 - `OssUtil#extractObjectKey`
+- 预声明 object key 的格式校验（不连接真实 OSS）
 - 自定义 CDN 域名场景
 - URL 带 query string 的 object key 解析
 - 空配置和非法配置校验

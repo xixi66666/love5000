@@ -1,5 +1,10 @@
 package com.example.website.integration;
 
+import com.example.website.integration.health.ServiceHealthChecker;
+import com.example.website.integration.health.ServiceHealthDefinition;
+import com.example.website.integration.health.ServiceHealthProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -9,14 +14,16 @@ import org.springframework.stereotype.Component;
 import javax.annotation.PreDestroy;
 import java.io.File;
 import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Component
 @ConditionalOnProperty(prefix = "python-a.auto-start", name = "enabled", havingValue = "true")
 public class PythonAAutoStartRunner implements ApplicationRunner {
+
+    private static final String SERVICE_NAME = "python-a";
+
+    private final ServiceHealthChecker healthChecker;
 
     @Value("${python-a.auto-start.work-dir:website/python-a}")
     private String workDir;
@@ -37,6 +44,15 @@ public class PythonAAutoStartRunner implements ApplicationRunner {
     private boolean logToConsole;
 
     private Process process;
+
+    PythonAAutoStartRunner() {
+        this(new ServiceHealthChecker(new ObjectMapper(), new ServiceHealthProperties()));
+    }
+
+    @Autowired
+    public PythonAAutoStartRunner(ServiceHealthChecker healthChecker) {
+        this.healthChecker = healthChecker;
+    }
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
@@ -120,8 +136,7 @@ public class PythonAAutoStartRunner implements ApplicationRunner {
     }
 
     String buildHealthUrl() {
-        String normalizedPath = healthPath.startsWith("/") ? healthPath : "/" + healthPath;
-        return "http://127.0.0.1:" + port + normalizedPath;
+        return healthChecker.buildLocalUrl(port, healthPath);
     }
 
     ProcessBuilder createProcessBuilder(File directory) {
@@ -149,38 +164,12 @@ public class PythonAAutoStartRunner implements ApplicationRunner {
     }
 
     private boolean waitUntilHealthy(String healthUrl) {
-        int attempts = Math.max(1, startupTimeoutSeconds);
-        for (int i = 0; i < attempts; i++) {
-            if (isHealthy(healthUrl)) {
-                return true;
-            }
-
-            try {
-                Thread.sleep(1000L);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return false;
-            }
-        }
-        return false;
+        return healthChecker.waitUntilHealthy(
+                new ServiceHealthDefinition(SERVICE_NAME, healthUrl), startupTimeoutSeconds);
     }
 
     private boolean isHealthy(String healthUrl) {
-        HttpURLConnection connection = null;
-        try {
-            URL url = new URL(healthUrl);
-            connection = (HttpURLConnection) url.openConnection();
-            connection.setRequestMethod("GET");
-            connection.setConnectTimeout(2000);
-            connection.setReadTimeout(3000);
-            return connection.getResponseCode() >= 200 && connection.getResponseCode() < 300;
-        } catch (IOException e) {
-            return false;
-        } finally {
-            if (connection != null) {
-                connection.disconnect();
-            }
-        }
+        return healthChecker.check(new ServiceHealthDefinition(SERVICE_NAME, healthUrl)).isHealthy();
     }
 
     private String getPid(Process startedProcess) {

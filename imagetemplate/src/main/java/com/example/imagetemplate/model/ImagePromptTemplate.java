@@ -25,6 +25,24 @@ public class ImagePromptTemplate {
 
     private String sourceUrl;
 
+    private String sourceId;
+
+    private String sourceName;
+
+    private String functionCategory;
+
+    private String functionCategorySlug;
+
+    private String functionScene;
+
+    private String functionSceneSlug;
+
+    private String templateKind;
+
+    private boolean imageRelated;
+
+    private boolean curated;
+
     public String getId() {
         return id;
     }
@@ -95,5 +113,77 @@ public class ImagePromptTemplate {
 
     public void setSourceUrl(String sourceUrl) {
         this.sourceUrl = sourceUrl;
+    }
+
+    public String getSourceId() {
+        return sourceId;
+    }
+
+    public void setSourceId(String sourceId) {
+        this.sourceId = sourceId;
+    }
+
+    public String getSourceName() {
+        return sourceName;
+    }
+
+    public void setSourceName(String sourceName) {
+        this.sourceName = sourceName;
+    }
+
+    public String getFunctionCategory() {
+        return functionCategory;
+    }
+
+    public void setFunctionCategory(String functionCategory) {
+        this.functionCategory = functionCategory;
+    }
+
+    public String getFunctionCategorySlug() {
+        return functionCategorySlug;
+    }
+
+    public void setFunctionCategorySlug(String functionCategorySlug) {
+        this.functionCategorySlug = functionCategorySlug;
+    }
+
+    public String getFunctionScene() {
+        return functionScene;
+    }
+
+    public void setFunctionScene(String functionScene) {
+        this.functionScene = functionScene;
+    }
+
+    public String getFunctionSceneSlug() {
+        return functionSceneSlug;
+    }
+
+    public void setFunctionSceneSlug(String functionSceneSlug) {
+        this.functionSceneSlug = functionSceneSlug;
+    }
+
+    public String getTemplateKind() {
+        return templateKind;
+    }
+
+    public void setTemplateKind(String templateKind) {
+        this.templateKind = templateKind;
+    }
+
+    public boolean isImageRelated() {
+        return imageRelated;
+    }
+
+    public void setImageRelated(boolean imageRelated) {
+        this.imageRelated = imageRelated;
+    }
+
+    public boolean isCurated() {
+        return curated;
+    }
+
+    public void setCurated(boolean curated) {
+        this.curated = curated;
     }
 }

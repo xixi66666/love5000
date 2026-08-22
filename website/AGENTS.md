@@ -1,5 +1,13 @@
 ﻿# AGENTS.md
 
+## 统一健康检查职责
+
+`integration/health` 维护 `ServiceHealthChecker`、配置化服务清单、并行聚合器和
+`GET /api/services/health`。清单依次包含 `lovestory:8081`、`imagetemplate:8082`、
+`guitar:8088`、`python-a:5174`、`quant-a:5175`、`video:5176`。远程响应只有在
+HTTP 2xx 且顶层布尔值 `success=true` 时才健康；连接/读取超时默认 2000/3000ms。
+`website` 仍只自动启动三个 Python 服务。
+
 ## 项目概述
 
 `website` 是 `love530` Maven 聚合工程中的个人主页/展示站点 Web 微服务，路径：
@@ -11,8 +19,9 @@ C:/Code/Java_Code/love5000/website
 核心功能：
 
 - 提供个人主页静态站点。
+- 个人主页采用单视口电影化布局，包含四场景视频切换、只提供登录/注册的液态玻璃账户顶栏和 8 个带实时状态的服务入口。
 - 统一承载 `python-a`、`quant-a`、`video` 三个独立 Python 子服务的代码目录、首页入口、健康检测和自动启动配置。
-- 提供提示词控制台和静态提示词库页面。
+- 提供提示词控制台和静态提示词库页面，并在首页提供 Prompt Console 入口。
 - 提供基础 Spring MVC Web Demo。
 - 保留 OSS Demo 和 Nacos Discovery 示例代码。
 - 使用 MySQL 和 Druid 作为后端数据源配置。
@@ -203,7 +212,7 @@ website/
 - `prompt/service`：提示词来源拉取、摘要、组合和注册服务。
 - `static/prompt-console`：提示词控制台前端和静态提示词库数据。
 - `static/css/style.css`：站点样式。
-- `static/js/script.js`：站点交互和首页服务卡片健康检测。
+- `static/js/script.js`：站点交互、四场景视频切换、登录注册和首页服务卡片健康检测；顶部不得增加账户操作以外的按钮或移动菜单。
 - `static/img`、`static/svg`、`static/soundeffects`：图片、图标、音效资源。
 - `python-a/`：A 股自选股 AI 研究台，独立 ThreadingHTTPServer 服务，默认端口 `5174`。
 - `quant-a/`：A 股量化研究台，独立 FastAPI 服务，默认端口 `5175`。
@@ -318,6 +327,8 @@ Spring 约定：
 - SVG 图标放在 `src/main/resources/static/svg`。
 - 音效放在 `src/main/resources/static/soundeffects`。
 - 页面引用资源时使用相对路径，不使用本机绝对路径。
+- 首页远程场景视频和装饰覆盖图是经产品提示词明确指定的外部媒体；必须保留黑色/渐变降级背景，外部媒体失败不得影响服务入口、鉴权或健康检测。
+- 首页保持单个 `100svh` 视口且不产生页面级滚动；服务数量超出可用宽度时只允许服务 Dock 自身横向滚动。
 
 ## 测试策略
 

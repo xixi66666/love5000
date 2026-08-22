@@ -53,3 +53,21 @@ video:
     health-path: /api/health
     startup-timeout-seconds: 30
     log-to-console: true
+
+website:
+  service-health:
+    connect-timeout-ms: 2000
+    read-timeout-ms: 3000
+    services:
+      - name: lovestory
+        url: http://127.0.0.1:8081/api/health
+      - name: imagetemplate
+        url: http://127.0.0.1:8082/api/health
+      - name: guitar
+        url: http://127.0.0.1:8088/api/health
+      - name: python-a
+        url: http://127.0.0.1:5174/api/health
+      - name: quant-a
+        url: http://127.0.0.1:5175/api/health
+      - name: video
+        url: http://127.0.0.1:5176/api/health

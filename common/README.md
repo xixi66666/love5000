@@ -5,7 +5,7 @@
 ## 功能
 
 - `love530.oss` OSS 配置绑定与 `OssUtil` 自动装配。
-- OSS 上传、删除、URL 生成和 object key 解析。
+- OSS 上传、删除、URL 生成和 object key 解析；`uploadWithObjectKey` 可使用已校验的预声明对象键上传，供业务服务在远程调用前确定可补偿位置。
 - 通用认证接口：注册、登录、登出、当前用户。
 - BCrypt 密码哈希、Session 登录态、`@AuthRequired` 和 `AuthInterceptor`。
 - `AuthUserRepository` 契约，由业务模块适配自己的用户表。
