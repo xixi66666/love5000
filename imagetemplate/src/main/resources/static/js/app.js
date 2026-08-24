@@ -95,6 +95,8 @@
     var searchTimer = null;
     var listRequestSequence = 0;
     var detailRequestSequence = 0;
+    var templateMotionTriggers = [];
+    var directionSlideIndex = 0;
     var DEFAULT_SIZE_HINT = '尺寸需为宽x高，宽高为 16 的倍数，单边不超过 3840。';
     var CUSTOM_SIZE_HINT = DEFAULT_SIZE_HINT + ' 总像素 655360 到 8294400，最长边/最短边不超过 3。';
 
@@ -193,6 +195,116 @@
             elements.dockProgressBar.style.width = '100%';
             elements.dockProgressBar.style.height = progress;
         }
+    }
+
+    function scrollToTarget(targetId) {
+        var target = document.getElementById(targetId);
+        if (!target) {
+            return;
+        }
+        target.scrollIntoView({
+            behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+            block: 'start'
+        });
+    }
+
+    function showDirectionSlide(nextIndex) {
+        var slides = document.querySelectorAll('.direction-slide');
+        if (!slides.length) {
+            return;
+        }
+        directionSlideIndex = (nextIndex + slides.length) % slides.length;
+        Array.prototype.forEach.call(slides, function (slide, index) {
+            slide.classList.toggle('is-active', index === directionSlideIndex);
+        });
+        var indexLabel = document.getElementById('directionIndex');
+        if (indexLabel) {
+            indexLabel.textContent = String(directionSlideIndex + 1);
+        }
+    }
+
+    function clearTemplateMotion() {
+        templateMotionTriggers.forEach(function (trigger) {
+            trigger.kill();
+        });
+        templateMotionTriggers = [];
+    }
+
+    function animateTemplateCards() {
+        clearTemplateMotion();
+        if (!window.gsap || !window.ScrollTrigger || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            return;
+        }
+        window.gsap.registerPlugin(window.ScrollTrigger);
+        var cards = elements.templateList.querySelectorAll('.template-card:not(.is-skeleton)');
+        Array.prototype.forEach.call(cards, function (card, index) {
+            var tween = window.gsap.fromTo(card,
+                { opacity: .28, scale: .9, y: 26 },
+                {
+                    opacity: 1,
+                    scale: 1,
+                    y: 0,
+                    duration: .7,
+                    delay: Math.min(index, 8) * .025,
+                    ease: 'power3.out',
+                    scrollTrigger: {
+                        trigger: card,
+                        scroller: elements.templateList,
+                        start: 'top 96%',
+                        end: 'bottom 22%',
+                        toggleActions: 'play reverse play reverse'
+                    }
+                }
+            );
+            if (tween.scrollTrigger) {
+                templateMotionTriggers.push(tween.scrollTrigger);
+            }
+        });
+    }
+
+    function initEditorialMotion() {
+        if (!window.gsap || !window.ScrollTrigger || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            return;
+        }
+        window.gsap.registerPlugin(window.ScrollTrigger);
+        document.documentElement.classList.add('gsap-ready');
+        window.gsap.from('.hero-copy > *', {
+            opacity: 0,
+            y: 28,
+            duration: .9,
+            stagger: .09,
+            ease: 'power3.out'
+        });
+        window.gsap.fromTo('.hero-visual-frame',
+            { opacity: .35, scale: .82, y: 34 },
+            {
+                opacity: 1,
+                scale: 1,
+                y: 0,
+                ease: 'none',
+                scrollTrigger: {
+                    trigger: '.discover-intro',
+                    scroller: '.scene[data-scene="discover"] .scene-scroll',
+                    start: 'top 86%',
+                    end: 'bottom 34%',
+                    scrub: .8
+                }
+            }
+        );
+        window.gsap.from('.process-panel', {
+            opacity: 0,
+            y: 70,
+            scale: .94,
+            stagger: .12,
+            ease: 'power3.out',
+            scrollTrigger: {
+                trigger: '.process-accordion',
+                scroller: '.scene[data-scene="discover"] .scene-scroll',
+                start: 'top 88%',
+                end: 'top 48%',
+                scrub: .7
+            }
+        });
     }
 
     function loadMeta() {
@@ -413,6 +525,7 @@
                 '<div class="template-empty"><h3>没有匹配结果</h3>' +
                 '<p>调整功能、场景或关键词后重试。</p>' +
                 '<button type="button" data-clear-filters>清除筛选</button></div>';
+            clearTemplateMotion();
             return;
         }
         elements.templateList.innerHTML = state.templates.map(function (template) {
@@ -438,6 +551,7 @@
                 '<div class="tag-row">' + tags + '</div>' +
                 '</button>';
         }).join('');
+        window.requestAnimationFrame(animateTemplateCards);
     }
 
     function renderDetail() {
@@ -1042,6 +1156,14 @@
     });
 
     document.addEventListener('click', function (event) {
+        var scrollTarget = event.target.closest('[data-scroll-target]');
+        if (scrollTarget) {
+            scrollToTarget(scrollTarget.getAttribute('data-scroll-target'));
+        }
+        var directionControl = event.target.closest('[data-direction]');
+        if (directionControl) {
+            showDirectionSlide(directionSlideIndex + (directionControl.getAttribute('data-direction') === 'next' ? 1 : -1));
+        }
         var sceneTarget = event.target.closest('[data-scene-target]');
         if (sceneTarget) {
             setActiveScene(sceneTarget.getAttribute('data-scene-target'), true);
@@ -1078,6 +1200,8 @@
     updateImageSizeUi();
     loadSessionApiKey();
     setActiveScene('discover', false);
+    showDirectionSlide(0);
+    initEditorialMotion();
 
     loadMeta().then(function () {
         return loadTemplatePage(false);

@@ -22,7 +22,7 @@ C:/Code/Java_Code/love5000/imagetemplate
 - 支持按一级功能、二级场景、来源、原始分类、关键词、仅图片相关组合筛选，并以默认 48、最大 100 的分页摘要返回。
 - 支持将模板 JSON 和用户变量渲染为可直接传给图片生成接口的 prompt；直接提示词模板选中后使用 `promptTemplate`，并将非空用户变量追加到最终 prompt。
 - 支持调用 OpenAI 图片生成接口，返回 base64 图片和 data URL。
-- 前端提供模板选择、模板 JSON 与变量剧本编辑、自定义尺寸校验、prompt 复制、图片生成和下载能力，并使用“灵感大厅 → 模板解构 → Prompt 编导台 → 图片生成舱”四场景黑色调 AI 创作工作台；背景使用本地 `media/background.png` 图片，页面底色为黑色、图片保持原有色调，前景采用白色透明磨砂玻璃不遮挡背景；模板 JSON 进入编导台前必须校验为对象并同步到变量剧本，灵感大厅采用顶部搜索、左侧筛选和右侧结果网格。
+- 前端提供模板选择、模板 JSON 与变量剧本编辑、自定义尺寸校验、prompt 复制、图片生成和下载能力，并使用“灵感大厅 → 模板解构 → Prompt 编导台 → 图片生成舱”四场景编辑式黑色 AI 创作工作台；背景使用本地 `media/background.png` 虎主题图片，首屏采用宽幅分屏与橙色高对比操作，灵感大厅使用顶部搜索、左侧筛选和右侧 dense 结果网格；模板 JSON 进入编导台前必须校验为对象并同步到变量剧本。
 
 技术栈：
 
@@ -181,7 +181,7 @@ imagetemplate/
 - `service/OpenAiImageGenerationService.java`：读取 OpenAI 配置，调用 `/images/generations`，解析 `b64_json`。
 - `model/ImagePromptTemplate.java`：模板模型，对应 JSON 中的 `id`、`title`、`categorySlug`、`jsonTemplate`、`promptTemplate` 等字段。
 - `dto/*`：前后端请求和响应对象。
-- `static/index.html`、`static/css/app.css`、`static/js/app.js`：黑色调 AI 创作风格的四场景单视口前端，不使用 npm 构建；背景使用本地 `media/background.png` 图片，页面底色为黑色、图片保持原有色调，工作区以视频可见性优先：外层约 6% 雾白膜并仅做约 1px 轻微模糊，面板与卡片使用白色透明磨砂玻璃不遮挡背景，搜索与 Prompt 输入保留较高白色底色以确保可读性；信息文字、说明、统计和标签使用白色/浅灰层级，主按钮为深灰渐变保留白字，交互状态使用白色磨砂增强，错误态使用浅红玻璃；并保留 `prefers-reduced-motion` 装饰动画降级；流程导航在桌面端使用页面左侧居中的紧凑悬浮步骤器，900px 以下恢复为底部横向排列；灵感大厅顶部常驻搜索、仅图片开关和清除筛选，内容区左侧集中展示一级功能、二级场景及默认收起的来源/原始分类，右侧为结果网格，同时保留 300ms 防抖、加载更多和详情按需加载；模板解构 JSON 使用可编辑文本域，修改后进入 Prompt 编导台时校验并同步，变量剧本对所有模板类型保持可编辑；移动端改为单列自然滚动；流程导航切换场景时不得清空模板、Prompt、生成参数或结果状态。
+- `static/index.html`、`static/css/app.css`、`static/js/app.js`：编辑式黑色 AI 创作风格的四场景单视口前端，不使用 npm 构建；背景使用本地 `media/background.png` 虎主题图片，首屏采用宽幅分屏、内嵌图像标题、创作理念轮播和橙色高对比主操作，三段横向交互面板衔接灵感、解构与生成。灵感大厅顶部常驻搜索、仅图片开关、结果计数和清除筛选，内容区左侧集中展示一级功能、二级场景及默认收起的来源/原始分类，右侧为 `grid-auto-flow: dense` 密排结果网格；本地 `vendor/` 中的 GSAP 3.13.0 与 ScrollTrigger 提供图像缩放淡入、流程面板滚动揭示和卡片进场，脚本不可用时保持静态可用，并保留 `prefers-reduced-motion` 降级。页面继续保留 300ms 防抖、加载更多、详情按需加载、JSON 编辑校验与变量同步；900px 以下流程导航恢复底部横排，移动端单列自然滚动；场景切换不得清空模板、Prompt、生成参数或结果状态。
 - `templates/image-prompt-templates.json`：精选库数据源。
 - `templates/prompt-console/prompt-library.json`：构建产物中的聚合大库，不在 imagetemplate 源码中维护。
 

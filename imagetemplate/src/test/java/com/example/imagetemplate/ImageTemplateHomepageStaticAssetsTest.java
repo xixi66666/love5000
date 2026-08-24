@@ -51,6 +51,11 @@ class ImageTemplateHomepageStaticAssetsTest {
                 .contains("15 个一级功能")
                 .contains("class=\"filter-sidebar\"")
                 .contains("class=\"results-panel\"")
+                .contains("class=\"hero-visual-frame\"")
+                .contains("class=\"process-accordion\"")
+                .contains("id=\"directionIndex\"")
+                .contains("vendor/gsap-3.13.0.min.js")
+                .contains("vendor/ScrollTrigger-3.13.0.min.js")
                 .doesNotContain("6 个公开提示词来源");
         assertThat(html.indexOf("id=\"sourceFilters\""))
                 .isGreaterThan(html.indexOf("id=\"advancedFilters\""));
@@ -71,6 +76,8 @@ class ImageTemplateHomepageStaticAssetsTest {
                 .contains("grid-template-columns: minmax(260px, 310px) minmax(0, 1fr);")
                 .contains("grid-template-columns: repeat(2, minmax(0, 1fr));")
                 .contains("overflow-x: auto;")
+                .contains("grid-auto-flow: dense;")
+                .contains("max-width: 1120px;")
                 .contains("min-height: 0;");
     }
 
@@ -145,6 +152,9 @@ class ImageTemplateHomepageStaticAssetsTest {
                 .contains("selectFunctionCategory")
                 .contains("clearFilters")
                 .contains("syncJsonTemplateToVariables")
+                .contains("initEditorialMotion")
+                .contains("animateTemplateCards")
+                .contains("showDirectionSlide")
                 .doesNotContain("elements.variablesInput.disabled = direct;")
                 .contains("activeFunctionCategory")
                 .contains("activeFunctionScene")
@@ -154,6 +164,10 @@ class ImageTemplateHomepageStaticAssetsTest {
                 .contains("data-function-scene")
                 .contains("state.activeFunctionCategory = '';")
                 .contains("state.activeFunctionScene = '';");
+        assertThat(read("static/vendor/gsap-3.13.0.min.js"))
+                .contains("Jt.version=Qt.version=ze.version=\"3.13.0\"");
+        assertThat(read("static/vendor/ScrollTrigger-3.13.0.min.js"))
+                .contains("ScrollTrigger");
         int firstOptionalSourceGuard = js.indexOf("if (elements.sourceFilters)");
         assertThat(firstOptionalSourceGuard).isGreaterThan(-1);
         assertThat(js.lastIndexOf("if (elements.sourceFilters)"))
