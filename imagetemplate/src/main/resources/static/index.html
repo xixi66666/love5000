@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#182c41">
     <title>Image Prompt Atelier</title>
+    <link rel="preconnect" href="https://api.fontshare.com">
+    <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@400,500,700,800&display=swap">
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ffffff'/%3E%3Cpath d='M32 8 56 32 32 56 8 32Z' fill='none' stroke='%230f766e' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='8' fill='%2314b8a6'/%3E%3C/svg%3E">
     <link rel="stylesheet" href="css/app.css">
 </head>
@@ -23,8 +25,10 @@
 <div class="app-shell">
     <header class="topbar">
         <div class="brand" aria-label="图片提示词工作台">
+            <span class="brand-mark" aria-hidden="true"><i></i></span>
             <span class="brand-copy">
-                <small>IMAGE PROMPT ATELIER</small>
+                <strong>Prompt Atelier</strong>
+                <small>IMAGE DIRECTION STUDIO</small>
             </span>
         </div>
         <div class="topbar-center">
@@ -44,21 +48,47 @@
             <div class="scene-scroll">
                 <div class="discover-layout">
                     <div class="scene-intro discover-intro">
-                        <div>
-                            <p class="scene-kicker"><span>01</span> DISCOVER PROMPTS</p>
-                            <h1 id="discoverTitle" tabindex="-1">更快找到，<span>真正能用的提示词。</span></h1>
-                            <p class="scene-lead">从 15 个一级功能和细分场景开始筛选，再按来源细化。选中模板后可继续解构、编辑与生成图片。</p>
+                        <div class="hero-copy">
+                            <p class="scene-kicker">CURATED PROMPT LIBRARY</p>
+                            <h1 id="discoverTitle" tabindex="-1">让每一句灵感，走进<span class="inline-heading-image" aria-hidden="true"></span><span>可生成的世界。</span></h1>
+                            <p class="scene-lead">从 15 个一级功能和细分场景开始，找到真正可执行的视觉指令。选中模板后，继续解构、编导并生成你的画面。</p>
+                            <div class="discover-summary">
+                                <button class="primary-action" type="button" data-scroll-target="promptBrowser">
+                                    开始探索模板 <span aria-hidden="true">↘</span>
+                                </button>
+                                <button class="text-action" type="button" data-scene-target="deconstruct">继续上次创作</button>
+                            </div>
                         </div>
-                        <div class="discover-summary" aria-label="模板库概览">
-                            <div><strong id="templateCount">0</strong><span>当前结果</span></div>
-                            <div><strong>15</strong><span>一级功能</span></div>
-                            <button class="primary-action" type="button" data-scene-target="deconstruct">
-                                查看已选模板 <span aria-hidden="true">→</span>
-                            </button>
+                        <div class="hero-visual" aria-label="视觉创作理念轮播">
+                            <div class="hero-visual-frame">
+                                <span class="hero-visual-word">IMAGINE</span>
+                                <div class="direction-carousel">
+                                    <div class="direction-slide is-active">A prompt is a camera<br>for what does not exist yet.</div>
+                                    <div class="direction-slide">先定义画面意图，<br>再决定风格与细节。</div>
+                                    <div class="direction-slide">让限制条件成为<br>视觉语言的一部分。</div>
+                                    <div class="direction-controls">
+                                        <button type="button" data-direction="prev" aria-label="上一条创作理念">←</button>
+                                        <span><i id="directionIndex">1</i> / 3</span>
+                                        <button type="button" data-direction="next" aria-label="下一条创作理念">→</button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="gallery-panel">
+                    <section class="process-accordion" aria-label="从灵感到生成的工作方式">
+                        <button class="process-panel" type="button" data-scroll-target="promptBrowser">
+                            <span>Explore</span><strong>在 4456 条指令里找到起点</strong><small>按任务、场景与来源精准收敛</small>
+                        </button>
+                        <button class="process-panel" type="button" data-scene-target="deconstruct">
+                            <span>Decode</span><strong>把好画面拆成可编辑结构</strong><small>理解变量、叙事与视觉约束</small>
+                        </button>
+                        <button class="process-panel" type="button" data-scene-target="render">
+                            <span>Create</span><strong>让文字成为最终画面</strong><small>自定义尺寸、参考图与输出格式</small>
+                        </button>
+                    </section>
+
+                    <div class="gallery-panel" id="promptBrowser">
                         <div class="browser-toolbar">
                             <div class="search-row">
                                 <label class="sr-only" for="keywordInput">搜索提示词</label>
@@ -69,6 +99,9 @@
                                 <input id="imageOnlyToggle" type="checkbox">
                                 <span>仅看图片提示词</span>
                             </label>
+                            <div class="library-meter" aria-label="当前模板结果">
+                                <strong id="templateCount">0</strong><span>results</span>
+                            </div>
                             <button id="clearFiltersButton" class="clear-filters" type="button">清除筛选</button>
                         </div>
                         <div id="libraryAlert" class="library-alert" role="alert" hidden></div>
@@ -151,7 +184,7 @@
             <div class="scene-scroll">
                 <div class="scene-heading-row">
                     <div class="scene-heading">
-                        <p class="scene-kicker"><span>02</span> READ THE BLUEPRINT</p>
+                        <p class="scene-kicker">READ THE BLUEPRINT</p>
                         <h1 id="deconstructTitle" tabindex="-1">拆开模板，读懂<span>画面的叙事结构。</span></h1>
                     </div>
                     <button class="ghost-action" type="button" data-scene-target="discover">返回展廊</button>
@@ -201,7 +234,7 @@
             <div class="scene-scroll">
                 <div class="scene-heading-row">
                     <div class="scene-heading">
-                        <p class="scene-kicker"><span>03</span> DIRECT THE PROMPT</p>
+                        <p class="scene-kicker">DIRECT THE PROMPT</p>
                         <h1 id="directTitle" tabindex="-1">把你的意图，写进<span>每一束光里。</span></h1>
                     </div>
                     <button class="ghost-action" type="button" data-scene-target="deconstruct">查看模板结构</button>
@@ -256,7 +289,7 @@
             <div class="scene-scroll">
                 <div class="scene-heading-row render-heading">
                     <div class="scene-heading">
-                        <p class="scene-kicker"><span>04</span> RENDER THE VISION</p>
+                        <p class="scene-kicker">RENDER THE VISION</p>
                         <h1 id="renderTitle" tabindex="-1">最后，让文字在画布上<span>显影。</span></h1>
                     </div>
                     <button class="ghost-action" type="button" data-scene-target="direct">返回编导台</button>
@@ -409,6 +442,8 @@
     </nav>
 </div>
 
+<script src="vendor/gsap-3.13.0.min.js"></script>
+<script src="vendor/ScrollTrigger-3.13.0.min.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
