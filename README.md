@@ -22,7 +22,7 @@ Maven 聚合模块：
 
 - `common`：公共 OSS 工具、自动配置和通用 Session 认证能力。
 - `lovestory`：恋爱相册、照片上传、留言板和吉他视频卡片 Web 应用。
-- `website`：电影化个人主页/展示站点、博客、提示词控制台，以及 8 个服务入口、实时健康状态和 Python 子服务自动启动；首页提供四场景视频切换与响应式液态玻璃服务 Dock。
+- `website`：电影化个人主页/展示站点、博客、提示词控制台，以及 7 个服务入口、实时健康状态和 Python 子服务自动启动；首页提供四场景视频切换与响应式液态玻璃服务 Dock。
 - `imagetemplate`：聚合 47 条精选图片模板和 Prompt Console 的 4409 条公开提示词，总计 4456 条，并按 15 个一级功能与二级场景检索；提供按需详情和 OpenAI Images API 生成服务，前端采用虎主题编辑式黑色工作台、橙色高对比操作、dense 模板展廊和本地 GSAP 滚动动效，模板 JSON 与变量剧本均可手工编辑。
 - `guitar`：Guitar 曲谱平台，提供手机号注册登录、Session/CSRF 鉴权、公开曲谱检索、安全上传、个人曲谱管理、多收藏夹和管理员曲谱下架/恢复，默认端口 `8088`。
 
@@ -106,7 +106,7 @@ Guitar 认证流程先调用 `GET http://127.0.0.1:8088/api/auth/session` 获取
 
 Guitar 已提供 `PUT /api/users/me` 更新昵称和 `POST /api/users/me/avatar` 上传头像。两个接口只使用认证 Session 中的用户身份；头像字段名为 `avatar`，限制为不超过 5MB 的 JPG/JPEG、PNG 或 WebP，并校验文件魔数。头像 OSS 存储通过 `LOVE530_OSS_ENABLED=true` 及现有 `LOVE530_OSS_*` 环境变量启用，数据库仅保存对象键；旧对象删除失败会落入 `guitar_oss_cleanup_task` 等待后续清理。
 
-Guitar 的首页当前由 React/Vite 构建，源码位于 `guitar/src/main/frontend/`，构建产物输出到 `guitar/src/main/resources/static/`，Spring Boot 直接从这里提供 `http://127.0.0.1:8088/`。前端开发和构建命令为 `npm.cmd run dev`、`npm.cmd run build` 和 `npm.cmd run test:homepage`，静态资源断言继续由 `GuitarApplicationTests` 覆盖。
+Guitar 的首页当前由 React/Vite 构建，源码位于 `guitar/src/main/frontend/`，构建产物输出到 `guitar/src/main/resources/static/`，Spring Boot 直接从这里提供 `http://127.0.0.1:8088/`。前端开发和构建命令为 `npm.cmd run dev` 和 `npm.cmd run build`，静态资源断言由 `GuitarApplicationTests` 覆盖。
 
 Guitar 的 `GET /api/sheets` 和 `GET /api/sheets/{id}` 可匿名访问。列表仅返回已发布且未删除的曲谱，支持 `keyword`、`songName`、`singer`、`sheetType`、`difficulty`、`keySignature`、`capoPosition`、`tuning` 和 `sort`（`LATEST`、`MOST_FAVORITED`、`MOST_VIEWED`）；分页默认 `page=1`、`size=20`，`size` 最大为 50。详情按文件排序返回可公开访问的文件 URL，并在亚洲/上海日期桶中记录浏览量。静态首页仍为 `http://127.0.0.1:8088/`，健康检查为 `GET /api/health`。
 
@@ -129,6 +129,8 @@ cd website/quant-a && python -m pytest -v
 
 不要提交真实数据库密码、OSS AccessKey、OpenAI API Key、DeepSeek Key、Tushare Token、腾讯云密钥或 DashScope Key。新增配置优先使用环境变量或本地私有配置文件。
 
+`lovestory` 默认连接本机 `lovestory` 数据库并关闭 OSS。需要连接其他数据库或启用 OSS 时，使用 `LOVESTORY_DB_URL`、`LOVESTORY_DB_USERNAME`、`LOVESTORY_DB_PASSWORD` 和 `LOVE530_OSS_*` 环境变量覆盖。`website` 数据库使用 `WEBSITE_DB_URL`、`WEBSITE_DB_USERNAME`、`WEBSITE_DB_PASSWORD` 覆盖，默认指向本机 `ycx_pms`；仓库内不提供远程地址或真实凭据默认值。
+
 常见私有文件已在 `.gitignore` 中忽略，例如：
 
 - `website/python-a/deepseek.local.json`
@@ -148,4 +150,4 @@ cd website/quant-a && python -m pytest -v
 
 第一期工作台页面包括 `upload.html`（上传/编辑）、`favorites.html`（私人收藏夹）、`profile.html`（资料与我的公开上传）和 `admin.html`（管理员下架/恢复）。新增 Node 校验脚本为 `npm.cmd run test:upload`、`npm.cmd run test:favorites`；页面静态资源由 `GuitarApplicationTests` 断言。
 
-Guitar 的首页源码位于 `guitar/src/main/frontend/`，通过 `npm.cmd run build` 输出到 `guitar/src/main/resources/static/index.html`。详情页为 `sheet.html`，认证页为 `auth.html`，工作台页面仍包括 `upload.html`、`favorites.html`、`profile.html` 和 `admin.html`；共享 API、Session 与详情模块位于 `static/js/`。前端 Node 测试从 `guitar/` 执行 `npm.cmd run test:homepage`、`npm.cmd run test:api`、`npm.cmd run test:auth` 和 `npm.cmd run test:search`，Java 静态资源断言使用 Guitar 模块 Maven 测试命令。
+Guitar 的首页源码位于 `guitar/src/main/frontend/`，通过 `npm.cmd run build` 输出到 `guitar/src/main/resources/static/index.html`。详情页为 `sheet.html`，认证页为 `auth.html`，工作台页面仍包括 `upload.html`、`favorites.html`、`profile.html` 和 `admin.html`；共享 API、Session 与详情模块位于 `static/js/`。前端 Node 测试从 `guitar/` 执行 `npm.cmd run test:api`、`npm.cmd run test:auth`、`npm.cmd run test:search`、`npm.cmd run test:upload` 和 `npm.cmd run test:favorites`，Java 静态资源断言使用 Guitar 模块 Maven 测试命令。

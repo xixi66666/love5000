@@ -112,10 +112,11 @@ X-CSRF-Token: <data.csrfToken>
 Run browser-independent frontend tests from this directory:
 
 ```bash
-npm.cmd run test:homepage
 npm.cmd run test:api
 npm.cmd run test:auth
 npm.cmd run test:search
+npm.cmd run test:upload
+npm.cmd run test:favorites
 ```
 
-The homepage entry point has moved to a React/Vite implementation in `src/main/frontend/`. Run `npm.cmd run dev` for local frontend work, `npm.cmd run build` to publish the homepage into `src/main/resources/static/`, and `npm.cmd run test:homepage` to verify the built landing page and animation scaffolding.
+The homepage entry point is a React/Vite implementation in `src/main/frontend/`. Run `npm.cmd run dev` for local frontend work and `npm.cmd run build` to publish the homepage into `src/main/resources/static/`.

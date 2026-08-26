@@ -2,7 +2,7 @@
 project: love530
 type: overview
 module: all
-updated: 2026-05-10
+updated: 2026-08-26
 ---
 
 # love530
@@ -15,6 +15,9 @@ updated: 2026-05-10
 - `lovestory`：恋爱相册 Web 应用，提供静态页面、照片上传、照片列表、删除接口、留言板和小游戏页面。
 - `website`：个人主页/展示站点 Web 应用，包含主页静态资源、Web Demo、OSS Demo、Nacos Discovery 示例和个人博客微应用。
 - `imagetemplate`：图片提示词模板 Web 服务，提供模板库检索、prompt 渲染和 OpenAI 图片生成能力。
+- `guitar`：Guitar 曲谱平台，提供认证、公开曲谱、上传、收藏夹和管理员审核能力。
+- `website/python-a`：独立 A 股自选股 AI 研究台，不是 Maven 模块。
+- `website/quant-a`：独立 FastAPI 量化研究台，不是 Maven 模块。
 
 ## 技术栈
 
@@ -27,6 +30,7 @@ updated: 2026-05-10
 - Alibaba Druid
 - Aliyun OSS SDK
 - OpenAI Images API
+- Python 3.9+ / FastAPI / Uvicorn
 - JUnit 5 / Spring Boot Test / AssertJ / Maven Surefire 2.22.2
 - 原生 HTML / CSS / JavaScript
 
@@ -35,6 +39,9 @@ updated: 2026-05-10
 - `website`：`8080`
 - `lovestory`：`8081`
 - `imagetemplate`：`8082`
+- `guitar`：`8088`
+- `python-a`：`5174`
+- `quant-a`：`5175`
 - `common`：不是独立 Web 服务，不作为应用端口启动
 
 ## 常用命令
@@ -47,9 +54,13 @@ mvn -pl common test
 mvn -pl lovestory -am test
 mvn -pl website -am test
 mvn -pl imagetemplate -am test
+mvn -pl guitar -am test
 mvn -pl lovestory -am spring-boot:run -Dspring-boot.run.main-class=com.ycxandwuqian.love.LovestoryApplication
 mvn -pl website -am spring-boot:run
 mvn -pl imagetemplate -am spring-boot:run
+mvn -f guitar/pom.xml spring-boot:run
+cd website/python-a && python server.py
+cd website/quant-a && python -m uvicorn main:app --host 127.0.0.1 --port 5175
 ```
 
 ## 相关笔记

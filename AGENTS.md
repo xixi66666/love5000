@@ -375,6 +375,8 @@ website/quant-a/
 
 ⚠️ **严重警告**：不要提交真实数据库密码、OSS AccessKey、OpenAI API Key。新增配置优先使用环境变量，例如 `${OPENAI_API_KEY:}`、`${LOVE530_OSS_ACCESS_KEY_ID:}`。
 
+`lovestory` 数据库连接通过 `LOVESTORY_DB_URL`、`LOVESTORY_DB_USERNAME`、`LOVESTORY_DB_PASSWORD` 覆盖；默认仅指向本机 `lovestory` 数据库。`website` 使用 `WEBSITE_DB_URL`、`WEBSITE_DB_USERNAME`、`WEBSITE_DB_PASSWORD`，默认仅指向本机 `ycx_pms`。OSS 默认关闭，只有显式设置 `LOVE530_OSS_ENABLED=true` 并提供 `LOVE530_OSS_*` 凭据后才启用。
+
 ### MyBatis
 
 使用数据库的 Web 模块必须显式配置：
@@ -876,6 +878,6 @@ Single-context layout: root `CONTEXT.md` and `docs/adr/`, created lazily when ne
 
 第一期工作台页面包括 `guitar/src/main/resources/static/upload.html`（上传/编辑）、`favorites.html`（私人收藏夹）、`profile.html`（资料与我的公开上传）和 `admin.html`（管理员下架/恢复）。Node 校验脚本为 `npm.cmd run test:upload`、`npm.cmd run test:favorites`，Java 静态资源断言使用 `mvn -pl guitar -am -Dtest=GuitarApplicationTests -DfailIfNoTests=false test`。
 
-The Guitar homepage source lives in `guitar/src/main/frontend/` as a React/Vite app. Run `npm.cmd run dev` from `guitar/` for local frontend preview, `npm.cmd run build` to emit the served `/index.html` and hashed assets into `guitar/src/main/resources/static/`, and `npm.cmd run test:homepage` for the homepage-specific static checks. Public detail is `sheet.html`, authentication is `auth.html`, with shared ES modules in `static/js/`. Run frontend checks from `guitar/` using `npm.cmd run test:api`, `npm.cmd run test:auth`, and `npm.cmd run test:search`; Java static-resource assertions run with the Guitar Maven test command.
+The Guitar homepage source lives in `guitar/src/main/frontend/` as a React/Vite app. Run `npm.cmd run dev` from `guitar/` for local frontend preview and `npm.cmd run build` to emit the served `/index.html` and hashed assets into `guitar/src/main/resources/static/`. Public detail is `sheet.html`, authentication is `auth.html`, with shared ES modules in `static/js/`. Run frontend checks from `guitar/` using `npm.cmd run test:api`, `npm.cmd run test:auth`, `npm.cmd run test:search`, `npm.cmd run test:upload`, and `npm.cmd run test:favorites`; Java static-resource assertions run with the Guitar Maven test command.
 
 

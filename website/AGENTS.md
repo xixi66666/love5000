@@ -41,8 +41,7 @@ C:/Code/Java_Code/love5000/website
 配置文件：
 
 - `pom.xml`：模块依赖、Java 8 编译配置、Spring Boot 主类。
-- `src/main/resources/application.properties`：端口和历史示例配置。
-- `src/main/resources/application.yml`：MySQL、Druid、静态资源路径，以及两个 Python 子服务的自动启动配置。
+- `src/main/resources/application.yml`：端口、MySQL、Druid、静态资源路径，以及两个 Python 子服务的自动启动配置。
 
 **关键**：`website` 是可独立启动的 Web 服务，默认端口为 `8080`。
 
@@ -160,9 +159,7 @@ website/
     │   │   ├── nacosdiscovery/
     │   │   └── prompt/
     │   └── resources/
-    │       ├── application.properties
     │       ├── application.yml
-    │       ├── index.html
     │       ├── mapper/
     │       │   ├── auth/WebsiteAuthUserMapper.xml
     │       │   └── blog/BlogArticleMapper.xml
@@ -171,10 +168,7 @@ website/
     │           ├── css/style.css
     │           ├── js/script.js
     │           ├── img/
-    │           ├── media/
-    │           ├── prompt-console/
-    │           ├── soundeffects/
-    │           └── svg/
+    │           └── prompt-console/
     └── test/java/com/example/website/
         └── WebsiteApplicationTests.java
 ```
@@ -200,7 +194,7 @@ website/
 - `static/prompt-console`：提示词控制台前端和静态提示词库数据。
 - `static/css/style.css`：站点样式。
 - `static/js/script.js`：站点交互、四场景视频切换、登录注册和首页服务卡片健康检测；顶部不得增加账户操作以外的按钮或移动菜单。
-- `static/img`、`static/svg`、`static/soundeffects`：图片、图标、音效资源。
+- `static/img`：主页图标和博客头像资源。
 - `python-a/`：A 股自选股 AI 研究台，独立 ThreadingHTTPServer 服务，默认端口 `5174`。
 - `quant-a/`：A 股量化研究台，独立 FastAPI 服务，默认端口 `5175`。
 
@@ -237,6 +231,8 @@ spring:
     type: com.alibaba.druid.pool.DruidDataSource
     driver-class-name: com.mysql.cj.jdbc.Driver
 ```
+
+连接参数使用 `WEBSITE_DB_URL`、`WEBSITE_DB_USERNAME`、`WEBSITE_DB_PASSWORD` 环境变量覆盖；默认仅指向本机 `ycx_pms` 数据库，禁止提交远程地址或真实密码默认值。
 
 ⚠️ 严重警告：不要提交真实数据库密码。新增配置时使用环境变量，例如 `${WEBSITE_DB_PASSWORD}`。
 
@@ -295,17 +291,14 @@ Spring 约定：
 - 示例代码放在 `demos` 包下，生产化代码不要继续塞进 `demos`。
 - 业务数据库访问放在 DAO + Mapper XML 中，Service 只处理业务规则和事务边界。
 - Nacos 相关代码集中在 `nacosdiscovery` 和 `demos/nacosdiscovery*`。
-- 新增配置优先写入 `application.yml`，端口等简单开关可保留在 `application.properties`。
+- 新增配置写入 `application.yml`，不要重新引入重复的 `application.properties`。
 
 前端静态资源约定：
 
 - CSS 修改放在 `src/main/resources/static/css/style.css`。
 - JS 修改放在 `src/main/resources/static/js/script.js`。
 - 图片放在 `src/main/resources/static/img`。
-- 媒体文件放在 `src/main/resources/static/media`。
 - 提示词控制台放在 `src/main/resources/static/prompt-console`。
-- SVG 图标放在 `src/main/resources/static/svg`。
-- 音效放在 `src/main/resources/static/soundeffects`。
 - 页面引用资源时使用相对路径，不使用本机绝对路径。
 - 首页远程场景视频和装饰覆盖图是经产品提示词明确指定的外部媒体；必须保留黑色/渐变降级背景，外部媒体失败不得影响服务入口、鉴权或健康检测。
 - 首页保持单个 `100svh` 视口且不产生页面级滚动；服务数量超出可用宽度时只允许服务 Dock 自身横向滚动。

@@ -261,6 +261,8 @@ webp
 
 当前使用 MySQL，配置在 `src/main/resources/application.yml`。
 
+连接配置仅通过环境变量覆盖：`LOVESTORY_DB_URL`、`LOVESTORY_DB_USERNAME`、`LOVESTORY_DB_PASSWORD`。仓库默认指向本机 `lovestory` 数据库且不提供密码，不得恢复远程地址或真实凭据默认值。
+
 MyBatis 必须显式配置 XML Mapper 扫描路径：
 
 ```yaml
@@ -337,10 +339,10 @@ OSS 能力来自 `common` 模块的 `OssUtil`。
 ```yaml
 love530:
   oss:
-    enabled: ${LOVE530_OSS_ENABLED:true}
+    enabled: ${LOVE530_OSS_ENABLED:false}
     endpoint: ${LOVE530_OSS_ENDPOINT:oss-cn-beijing.aliyuncs.com}
-    access-key-id: ${LOVE530_OSS_ACCESS_KEY_ID}
-    access-key-secret: ${LOVE530_OSS_ACCESS_KEY_SECRET}
+    access-key-id: ${LOVE530_OSS_ACCESS_KEY_ID:}
+    access-key-secret: ${LOVE530_OSS_ACCESS_KEY_SECRET:}
     bucket-name: ${LOVE530_OSS_BUCKET_NAME:lovestory5000}
     url-prefix: ${LOVE530_OSS_URL_PREFIX:}
     base-dir: ${LOVE530_OSS_BASE_DIR:love530/lovestory/photos}
@@ -360,6 +362,8 @@ love530/lovestory/videos/covers
 ```
 
 ⚠️ 严重警告：不要提交真实数据库密码、OSS AccessKey 或 AccessKeySecret。
+
+OSS 默认关闭；本地确需上传时显式设置 `LOVE530_OSS_ENABLED=true` 并提供完整 `LOVE530_OSS_*` 环境变量。
 
 ## 代码规范
 

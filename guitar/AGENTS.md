@@ -135,6 +135,6 @@ POST /api/admin/sheets/{id}/restore
 
 The homepage source lives in `src/main/frontend/` as a React/Vite app, and `npm.cmd run build` publishes it to `src/main/resources/static/index.html`. Authentication is provided by `auth.html` and the ES modules `js/api.js`, `js/session.js`, and `js/auth.js`. API requests use same-origin credentials, in-memory/session-storage CSRF, and redirect JSON 401 responses to `auth.html`.
 
-Run frontend checks from `guitar/` with `npm.cmd run test:homepage`, `npm.cmd run test:api` and `npm.cmd run test:auth`. The Java static-resource checks are included in `mvn -pl guitar -am -Dtest=GuitarApplicationTests -DfailIfNoTests=false test`.
+Run frontend checks from `guitar/` with `npm.cmd run test:api`, `npm.cmd run test:auth`, `npm.cmd run test:search`, `npm.cmd run test:upload`, and `npm.cmd run test:favorites`. The Java static-resource checks are included in `mvn -pl guitar -am -Dtest=GuitarApplicationTests -DfailIfNoTests=false test`.
 
-The homepage is now implemented with React/Vite under `src/main/frontend/`. Use `npm.cmd run dev` for local frontend iteration, `npm.cmd run build` to write the homepage into `src/main/resources/static/`, and `npm.cmd run test:homepage` to validate the new landing page shell and animation assets.
+The homepage is implemented with React/Vite under `src/main/frontend/`. Use `npm.cmd run dev` for local frontend iteration and `npm.cmd run build` to write the homepage into `src/main/resources/static/`.

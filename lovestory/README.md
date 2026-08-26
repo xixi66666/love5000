@@ -26,6 +26,8 @@ mvn -pl lovestory -am spring-boot:run -Dspring-boot.run.main-class=com.ycxandwuq
 http://localhost:8081/
 ```
 
+默认连接本机 `lovestory` 数据库且 OSS 关闭。通过 `LOVESTORY_DB_URL`、`LOVESTORY_DB_USERNAME`、`LOVESTORY_DB_PASSWORD` 覆盖数据库连接；需要上传时再设置 `LOVE530_OSS_ENABLED=true` 及完整的 `LOVE530_OSS_*` 环境变量。仓库不提供真实凭据默认值。
+
 ## API
 
 ```text

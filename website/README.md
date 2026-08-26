@@ -36,6 +36,8 @@ mvn -pl website -am spring-boot:run
 http://localhost:8080/
 ```
 
+数据库默认连接本机 `ycx_pms`，可通过 `WEBSITE_DB_URL`、`WEBSITE_DB_USERNAME`、`WEBSITE_DB_PASSWORD` 覆盖。仓库不提供远程数据库地址或真实密码默认值。
+
 直接启动 `website` 时，会默认检查并拉起：
 
 ```text
@@ -56,8 +58,8 @@ src/main/resources/static/
   index.html
   blog/
   css/
+  img/
   js/
-  media/
   prompt-console/
 python-a/
 quant-a/

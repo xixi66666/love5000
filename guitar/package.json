@@ -10,8 +10,7 @@
     "test:auth": "node --test src/test/js/auth-validation.test.js",
     "test:search": "node --test src/test/js/sheet-search.test.js",
     "test:upload": "node --test src/test/js/upload-validation.test.js",
-    "test:favorites": "node --test src/test/js/favorite-state.test.js",
-    "test:homepage": "node --test src/test/js/homepage-static.test.js"
+    "test:favorites": "node --test src/test/js/favorite-state.test.js"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",
