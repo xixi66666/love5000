@@ -2,9 +2,9 @@
 
 ## 统一健康检查
 
-`lovestory`、`imagetemplate`、`guitar`、`python-a`、`quant-a` 和 `video`
+`lovestory`、`imagetemplate`、`guitar`、`python-a` 和 `quant-a`
 统一提供 `GET /api/health`，响应顶层包含 `success=true` 与稳定的 `service`。
-启动 `website` 后可访问 `GET http://127.0.0.1:8080/api/services/health` 并行查看六个服务；
+启动 `website` 后可访问 `GET http://127.0.0.1:8080/api/services/health` 并行查看五个服务；
 HTTP 200 表示聚合成功，`healthy` 表示是否全部在线。Java 探测默认连接/读取超时为
 2000/3000ms。
 
@@ -14,7 +14,7 @@ HTTP 200 表示聚合成功，`healthy` 表示是否全部在线。Java 探测�
 mvn -pl website,lovestory,imagetemplate,guitar -am test
 ```
 
-`love5000` 是一个 Java 8 + Spring Boot 2.6.13 的 Maven 多模块项目，父工程 artifactId 为 `love530`。仓库同时托管三个独立 Python 微应用，用于 A 股研究、量化研究和 AI 动漫短片生成。
+`love5000` 是一个 Java 8 + Spring Boot 2.6.13 的 Maven 多模块项目，父工程 artifactId 为 `love530`。仓库同时托管两个独立 Python 微应用，用于 A 股研究和量化研究。
 
 ## 模块
 
@@ -30,9 +30,8 @@ Maven 聚合模块：
 
 - `website/python-a`：A 股自选股 AI 研究台，默认端口 `5174`。
 - `website/quant-a`：A 股多因子量化研究台，默认端口 `5175`。
-- `website/video`：AI 原创动漫短片生成工作台，默认端口 `5176`。
 
-根目录下的 `python-a/`、`quant-a/` 不是当前主要接入路径；当前运行和文档维护以 `website/` 下的三个子服务为准。
+根目录下的 `python-a/`、`quant-a/` 不是当前主要接入路径；当前运行和文档维护以 `website/` 下的两个子服务为准。
 
 ## 快速开始
 
@@ -49,9 +48,9 @@ mvn test
 mvn -pl website -am spring-boot:run
 ```
 
-`website` 默认端口为 `8080`，启动时会检查并自动拉起 `website/python-a`、`website/quant-a` 和 `website/video`。如果对应健康检查已经可用，会复用已有服务。
+`website` 默认端口为 `8080`，启动时会检查并自动拉起 `website/python-a` 和 `website/quant-a`。如果对应健康检查已经可用，会复用已有服务。
 
-首页是无需前端构建的单视口原生页面，集中展示恋爱相册、图片模板、博客、Prompt Console、Guitar、A 股研究台、Quant 研究台和 AI 视频工作台。每个入口保留端口标识和实时状态；顶部只保留登录、注册账户操作，登录后切换为退出，移动端继续使用横向可滑动服务 Dock。
+首页是无需前端构建的单视口原生页面，集中展示恋爱相册、图片模板、博客、Prompt Console、Guitar、A 股研究台和 Quant 研究台。每个入口保留端口标识和实时状态；顶部只保留登录、注册账户操作，登录后切换为退出，移动端继续使用横向可滑动服务 Dock。
 
 `imagetemplate` 首页同样无需前端构建，按“灵感大厅 → 模板解构 → Prompt 编导台 → 图片生成舱”组织为黑色调 AI 创作工作台，背景使用本地 `media/background.png` 图片，页面底色为黑色、图片保持原有色调；工作区以视频可见性优先，外层只覆盖约 6% 雾白膜并使用约 1px 轻微模糊，面板与卡片为白色透明磨砂玻璃不遮挡背景，搜索与 Prompt 输入则保留较高白色底色。页面的信息文字、说明、统计与标签统一使用白色/浅灰层级，主按钮为深灰渐变并保留白字；交互状态使用白色磨砂增强，错误态使用浅红玻璃。灵感大厅默认每页 48 条，顶部常驻搜索、仅图片开关和清除筛选，桌面端内容区左侧集中展示“一级功能 + 二级场景”及默认收起的来源/原始分类，右侧保留大面积结果网格；15 个一级功能包含明确的“编程与技术开发”。页面支持 300ms 搜索防抖和加载更多；完整 Prompt 在选中卡片后按需读取。模板解构中的 JSON 可直接编辑并校验，进入 Prompt 编导台时同步到可继续手工修改的变量剧本；直出模板也会把变量追加到最终 Prompt。桌面端创作流程使用页面左侧居中的紧凑悬浮步骤器，窄屏恢复为底部横向流程；切换场景时会保留已选模板、Prompt、生成参数和结果。
 
@@ -70,7 +69,6 @@ Python 子服务可单独启动：
 ```bash
 cd website/python-a && python server.py
 cd website/quant-a && python -m uvicorn main:app --host 127.0.0.1 --port 5175
-cd website/video && python web_server.py
 ```
 
 ## 端口
@@ -81,7 +79,6 @@ cd website/video && python web_server.py
 - `guitar`：`8088`
 - `python-a`：`5174`
 - `quant-a`：`5175`
-- `video`：`5176`
 
 ## 测试
 
@@ -126,7 +123,6 @@ Python 子服务：
 ```bash
 cd website/python-a && python -m unittest discover -s tests -v
 cd website/quant-a && python -m pytest -v
-cd website/video && python -m unittest discover -s tests -v
 ```
 
 ## 配置与安全
@@ -137,8 +133,6 @@ cd website/video && python -m unittest discover -s tests -v
 
 - `website/python-a/deepseek.local.json`
 - `website/quant-a/data/`
-- `website/video/config/config.local.json`
-- `website/video/anime_projects/`
 - `.env`、`.venv/`、`__pycache__/`、`.pytest_cache/`、`*.log`
 
 ## 文档维护规则

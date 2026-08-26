@@ -4,9 +4,9 @@
 
 `integration/health` 维护 `ServiceHealthChecker`、配置化服务清单、并行聚合器和
 `GET /api/services/health`。清单依次包含 `lovestory:8081`、`imagetemplate:8082`、
-`guitar:8088`、`python-a:5174`、`quant-a:5175`、`video:5176`。远程响应只有在
+`guitar:8088`、`python-a:5174`、`quant-a:5175`。远程响应只有在
 HTTP 2xx 且顶层布尔值 `success=true` 时才健康；连接/读取超时默认 2000/3000ms。
-`website` 仍只自动启动三个 Python 服务。
+`website` 仍只自动启动两个 Python 服务。
 
 ## 项目概述
 
@@ -19,8 +19,8 @@ C:/Code/Java_Code/love5000/website
 核心功能：
 
 - 提供个人主页静态站点。
-- 个人主页采用单视口电影化布局，包含四场景视频切换、只提供登录/注册的液态玻璃账户顶栏和 8 个带实时状态的服务入口。
-- 统一承载 `python-a`、`quant-a`、`video` 三个独立 Python 子服务的代码目录、首页入口、健康检测和自动启动配置。
+- 个人主页采用单视口电影化布局，包含四场景视频切换、只提供登录/注册的液态玻璃账户顶栏和 7 个带实时状态的服务入口。
+- 统一承载 `python-a`、`quant-a` 两个独立 Python 子服务的代码目录、首页入口、健康检测和自动启动配置。
 - 提供提示词控制台和静态提示词库页面，并在首页提供 Prompt Console 入口。
 - 提供基础 Spring MVC Web Demo。
 - 保留 OSS Demo 和 Nacos Discovery 示例代码。
@@ -42,13 +42,13 @@ C:/Code/Java_Code/love5000/website
 
 - `pom.xml`：模块依赖、Java 8 编译配置、Spring Boot 主类。
 - `src/main/resources/application.properties`：端口和历史示例配置。
-- `src/main/resources/application.yml`：MySQL、Druid、静态资源路径，以及三个 Python 子服务的自动启动配置。
+- `src/main/resources/application.yml`：MySQL、Druid、静态资源路径，以及两个 Python 子服务的自动启动配置。
 
 **关键**：`website` 是可独立启动的 Web 服务，默认端口为 `8080`。
 
-**关键**：`python-a`、`quant-a`、`video` 放在 `website/` 目录下，但仍然是独立 Python 服务，不是 Java Maven 模块，不加入父 `pom.xml` 的 `<modules>`。
+**关键**：`python-a`、`quant-a` 放在 `website/` 目录下，但仍然是独立 Python 服务，不是 Java Maven 模块，不加入父 `pom.xml` 的 `<modules>`。
 
-**关键**：直接启动 `website` 时会自动检查并拉起 `website/python-a`、`website/quant-a`、`website/video`。默认会把三个 Python 子服务的 stdout/stderr 继承到 `website` 控制台，便于在 IDEA Run/Terminal 中查看运行日志和接口访问日志。
+**关键**：直接启动 `website` 时会自动检查并拉起 `website/python-a`、`website/quant-a`。默认会把两个 Python 子服务的 stdout/stderr 继承到 `website` 控制台，便于在 IDEA Run/Terminal 中查看运行日志和接口访问日志。
 
 **文档同步约定**：每次修改 `website` 的首页入口、提示词控制台、博客、自动启动配置、Python 子服务集成、端口、API、静态资源目录或测试方式时，必须同步更新本文件、`website/README.md`，以及根目录 `AGENTS.md` / `README.md` 中相关内容。
 
@@ -123,13 +123,6 @@ cd C:/Code/Java_Code/love5000/website/quant-a
 python -m uvicorn main:app --host 127.0.0.1 --port 5175
 ```
 
-单独启动 `video`：
-
-```bash
-cd C:/Code/Java_Code/love5000/website/video
-python web_server.py --host 127.0.0.1 --port 5176
-```
-
 ## 项目结构
 
 ```text
@@ -144,11 +137,6 @@ website/
 ├── quant-a/
 │   ├── main.py
 │   ├── quant/
-│   ├── tests/
-│   └── web/
-├── video/
-│   ├── web_server.py
-│   ├── anime_tools/
 │   ├── tests/
 │   └── web/
 └── src/
@@ -196,7 +184,6 @@ website/
 - `WebsiteApplication.java`：Spring Boot 启动类。
 - `integration/PythonAAutoStartRunner.java`：启动或复用 `website/python-a`，健康检查地址为 `http://127.0.0.1:5174/api/health`。
 - `integration/QuantAAutoStartRunner.java`：启动或复用 `website/quant-a`，健康检查地址为 `http://127.0.0.1:5175/api/health`。
-- `integration/VideoAutoStartRunner.java`：启动或复用 `website/video`，健康检查地址为 `http://127.0.0.1:5176/api/health`。
 - `auth/WebsiteAuthUserRepository.java`：适配 `common` 的 `AuthUserRepository`，不直接写 SQL。
 - `auth/dao/WebsiteAuthUserDao.java`：认证用户表 MyBatis DAO。
 - `blog/controller`：博客 REST API。
@@ -216,7 +203,6 @@ website/
 - `static/img`、`static/svg`、`static/soundeffects`：图片、图标、音效资源。
 - `python-a/`：A 股自选股 AI 研究台，独立 ThreadingHTTPServer 服务，默认端口 `5174`。
 - `quant-a/`：A 股量化研究台，独立 FastAPI 服务，默认端口 `5175`。
-- `video/`：AI 视频工作台，独立 Python Web 服务，默认端口 `5176`。
 
 ## 配置约定
 
@@ -231,7 +217,6 @@ server.port=8080
 ```text
 python-a: 5174
 quant-a: 5175
-video: 5176
 ```
 
 静态资源路径：
@@ -286,16 +271,11 @@ quant-a:
   auto-start:
     work-dir: website/quant-a
     log-to-console: true
-
-video:
-  auto-start:
-    work-dir: website/video
-    log-to-console: true
 ```
 
 - `log-to-console: true` 时，子服务日志会直接进入 `website` 的控制台。
 - `log-to-console: false` 时，日志写入对应子服务目录下的 `server.out.log` 和 `server.err.log`。
-- 单元测试必须关闭三个自动启动开关，避免测试启动外部 Python 进程。
+- 单元测试必须关闭两个自动启动开关，避免测试启动外部 Python 进程。
 
 ## 代码规范
 
@@ -356,7 +336,7 @@ src/test/java/com/example/website/WebsiteApplicationTests.java
 - 修改 Nacos 示例时，测试中不要依赖真实 Nacos 服务。
 - 修改数据库相关配置时，测试中不要连接远程 MySQL。
 - 修改静态页面后，启动服务并访问 `http://localhost:8080/` 手动验证。
-- 修改三个 Python 子服务自动启动逻辑时，至少运行对应 `*AutoStartRunnerTest`，并确认工作目录解析仍支持从仓库根目录和 `website/` 模块目录启动。
+- 修改两个 Python 子服务自动启动逻辑时，至少运行对应 `*AutoStartRunnerTest`，并确认工作目录解析仍支持从仓库根目录和 `website/` 模块目录启动。
 
 覆盖率目标：
 
@@ -382,7 +362,7 @@ mvn -pl website -am spring-boot:run
 - **关键**：不要把正式业务代码继续放进 `demos` 包。
 - **关键**：新增或修改数据库 CRUD 时同步更新 DAO、Mapper XML、模型和测试。
 - **关键**：静态资源路径必须能从 `classpath:/static/` 加载。
-- **关键**：三个 Python 子服务必须保留在 `website/python-a`、`website/quant-a`、`website/video` 下，但不要加入 Maven modules。
+- **关键**：两个 Python 子服务必须保留在 `website/python-a`、`website/quant-a` 下，但不要加入 Maven modules。
 - **关键**：数据库密码和 Nacos 密码使用环境变量。
 - ⚠️ 不要在单元测试中连接真实 Nacos、真实 MySQL 或外部 OSS。
-- ⚠️ 不要提交 `target/`、IDE 缓存、Python `__pycache__/`、`.pytest_cache/`、本地密钥、服务日志或视频生成产物。
+- ⚠️ 不要提交 `target/`、IDE 缓存、Python `__pycache__/`、`.pytest_cache/`、本地密钥或服务日志。

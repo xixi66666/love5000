@@ -29,13 +29,13 @@ class ServiceHealthAggregatorTest {
     void preservesConfigurationOrderAndReportsPartialFailure() {
         ServiceHealthDefinition lovestory = definition("lovestory", 8081);
         ServiceHealthDefinition guitar = definition("guitar", 8088);
-        ServiceHealthDefinition video = definition("video", 5176);
-        ServiceHealthProperties properties = properties(lovestory, guitar, video);
+        ServiceHealthDefinition pythona = definition("python-a", 5174);
+        ServiceHealthProperties properties = properties(lovestory, guitar, pythona);
         ServiceHealthChecker checker = mock(ServiceHealthChecker.class);
         when(checker.check(lovestory)).thenReturn(ServiceHealthResult.healthy(lovestory, 200, 8));
         when(checker.check(guitar)).thenReturn(ServiceHealthResult.healthy(guitar, 200, 10));
-        when(checker.check(video)).thenReturn(
-                ServiceHealthResult.unhealthy(video, null, 3, "Connection failed"));
+        when(checker.check(pythona)).thenReturn(
+                ServiceHealthResult.unhealthy(pythona, null, 3, "Connection failed"));
         executor = Executors.newFixedThreadPool(3);
 
         ServiceHealthSummary summary =
@@ -45,7 +45,7 @@ class ServiceHealthAggregatorTest {
         assertThat(summary.isHealthy()).isFalse();
         assertThat(summary.getServices())
                 .extracting(ServiceHealthResult::getName)
-                .containsExactly("lovestory", "guitar", "video");
+                .containsExactly("lovestory", "guitar", "python-a");
     }
 
     @Test

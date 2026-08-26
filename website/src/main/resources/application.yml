@@ -44,16 +44,6 @@ quant-a:
     startup-timeout-seconds: 30
     log-to-console: true
 
-video:
-  auto-start:
-    enabled: true
-    work-dir: website/video
-    command: python
-    port: 5176
-    health-path: /api/health
-    startup-timeout-seconds: 30
-    log-to-console: true
-
 website:
   service-health:
     connect-timeout-ms: 2000
@@ -69,5 +59,3 @@ website:
         url: http://127.0.0.1:5174/api/health
       - name: quant-a
         url: http://127.0.0.1:5175/api/health
-      - name: video
-        url: http://127.0.0.1:5176/api/health
