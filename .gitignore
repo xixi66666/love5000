@@ -37,6 +37,7 @@ out/
 ### Local design previews ###
 .superpowers/
 .worktrees/
+.playwright-cli/
 
 ### Python runtime artifacts ###
 .venv/

@@ -1,5 +1,5 @@
 :root {
-    --display-font: "Instrument Serif", Georgia, serif;
+    --display-font: "Instrument Serif", "Noto Serif SC", Georgia, serif;
     --ui-font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei UI", sans-serif;
     --hero-color: #ffffff;
     --deep-woods: #182c41;
@@ -9,6 +9,23 @@
     --focus-ring: rgba(255, 255, 255, 0.9);
     --online: #baf6d0;
     --offline: #ff9a9f;
+    --service-primary-rgb: 219, 107, 143;
+    --service-secondary-rgb: 89, 128, 199;
+}
+
+body[data-scene-theme="1"] {
+    --service-primary-rgb: 217, 82, 41;
+    --service-secondary-rgb: 102, 140, 56;
+}
+
+body[data-scene-theme="2"] {
+    --service-primary-rgb: 79, 135, 179;
+    --service-secondary-rgb: 140, 194, 209;
+}
+
+body[data-scene-theme="3"] {
+    --service-primary-rgb: 181, 148, 56;
+    --service-secondary-rgb: 74, 135, 87;
 }
 
 * {
@@ -110,12 +127,45 @@ button {
         linear-gradient(150deg, #21323b 0%, #0c151b 48%, #05080b 100%);
 }
 
+.scene-background::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        radial-gradient(ellipse 70% 42% at 50% 8%, rgba(255, 255, 255, 0.14), transparent 62%),
+        radial-gradient(ellipse 55% 34% at 16% 88%, rgba(120, 160, 180, 0.12), transparent 60%),
+        radial-gradient(ellipse 55% 34% at 84% 88%, rgba(120, 160, 180, 0.1), transparent 60%);
+    opacity: 0;
+    transition: opacity 1000ms ease;
+}
+
+body.video-ready .scene-background::before {
+    opacity: 1;
+}
+
 .scene-video {
     z-index: 0;
     object-fit: cover;
     opacity: 0;
     filter: saturate(0.88) contrast(1.02) brightness(0.92);
+    transform: scale(1);
+    transform-origin: 50% 46%;
     transition: opacity 1000ms ease-in-out;
+}
+
+body.video-ready .scene-video.is-active {
+    animation: ken-burns 36s ease-in-out infinite alternate;
+}
+
+@keyframes ken-burns {
+    from {
+        transform: scale(1);
+    }
+
+    to {
+        transform: scale(1.04);
+    }
 }
 
 .scene-video.is-active {
@@ -127,18 +177,17 @@ button {
     object-fit: cover;
     pointer-events: none;
     opacity: 0.86;
-    transform: scale(1.03);
-    animation: train-bob 3s ease-in-out infinite;
+    animation: train-bob 5s ease-in-out infinite;
 }
 
 @keyframes train-bob {
     0%,
     100% {
-        transform: translateY(0) scale(1.03);
+        transform: translateY(0);
     }
 
     50% {
-        transform: translateY(-6px) scale(1.03);
+        transform: translateY(-4px);
     }
 }
 
@@ -153,8 +202,7 @@ button {
 .scene-grain {
     z-index: 1;
     pointer-events: none;
-    opacity: 0.11;
-    mix-blend-mode: soft-light;
+    opacity: 0.07;
     background-image:
         radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.45) 0 0.65px, transparent 0.85px),
         radial-gradient(circle at 70% 60%, rgba(255, 255, 255, 0.32) 0 0.6px, transparent 0.8px);
@@ -165,11 +213,9 @@ button {
     position: relative;
     overflow: hidden;
     border: none;
-    background: var(--glass-fill);
+    background: rgba(255, 255, 255, 0.045);
     background-blend-mode: luminosity;
     box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
 }
 
 .liquid-glass::before {
@@ -197,6 +243,13 @@ button {
 .liquid-glass > * {
     position: relative;
     z-index: 1;
+}
+
+.desktop-navigation.liquid-glass,
+.hero-badge.liquid-glass,
+.hero-secondary-action.liquid-glass {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
 }
 
 .page-shell {
@@ -415,6 +468,10 @@ button {
     text-shadow: 0 12px 52px rgba(0, 0, 0, 0.2);
 }
 
+.hero-content h1 .hero-line {
+    display: block;
+}
+
 .hero-statement {
     max-width: 600px;
     margin-top: clamp(16px, 2.4vh, 25px);
@@ -453,6 +510,7 @@ button {
 .hero-primary-action {
     color: #15222a;
     background: #ffffff;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
 }
 
 .hero-primary-action svg {
@@ -463,6 +521,11 @@ button {
     stroke-width: 1.8;
     stroke-linecap: round;
     stroke-linejoin: round;
+    transition: transform 240ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+.hero-primary-action:hover svg {
+    transform: translateX(4px);
 }
 
 .hero-secondary-action {
@@ -599,27 +662,74 @@ button {
 .service-card {
     min-width: 130px;
     min-height: 68px;
+    position: relative;
+    isolation: isolate;
     display: grid;
     grid-template-columns: auto 1fr auto;
     align-items: center;
     gap: 9px;
     padding: 10px;
+    border: 1px solid rgba(var(--service-secondary-rgb), 0.20);
     border-radius: 17px;
     scroll-snap-align: start;
     font-family: var(--ui-font);
-    background: rgba(255, 255, 255, 0.045);
-    transition: background 180ms ease, transform 180ms ease;
+    background: rgba(var(--service-secondary-rgb), 0.075);
+    transition: background 650ms ease, border-color 650ms ease, transform 180ms ease, box-shadow 240ms ease;
+}
+
+.service-canvas {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 700ms ease;
+}
+
+body.service-fx-on .service-canvas {
+    opacity: 1;
+}
+
+body.service-fx-on .service-card,
+body.service-fx-on .service-card:hover,
+body.service-fx-on .service-card:focus-visible {
+    transition: background 650ms ease, border-color 650ms ease, box-shadow 240ms ease;
+    will-change: transform;
+}
+
+body.service-fx-on .service-card:hover,
+body.service-fx-on .service-card:focus-visible {
+    transform: none;
+}
+
+.service-index,
+.service-copy,
+.service-status {
+    position: relative;
+    z-index: 2;
 }
 
 .service-card:hover,
 .service-card:focus-visible {
-    background: rgba(255, 255, 255, 0.13);
+    border-color: rgba(var(--service-primary-rgb), 0.42);
+    background: rgba(var(--service-secondary-rgb), 0.16);
     outline: none;
-    transform: translateY(-2px);
+    transform: translateY(-3px);
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.3);
 }
 
 .service-card:focus-visible {
-    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.78);
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.78), 0 14px 30px rgba(0, 0, 0, 0.3);
+}
+
+.service-card .service-copy strong {
+    transition: color 180ms ease;
+}
+
+.service-card:hover .service-copy strong {
+    color: #ffffff;
 }
 
 .service-index {
@@ -1058,15 +1168,22 @@ button {
         scroll-behavior: auto;
     }
 
-    .scene-overlay {
+    .scene-overlay,
+    .scene-video.is-active {
         animation: none;
+    }
+
+    .scene-background::before {
+        opacity: 1;
     }
 
     .scene-video,
     .hero-content,
     .hero-badge,
     .hero-primary-action,
+    .hero-primary-action svg,
     .scene-button,
+    .service-card,
     .mobile-menu,
     .mobile-menu nav a,
     .mobile-auth-actions,

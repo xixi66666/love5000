@@ -12,8 +12,8 @@
     <link rel="icon" type="image/png" sizes="1024x1024" href="img/moon-icon.png?v=6.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=6.1">
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Noto+Serif+SC:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css?v=7.3">
 </head>
 
 <body>
@@ -21,19 +21,19 @@
 
 <section class="cinematic-hero" id="home" aria-labelledby="hero-title">
     <div class="scene-background" aria-hidden="true">
-        <video class="scene-video is-active" data-scene-video="0" autoplay muted loop playsinline preload="auto">
+        <video class="scene-video is-active" data-scene-video="0" autoplay muted loop playsinline preload="none">
             <source src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260702_081127_0992a171-d3c6-4978-8213-0ec5df8b6d63.mp4" type="video/mp4">
         </video>
-        <video class="scene-video" data-scene-video="1" muted loop playsinline preload="metadata">
+        <video class="scene-video" data-scene-video="1" muted loop playsinline preload="none">
             <source src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260702_092026_dd05b805-ea0f-40b2-8c52-332b88502592.mp4" type="video/mp4">
         </video>
-        <video class="scene-video" data-scene-video="2" muted loop playsinline preload="metadata">
+        <video class="scene-video" data-scene-video="2" muted loop playsinline preload="none">
             <source src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260702_081042_df7202bf-bd80-4b2b-bbc6-1f09ba2870e9.mp4" type="video/mp4">
         </video>
-        <video class="scene-video" data-scene-video="3" muted loop playsinline preload="metadata">
+        <video class="scene-video" data-scene-video="3" muted loop playsinline preload="none">
             <source src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260702_080959_4cac5234-3573-464e-a5b7-76b94b8a7d61.mp4" type="video/mp4">
         </video>
-        <img class="scene-overlay" src="https://soft-zoom-63098134.figma.site/_assets/v11/0b4a435b2df2747593c43d7a1c9b4578f7d8d90c.png" alt="">
+        <img class="scene-overlay" src="https://soft-zoom-63098134.figma.site/_assets/v11/0b4a435b2df2747593c43d7a1c9b4578f7d8d90c.png" alt="" loading="lazy">
         <div class="scene-shade"></div>
         <div class="scene-grain"></div>
     </div>
@@ -62,15 +62,6 @@
                 <p class="hero-statement">
                     满船清梦压星河
                 </p>
-                <div class="hero-actions">
-                    <a class="hero-primary-action" href="#service-dock">
-                        <span>探索我的服务</span>
-                        <svg aria-hidden="true" viewBox="0 0 24 24">
-                            <path d="M5 12h14M13 6l6 6-6 6"></path>
-                        </svg>
-                    </a>
-                    <button class="hero-secondary-action auth-login-button liquid-glass" type="button">登录工作台</button>
-                </div>
 
                 <div class="scene-switcher" role="group" aria-label="切换背景场景">
                     <button class="scene-button is-active" type="button" data-scene-index="0" aria-pressed="true">
@@ -168,7 +159,8 @@
     </form>
 </div>
 
-<script src="js/script.js?v=6.1"></script>
+<script src="js/vendor/gsap.min.js"></script>
+<script src="js/script.js?v=7.5"></script>
 </body>
 
 </html>
