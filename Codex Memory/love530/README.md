@@ -13,7 +13,7 @@ updated: 2026-08-26
 
 - `common`：公共能力模块，提供 OSS 自动配置、上传工具、删除工具、URL 生成、object key 解析，以及通用认证抽象与自动配置。
 - `lovestory`：恋爱相册 Web 应用，提供静态页面、照片上传、照片列表、删除接口、留言板和小游戏页面。
-- `website`：个人主页/展示站点 Web 应用，包含主页静态资源、Web Demo、OSS Demo、Nacos Discovery 示例和个人博客微应用。
+- `website`：个人主页/展示站点 Web 应用，包含主页静态资源、Web Demo、OSS Demo、Nacos Discovery 示例和提示词控制台入口。
 - `imagetemplate`：图片提示词模板 Web 服务，提供模板库检索、prompt 渲染和 OpenAI 图片生成能力。
 - `guitar`：Guitar 曲谱平台，提供认证、公开曲谱、上传、收藏夹和管理员审核能力。
 - `website/python-a`：独立 A 股自选股 AI 研究台，不是 Maven 模块。

@@ -14,7 +14,7 @@
 
 - `common`：公共能力模块，提供 OSS 自动配置、上传工具，以及通用登录/注册/Session 鉴权能力。
 - `lovestory`：恋爱相册 Web 应用，提供静态页面、照片上传、照片列表、删除接口、留言板功能和吉他视频卡片模块。
-- `website`：个人主页/展示站点 Web 应用，包含主页静态资源、Web Demo、OSS Demo、Nacos Discovery 示例、提示词控制台入口和个人博客微应用。
+- `website`：个人主页/展示站点 Web 应用，包含主页静态资源、Web Demo、OSS Demo、Nacos Discovery 示例和提示词控制台入口。
 - `imagetemplate`：图片提示词模板 Web 服务，聚合 47 条精选模板和 Prompt Console 的 4409 条公开提示词，总计 4456 条，按 15 个一级功能与二级场景导航，提供分页检索、按需详情、prompt 渲染、直接提示词和 OpenAI 图片生成能力；前端采用虎主题编辑式黑色工作台、橙色高对比操作、本地 GSAP 动效和 dense 结果网格。
 - `guitar`：Guitar 曲谱平台 Web 微服务，提供基础首页、健康检查、手机号注册登录、Session/CSRF 鉴权、公开曲谱检索详情、安全上传、管理员曲谱下架/恢复和 MySQL 持久化基础能力。
 - `python-a`：A 股自选股 AI 研究台，作为独立 Python 微应用接入，不加入 Maven 聚合模块。
@@ -279,8 +279,6 @@ website/quant-a/
 - `lovestory/service`：业务逻辑层，吉他视频上传、封面上传、OSS 删除和响应组装集中在 `GuitarVideoService` / `GuitarVideoServiceImpl`。
 - `lovestory/src/main/resources/mapper`：MyBatis XML Mapper，SQL 写在这里。
 - `lovestory/src/main/resources/static`：恋爱相册、小游戏、留言板、照片墙和吉他视频卡片静态页面。
-- `website/blog`：个人博客微应用后端，按 Controller、Service、DAO、Model、DTO 分层。
-- `website/src/main/resources/static/blog`：博客前端页面和资源。
 - `website/src/main/resources/static/prompt-console`：静态提示词库页面、数据和两级分类映射。`prompt-category-groups.js` 维护“大分类 -> 小分类”映射，新增提示词小类时优先补充该文件；未映射小类自动归入“其他”。
 - `website/demos`：示例性质的 Web、OSS、Nacos Discovery 代码。
 - `imagetemplate/controller`：图片模板 API。
@@ -472,16 +470,6 @@ sortOrder    int，可选
 
 视频文件后缀限制为 `mp4`、`webm`、`mov`。封面图后缀限制为 `jpg`、`jpeg`、`png`、`webp`。
 
-`website` 博客接口：
-
-```text
-GET  /api/blog/articles
-GET  /api/blog/articles/{slug}
-POST /api/blog/articles
-GET  /api/blog/categories
-GET  /api/blog/tags
-```
-
 公共认证接口：
 
 ```text
@@ -605,7 +593,6 @@ POST /api/backtests/run
 - `lovestory` 页面放在 `lovestory/src/main/resources/static`。
 - `lovestory` 吉他视频卡片模块维护在 `lovestory/src/main/resources/static/index.html`，替代原 `甜蜜回忆 · Memory Cards` 模块；视频卡片数据来自 `/api/guitar-videos`，不要再硬编码视频 URL。
 - `website` 主页资源放在 `website/src/main/resources/static/css`、`static/js`、`static/img`。
-- `website` 博客资源放在 `website/src/main/resources/static/blog`。
 - `website` 静态提示词库资源放在 `website/src/main/resources/static/prompt-console`，分类采用“大分类 -> 小分类”两级结构。
 - `imagetemplate` 页面放在 `imagetemplate/src/main/resources/static`；47 条精选模板位于模块 `templates`，4409 条大库由 Maven 从 website 唯一源复制进 classpath。页面保持原生 HTML/CSS/JavaScript 四场景单视口结构，列表禁止一次请求或渲染全部 4456 条，移动端和 `prefers-reduced-motion` 必须可用。
 - `guitar` 页面放在 `guitar/src/main/resources/static`，健康接口放在 `com.example.guitar.controller`。
@@ -618,7 +605,7 @@ POST /api/backtests/run
 
 Java 命名：
 
-- 类名使用 `UpperCamelCase`：`BlogController`、`PhotoDao`、`ImagePromptTemplateService`。
+- 类名使用 `UpperCamelCase`：`PhotoDao`、`ImagePromptTemplateService`。
 - 方法名和变量名使用 `lowerCamelCase`：`listArticles`、`renderPrompt`。
 - 常量使用 `UPPER_SNAKE_CASE`。
 - 包名全部小写。
@@ -732,7 +719,6 @@ http://127.0.0.1:5175/api/health
 - `common` 工具类写纯单元测试，不依赖真实 OSS。
 - `lovestory` 数据库相关测试 mock DAO 或使用隔离测试配置，不连接远程 MySQL。
 - `lovestory` 吉他视频新增或修改逻辑时，覆盖上传成功、标题为空、非法视频后缀、封面上传、删除和 OSS 不可用等主要分支。
-- `website/blog` 新增 controller/service/dao 逻辑必须覆盖成功路径和主要失败路径。
 - `imagetemplate` 模板聚合测试必须覆盖 47 + 4409 = 4456、ID 唯一、全部模板具有一级功能和二级场景、功能树计数闭合、编程分类样例、功能/来源/原始分类/关键词/仅图片相关筛选、分页摘要、详情、DIRECT/STRUCTURED 渲染、`DEGRADED` 降级和模板不存在。
 - `imagetemplate` 图片尺寸测试必须覆盖合法 4K、非法格式、非 16 倍数、单边超限、像素过少、像素过多和比例超限。
 - `guitar` 新增 Controller 时使用 Spring Boot Test + MockMvc 覆盖状态码和响应结构，不依赖数据库或外部服务。
@@ -743,7 +729,6 @@ http://127.0.0.1:5175/api/health
 
 - `common` 工具类核心分支不低于 80%。
 - `lovestory` controller/service 新增逻辑不低于 80%。
-- `website/blog` controller/service/dao 新增逻辑覆盖成功路径和主要失败路径。
 - `imagetemplate` 的 `ImagePromptTemplateService` 核心分支不低于 80%。
 
 项目当前没有统一 JaCoCo。需要覆盖率门禁时，在父 `pom.xml` 统一配置 `jacoco-maven-plugin`。

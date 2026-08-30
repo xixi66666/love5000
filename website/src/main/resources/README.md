@@ -8,7 +8,6 @@
 - `mapper/`：MyBatis XML Mapper。
 - `db/`：数据库建表或示例 SQL。
 - `static/index.html`：主页入口。
-- `static/blog/`：博客前端页面和资源。
 - `static/prompt-console/`：提示词控制台前端和静态提示词库。
 - `static/css/`、`static/js/`、`static/img/`：主页资源；场景视频和覆盖图当前由首页显式引用外部 URL，并保留黑色渐变降级背景。
 

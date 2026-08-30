@@ -647,7 +647,7 @@ body.video-ready .scene-video.is-active {
     position: relative;
     z-index: 2;
     display: grid;
-    grid-template-columns: repeat(8, minmax(130px, 1fr));
+    grid-template-columns: repeat(6, minmax(130px, 1fr));
     gap: 4px;
     overflow-x: auto;
     padding: 0 7px 7px;
@@ -976,7 +976,7 @@ body.service-fx-on .service-card:focus-visible {
 
 @media (max-width: 1180px) {
     .service-grid {
-        grid-template-columns: repeat(8, minmax(154px, 154px));
+        grid-template-columns: repeat(6, minmax(154px, 154px));
     }
 
     .dock-hint {
@@ -1086,7 +1086,7 @@ body.service-fx-on .service-card:focus-visible {
     }
 
     .service-grid {
-        grid-template-columns: repeat(8, minmax(150px, 150px));
+        grid-template-columns: repeat(6, minmax(150px, 150px));
         gap: 4px;
         padding: 0 6px 6px;
     }

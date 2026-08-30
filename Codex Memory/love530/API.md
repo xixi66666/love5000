@@ -77,18 +77,6 @@ POST   /api/messages
 DELETE /api/messages
 ```
 
-## website blog
-
-```text
-GET  /api/blog/articles
-GET  /api/blog/articles/{slug}
-POST /api/blog/articles
-GET  /api/blog/categories
-GET  /api/blog/tags
-```
-
-博客后端按 Controller、Service、DAO、Model、DTO 分层，数据库访问使用 MyBatis DAO + XML Mapper。
-
 ## imagetemplate
 
 统一挂载：

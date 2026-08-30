@@ -178,26 +178,6 @@
       "text": "**WebsiteApplication**\n启动类 :8080"
     },
     {
-      "id": "a000000000000012",
-      "type": "text",
-      "x": 1300,
-      "y": 310,
-      "width": 200,
-      "height": 90,
-      "color": "5",
-      "text": "**BlogController**\n- GET /api/blog/articles\n- GET /api/blog/articles/{slug}\n- POST /api/blog/articles\n- GET /api/blog/categories\n- GET /api/blog/tags"
-    },
-    {
-      "id": "a000000000000013",
-      "type": "text",
-      "x": 1070,
-      "y": 410,
-      "width": 200,
-      "height": 80,
-      "color": "5",
-      "text": "**BlogArticleRepository**\nblog_article 表 CRUD\nslug 唯一索引"
-    },
-    {
       "id": "a000000000000014",
       "type": "text",
       "x": 1300,
@@ -208,16 +188,6 @@
       "text": "**AuthUserRepository**\nauth_user 表\n用户注册/登录"
     },
     {
-      "id": "a000000000000015",
-      "type": "text",
-      "x": 1070,
-      "y": 520,
-      "width": 200,
-      "height": 60,
-      "color": "5",
-      "text": "**BlogDatabaseInitializer**\n自动建表 + 种子数据"
-    },
-    {
       "id": "a000000000000017",
       "type": "text",
       "x": 1300,
@@ -225,7 +195,7 @@
       "width": 200,
       "height": 60,
       "color": "5",
-      "text": "**MySQL**\n数据库: ycx_pms\n表: blog_article, auth_user"
+      "text": "**MySQL**\n数据库: ycx_pms\n表: auth_user"
     },
     {
       "id": "a000000000000016",
@@ -315,39 +285,11 @@
       "toEnd": "arrow"
     },
     {
-      "id": "e000000000000008",
-      "fromNode": "a000000000000012",
-      "fromSide": "bottom",
-      "toNode": "a000000000000013",
-      "toSide": "top",
-      "label": "调用",
-      "toEnd": "arrow"
-    },
-    {
-      "id": "e000000000000009",
-      "fromNode": "a000000000000012",
-      "fromSide": "right",
-      "toNode": "a000000000000014",
-      "toSide": "top",
-      "label": "鉴权",
-      "color": "6",
-      "toEnd": "arrow"
-    },
-    {
       "id": "e00000000000000a",
       "fromNode": "a00000000000000c",
       "fromSide": "bottom",
       "toNode": "a000000000000010",
       "toSide": "top",
-      "label": "读写",
-      "toEnd": "arrow"
-    },
-    {
-      "id": "e00000000000000b",
-      "fromNode": "a000000000000013",
-      "fromSide": "bottom",
-      "toNode": "a000000000000017",
-      "toSide": "left",
       "label": "读写",
       "toEnd": "arrow"
     },
@@ -374,9 +316,10 @@
       "id": "e00000000000000e",
       "fromNode": "a000000000000011",
       "fromSide": "right",
-      "toNode": "a000000000000012",
+      "toNode": "a000000000000014",
       "toSide": "left",
-      "label": "路由",
+      "label": "鉴权",
+      "color": "6",
       "toEnd": "arrow"
     }
   ]

@@ -20,7 +20,7 @@ server:
 
 mybatis:
   mapper-locations: classpath*:mapper/**/*.xml
-  type-aliases-package: com.example.website.blog.model,com.example.common.auth.model
+  type-aliases-package: com.example.common.auth.model
   configuration:
     map-underscore-to-camel-case: true
 

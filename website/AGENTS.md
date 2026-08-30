@@ -19,7 +19,7 @@ C:/Code/Java_Code/love5000/website
 核心功能：
 
 - 提供个人主页静态站点。
-- 个人主页采用单视口电影化布局，包含四场景视频切换、只提供登录/注册的液态玻璃账户顶栏和 7 个带实时状态的服务入口。
+- 个人主页采用单视口电影化布局，包含四场景视频切换、只提供登录/注册的液态玻璃账户顶栏和 6 个带实时状态的服务入口。
 - 统一承载 `python-a`、`quant-a` 两个独立 Python 子服务的代码目录、首页入口、健康检测和自动启动配置。
 - 提供提示词控制台和静态提示词库页面，并在首页提供 Prompt Console 入口。
 - 提供基础 Spring MVC Web Demo。
@@ -49,7 +49,7 @@ C:/Code/Java_Code/love5000/website
 
 **关键**：直接启动 `website` 时会自动检查并拉起 `website/python-a`、`website/quant-a`。默认会把两个 Python 子服务的 stdout/stderr 继承到 `website` 控制台，便于在 IDEA Run/Terminal 中查看运行日志和接口访问日志。
 
-**文档同步约定**：每次修改 `website` 的首页入口、提示词控制台、博客、自动启动配置、Python 子服务集成、端口、API、静态资源目录或测试方式时，必须同步更新本文件、`website/README.md`，以及根目录 `AGENTS.md` / `README.md` 中相关内容。
+**文档同步约定**：每次修改 `website` 的首页入口、提示词控制台、自动启动配置、Python 子服务集成、端口、API、静态资源目录或测试方式时，必须同步更新本文件、`website/README.md`，以及根目录 `AGENTS.md` / `README.md` 中相关内容。
 
 ## 开发命令
 
@@ -145,12 +145,6 @@ website/
     │   │   ├── auth/
     │   │   │   ├── WebsiteAuthUserRepository.java
     │   │   │   └── dao/WebsiteAuthUserDao.java
-    │   │   ├── blog/
-    │   │   │   ├── controller/
-    │   │   │   ├── dao/
-    │   │   │   ├── dto/
-    │   │   │   ├── model/
-    │   │   │   └── service/
     │   │   ├── demos/
     │   │   │   ├── nacosdiscoveryconsumer/
     │   │   │   ├── nacosdiscoveryprovider/
@@ -161,8 +155,7 @@ website/
     │   └── resources/
     │       ├── application.yml
     │       ├── mapper/
-    │       │   ├── auth/WebsiteAuthUserMapper.xml
-    │       │   └── blog/BlogArticleMapper.xml
+    │       │   └── auth/WebsiteAuthUserMapper.xml
     │       ├── README.md
     │       └── static/
     │           ├── css/style.css
@@ -180,10 +173,7 @@ website/
 - `integration/QuantAAutoStartRunner.java`：启动或复用 `website/quant-a`，健康检查地址为 `http://127.0.0.1:5175/api/health`。
 - `auth/WebsiteAuthUserRepository.java`：适配 `common` 的 `AuthUserRepository`，不直接写 SQL。
 - `auth/dao/WebsiteAuthUserDao.java`：认证用户表 MyBatis DAO。
-- `blog/controller`：博客 REST API。
-- `blog/service`：博客业务规则。
-- `blog/dao`：博客文章 MyBatis DAO。
-- `mapper/auth`、`mapper/blog`：MyBatis XML Mapper，集中维护数据库 CRUD SQL。
+- `mapper/auth`：MyBatis XML Mapper，集中维护数据库 CRUD SQL。
 - `demos/web`：基础 Web Controller 示例。
 - `demos/oss`：OSS 示例代码。
 - `demos/nacosdiscoveryconsumer`：Nacos 消费者示例。
@@ -194,7 +184,7 @@ website/
 - `static/prompt-console`：提示词控制台前端和静态提示词库数据。
 - `static/css/style.css`：站点样式。
 - `static/js/script.js`：站点交互、四场景视频切换、登录注册和首页服务卡片健康检测；顶部不得增加账户操作以外的按钮或移动菜单。
-- `static/img`：主页图标和博客头像资源。
+- `static/img`：主页图标资源。
 - `python-a/`：A 股自选股 AI 研究台，独立 ThreadingHTTPServer 服务，默认端口 `5174`。
 - `quant-a/`：A 股量化研究台，独立 FastAPI 服务，默认端口 `5175`。
 
@@ -246,7 +236,7 @@ spring:
 ```yaml
 mybatis:
   mapper-locations: classpath*:mapper/**/*.xml
-  type-aliases-package: com.example.website.blog.model,com.example.common.auth.model
+  type-aliases-package: com.example.common.auth.model
   configuration:
     map-underscore-to-camel-case: true
 ```
@@ -351,7 +341,7 @@ mvn -pl website -am spring-boot:run
 
 检查清单：
 
-- **关键**：修改首页入口、提示词控制台、博客、自动启动配置、Python 子服务集成、端口、API、静态资源目录或测试方式时，同步更新 `website/AGENTS.md`、`website/README.md` 和根文档。
+- **关键**：修改首页入口、提示词控制台、自动启动配置、Python 子服务集成、端口、API、静态资源目录或测试方式时，同步更新 `website/AGENTS.md`、`website/README.md` 和根文档。
 - **关键**：不要把正式业务代码继续放进 `demos` 包。
 - **关键**：新增或修改数据库 CRUD 时同步更新 DAO、Mapper XML、模型和测试。
 - **关键**：静态资源路径必须能从 `classpath:/static/` 加载。

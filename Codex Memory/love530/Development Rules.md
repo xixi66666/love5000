@@ -67,7 +67,6 @@ mybatis:
 - 静态资源使用相对路径或明确外部 URL，不引用本机绝对路径。
 - `lovestory` 页面放在 `lovestory/src/main/resources/static`。
 - `website` 主页资源放在 `website/src/main/resources/static/css`、`static/js`、`static/img`。
-- `website` 博客资源放在 `website/src/main/resources/static/blog`。
 - `imagetemplate` 页面放在 `imagetemplate/src/main/resources/static`，模板 JSON 放在 `imagetemplate/src/main/resources/templates`。
 
 ## 模块注意事项
