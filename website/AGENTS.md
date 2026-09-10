@@ -4,7 +4,7 @@
 
 `integration/health` 维护 `ServiceHealthChecker`、配置化服务清单、并行聚合器和
 `GET /api/services/health`。清单依次包含 `lovestory:8081`、`imagetemplate:8082`、
-`guitar:8088`、`python-a:5174`、`quant-a:5175`。远程响应只有在
+`python-a:5174`、`quant-a:5175`。远程响应只有在
 HTTP 2xx 且顶层布尔值 `success=true` 时才健康；连接/读取超时默认 2000/3000ms。
 `website` 仍只自动启动两个 Python 服务。
 
@@ -19,7 +19,7 @@ C:/Code/Java_Code/love5000/website
 核心功能：
 
 - 提供个人主页静态站点。
-- 个人主页采用单视口电影化布局，包含四场景视频切换、只提供登录/注册的液态玻璃账户顶栏和 6 个带实时状态的服务入口。
+- 个人主页采用单视口电影化布局，包含四场景视频切换、只提供登录/注册的液态玻璃账户顶栏和 5 个带实时状态的服务入口。
 - 统一承载 `python-a`、`quant-a` 两个独立 Python 子服务的代码目录、首页入口、健康检测和自动启动配置。
 - 提供提示词控制台和静态提示词库页面，并在首页提供 Prompt Console 入口。
 - 提供基础 Spring MVC Web Demo。

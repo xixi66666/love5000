@@ -14,7 +14,7 @@ class ServiceHealthPropertiesTest {
     void defaultsAndConfiguredOrderAreStable() {
         ServiceHealthProperties properties = new ServiceHealthProperties();
         properties.setServices(Arrays.asList(
-                new ServiceHealthDefinition("guitar", "http://127.0.0.1:8088/api/health"),
+                new ServiceHealthDefinition("imagetemplate", "http://127.0.0.1:8082/api/health"),
                 new ServiceHealthDefinition("video", "https://video.example/api/health")));
 
         properties.validate();
@@ -23,18 +23,18 @@ class ServiceHealthPropertiesTest {
         assertThat(properties.getReadTimeoutMs()).isEqualTo(3000);
         assertThat(properties.getServices())
                 .extracting(ServiceHealthDefinition::getName)
-                .containsExactly("guitar", "video");
+                .containsExactly("imagetemplate", "video");
     }
 
     @Test
     void rejectsDuplicateNames() {
         ServiceHealthProperties properties = propertiesWith(
-                new ServiceHealthDefinition("guitar", "http://127.0.0.1:8088/api/health"),
-                new ServiceHealthDefinition("guitar", "http://127.0.0.1:8089/api/health"));
+                new ServiceHealthDefinition("imagetemplate", "http://127.0.0.1:8082/api/health"),
+                new ServiceHealthDefinition("imagetemplate", "http://127.0.0.1:8089/api/health"));
 
         assertThatThrownBy(properties::validate)
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("duplicate service name: guitar");
+                .hasMessageContaining("duplicate service name: imagetemplate");
     }
 
     @Test
@@ -57,7 +57,7 @@ class ServiceHealthPropertiesTest {
     void rejectsNonPositiveTimeouts() {
         ServiceHealthProperties properties = new ServiceHealthProperties();
         properties.setServices(Collections.singletonList(
-                new ServiceHealthDefinition("guitar", "http://127.0.0.1:8088/api/health")));
+                new ServiceHealthDefinition("imagetemplate", "http://127.0.0.1:8082/api/health")));
         properties.setConnectTimeoutMs(0);
 
         assertThatThrownBy(properties::validate)

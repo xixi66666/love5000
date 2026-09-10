@@ -53,8 +53,6 @@ website:
         url: http://127.0.0.1:8081/api/health
       - name: imagetemplate
         url: http://127.0.0.1:8082/api/health
-      - name: guitar
-        url: http://127.0.0.1:8088/api/health
       - name: python-a
         url: http://127.0.0.1:5174/api/health
       - name: quant-a

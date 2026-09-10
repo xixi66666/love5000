@@ -16,15 +16,15 @@ class ServiceHealthControllerTest {
 
     @Test
     void returnsAggregateHealthDetailsWithHttpTwoHundred() throws Exception {
-        ServiceHealthDefinition guitar = new ServiceHealthDefinition(
-                "guitar", "http://127.0.0.1:8088/api/health");
+        ServiceHealthDefinition imagetemplate = new ServiceHealthDefinition(
+                "imagetemplate", "http://127.0.0.1:8082/api/health");
         ServiceHealthDefinition pythona = new ServiceHealthDefinition(
                 "python-a", "http://127.0.0.1:5174/api/health");
         ServiceHealthSummary summary = new ServiceHealthSummary(
                 true,
                 false,
                 Arrays.asList(
-                        ServiceHealthResult.healthy(guitar, 200, 12),
+                        ServiceHealthResult.healthy(imagetemplate, 200, 12),
                         ServiceHealthResult.unhealthy(pythona, null, 7, "Connection failed")));
         ServiceHealthAggregator aggregator = mock(ServiceHealthAggregator.class);
         when(aggregator.checkAll()).thenReturn(summary);
@@ -36,7 +36,7 @@ class ServiceHealthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.healthy").value(false))
-                .andExpect(jsonPath("$.services[0].name").value("guitar"))
+                .andExpect(jsonPath("$.services[0].name").value("imagetemplate"))
                 .andExpect(jsonPath("$.services[0].statusCode").value(200))
                 .andExpect(jsonPath("$.services[0].message").isEmpty())
                 .andExpect(jsonPath("$.services[1].name").value("python-a"))
