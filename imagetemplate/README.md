@@ -16,7 +16,7 @@
 - 结构化变量渲染 prompt；模板解构 JSON 可手工编辑、校验并同步到 Prompt 编导台变量剧本。
 - `direct-prompt` 直接提示词模板，支持将手工变量追加到最终 Prompt。
 - 自定义图片尺寸校验。
-- OpenAI Images API 调用，返回 base64/data URL 图片。
+- OpenAI Images API 调用，默认模型 `gpt-image-2.5-sunburst`（GPT Image 2.5 质量优先；可用 `OPENAI_IMAGE_MODEL=gpt-image-2.5-flare` 切换快速模型），返回 base64/data URL 图片。
 - 原生 HTML/CSS/JavaScript 单页前端，无 npm 构建。
 - 编辑式黑色 AI 创作工作台：本地虎主题背景配合橙色高对比主操作，首屏使用宽幅分屏、内嵌图像标题和创作理念轮播；三段横向交互面板衔接灵感、解构和生成。灵感大厅保留顶部搜索、左侧分级筛选和右侧 dense 密排结果网格，后续继续使用模板解构 → Prompt 编导台 → 图片生成舱流程；模板 JSON 与变量剧本均可手工编辑。
 - GSAP 3.13.0 与 ScrollTrigger 以模块本地静态资源加载，用于首屏图像缩放淡入、流程面板滚动揭示和模板卡片进场；脚本不可用或用户启用 `prefers-reduced-motion` 时自动保留静态界面。

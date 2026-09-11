@@ -363,12 +363,12 @@ mybatis:
 openai:
   api-key: ${OPENAI_API_KEY:}
   base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
-  image-model: ${OPENAI_IMAGE_MODEL:gpt-image-2}
+  image-model: ${OPENAI_IMAGE_MODEL:gpt-image-2.5-sunburst}
   connect-timeout-ms: ${OPENAI_CONNECT_TIMEOUT_MS:30000}
   read-timeout-ms: ${OPENAI_READ_TIMEOUT_MS:180000}
 ```
 
-`imagetemplate` 的 `gpt-image-2` 图片尺寸支持自定义合法尺寸，前后端必须使用同一套校验规则：
+`imagetemplate` 默认使用 OpenAI `gpt-image-2.5-sunburst`（GPT Image 2.5 质量优先模型；另有快速模型 `gpt-image-2.5-flare`，可用 `OPENAI_IMAGE_MODEL` 切换），图片尺寸支持自定义合法尺寸，前后端必须使用同一套校验规则：
 
 - `size` 使用 `宽x高` 格式，例如 `1024x1024`、`3840x2160`、`2160x3840`。
 - 宽高必须是正整数，且都必须是 16 的倍数。

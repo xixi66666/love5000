@@ -210,7 +210,7 @@ OpenAI 配置：
 openai:
   api-key: ${OPENAI_API_KEY:}
   base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
-  image-model: ${OPENAI_IMAGE_MODEL:gpt-image-2}
+  image-model: ${OPENAI_IMAGE_MODEL:gpt-image-2.5-sunburst}
   connect-timeout-ms: ${OPENAI_CONNECT_TIMEOUT_MS:30000}
   read-timeout-ms: ${OPENAI_READ_TIMEOUT_MS:180000}
   proxy:
@@ -218,6 +218,8 @@ openai:
     host: ${OPENAI_PROXY_HOST:}
     port: ${OPENAI_PROXY_PORT:0}
 ```
+
+默认模型为 OpenAI `gpt-image-2.5-sunburst`（GPT Image 2.5 质量优先模型）；需要更快生成时可把 `OPENAI_IMAGE_MODEL` 设为 `gpt-image-2.5-flare`。模型可用性取决于 `OPENAI_BASE_URL` 指向的服务，使用第三方代理时需确认其已支持该模型 ID。
 
 ⚠️ **严重警告**：不要把真实 OpenAI API Key 写入 `application.yml`、前端 JS、测试文件或提交记录。服务端优先读取 `OPENAI_API_KEY`，页面也支持通过 `X-OpenAI-Api-Key` 临时传入用户 Key。
 

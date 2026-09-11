@@ -3,10 +3,14 @@ package com.example.imagetemplate.service;
 import com.example.imagetemplate.dto.ImageGenerationRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.StandardEnvironment;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -119,6 +123,29 @@ class OpenAiImageGenerationServiceTest {
             }
         }).isInstanceOf(ImageGenerationException.class)
                 .hasMessageContaining("16");
+    }
+
+    @Test
+    void defaultsToGptImage25SunburstModel() throws Exception {
+        assertThat(readImageModel(openAiImageGenerationService)).isEqualTo("gpt-image-2.5-sunburst");
+    }
+
+    @Test
+    void readsImageModelFromConfiguration() throws Exception {
+        StandardEnvironment environment = new StandardEnvironment();
+        Map<String, Object> properties = new HashMap<String, Object>();
+        properties.put("openai.image-model", "gpt-image-2.5-flare");
+        environment.getPropertySources().addFirst(new MapPropertySource("test", properties));
+
+        OpenAiImageGenerationService service = new OpenAiImageGenerationService(null, environment);
+
+        assertThat(readImageModel(service)).isEqualTo("gpt-image-2.5-flare");
+    }
+
+    private String readImageModel(OpenAiImageGenerationService service) throws Exception {
+        Field field = OpenAiImageGenerationService.class.getDeclaredField("imageModel");
+        field.setAccessible(true);
+        return (String) field.get(service);
     }
 
     private String normalizeImageSize(String value) throws Exception {

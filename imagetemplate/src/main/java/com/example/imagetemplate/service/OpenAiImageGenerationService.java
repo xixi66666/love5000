@@ -59,7 +59,7 @@ public class OpenAiImageGenerationService {
         this.imagePromptTemplateService = imagePromptTemplateService;
         this.apiKey = environment.getProperty("openai.api-key", "");
         this.baseUrl = environment.getProperty("openai.base-url", "https://nimabo.cn/v1");
-        this.imageModel = environment.getProperty("openai.image-model", "gpt-image-2");
+        this.imageModel = environment.getProperty("openai.image-model", "gpt-image-2.5-sunburst");
 
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(readInt(environment, "openai.connect-timeout-ms", 300000));
