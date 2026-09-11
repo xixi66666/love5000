@@ -181,7 +181,8 @@ website/
 - `nacosdiscovery`：Nacos Discovery 配置。
 - `prompt/controller/PromptConsoleController.java`：提示词控制台 API。
 - `prompt/service`：提示词来源拉取、摘要、组合和注册服务。
-- `static/prompt-console`：提示词控制台前端和静态提示词库数据。
+- `prompt/library`：提示词库服务端化代码。`PromptLibraryController` 暴露 `/api/prompts/meta`、`/api/prompts`（服务端分页/搜索）、`/api/prompts/{id}` 与 `POST /api/prompts`（手动添加）；`PromptLibraryServiceImpl` 负责 meta 组装、LIKE 转义、详情映射和添加校验/大分类推导；`PromptLibraryDao` + `mapper/prompt/PromptLibraryMapper.xml` 访问 MySQL 的 `prompt_entry`/`prompt_source`/`prompt_group` 表。添加时未知小分类归入 `other`，首次添加自动创建 `manual` 来源，`entry_key` 为 `manual-{uuid}`，当前不加鉴权。
+- `static/prompt-console`：提示词控制台前端和静态提示词库数据。页面为深色影院式设计，动效集中在 `prompt-console-motion.js`（本地 `js/vendor/gsap.min.js` + `js/vendor/ScrollTrigger.min.js`，均 3.12.5），`prefers-reduced-motion` 或脚本缺失时降级为静态。数据通过 `/api/prompts` 系列接口从 MySQL 读取，不再直接 fetch 本地 JSON；`prompt-category-groups.js` 保留为导入工具与 node 测试的映射数据源。
 - `static/css/style.css`：站点样式。
 - `static/js/script.js`：站点交互、四场景视频切换、登录注册和首页服务卡片健康检测；顶部不得增加账户操作以外的按钮或移动菜单。
 - `static/img`：主页图标资源。
@@ -222,7 +223,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
 ```
 
-连接参数使用 `WEBSITE_DB_URL`、`WEBSITE_DB_USERNAME`、`WEBSITE_DB_PASSWORD` 环境变量覆盖；默认仅指向本机 `ycx_pms` 数据库，禁止提交远程地址或真实密码默认值。
+连接参数使用 `WEBSITE_DB_URL`、`WEBSITE_DB_USERNAME`、`WEBSITE_DB_PASSWORD` 环境变量覆盖；默认指向腾讯云 `xixi` 库（`jdbc:mysql://49.232.128.132:3306/xixi`，JDBC 使用 `characterEncoding=UTF-8`），提示词库（`prompt_entry`/`prompt_source`/`prompt_group`）与认证（`auth_user`）共用该数据源。密码必须走环境变量，禁止提交真实密码。
 
 ⚠️ 严重警告：不要提交真实数据库密码。新增配置时使用环境变量，例如 `${WEBSITE_DB_PASSWORD}`。
 

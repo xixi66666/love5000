@@ -4,45 +4,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prompt Library</title>
+    <title>Prompt Archive · 提示词合集</title>
+    <meta name="description" content="策展式开源提示词合集：按大分类与小分类两级归档，支持关键词、来源与状态检索，一键复制。">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="prompt-console.css">
 </head>
 
 <body>
 <a class="skip-link" href="#library">跳到提示词合集</a>
 
-<header class="library-header">
+<header class="site-nav">
     <a class="brand" href="/">
-        <span class="brand-mark" aria-hidden="true">✦</span>
-        <span>
-            <strong>Prompt Library</strong>
-            <small>授权提示词合集</small>
+        <span class="brand-mark" aria-hidden="true">P</span>
+        <span class="brand-copy">
+            <strong>Prompt Archive</strong>
+            <small>策展式开源提示词合集</small>
         </span>
     </a>
     <nav class="top-actions" aria-label="页面导航">
-        <a href="/">主页</a>
+        <a href="#library">合集</a>
         <a href="#categories">分类</a>
         <a href="#sources">来源</a>
+        <a class="nav-cta" href="#library">开始浏览</a>
     </nav>
 </header>
 
-<main class="library-shell" id="library">
-    <section class="hero-panel" aria-labelledby="page-title">
-        <div>
-            <p class="eyebrow">Curated Prompt Archive</p>
-            <h1 id="page-title">提示词合集</h1>
-            <p class="hero-copy">V1.0 单纯的提示词整理合集</p>
+<main class="page-shell" id="library">
+
+    <section class="hero" aria-labelledby="page-title">
+        <div class="hero-media" aria-hidden="true">
+            <img src="https://picsum.photos/seed/promptforge/1920/1080" alt="" loading="eager">
+            <div class="hero-wash"></div>
+            <div class="hero-glow"></div>
         </div>
-        <div class="hero-stats" aria-live="polite">
-            <strong class="entry-count">0</strong>
-            <span>条提示词</span>
+        <div class="hero-inner">
+            <h1 id="page-title" class="hero-title">提示词<span class="title-pic" style="background-image:url('https://picsum.photos/seed/promptink/220/220')"></span>合集</h1>
+            <p class="hero-copy">从开源社区策展的四千余条提示词，按两级分类归档。检索、筛选、复制，让每一句都成为你的灵感起点。</p>
+            <div class="hero-actions">
+                <a class="btn btn-primary" href="#library">开始浏览</a>
+                <a class="btn btn-ghost" href="#sources">查看来源</a>
+            </div>
         </div>
+        <div class="hero-hint" aria-hidden="true">Scroll</div>
     </section>
 
     <section class="toolbar-panel" aria-label="搜索和筛选">
         <label class="search-field">
             <span>搜索提示词</span>
-            <input class="search-input" type="search" placeholder="搜索标题、分类、标签或提示词正文">
+            <input class="search-input" type="search" placeholder="标题、分类、标签或正文…">
         </label>
         <label class="filter-field">
             <span>来源</span>
@@ -66,25 +77,58 @@
         </label>
     </section>
 
+    <section class="capabilities" aria-label="功能一览">
+        <div class="cap-head">
+            <p class="panel-kicker">Why this archive</p>
+            <h2>为灵感而建</h2>
+        </div>
+        <div class="bento">
+            <article class="bento-card bento-card-lg">
+                <h3>两级分类，随手可达</h3>
+                <p>大分类承载使用场景，小分类承载具体任务。从「全部」开始，一次点击就能直达你正在写的那一句。</p>
+                <div class="bento-swarm" aria-hidden="true">
+                    <span>开发</span><span>设计</span><span>写作</span><span>角色</span><span>翻译</span><span>数据</span><span>安全</span><span>营销</span>
+                </div>
+            </article>
+            <article class="bento-card">
+                <h3>全文检索</h3>
+                <p>标题、分类、标签与正文一起参与匹配，快而准。</p>
+            </article>
+            <article class="bento-card">
+                <h3>一键复制</h3>
+                <p>点开任意卡片，完整提示词随时可复制、可追溯。</p>
+            </article>
+            <article class="bento-card bento-card-wide bento-card-img">
+                <div class="bento-photo" aria-hidden="true">
+                    <img src="https://picsum.photos/seed/archives/900/560" alt="" loading="lazy">
+                </div>
+                <div class="bento-copy">
+                    <h3>开源 · 可追溯</h3>
+                    <p>每个来源都保留授权说明与出处链接，方便查证与扩散。</p>
+                </div>
+            </article>
+        </div>
+    </section>
+
     <section class="category-panel" id="categories" aria-labelledby="category-title">
         <div class="panel-heading">
             <div>
-                <p class="panel-kicker">Categories</p>
+                <p class="panel-kicker">Two-level taxonomy</p>
                 <h2 id="category-title">全部分类</h2>
             </div>
-            <span class="category-count">0</span>
+            <span class="count-chip category-count">0</span>
         </div>
         <div class="category-list"></div>
     </section>
 
-    <section class="library-layout">
+    <div class="library-layout">
         <aside class="source-panel" id="sources" aria-labelledby="source-title">
             <div class="panel-heading">
                 <div>
-                    <p class="panel-kicker">Sources</p>
+                    <p class="panel-kicker">Licensed sources</p>
                     <h2 id="source-title">授权来源</h2>
                 </div>
-                <span class="source-count">0</span>
+                <span class="count-chip source-count">0</span>
             </div>
             <div class="source-list"></div>
         </aside>
@@ -95,11 +139,52 @@
                     <p class="panel-kicker">Collection</p>
                     <h2 id="entry-title">提示词卡片</h2>
                 </div>
-                <span class="visible-count">0</span>
+                <div class="panel-actions">
+                    <span class="count-chip visible-count">0</span>
+                    <button class="add-prompt-button" type="button">添加提示词</button>
+                </div>
             </div>
             <div class="entry-list" aria-live="polite"></div>
         </section>
-    </section>
+    </div>
+
+    <div class="marquee" aria-hidden="true">
+        <div class="marquee-track">
+            <span>PROMPT ARCHIVE</span>
+            <span>·</span>
+            <span>OPEN SOURCE</span>
+            <span>·</span>
+            <span>CURATED</span>
+            <span>·</span>
+            <span>SEARCHABLE</span>
+            <span>·</span>
+            <span>COPY-READY</span>
+            <span>·</span>
+            <span>TWO-LEVEL</span>
+            <span>·</span>
+        </div>
+    </div>
+
+    <footer class="site-footer">
+        <div class="footer-cta">
+            <p class="panel-kicker">Ready when you are</p>
+            <h2>开始你的下一句<span class="title-pic" style="background-image:url('https://picsum.photos/seed/spark/220/220')"></span>提示词</h2>
+            <a class="btn btn-primary btn-lg" href="#library">回到合集顶部</a>
+        </div>
+        <div class="footer-meta">
+            <div class="footer-stats">
+                <div class="stat"><strong class="entry-count">0</strong><span>条提示词</span></div>
+                <div class="stat"><strong class="source-count">0</strong><span>个授权来源</span></div>
+                <div class="stat"><strong class="category-count">0</strong><span>个大分类</span></div>
+                <div class="stat"><strong class="visible-count">0</strong><span>当前可见</span></div>
+            </div>
+            <div class="footer-links">
+                <a href="/">返回主页</a>
+                <a href="#categories">分类浏览</a>
+                <a href="#sources">来源明细</a>
+            </div>
+        </div>
+    </footer>
 </main>
 
 <dialog class="entry-dialog">
@@ -121,8 +206,56 @@
     </article>
 </dialog>
 
-<script src="prompt-category-groups.js"></script>
+<dialog class="add-dialog">
+    <form class="add-form" novalidate>
+        <div class="dialog-head">
+            <div>
+                <p class="panel-kicker">New entry</p>
+                <h2 class="add-title">添加提示词</h2>
+            </div>
+            <button class="add-close" type="button" aria-label="关闭">×</button>
+        </div>
+        <label class="add-field">
+            <span>标题 *</span>
+            <input class="add-title-input" type="text" maxlength="512" placeholder="例如：小红书爆款标题助手">
+        </label>
+        <div class="add-grid">
+            <label class="add-field">
+                <span>小分类 *</span>
+                <input class="add-category-input" type="text" maxlength="128" list="addCategoryOptions" placeholder="例如：小红书">
+                <datalist id="addCategoryOptions"></datalist>
+            </label>
+            <label class="add-field">
+                <span>标签</span>
+                <input class="add-tags-input" type="text" maxlength="1000" placeholder="逗号分隔，例如：小红书,爆款">
+            </label>
+        </div>
+        <div class="add-grid">
+            <label class="add-field">
+                <span>来源链接</span>
+                <input class="add-source-url-input" type="url" maxlength="512" placeholder="可选">
+            </label>
+            <label class="add-field">
+                <span>授权</span>
+                <input class="add-license-input" type="text" maxlength="255" placeholder="可选，默认 User-provided authorization">
+            </label>
+        </div>
+        <label class="add-field">
+            <span>提示词正文 *</span>
+            <textarea class="add-prompt-input" rows="8" maxlength="60000" placeholder="粘贴完整提示词"></textarea>
+        </label>
+        <p class="add-error" role="alert" hidden></p>
+        <div class="dialog-actions">
+            <button class="add-submit-button" type="submit">保存提示词</button>
+            <button class="add-cancel-button" type="button">取消</button>
+        </div>
+    </form>
+</dialog>
+
+<script src="../js/vendor/gsap.min.js"></script>
+<script src="../js/vendor/ScrollTrigger.min.js"></script>
 <script src="prompt-console.js"></script>
+<script src="prompt-console-motion.js"></script>
 </body>
 
 </html>

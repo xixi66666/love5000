@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.website.prompt.library.dao.PromptLibraryDao">
+
+    <sql id="filterWhere">
+        <where>
+            <if test="group != null and group != ''">
+                and e.group_slug = #{group}
+            </if>
+            <if test="category != null and category != ''">
+                and e.category = #{category}
+            </if>
+            <if test="source != null and source != ''">
+                and e.source_id = #{source}
+            </if>
+            <if test="status != null and status != ''">
+                and e.status = #{status}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                and (
+                    e.title like concat('%', #{keyword}, '%')
+                    or e.prompt like concat('%', #{keyword}, '%')
+                    or e.tags like concat('%', #{keyword}, '%')
+                    or e.category like concat('%', #{keyword}, '%')
+                )
+            </if>
+        </where>
+    </sql>
+
+    <select id="countAll" resultType="long">
+        select count(*) from prompt_entry
+    </select>
+
+    <select id="countByFilter" resultType="long">
+        select count(*)
+        from prompt_entry e
+        <include refid="filterWhere"/>
+    </select>
+
+    <select id="searchPage" resultType="com.example.website.prompt.library.model.PromptEntry">
+        select
+            e.id,
+            e.entry_key as entryKey,
+            e.source_id as sourceId,
+            e.title,
+            e.category,
+            e.group_slug as groupSlug,
+            e.tags,
+            e.license,
+            e.status,
+            e.source_url as sourceUrl,
+            s.name as sourceName,
+            g.name as groupName,
+            left(coalesce(e.prompt, ''), 200) as preview
+        from prompt_entry e
+        left join prompt_source s on s.source_id = e.source_id
+        left join prompt_group g on g.slug = e.group_slug
+        <include refid="filterWhere"/>
+        order by e.id
+        limit #{offset}, #{size}
+    </select>
+
+    <select id="findById" resultType="com.example.website.prompt.library.model.PromptEntry">
+        select
+            e.id,
+            e.entry_key as entryKey,
+            e.source_id as sourceId,
+            e.title,
+            e.category,
+            e.group_slug as groupSlug,
+            e.tags,
+            e.license,
+            e.status,
+            e.source_url as sourceUrl,
+            e.prompt,
+            s.name as sourceName,
+            g.name as groupName
+        from prompt_entry e
+        left join prompt_source s on s.source_id = e.source_id
+        left join prompt_group g on g.slug = e.group_slug
+        where e.id = #{id}
+    </select>
+
+    <insert id="insert" parameterType="com.example.website.prompt.library.model.PromptEntry"
+            useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        insert into prompt_entry (entry_key, source_id, title, category, group_slug, prompt, tags, license, status, source_url)
+        values (#{entryKey}, #{sourceId}, #{title}, #{category}, #{groupSlug}, #{prompt}, #{tags}, #{license}, #{status}, #{sourceUrl})
+    </insert>
+
+    <select id="findGroupSlugByCategory" resultType="string">
+        select group_slug
+        from prompt_entry
+        where category = #{category}
+        group by group_slug
+        order by count(*) desc
+        limit 1
+    </select>
+
+    <insert id="upsertManualSource">
+        insert into prompt_source (source_id, name, url, license, summary, status)
+        values ('manual', '手动添加', '', 'User-provided authorization', '用户手动添加的提示词', 'imported')
+        on duplicate key update name = values(name), license = values(license), summary = values(summary), status = values(status)
+    </insert>
+
+    <select id="selectGroupCounts" resultType="com.example.website.prompt.library.model.PromptGroupStat">
+        select
+            g.slug,
+            g.name,
+            count(e.id) as count
+        from prompt_group g
+        left join prompt_entry e on e.group_slug = g.slug
+        group by g.slug, g.name, g.sort_order
+        order by g.sort_order
+    </select>
+
+    <select id="selectCategoryCounts" resultType="com.example.website.prompt.library.model.PromptCategoryStat">
+        select
+            group_slug as groupSlug,
+            category,
+            count(*) as count
+        from prompt_entry
+        group by group_slug, category
+        order by count desc
+    </select>
+
+    <select id="selectSourceStats" resultType="com.example.website.prompt.library.model.PromptSourceStat">
+        select
+            s.source_id as sourceId,
+            s.name,
+            s.url,
+            s.license,
+            s.summary,
+            s.status,
+            count(e.id) as count
+        from prompt_source s
+        left join prompt_entry e on e.source_id = s.source_id
+        group by s.source_id, s.name, s.url, s.license, s.summary, s.status, s.id
+        order by s.id
+    </select>
+
+</mapper>

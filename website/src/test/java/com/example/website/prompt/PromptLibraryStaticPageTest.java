@@ -16,12 +16,14 @@ class PromptLibraryStaticPageTest {
         String js = read("website/src/main/resources/static/prompt-console/prompt-console.js");
 
         assertThat(html)
-                .contains("Prompt Library")
+                .contains("Prompt Archive")
                 .contains("提示词合集")
+                .contains("添加提示词")
                 .doesNotContain("场景生成器")
                 .doesNotContain("多源比对生成");
         assertThat(js)
-                .contains("data/prompt-library.json")
+                .contains("/api/prompts/meta")
+                .doesNotContain("data/prompt-library.json")
                 .doesNotContain("/api/prompts/compose")
                 .doesNotContain("compose(");
     }

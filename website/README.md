@@ -19,7 +19,7 @@ mvn -pl website -am '-Dtest=ServiceHealthCheckerTest,ServiceHealthAggregatorTest
 
 - 个人主页静态站点。
 - 单视口电影化服务主页：四段背景视频可切换，支持仅包含登录/注册账户操作的液态玻璃顶栏和 Deep Woods 场景配色。
-- 提示词控制台和静态提示词库页面。
+- 提示词控制台和静态提示词库页面（深色影院式设计，本地 GSAP + ScrollTrigger 动效，`prefers-reduced-motion` 可降级）。
 - 恋爱相册、图片模板、Prompt Console、`python-a`、`quant-a` 共 5 个入口及实时健康状态。
 - Web、OSS、Nacos Discovery 示例代码。
 
@@ -35,7 +35,18 @@ mvn -pl website -am spring-boot:run
 http://localhost:8080/
 ```
 
-数据库默认连接本机 `ycx_pms`，可通过 `WEBSITE_DB_URL`、`WEBSITE_DB_USERNAME`、`WEBSITE_DB_PASSWORD` 覆盖。仓库不提供远程数据库地址或真实密码默认值。
+数据库默认连接腾讯云 `xixi` 库（`jdbc:mysql://49.232.128.132:3306/xixi`），可通过 `WEBSITE_DB_URL`、`WEBSITE_DB_USERNAME`、`WEBSITE_DB_PASSWORD` 覆盖。提示词库（`prompt_entry`/`prompt_source`/`prompt_group`）与认证（`auth_user`）共用该数据源；仓库不提供真实密码默认值，密码走环境变量。
+
+提示词库接口（服务端分页/搜索 + 手动添加）：
+
+```text
+GET  /api/prompts/meta
+GET  /api/prompts?keyword=&group=&category=&source=&status=&page=1&size=48
+GET  /api/prompts/{id}
+POST /api/prompts
+```
+
+页面 `prompt-console/index.html` 通过这些接口读取 MySQL 数据，不再直接 fetch 本地 JSON；"添加提示词"按钮弹出表单，提交后写入 `prompt_entry`（大分类自动推导，来源默认"手动添加"），成功后刷新列表并弹出新条目以便复制。当前添加接口不加鉴权。
 
 直接启动 `website` 时，会默认检查并拉起：
 

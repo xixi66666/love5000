@@ -3,7 +3,7 @@ spring:
     type: com.alibaba.druid.pool.DruidDataSource
     username: ${WEBSITE_DB_USERNAME:root}
     password: ${WEBSITE_DB_PASSWORD:}
-    url: ${WEBSITE_DB_URL:jdbc:mysql://127.0.0.1:3306/ycx_pms?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai}
+    url: ${WEBSITE_DB_URL:jdbc:mysql://49.232.128.132:3306/xixi?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   web:
@@ -20,7 +20,7 @@ server:
 
 mybatis:
   mapper-locations: classpath*:mapper/**/*.xml
-  type-aliases-package: com.example.common.auth.model
+  type-aliases-package: com.example.common.auth.model,com.example.website.prompt.library.model
   configuration:
     map-underscore-to-camel-case: true
 

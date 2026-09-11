@@ -265,12 +265,13 @@ website/quant-a/
 - `lovestory/service`：业务逻辑层，吉他视频上传、封面上传、OSS 删除和响应组装集中在 `GuitarVideoService` / `GuitarVideoServiceImpl`。
 - `lovestory/src/main/resources/mapper`：MyBatis XML Mapper，SQL 写在这里。
 - `lovestory/src/main/resources/static`：恋爱相册、小游戏、留言板、照片墙和吉他视频卡片静态页面。
-- `website/src/main/resources/static/prompt-console`：静态提示词库页面、数据和两级分类映射。`prompt-category-groups.js` 维护“大分类 -> 小分类”映射，新增提示词小类时优先补充该文件；未映射小类自动归入“其他”。
+- `website/src/main/resources/static/prompt-console`：静态提示词库页面、两级分类交互和服务端数据接入。页面采用深色影院式设计：置顶玻璃胶囊导航、全出血电影化 Hero、capabilities 无缝 Bento、两级分类 bento、无限跑马灯与巨型 CTA 页脚；动效集中在 `prompt-console-motion.js`（GSAP + ScrollTrigger，本地 `js/vendor/gsap.min.js` 与 `js/vendor/ScrollTrigger.min.js` 均为 3.12.5），`prefers-reduced-motion` 或脚本缺失时自动降级为静态布局与 CSS 动画。数据通过 `/api/prompts` 系列接口从 MySQL 读取（服务端分页/搜索），不再直接 fetch 本地 JSON；`prompt-category-groups.js` 保留为导入工具与 node 测试的“大分类 -> 小分类”映射数据源，页面运行时不依赖它。
 - `website/demos`：示例性质的 Web、OSS、Nacos Discovery 代码。
 - `imagetemplate/controller`：图片模板 API。
 - `imagetemplate/service`：精选模板加载、大库加载适配、两级功能分类、聚合分页、prompt 渲染和 OpenAI 图片生成服务；功能规则集中在 `TemplateFunctionClassifier`，不扫描完整 Prompt。
 - `imagetemplate/src/main/resources/templates/image-prompt-templates.json`：47 条精选图片模板数据源。
-- `website/src/main/resources/static/prompt-console/data/prompt-library.json`：4409 条 Prompt Console 大库唯一源码；Maven 构建 imagetemplate 时复制到 classpath 的 `templates/prompt-console/prompt-library.json`。
+- `website/src/main/resources/static/prompt-console/data/prompt-library.json`：4409 条 Prompt Console 大库唯一源码；Maven 构建 imagetemplate 时复制到 classpath 的 `templates/prompt-console/prompt-library.json`，同时是 MySQL 导入（`prompt_entry/prompt_source/prompt_group` 三张表）的数据来源。
+- `website/src/main/java/com/example/website/prompt/library`：提示词库服务端化代码。`PromptLibraryController` 暴露 `/api/prompts` 系列接口（含 `POST /api/prompts` 手动添加）；`PromptLibraryServiceImpl` 负责 meta 组装、分页搜索、LIKE 转义、详情映射和添加校验/大分类推导；`PromptLibraryDao` + `mapper/prompt/PromptLibraryMapper.xml` 访问 MySQL 的 `prompt_entry`、`prompt_source`、`prompt_group` 表。
 - `imagetemplate/src/main/resources/static`：图片模板库编辑式黑色 AI 创作单页前端，使用本地虎主题背景、宽幅分屏首屏、内嵌图像标题、橙色高对比操作和三段横向交互面板；按“灵感大厅 → 模板解构 → Prompt 编导台 → 图片生成舱”组织。灵感大厅顶部常驻搜索、仅图片开关、结果计数和清除筛选，左侧展示两级功能及高级筛选，右侧为默认 48 条的 dense 密排结果网格；本地 GSAP 3.13.0 与 ScrollTrigger 提供渐进增强动效，并保留脚本缺失和 `prefers-reduced-motion` 静态降级。模板解构 JSON 与编导台变量允许手工编辑，JSON 在进入编导台前校验并同步；流程导航只切换场景、不清空用户状态。
 - `website/python-a/server.py`：Python 微应用后端，负责静态页面服务、东方财富行情网关、DeepSeek 调用和 Obsidian 写入。
 - `website/python-a/services/stock_metadata_service.py`：股票行业、板块和概念元数据缓存与降级读取。
@@ -332,14 +333,14 @@ website/quant-a/
 ### 数据库
 
 - `lovestory` 使用 MySQL 数据库 `lovestory`。
-- `website` 使用 MySQL 数据库 `ycx_pms`。
+- `website` 使用 MySQL 数据库 `xixi`（腾讯云远程库，默认地址为 `jdbc:mysql://49.232.128.132:3306/xixi`），包含 `prompt_entry`、`prompt_source`、`prompt_group`、`auth_user` 等表。
 - `imagetemplate` 不使用数据库。
 - `python-a` 不使用 MySQL；默认写入本地 `website/python-a/obsidian-vault/A股AI/`。
 - `quant-a` 不使用 MySQL；默认使用 `website/quant-a/` 内部数据、配置和存储目录，不写入 `website/python-a` 的 Obsidian 目录。
 
 ⚠️ **严重警告**：不要提交真实数据库密码、OSS AccessKey、OpenAI API Key。新增配置优先使用环境变量，例如 `${OPENAI_API_KEY:}`、`${LOVE530_OSS_ACCESS_KEY_ID:}`。
 
-`lovestory` 数据库连接通过 `LOVESTORY_DB_URL`、`LOVESTORY_DB_USERNAME`、`LOVESTORY_DB_PASSWORD` 覆盖；默认仅指向本机 `lovestory` 数据库。`website` 使用 `WEBSITE_DB_URL`、`WEBSITE_DB_USERNAME`、`WEBSITE_DB_PASSWORD`，默认仅指向本机 `ycx_pms`。OSS 默认关闭，只有显式设置 `LOVE530_OSS_ENABLED=true` 并提供 `LOVE530_OSS_*` 凭据后才启用。
+`lovestory` 数据库连接通过 `LOVESTORY_DB_URL`、`LOVESTORY_DB_USERNAME`、`LOVESTORY_DB_PASSWORD` 覆盖；默认仅指向本机 `lovestory` 数据库。`website` 使用 `WEBSITE_DB_URL`、`WEBSITE_DB_USERNAME`、`WEBSITE_DB_PASSWORD`，默认指向腾讯云 `xixi` 库（JDBC 使用 `characterEncoding=UTF-8`，Connector/J 8 会自动映射 utf8mb4）。密码必须走环境变量，禁止提交真实密码。OSS 默认关闭，只有显式设置 `LOVE530_OSS_ENABLED=true` 并提供 `LOVE530_OSS_*` 凭据后才启用。
 
 ### MyBatis
 
@@ -449,6 +450,19 @@ POST /api/image-templates/{id}/generate
 
 `GET /api/image-templates` 默认 `page=1`、`size=48`，`size` 最大为 100，列表只返回摘要；`functionCategory` 和 `functionScene` 分别按一级功能与二级场景 slug 筛选，旧 `source` 和 `category` 参数继续兼容。完整 Prompt 由详情接口按需返回。`GET /api/image-templates/meta` 返回 4456 总量、15 个一级功能及二级场景树、7 个来源、原始分类计数和 `READY` / `DEGRADED` 聚合状态。大库异常时页面必须显示预期数量、实际数量和错误原因。
 
+`website` 提示词库接口（服务端分页/搜索，数据源为 MySQL `xixi` 库的 `prompt_entry`、`prompt_source`、`prompt_group` 三张表）：
+
+```text
+GET  /api/prompts/meta
+GET  /api/prompts?keyword=&group=&category=&source=&status=&page=1&size=48
+GET  /api/prompts/{id}
+POST /api/prompts
+```
+
+`GET /api/prompts/meta` 返回总数、大分类（slug/name/count/小分类列表）和来源（id/name/status/count/license/summary）。列表接口默认 `page=1`、`size=48`，`size` 最大 100；`keyword` 用 SQL LIKE 匹配标题/正文/标签/小分类（`%`、`_`、`\` 会转义），列表只返回摘要（`preview` 为正文前 200 字）。详情接口返回完整 prompt；条目不存在时返回 HTTP 404 与 `{ "success": false, "message": "提示词不存在" }`。
+
+`POST /api/prompts` 用于手动添加提示词，请求体为 `{ "title": "...", "category": "...", "prompt": "...", "tags": "...", "sourceUrl": "...", "license": "..." }`；`title`、`category`、`prompt` 必填（标题 512、小分类 128、正文 60000、标签 1000、来源链接 512、授权 255 字符上限），校验失败返回 HTTP 400 与 `{ "success": false, "message": "..." }`。服务端按库中该小分类的既有大分类归属自动写入 `group_slug`（未知小分类归入 `other`），首次添加时自动创建 `manual`（手动添加）来源，`entry_key` 使用 `manual-{uuid}`，`status` 默认 `imported`；成功后返回 `{ "success": true, "entry": { ...完整详情 } }`。当前不加鉴权。
+
 `python-a` A 股研究台接口：
 
 ```text
@@ -508,7 +522,7 @@ POST /api/backtests/run
 - `lovestory` 页面放在 `lovestory/src/main/resources/static`。
 - `lovestory` 吉他视频卡片模块维护在 `lovestory/src/main/resources/static/index.html`，替代原 `甜蜜回忆 · Memory Cards` 模块；视频卡片数据来自 `/api/guitar-videos`，不要再硬编码视频 URL。
 - `website` 主页资源放在 `website/src/main/resources/static/css`、`static/js`、`static/img`。
-- `website` 静态提示词库资源放在 `website/src/main/resources/static/prompt-console`，分类采用“大分类 -> 小分类”两级结构。
+- `website` 静态提示词库资源放在 `website/src/main/resources/static/prompt-console`，分类采用“大分类 -> 小分类”两级结构；页面动效使用本地 `js/vendor/gsap.min.js` + `js/vendor/ScrollTrigger.min.js`（均为 3.12.5）与 `prompt-console-motion.js`，脚本缺失或 `prefers-reduced-motion` 时降级为静态。页面数据通过 `/api/prompts` 系列接口从 MySQL 读取（服务端分页/搜索），不再直接 fetch 本地 JSON。
 - `imagetemplate` 页面放在 `imagetemplate/src/main/resources/static`；47 条精选模板位于模块 `templates`，4409 条大库由 Maven 从 website 唯一源复制进 classpath。页面保持原生 HTML/CSS/JavaScript 四场景单视口结构，列表禁止一次请求或渲染全部 4456 条，移动端和 `prefers-reduced-motion` 必须可用。
 - `python-a` 页面放在 `website/python-a/index.html`、`website/python-a/app.js`、`website/python-a/styles.css`，由 `website/python-a/server.py` 直接提供静态访问。
 - `quant-a` 页面放在 `website/quant-a/web`，由 `website/quant-a/main.py` 通过 FastAPI 静态资源能力提供访问。
@@ -617,6 +631,7 @@ http://127.0.0.1:5175/api/health
 
 - `common` 工具类写纯单元测试，不依赖真实 OSS。
 - `lovestory` 数据库相关测试 mock DAO 或使用隔离测试配置，不连接远程 MySQL。
+- `website` 提示词库（`prompt.library`）Service/Controller 使用 mock DAO 单测，不连接远程 MySQL；`PromptLibraryStaticPageTest` 断言页面已接入 `/api/prompts` 系列接口。
 - `lovestory` 吉他视频新增或修改逻辑时，覆盖上传成功、标题为空、非法视频后缀、封面上传、删除和 OSS 不可用等主要分支。
 - `imagetemplate` 模板聚合测试必须覆盖 47 + 4409 = 4456、ID 唯一、全部模板具有一级功能和二级场景、功能树计数闭合、编程分类样例、功能/来源/原始分类/关键词/仅图片相关筛选、分页摘要、详情、DIRECT/STRUCTURED 渲染、`DEGRADED` 降级和模板不存在。
 - `imagetemplate` 图片尺寸测试必须覆盖合法 4K、非法格式、非 16 倍数、单边超限、像素过少、像素过多和比例超限。

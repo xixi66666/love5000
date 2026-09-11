@@ -55,6 +55,8 @@ mvn -pl website -am spring-boot:run
 
 Prompt Console 大库的唯一源码是 `website/src/main/resources/static/prompt-console/data/prompt-library.json`。构建 imagetemplate 时 Maven 会将它复制到 jar 的 `templates/prompt-console/prompt-library.json`，运行时不要求 website 服务在线；`GET /api/image-templates/meta` 可检查 4456 条聚合数据、功能分类树及其 `READY` 状态。
 
+Prompt Console 页面（`prompt-console/index.html`）的数据已服务端化：4409 条提示词、10 个大分类和 6 个来源导入 MySQL `xixi` 库的 `prompt_entry`/`prompt_source`/`prompt_group` 三张表，页面通过 `GET /api/prompts/meta`、`GET /api/prompts`（服务端分页/搜索，`size` 默认 48 最大 100）和 `GET /api/prompts/{id}` 读取，不再直接 fetch 本地 JSON。页面提供"添加提示词"按钮，通过 `POST /api/prompts` 手动写入（大分类按库中既有归属自动推导，未知小分类归入"其他"，来源默认"手动添加"）；当前添加接口不加鉴权。大分类 slug 在导入时按 `prompt-category-groups.js` 的同一映射写入，`prompt-category-groups.js` 保留为导入工具与 node 测试的数据源。
+
 其他服务：
 
 ```bash
@@ -107,7 +109,7 @@ cd website/quant-a && python -m pytest -v
 
 不要提交真实数据库密码、OSS AccessKey、OpenAI API Key、DeepSeek Key、Tushare Token、腾讯云密钥或 DashScope Key。新增配置优先使用环境变量或本地私有配置文件。
 
-`lovestory` 默认连接本机 `lovestory` 数据库并关闭 OSS。需要连接其他数据库或启用 OSS 时，使用 `LOVESTORY_DB_URL`、`LOVESTORY_DB_USERNAME`、`LOVESTORY_DB_PASSWORD` 和 `LOVE530_OSS_*` 环境变量覆盖。`website` 数据库使用 `WEBSITE_DB_URL`、`WEBSITE_DB_USERNAME`、`WEBSITE_DB_PASSWORD` 覆盖，默认指向本机 `ycx_pms`；仓库内不提供远程地址或真实凭据默认值。
+`lovestory` 默认连接本机 `lovestory` 数据库并关闭 OSS。需要连接其他数据库或启用 OSS 时，使用 `LOVESTORY_DB_URL`、`LOVESTORY_DB_USERNAME`、`LOVESTORY_DB_PASSWORD` 和 `LOVE530_OSS_*` 环境变量覆盖。`website` 数据库使用 `WEBSITE_DB_URL`、`WEBSITE_DB_USERNAME`、`WEBSITE_DB_PASSWORD` 覆盖，默认指向腾讯云 `xixi` 库（`jdbc:mysql://49.232.128.132:3306/xixi`），提示词库和认证共用该数据源；密码必须走环境变量，仓库内不提供真实凭据默认值。
 
 常见私有文件已在 `.gitignore` 中忽略，例如：
 

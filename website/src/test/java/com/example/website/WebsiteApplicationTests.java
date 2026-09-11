@@ -1,6 +1,7 @@
 package com.example.website;
 
 import com.example.website.auth.WebsiteAuthUserRepository;
+import com.example.website.prompt.library.dao.PromptLibraryDao;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -14,6 +15,9 @@ class WebsiteApplicationTests {
 
     @MockBean
     private WebsiteAuthUserRepository websiteAuthUserRepository;
+
+    @MockBean
+    private PromptLibraryDao promptLibraryDao;
 
     @Test
     void contextLoads() {
