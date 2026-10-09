@@ -781,6 +781,25 @@ body.service-fx-on .service-card:focus-visible {
     box-shadow: 0 0 0 3px rgba(255, 154, 159, 0.12), 0 0 15px rgba(255, 154, 159, 0.45);
 }
 
+.service-card.is-starting .service-status {
+    background: #ffb454;
+    box-shadow: 0 0 0 3px rgba(255, 180, 84, 0.14), 0 0 15px rgba(255, 180, 84, 0.5);
+    animation: service-starting-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes service-starting-pulse {
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.45;
+        transform: scale(0.72);
+    }
+}
+
 .mobile-menu {
     position: fixed;
     inset: 0;
@@ -1175,6 +1194,10 @@ body.service-fx-on .service-card:focus-visible {
 
     .scene-background::before {
         opacity: 1;
+    }
+
+    .service-card.is-starting .service-status {
+        animation: none;
     }
 
     .scene-video,

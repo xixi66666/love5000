@@ -2,7 +2,7 @@
 
 ## 统一服务健康检查
 
-四个独立服务 `lovestory`、`imagetemplate`、`python-a`、`quant-a`
+五个独立服务 `lovestory`、`imagetemplate`、`python-a`、`quant-a`、`scrapling-ui`
 均提供 `GET /api/health`，响应顶层必须包含布尔值 `success=true` 和稳定的 `service`
 标识。`website` 使用 `ServiceHealthChecker` 统一探测，并通过
 `GET /api/services/health` 并行返回配置顺序一致的聚合结果；HTTP 200 表示聚合执行成功，
@@ -18,6 +18,7 @@
 - `imagetemplate`：图片提示词模板 Web 服务，聚合 47 条精选模板和 Prompt Console 的 4409 条公开提示词，总计 4456 条，按 15 个一级功能与二级场景导航，提供分页检索、按需详情、prompt 渲染、直接提示词和 OpenAI 图片生成能力；前端采用虎主题编辑式黑色工作台、橙色高对比操作、本地 GSAP 动效和 dense 结果网格。
 - `python-a`：A 股自选股 AI 研究台，作为独立 Python 微应用接入，不加入 Maven 聚合模块。
 - `quant-a`：A 股量化研究台，作为独立 FastAPI 微服务接入，不加入 Maven 聚合模块，不写入 `website/python-a` 的 Obsidian 目录。
+- `scrapling-ui`：基于 Scrapling + Playwright 的可视化爬虫工作台（汉化版），作为独立 FastAPI + React 微服务接入，不加入 Maven 聚合模块；`website` 首页 Dock 卡片点击启动，不随 `website` 自动拉起。
 
 核心技术栈：
 
@@ -39,6 +40,8 @@
 **关键**：`website/python-a` 是独立 Python 微应用，不是 Java Maven 模块，不要把它加入父 `pom.xml` 的 `<modules>`。Java 侧只负责入口链接、反向代理或接口转发，不把 Python 业务逻辑改写进 Controller。
 
 **关键**：`quant-a` 是独立 FastAPI 微服务，不是 Java Maven 模块，不要把它加入父 `pom.xml` 的 `<modules>`。它的数据、配置和测试保持在 `website/quant-a/` 内，不写入 `website/python-a/obsidian-vault/`。
+
+**关键**：`scrapling-ui` 是独立 FastAPI + React 微服务，不是 Java Maven 模块，不要把它加入父 `pom.xml` 的 `<modules>`。它只由 `website` 首页 Dock 的“Scrapling 抓取工坊”卡片点击启动（`POST /api/services/scrapling-ui/start`），不随 `website` 启动自动拉起，`website` 关闭也不强杀；`website` 只提供启动接口、健康检测和入口链接，不把抓取业务逻辑改写进 Java Controller。
 
 **关键**：每次修改项目结构、模块职责、启动命令、端口、配置项、API、数据目录、测试方式或部署入口时，必须同步更新根 `AGENTS.md` / `README.md`，以及受影响模块或微应用目录下的 `AGENTS.md` / `README.md`。文档和代码不一致时，本次改动不能视为完成。
 
@@ -89,31 +92,7 @@ mvn -pl lovestory -am spring-boot:run -Dspring-boot.run.main-class=com.ycxandwuq
 mvn -pl website -am spring-boot:run
 ```
 
-`website` 启动时会默认自动检查并启动 `python-a` 和 `quant-a`。如果本机对应健康检查已可用，则直接复用已有服务，不重复启动。两个 Python 子服务默认把 stdout/stderr 输出到 `website` 的同一个控制台，便于在 IDEA Run/Terminal 中直接查看运行日志和接口访问日志。
-
-统一启动 `python-a` + `website`：
-
-```powershell
-.\scripts\start-love5000.ps1
-```
-
-指定 Java 模块或 Python 端口：
-
-```powershell
-.\scripts\start-love5000.ps1 -JavaModule website -PythonPort 5174
-```
-
-可选启动 `quant-a` + `python-a` + `website`：
-
-```powershell
-.\scripts\start-love5000.ps1 -StartQuant
-```
-
-指定 Quant 端口：
-
-```powershell
-.\scripts\start-love5000.ps1 -StartQuant -QuantPort 5175
-```
+`website` 启动时会默认自动检查并启动 `python-a` 和 `quant-a`。如果本机对应健康检查已可用，则直接复用已有服务，不重复启动。两个 Python 子服务默认把 stdout/stderr 输出到 `website` 的同一个控制台，便于在 IDEA Run/Terminal 中直接查看运行日志和接口访问日志。`scrapling-ui` 不随 `website` 自动拉起，只由首页 Dock“Scrapling 抓取工坊”卡片点击启动。
 
 启动 `imagetemplate`，默认端口 `8082`：
 
@@ -172,7 +151,33 @@ cd website/quant-a
 python -m pytest
 ```
 
-日常本地联调优先使用根目录统一启动脚本，避免忘记先启动 Python 微应用。
+首次准备 `scrapling-ui` 环境（Python 3.14 由 uv 管理，浏览器约 112MB）：
+
+```bash
+cd website/scrapling-ui/backend
+uv sync
+uv run playwright install chromium
+
+cd website/scrapling-ui/frontend
+npm install
+npm run build
+```
+
+单独启动 `scrapling-ui`（前端已构建后），默认端口 `5176`：
+
+```bash
+cd website/scrapling-ui/backend
+.venv/Scripts/python.exe -m uvicorn main:app --host 127.0.0.1 --port 5176
+```
+
+运行 `scrapling-ui` 测试：
+
+```bash
+cd website/scrapling-ui/backend
+uv run python -m unittest discover -s tests -v
+```
+
+日常本地联调直接启动 `website`：它会自动检查并拉起 `python-a` 和 `quant-a`；`scrapling-ui` 由首页按钮点击启动，首次使用前完成一次上面的环境准备即可。
 
 ## 项目结构
 
@@ -180,8 +185,6 @@ python -m pytest
 love5000/
 ├── pom.xml
 ├── AGENTS.md
-├── scripts/
-│   └── start-love5000.ps1
 ├── common/
 │   ├── AGENTS.md
 │   └── src/main/java/com/example/common/
@@ -221,6 +224,16 @@ love5000/
     ├── quant/
     ├── tests/
     └── web/
+├── website/scrapling-ui/
+    ├── README.md
+    ├── backend/            # FastAPI + Playwright（Python 3.14，uv 管理）
+    │   ├── main.py
+    │   ├── core/
+    │   ├── services/
+    │   └── tests/
+    └── frontend/           # React + TypeScript + Vite（已汉化）
+        ├── src/
+        └── dist/           # npm run build 产物，gitignored
 ```
 
 `python-a` 不参与 Maven 构建，下面结构只表示其独立应用边界：
@@ -255,6 +268,27 @@ website/quant-a/
     └── web/
 ```
 
+`scrapling-ui` 不参与 Maven 构建，下面结构只表示其独立 FastAPI + React 微服务边界：
+
+```text
+website/scrapling-ui/
+    ├── README.md
+    ├── todo_list.md             # 工作台路线图面板读写
+    ├── backend/                 # FastAPI + Playwright（Python 3.14，uv 管理）
+    │   ├── main.py              # API + /api/health + 前端 dist 静态托管
+    │   ├── models.py
+    │   ├── core/                # 浏览器管理、会话、DOM 提取、SQLite
+    │   ├── services/            # 代码生成、代码执行、调度器、AI 修复
+    │   ├── tests/               # unittest 健康与静态托管测试
+    │   ├── pyproject.toml / uv.lock
+    │   └── jobs.db              # 运行时 SQLite，禁止提交
+    └── frontend/                # React + TypeScript + Vite（已汉化）
+        ├── src/
+        ├── public/
+        ├── dist/                # npm run build 产物，gitignored
+        └── package.json / package-lock.json
+```
+
 ## 模块职责
 
 - `common/src/main/java/com/example/common/config`：公共配置和自动装配，例如 OSS 自动配置。
@@ -282,12 +316,17 @@ website/quant-a/
 - `website/quant-a/quant`：量化研究核心代码，包含 API、因子、回测、组合、行情提供方、服务编排和存储。
 - `website/quant-a/tests`：Quant 微服务测试，使用 pytest 和 FastAPI TestClient。
 - `website/quant-a/web`：Quant 研究台前端页面和静态资源。
+- `website/scrapling-ui/backend/main.py`：可视化爬虫工作台后端入口，注册抓取会话、选择器、代码生成/执行、调度、路线图和 AI 修复 API，并提供 `/api/health` 与 `frontend/dist` 静态托管（SPA fallback）。
+- `website/scrapling-ui/backend/core`：Playwright 浏览器管理、会话与历史回放、DOM 提取脚本和 SQLite 访问。
+- `website/scrapling-ui/backend/services`：配方代码生成、代码执行、APScheduler 调度和 DeepSeek 选择器修复。
+- `website/scrapling-ui/backend/tests`：unittest 测试，覆盖 `/api/health`、`/api/**` 404 和 dist 静态托管。
+- `website/scrapling-ui/frontend`：已汉化的 React + TypeScript + Vite 工作台前端；`dist` 为 `npm run build` 产物，由后端同端口托管。
+- `website/src/main/java/com/example/website/integration/scrapling`：`ScraplingUiProcessManager` + `ScraplingUiController`，提供点击启动与状态接口；优先 `backend/.venv`，回退 `uv run python`，等待健康默认 90s，不做启动时自动拉起。
 
 ## Python 微应用入口方式
 
 `python-a` 以独立服务方式接入 `love5000`：
 
-- 推荐本地统一入口：在根目录执行 `.\scripts\start-love5000.ps1`，脚本会先启动或复用 `python-a`，健康检查通过后再启动 `website`。
 - 本地开发入口：启动 `python-a` 后访问 `http://127.0.0.1:5174/`。
 - 健康检查入口：`GET http://127.0.0.1:5174/api/health`。
 - `website` 内置 `PythonAAutoStartRunner`，默认配置为 `python-a.auto-start.enabled=true`。直接启动 `website` 时会自动拉起 `python-a`。
@@ -302,7 +341,6 @@ website/quant-a/
 `quant-a` 以独立 FastAPI 服务方式接入 `love5000`：
 
 - 直接启动 `website` 时会默认自动检查并启动 `quant-a`。如果本机 `http://127.0.0.1:5175/api/health` 已可用，则直接复用已有 Quant 服务，不重复启动。
-- 根目录脚本 `.\scripts\start-love5000.ps1` 仍保留显式 `-StartQuant` 参数，用于不经过 Java 自动启动器时手动拉起 Quant 服务。
 - 本地开发入口：启动 `quant-a` 后访问 `http://127.0.0.1:5175/`。
 - 健康检查入口：`GET http://127.0.0.1:5175/api/health`，响应中的 `success` 必须为 `true`。
 - 推荐命令：`python -m uvicorn main:app --host 127.0.0.1 --port 5175`，工作目录为 `website/quant-a/`。
@@ -310,6 +348,20 @@ website/quant-a/
 - 生产部署如需统一域名，使用 Nginx、网关或 Spring 反向代理把 `/quant-a/` 转发到 `127.0.0.1:5175`。
 - `quant-a` 的 `/api/**` 默认由 FastAPI 服务自己处理。没有明确需求时，不要在 Java Controller 中重复实现这些接口。
 - `quant-a` 不是 Maven 模块，不执行 `mvn -pl quant-a ...`，也不要写入 `website/python-a/obsidian-vault/`。
+
+## Scrapling UI 微服务入口方式
+
+`scrapling-ui` 以独立 FastAPI + React 服务方式接入 `love5000`：
+
+- 只由 `website` 首页 Dock“Scrapling 抓取工坊”卡片点击启动，**不随** `website` 启动自动拉起，`website` 关闭也不强杀。
+- 启动接口：`POST http://127.0.0.1:8080/api/services/scrapling-ui/start`，返回 `{success, status, url}`；`status` 为 `started` 或 `already-running`。
+- 状态接口：`GET http://127.0.0.1:8080/api/services/scrapling-ui/status`。
+- 本地开发入口：启动后访问 `http://127.0.0.1:5176/`。
+- 健康检查入口：`GET http://127.0.0.1:5176/api/health`，响应中的 `success` 必须为 `true`。
+- 前端构建产物由后端同端口托管，运行时只有一个进程；首次使用需完成 `uv sync`、`playwright install chromium`、`npm install && npm run build`。
+- `website` 只提供启动接口、健康检测和入口链接，不把抓取业务逻辑改写进 Java Controller。
+- 生产部署如需统一域名，使用 Nginx、网关或 Spring 反向代理把 `/scrapling-ui/` 转发到 `127.0.0.1:5176`。
+- `scrapling-ui` 不是 Maven 模块，不执行 `mvn -pl scrapling-ui ...`；数据目录为其自身 `backend/jobs.db`，不写入其他微服务目录。
 
 ## 微服务主页入口约定
 
@@ -329,6 +381,7 @@ website/quant-a/
 - `imagetemplate`：`8082`
 - `python-a`：`5174`
 - `quant-a`：`5175`
+- `scrapling-ui`：`5176`
 
 ### 数据库
 
@@ -337,6 +390,7 @@ website/quant-a/
 - `imagetemplate` 不使用数据库。
 - `python-a` 不使用 MySQL；默认写入本地 `website/python-a/obsidian-vault/A股AI/`。
 - `quant-a` 不使用 MySQL；默认使用 `website/quant-a/` 内部数据、配置和存储目录，不写入 `website/python-a` 的 Obsidian 目录。
+- `scrapling-ui` 不使用 MySQL；运行时数据只有自身 `backend/jobs.db`（SQLite，调度任务）和项目根 `todo_list.md`（路线图），不写入其他微服务目录。
 
 ⚠️ **严重警告**：不要提交真实数据库密码、OSS AccessKey、OpenAI API Key。新增配置优先使用环境变量，例如 `${OPENAI_API_KEY:}`、`${LOVE530_OSS_ACCESS_KEY_ID:}`。
 
@@ -500,6 +554,29 @@ POST /api/scores/run
 POST /api/backtests/run
 ```
 
+`scrapling-ui` 爬虫工作台接口：
+
+```text
+GET    /api/health
+POST   /api/session/start
+POST   /api/session/action
+POST   /api/session/update-history
+POST   /api/session/close
+POST   /api/session/query-selector
+POST   /api/generate-code
+POST   /api/run-code
+POST   /api/ai/heal-selector
+GET    /api/todo
+POST   /api/todo
+GET    /api/scheduler/jobs
+POST   /api/scheduler/jobs
+POST   /api/scheduler/jobs/{job_id}/toggle
+DELETE /api/scheduler/jobs/{job_id}
+POST   /api/scheduler/jobs/{job_id}/run
+```
+
+`website` 侧点击启动与状态接口见“Scrapling UI 微服务入口方式”。
+
 新增接口响应至少包含：
 
 ```json
@@ -526,6 +603,7 @@ POST /api/backtests/run
 - `imagetemplate` 页面放在 `imagetemplate/src/main/resources/static`；47 条精选模板位于模块 `templates`，4409 条大库由 Maven 从 website 唯一源复制进 classpath。页面保持原生 HTML/CSS/JavaScript 四场景单视口结构，列表禁止一次请求或渲染全部 4456 条，移动端和 `prefers-reduced-motion` 必须可用。
 - `python-a` 页面放在 `website/python-a/index.html`、`website/python-a/app.js`、`website/python-a/styles.css`，由 `website/python-a/server.py` 直接提供静态访问。
 - `quant-a` 页面放在 `website/quant-a/web`，由 `website/quant-a/main.py` 通过 FastAPI 静态资源能力提供访问。
+- `scrapling-ui` 前端源码放在 `website/scrapling-ui/frontend`，构建产物 `frontend/dist` 由 `backend/main.py` 同端口托管（`/assets` 挂载 + SPA fallback）；`dist` 不提交，本地用 `npm run build` 生成。
 - 静态资源使用相对路径或明确的外部 URL，不引用本机绝对路径。
 - 不修改 `target/` 下的构建产物。
 
@@ -627,6 +705,19 @@ http://127.0.0.1:5175/
 http://127.0.0.1:5175/api/health
 ```
 
+`scrapling-ui` 修改后至少执行：
+
+```bash
+cd website/scrapling-ui/backend
+uv run python -m unittest discover -s tests -v
+```
+
+涉及 Java 点击启动逻辑时：
+
+```bash
+mvn -pl website -am test
+```
+
 测试要求：
 
 - `common` 工具类写纯单元测试，不依赖真实 OSS。
@@ -637,6 +728,7 @@ http://127.0.0.1:5175/api/health
 - `imagetemplate` 图片尺寸测试必须覆盖合法 4K、非法格式、非 16 倍数、单边超限、像素过少、像素过多和比例超限。
 - OpenAI 图片生成测试不得真实调用外部 API；使用 mock 或可注入 HTTP 客户端。
 - `quant-a` 新增 API、因子、回测、组合或服务编排逻辑时，使用 pytest 覆盖成功路径和主要失败路径，不依赖真实外部行情接口。
+- `scrapling-ui` 后端测试使用 unittest + FastAPI TestClient，不启动 Playwright 浏览器；`website` 点击启动逻辑测试不启动真实 Python 进程、不连接真实端口。
 
 覆盖率目标：
 
@@ -671,6 +763,7 @@ mvn -pl imagetemplate -am test
 - **关键**：修改 `imagetemplate` 图片尺寸选项或规则时，同步更新前端校验、后端校验和 `OpenAiImageGenerationServiceTest`。
 - **关键**：修改 `website/python-a` 时不要提交 `deepseek.local.json`、`.env`、`__pycache__/`、`server.err.log`、`server.out.log`。
 - **关键**：修改 `website/quant-a` 时不要提交 `.env`、`__pycache__/`、`.pytest_cache/`、运行时数据库、缓存或生成报告；不要写入 `website/python-a/obsidian-vault/`。
+- **关键**：修改 `website/scrapling-ui` 时不要提交 `backend/.venv/`、`backend/jobs.db`、`frontend/node_modules/`、`frontend/dist/`、`*.log`；前端改动后重新 `npm run build`。
 - ⚠️ 不依赖远程生产 MySQL、真实 OSS、真实 OpenAI API 来通过单元测试。
 
 ## 常见任务指南
@@ -747,12 +840,34 @@ python server.py
 GET http://127.0.0.1:5174/api/health
 ```
 
+### 修改 scrapling-ui 微服务
+
+1. 后端改 `website/scrapling-ui/backend`，前端改 `website/scrapling-ui/frontend/src`；保持它作为独立 FastAPI + React 服务，不加入父 `pom.xml`。
+2. 前端改动后必须重新构建：`cd website/scrapling-ui/frontend && npm run build`；`dist` 不提交。
+3. 启动链路改动（端口、健康路径、启动命令、等待超时）时，同步更新 `website/src/main/resources/application.yml` 的 `scrapling-ui.click-start`、`ScraplingUiProperties` 默认值和 `ScraplingUiProcessManagerTest`。
+4. 新增或修改后端 API 时，同步更新 `website/scrapling-ui/AGENTS.md`、`website/scrapling-ui/README.md` 和本文件的 `scrapling-ui` 接口列表。
+5. 运行测试：
+
+```bash
+cd website/scrapling-ui/backend
+uv run python -m unittest discover -s tests -v
+mvn -pl website -am test
+```
+
+6. 验证：
+
+```text
+GET http://127.0.0.1:5176/api/health
+POST http://127.0.0.1:8080/api/services/scrapling-ui/start
+```
+
 ## 代理协作原则
 
 - 先读根 `pom.xml` 和目标模块 `pom.xml`，确认模块边界后再改代码。
 - 优先使用已有包结构、命名和配置前缀。
 - 小改动只跑相关模块测试；跨模块改动跑 `mvn test`。
 - 只改 `python-a` 时，不需要跑 Maven 测试；优先启动 Python 服务并验证 `/api/health` 和主要页面流程。
+- 只改 `scrapling-ui` 后端或前端时，优先运行其后端 unittest；改动 Java 点击启动逻辑时再跑 `mvn -pl website -am test`。
 - 修改配置文件时检查是否包含密钥，能改成环境变量就改成环境变量。
 - 不修改 `.idea/`、`target/`、运行时生成文件，除非任务明确要求。
 - 后续数据库 CRUD 使用 MyBatis DAO + XML Mapper，不新增 `JdbcTemplate`、JPA Repository 或 Java 内联 SQL。

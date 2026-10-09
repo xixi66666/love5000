@@ -324,9 +324,10 @@ function setupServiceHealth() {
 
     function setServiceState(card, state) {
         var status = card.querySelector(".service-status");
-        var message = state === "online" ? "在线" : state === "offline" ? "离线" : "检测中";
+        var message = state === "online" ? "在线" : state === "offline" ? "离线" : state === "starting" ? "启动中" : "检测中";
         card.classList.toggle("is-online", state === "online");
         card.classList.toggle("is-offline", state === "offline");
+        card.classList.toggle("is-starting", state === "starting");
         if (status) {
             status.setAttribute("aria-label", message);
             status.setAttribute("title", message);
@@ -346,7 +347,7 @@ function setupServiceHealth() {
             cache: "no-store"
         };
 
-        if (!healthUrl) {
+        if (!healthUrl || card.classList.contains("is-starting")) {
             return;
         }
         if (healthMode === "no-cors") {
@@ -363,11 +364,102 @@ function setupServiceHealth() {
             });
     }
 
+    function setupClickStart(card) {
+        var startUrl = card.getAttribute("data-start-url");
+        if (!startUrl) {
+            return;
+        }
+
+        var copySmall = card.querySelector(".service-copy small");
+        var defaultSmallText = copySmall ? copySmall.textContent : "";
+        var starting = false;
+
+        function clearStartFailure() {
+            if (copySmall && copySmall.textContent !== defaultSmallText) {
+                copySmall.textContent = defaultSmallText;
+            }
+            card.removeAttribute("title");
+        }
+
+        function showStartFailure(message) {
+            if (copySmall) {
+                copySmall.textContent = "启动失败 · 点击重试";
+            }
+            card.setAttribute("title", message || "启动失败");
+        }
+
+        card.addEventListener("click", function (event) {
+            if (starting || card.classList.contains("is-starting")) {
+                event.preventDefault();
+                return;
+            }
+            if (card.classList.contains("is-online")) {
+                return;
+            }
+
+            event.preventDefault();
+            starting = true;
+            clearStartFailure();
+            setServiceState(card, "starting");
+
+            var pendingWindow = null;
+            try {
+                pendingWindow = window.open("", "_blank");
+            } catch (openError) {
+                pendingWindow = null;
+            }
+            if (pendingWindow && pendingWindow.document) {
+                pendingWindow.document.title = "正在启动 Scrapling UI…";
+                if (pendingWindow.document.body) {
+                    pendingWindow.document.body.textContent = "正在启动 Scrapling UI，请稍候…";
+                }
+            }
+
+            fetch(startUrl, { method: "POST", cache: "no-store" })
+                .then(function (response) {
+                    return response.json().catch(function () {
+                        return {};
+                    }).then(function (payload) {
+                        if (!response.ok || !payload || payload.success !== true) {
+                            throw new Error((payload && payload.message) || "启动失败");
+                        }
+                        return payload;
+                    });
+                })
+                .then(function (payload) {
+                    setServiceState(card, "online");
+                    var appUrl = payload.url || card.getAttribute("data-app-url");
+                    if (pendingWindow && !pendingWindow.closed && appUrl) {
+                        pendingWindow.location.href = appUrl;
+                    } else if (appUrl) {
+                        window.open(appUrl, "_blank", "noopener");
+                    }
+                })
+                .catch(function (error) {
+                    if (pendingWindow && !pendingWindow.closed) {
+                        pendingWindow.close();
+                    }
+                    setServiceState(card, "offline");
+                    showStartFailure(error && error.message ? error.message : "启动失败");
+                })
+                .then(function () {
+                    starting = false;
+                });
+        });
+
+        card.addEventListener("servicestate", function (event) {
+            if (event.detail && event.detail.state === "online") {
+                clearStartFailure();
+            }
+        });
+    }
+
     function checkAllServices() {
         serviceCards.forEach(checkService);
     }
 
     checkAllServices();
+    serviceCards.forEach(setupClickStart);
     window.setInterval(checkAllServices, 30000);
 }
 

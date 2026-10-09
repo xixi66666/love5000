@@ -2,9 +2,9 @@
 
 ## 统一健康检查
 
-`lovestory`、`imagetemplate`、`python-a` 和 `quant-a`
+`lovestory`、`imagetemplate`、`python-a`、`quant-a` 和 `scrapling-ui`
 统一提供 `GET /api/health`，响应顶层包含 `success=true` 与稳定的 `service`。
-启动 `website` 后可访问 `GET http://127.0.0.1:8080/api/services/health` 并行查看四个服务；
+启动 `website` 后可访问 `GET http://127.0.0.1:8080/api/services/health` 并行查看五个服务；
 HTTP 200 表示聚合成功，`healthy` 表示是否全部在线。Java 探测默认连接/读取超时为
 2000/3000ms。
 
@@ -14,7 +14,7 @@ HTTP 200 表示聚合成功，`healthy` 表示是否全部在线。Java 探测�
 mvn -pl website,lovestory,imagetemplate -am test
 ```
 
-`love5000` 是一个 Java 8 + Spring Boot 2.6.13 的 Maven 多模块项目，父工程 artifactId 为 `love530`。仓库同时托管两个独立 Python 微应用，用于 A 股研究和量化研究。
+`love5000` 是一个 Java 8 + Spring Boot 2.6.13 的 Maven 多模块项目，父工程 artifactId 为 `love530`。仓库同时托管三个独立 Python 微应用，用于 A 股研究、量化研究和可视化爬虫。
 
 ## 模块
 
@@ -27,8 +27,9 @@ Maven 聚合模块：
 
 独立 Python 微应用：
 
-- `website/python-a`：A 股自选股 AI 研究台，默认端口 `5174`。
-- `website/quant-a`：A 股多因子量化研究台，默认端口 `5175`。
+- `website/python-a`：A 股自选股 AI 研究台，默认端口 `5174`，随 `website` 自动拉起。
+- `website/quant-a`：A 股多因子量化研究台，默认端口 `5175`，随 `website` 自动拉起。
+- `website/scrapling-ui`：基于 Scrapling + Playwright 的可视化爬虫工作台（汉化版），默认端口 `5176`，由首页 Dock 卡片点击启动，不随 `website` 自动拉起。
 
 根目录下的 `python-a/`、`quant-a/` 不是当前主要接入路径；当前运行和文档维护以 `website/` 下的两个子服务为准。
 
@@ -47,9 +48,9 @@ mvn test
 mvn -pl website -am spring-boot:run
 ```
 
-`website` 默认端口为 `8080`，启动时会检查并自动拉起 `website/python-a` 和 `website/quant-a`。如果对应健康检查已经可用，会复用已有服务。
+`website` 默认端口为 `8080`，启动时会检查并自动拉起 `website/python-a` 和 `website/quant-a`。如果对应健康检查已经可用，会复用已有服务。`website/scrapling-ui` 不随启动拉起，由首页 Dock“Scrapling 抓取工坊”卡片点击启动：离线时点击调用 `POST /api/services/scrapling-ui/start` 拉起服务并等待健康，然后自动打开 `http://127.0.0.1:5176/`；在线时点击直接打开。
 
-首页是无需前端构建的单视口原生页面，集中展示恋爱相册、图片模板、Prompt Console、A 股研究台和 Quant 研究台。每个入口保留端口标识和实时状态；顶部只保留登录、注册账户操作，登录后切换为退出，移动端继续使用横向可滑动服务 Dock。
+首页是无需前端构建的单视口原生页面，集中展示恋爱相册、图片模板、Prompt Console、A 股研究台、Quant 研究台和 Scrapling 抓取工坊。每个入口保留端口标识和实时状态；顶部只保留登录、注册账户操作，登录后切换为退出，移动端继续使用横向可滑动服务 Dock。
 
 `imagetemplate` 首页同样无需前端构建，按“灵感大厅 → 模板解构 → Prompt 编导台 → 图片生成舱”组织为编辑式黑色 AI 创作工作台。页面使用本地虎主题背景、宽幅分屏首屏、内嵌图像标题、创作理念轮播、橙色高对比操作和三段横向交互面板；灵感大厅默认每页 48 条，顶部常驻搜索、仅图片开关、结果计数和清除筛选，桌面端左侧集中展示“一级功能 + 二级场景”及高级筛选，右侧使用 dense 密排结果网格。页面支持 300ms 搜索防抖、加载更多和详情按需读取；模板解构中的 JSON 可直接编辑并校验，进入 Prompt 编导台时同步到可继续修改的变量剧本。GSAP 3.13.0 与 ScrollTrigger 从模块本地静态资源加载，并对脚本缺失及 `prefers-reduced-motion` 提供静态降级；窄屏流程恢复为底部横向排列，切换场景保留已选模板、Prompt、生成参数和结果。
 
@@ -71,6 +72,21 @@ cd website/python-a && python server.py
 cd website/quant-a && python -m uvicorn main:app --host 127.0.0.1 --port 5175
 ```
 
+`scrapling-ui` 首次使用前准备环境，之后可手动启动：
+
+```bash
+cd website/scrapling-ui/backend
+uv sync
+uv run playwright install chromium
+
+cd ../frontend
+npm install
+npm run build
+
+cd ../backend
+.venv/Scripts/python.exe -m uvicorn main:app --host 127.0.0.1 --port 5176
+```
+
 ## 端口
 
 - `website`：`8080`
@@ -78,6 +94,7 @@ cd website/quant-a && python -m uvicorn main:app --host 127.0.0.1 --port 5175
 - `imagetemplate`：`8082`
 - `python-a`：`5174`
 - `quant-a`：`5175`
+- `scrapling-ui`：`5176`
 
 ## 测试
 
@@ -103,6 +120,7 @@ Python 子服务：
 ```bash
 cd website/python-a && python -m unittest discover -s tests -v
 cd website/quant-a && python -m pytest -v
+cd website/scrapling-ui/backend && uv run python -m unittest discover -s tests -v
 ```
 
 ## 配置与安全
@@ -115,6 +133,7 @@ cd website/quant-a && python -m pytest -v
 
 - `website/python-a/deepseek.local.json`
 - `website/quant-a/data/`
+- `website/scrapling-ui/backend/jobs.db`、`website/scrapling-ui/frontend/dist/`
 - `.env`、`.venv/`、`__pycache__/`、`.pytest_cache/`、`*.log`
 
 ## 文档维护规则

@@ -1,0 +1,18 @@
+# Virtual environments and python caches
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Node dependencies and Vite build artifacts
+node_modules/
+frontend/dist/
+frontend/.eslintcache
+
+# Local runtime data
+backend/jobs.db
+
+# System files
+.DS_Store
+Thumbs.db
+*.log
