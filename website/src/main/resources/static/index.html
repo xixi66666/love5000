@@ -56,7 +56,7 @@
             <div class="hero-copy">
                 <p class="hero-badge liquid-glass">
                     <span class="badge-pulse" aria-hidden="true"></span>
-                    6 个微服务，正在同一片宇宙中运行
+                    9 个入口，连接你的个人服务与本机模型
                 </p>
                 <h1 id="hero-title">醉后不知天在水</h1>
                 <p class="hero-statement">
@@ -88,7 +88,7 @@
                 <span class="dock-hint">横向滑动探索全部服务</span>
             </div>
 
-            <nav class="service-grid" aria-label="微服务入口">
+            <nav class="service-grid" aria-label="服务入口">
                 <a class="service-card" href="http://localhost:8081/login.html" target="_blank" rel="noopener"
                    data-health-url="http://localhost:8081/login.html" data-health-mode="no-cors">
                     <span class="service-index">01</span>
@@ -124,6 +124,24 @@
                    data-start-url="/api/services/scrapling-ui/start" data-app-url="http://127.0.0.1:5176/">
                     <span class="service-index">06</span>
                     <span class="service-copy"><strong>Scrapling 抓取工坊</strong><small>SCRAPLING UI · 5176</small></span>
+                    <span class="service-status" aria-label="检测中" title="检测中"></span>
+                </a>
+                <a class="service-card" href="local-services/index.html#strata"
+                   data-health-url="/api/services/local/strata/health">
+                    <span class="service-index">07</span>
+                    <span class="service-copy"><strong>Qwen 本地模型</strong><small>STRATA · 9999</small></span>
+                    <span class="service-status" aria-label="检测中" title="检测中"></span>
+                </a>
+                <a class="service-card" href="local-services/index.html#aimedia"
+                   data-health-url="/api/services/local/aimedia/health">
+                    <span class="service-index">08</span>
+                    <span class="service-copy"><strong>视频操作台</strong><small>AIMEDIA · 8190</small></span>
+                    <span class="service-status" aria-label="检测中" title="检测中"></span>
+                </a>
+                <a class="service-card" href="local-services/index.html#h3"
+                   data-health-url="/api/services/local/h3/health">
+                    <span class="service-index">09</span>
+                    <span class="service-copy"><strong>H3 音视频模型</strong><small>COMFYUI · 8189</small></span>
                     <span class="service-status" aria-label="检测中" title="检测中"></span>
                 </a>
             </nav>

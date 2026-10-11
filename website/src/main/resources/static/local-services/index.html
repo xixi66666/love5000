@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>本机服务 · XiXi</title>
+    <link rel="stylesheet" href="app.css">
+</head>
+<body>
+<main>
+    <header>
+        <a class="back" href="../index.html">← 返回主页</a>
+        <span class="eyebrow">LOCAL WORKSPACE</span>
+        <h1>你的本机工作区</h1>
+        <p>从这里启动服务、释放模型，或结束今天的运行。</p>
+    </header>
+    <div class="notice">生成视频前，请先卸载 Qwen 模型，为 H3 留出内存和显存。卸载模型会保留文件，下次使用时可以重新加载。</div>
+    <div class="cards">
+        <section class="card" id="strata" data-service="strata">
+            <div class="card-heading"><span class="number">01</span><span class="status" data-status>检测中</span></div>
+            <span class="eyebrow">STRATA · 9999</span><h2>Qwen 本地模型</h2>
+            <p>Qwen3.8-Flash-Next · IQ3_S<br>128K 上下文，供网页和 Claude Code 使用。</p>
+            <div class="model-state" data-model-state>正在读取模型状态…</div>
+            <div class="actions">
+                <button data-action="start">只启动服务</button><button class="primary" data-action="load">加载模型</button>
+                <button data-action="unload">卸载模型</button><button class="stop" data-action="stop">关闭服务</button>
+            </div>
+            <a class="open-app" data-open-app href="http://127.0.0.1:9999/" target="_blank" rel="noopener">打开 Qwen 网页 ↗</a>
+            <p class="feedback" data-feedback role="status" aria-live="polite"></p>
+        </section>
+        <section class="card" id="aimedia" data-service="aimedia">
+            <div class="card-heading"><span class="number">02</span><span class="status" data-status>检测中</span></div>
+            <span class="eyebrow">AIMEDIA · 8190</span><h2>视频操作台</h2>
+            <p>编剧、分镜、作品管理和视频制作。<br>操作台服务与生成引擎分别管理。</p>
+            <div class="model-state">打开操作台不会在这里自动加载 H3 权重。</div>
+            <div class="actions"><button class="primary" data-action="start">启动操作台</button><button class="stop" data-action="stop">关闭操作台</button></div>
+            <a class="open-app" data-open-app href="http://127.0.0.1:8190/" target="_blank" rel="noopener">进入视频操作台 ↗</a>
+            <p class="feedback" data-feedback role="status" aria-live="polite"></p>
+        </section>
+        <section class="card" id="h3" data-service="h3">
+            <div class="card-heading"><span class="number">03</span><span class="status" data-status>检测中</span></div>
+            <span class="eyebrow">COMFYUI · 8189</span><h2>H3 音视频模型</h2>
+            <p>MiniMax H3 · Ref2VA INT8<br>通过视频操作台生成画面与原生声音。</p>
+            <div class="model-state" data-model-state>模型在提交 H3 生成任务后加载。</div>
+            <div class="actions"><button class="primary" data-action="start">启动生成引擎</button><button data-action="unload">释放模型内存</button><button class="stop" data-action="stop">关闭生成引擎</button></div>
+            <a class="open-app" data-open-app href="http://127.0.0.1:8189/" target="_blank" rel="noopener">打开 ComfyUI ↗</a>
+            <p class="feedback" data-feedback role="status" aria-live="polite"></p>
+        </section>
+    </div>
+    <footer>关闭浏览器或 love530 不会自动关闭这些本机服务。停止服务时会保留模型文件与作品。</footer>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

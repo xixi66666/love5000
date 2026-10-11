@@ -55,6 +55,13 @@ scrapling-ui:
     log-to-console: true
 
 website:
+  local-services:
+    strata-dir: ${STRATA_HOME:F:/model/Strata}
+    aimedia-dir: ${AIMEDIA_HOME:D:/Code/Java_Code/AIMedia}
+    strata-port: 9999
+    studio-port: 8190
+    h3-port: 8189
+    startup-timeout-seconds: 180
   service-health:
     connect-timeout-ms: 2000
     read-timeout-ms: 3000
@@ -69,3 +76,9 @@ website:
         url: http://127.0.0.1:5175/api/health
       - name: scrapling-ui
         url: http://127.0.0.1:5176/api/health
+      - name: strata
+        url: http://127.0.0.1:8080/api/services/local/strata/health
+      - name: aimedia
+        url: http://127.0.0.1:8080/api/services/local/aimedia/health
+      - name: h3
+        url: http://127.0.0.1:8080/api/services/local/h3/health
