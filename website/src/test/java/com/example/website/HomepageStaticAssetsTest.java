@@ -1,11 +1,14 @@
 package com.example.website;
 
 import org.junit.jupiter.api.Test;
+import org.yaml.snakeyaml.Yaml;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -36,6 +39,27 @@ class HomepageStaticAssetsTest {
         assertTrue(html.contains("data-health-url=\"/api/services/local/aimedia/health\""));
         assertTrue(html.contains("data-health-url=\"/api/services/local/h3/health\""));
         assertTrue(html.contains("data-auth-required=\"true\""));
+    }
+
+    /**
+     * 首页 Dock 中不参与 service-health 聚合探测的本地页面入口。
+     * 当前只有 Prompt Console：它由 website 自身提供，不是独立微服务。
+     * 新增此类入口时要同步 +1，否则下面的断言会失败。
+     */
+    private static final int LOCAL_ONLY_ENTRIES = 1;
+
+    @Test
+    void homepageDockShowsEveryServiceFromTheHealthList() throws IOException {
+        String html = readResource("/static/index.html");
+        int homepageCards = html.split("class=\"service-card\"", -1).length - 1;
+
+        Map<?, ?> root = (Map<?, ?>) new Yaml().load(readResource("/application.yml"));
+        Map<?, ?> website = (Map<?, ?>) root.get("website");
+        Map<?, ?> serviceHealth = (Map<?, ?>) website.get("service-health");
+        List<?> services = (List<?>) serviceHealth.get("services");
+
+        assertEquals(services.size() + LOCAL_ONLY_ENTRIES, homepageCards,
+                "首页 Dock 卡片数 = service-health 清单 + 本地页面入口；新增服务时两处都要改");
     }
 
     @Test

@@ -408,7 +408,7 @@ Spring 约定：
 - 提示词控制台放在 `src/main/resources/static/prompt-console`。
 - 页面引用资源时使用相对路径，不使用本机绝对路径。
 - 首页远程场景视频和装饰覆盖图是经产品提示词明确指定的外部媒体；必须保留黑色/渐变降级背景，外部媒体失败不得影响服务入口、鉴权或健康检测。
-- 首页保持单个 `100svh` 视口且不产生页面级滚动；服务 Dock 桌面端为单行 10 列，窄屏时只允许服务 Dock 自身横向滚动，不允许换行成两排。
+- 首页保持单个 `100svh` 视口且不产生页面级滚动；服务 Dock 桌面端为单行 10 列且 10 个入口一屏全部可见（列宽用 `repeat(10, minmax(0, 1fr))` 随容器自适应收缩，不产生横向滚动），1180px 及以下才切换为定宽列并只允许服务 Dock 自身横向滚动，任何宽度都不允许换行成两排。
 - `script.js` 的点击启动不得再打开“正在启动”中间页面：启动进度只在服务卡片内展示（“启动中…”→ 就绪后自动打开或提示“已启动 · 点击打开”）。
 
 ## 测试策略
@@ -444,6 +444,7 @@ src/test/java/com/example/website/integration/health/*.java
 - 修改 Nacos 示例时，测试中不要依赖真实 Nacos 服务。
 - 修改数据库相关配置时，测试中不要连接远程 MySQL。
 - 修改静态页面后，启动服务并访问 `http://localhost:8080/` 手动验证。
+- `HomepageStaticAssetsTest` 断言首页 Dock 卡片数 = `website.service-health.services` 条数 + `LOCAL_ONLY_ENTRIES`（当前 1：仅 Prompt Console 是 website 自身页面、不参与聚合探测）。新增或移除服务入口时必须同步 `index.html`、`application.yml` 和该常量，否则测试失败。
 - 修改两个 Python 子服务自动启动逻辑时，至少运行对应 `*AutoStartRunnerTest`，并确认工作目录解析仍支持从仓库根目录和 `website/` 模块目录启动。
 - 修改 `scrapling-ui` 点击启动逻辑时，至少运行 `ScraplingUiProcessManagerTest` 和 `ScraplingUiControllerTest`；测试不得启动真实 Python 进程或浏览器，不得连接真实端口。
 - 修改 `scrapling-ui` 后端时，运行 `cd website/scrapling-ui/backend && uv run python -m unittest discover -s tests -v`。
