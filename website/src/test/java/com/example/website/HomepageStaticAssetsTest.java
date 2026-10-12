@@ -31,6 +31,7 @@ class HomepageStaticAssetsTest {
         assertTrue(html.contains("data-health-url=\"http://127.0.0.1:5174/api/health\""));
         assertTrue(html.contains("data-health-url=\"http://127.0.0.1:5175/api/health\""));
         assertTrue(html.contains("data-health-url=\"http://127.0.0.1:5176/api/health\""));
+        assertTrue(html.contains("data-health-url=\"http://127.0.0.1:5177/api/health\""));
         assertTrue(html.contains("data-health-url=\"/api/services/local/strata/health\""));
         assertTrue(html.contains("data-health-url=\"/api/services/local/aimedia/health\""));
         assertTrue(html.contains("data-health-url=\"/api/services/local/h3/health\""));

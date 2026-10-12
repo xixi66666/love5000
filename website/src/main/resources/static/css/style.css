@@ -647,7 +647,7 @@ body.video-ready .scene-video.is-active {
     position: relative;
     z-index: 2;
     display: grid;
-    grid-template-columns: repeat(9, minmax(160px, 1fr));
+    grid-template-columns: repeat(10, minmax(160px, 1fr));
     gap: 4px;
     overflow-x: auto;
     padding: 0 7px 7px;
@@ -785,6 +785,24 @@ body.service-fx-on .service-card:focus-visible {
     background: #ffb454;
     box-shadow: 0 0 0 3px rgba(255, 180, 84, 0.14), 0 0 15px rgba(255, 180, 84, 0.5);
     animation: service-starting-pulse 1.1s ease-in-out infinite;
+}
+
+.service-card.is-starting {
+    border-color: rgba(255, 180, 84, 0.48);
+    background: rgba(255, 180, 84, 0.08);
+}
+
+.service-card.is-starting .service-copy small {
+    color: rgba(255, 196, 120, 0.94);
+}
+
+.service-card.is-ready-hint {
+    border-color: rgba(186, 246, 208, 0.45);
+    background: rgba(186, 246, 208, 0.08);
+}
+
+.service-card.is-ready-hint .service-copy small {
+    color: rgba(186, 246, 208, 0.94);
 }
 
 @keyframes service-starting-pulse {
@@ -995,7 +1013,7 @@ body.service-fx-on .service-card:focus-visible {
 
 @media (max-width: 1180px) {
     .service-grid {
-        grid-template-columns: repeat(9, minmax(154px, 154px));
+        grid-template-columns: repeat(10, minmax(154px, 154px));
     }
 
     .dock-hint {
@@ -1105,7 +1123,7 @@ body.service-fx-on .service-card:focus-visible {
     }
 
     .service-grid {
-        grid-template-columns: repeat(9, minmax(150px, 150px));
+        grid-template-columns: repeat(10, minmax(150px, 150px));
         gap: 4px;
         padding: 0 6px 6px;
     }

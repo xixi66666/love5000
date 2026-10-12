@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Noto+Serif+SC:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=7.4">
+    <link rel="stylesheet" href="css/style.css?v=7.5">
 </head>
 
 <body>
@@ -56,7 +56,7 @@
             <div class="hero-copy">
                 <p class="hero-badge liquid-glass">
                     <span class="badge-pulse" aria-hidden="true"></span>
-                    9 个入口，连接你的个人服务与本机模型
+                    10 个入口，连接你的个人服务与本机模型
                 </p>
                 <h1 id="hero-title">醉后不知天在水</h1>
                 <p class="hero-statement">
@@ -126,21 +126,28 @@
                     <span class="service-copy"><strong>Scrapling 抓取工坊</strong><small>SCRAPLING UI · 5176</small></span>
                     <span class="service-status" aria-label="检测中" title="检测中"></span>
                 </a>
+                <a class="service-card" href="http://127.0.0.1:5177/" target="_blank" rel="noopener"
+                   data-health-url="http://127.0.0.1:5177/api/health" data-health-mode="no-cors"
+                   data-start-url="/api/services/skill-finder/start" data-app-url="http://127.0.0.1:5177/">
+                    <span class="service-index">07</span>
+                    <span class="service-copy"><strong>Skill Finder</strong><small>AI 趋势追踪 · 5177</small></span>
+                    <span class="service-status" aria-label="检测中" title="检测中"></span>
+                </a>
                 <a class="service-card" href="local-services/index.html#strata"
                    data-health-url="/api/services/local/strata/health">
-                    <span class="service-index">07</span>
+                    <span class="service-index">08</span>
                     <span class="service-copy"><strong>Qwen 本地模型</strong><small>STRATA · 9999</small></span>
                     <span class="service-status" aria-label="检测中" title="检测中"></span>
                 </a>
                 <a class="service-card" href="local-services/index.html#aimedia"
                    data-health-url="/api/services/local/aimedia/health">
-                    <span class="service-index">08</span>
+                    <span class="service-index">09</span>
                     <span class="service-copy"><strong>视频操作台</strong><small>AIMEDIA · 8190</small></span>
                     <span class="service-status" aria-label="检测中" title="检测中"></span>
                 </a>
                 <a class="service-card" href="local-services/index.html#h3"
                    data-health-url="/api/services/local/h3/health">
-                    <span class="service-index">09</span>
+                    <span class="service-index">10</span>
                     <span class="service-copy"><strong>H3 音视频模型</strong><small>COMFYUI · 8189</small></span>
                     <span class="service-status" aria-label="检测中" title="检测中"></span>
                 </a>
@@ -174,7 +181,7 @@
 </div>
 
 <script src="js/vendor/gsap.min.js"></script>
-<script src="js/script.js?v=7.5"></script>
+    <script src="js/script.js?v=7.6"></script>
 </body>
 
 </html>

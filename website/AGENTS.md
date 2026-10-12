@@ -1,13 +1,14 @@
-﻿# AGENTS.md
+# AGENTS.md
 
 ## 统一健康检查职责
 
 `integration/health` 维护 `ServiceHealthChecker`、配置化服务清单、并行聚合器和
 `GET /api/services/health`。清单依次包含 `lovestory:8081`、`imagetemplate:8082`、
-`python-a:5174`、`quant-a:5175`、`scrapling-ui:5176`，再加Strata:9999、AIMedia:8190、H3引擎:8189的本机健康适配。远程响应只有在
+`python-a:5174`、`quant-a:5175`、`scrapling-ui:5176`、`skill-finder:5177`，再加Strata:9999、AIMedia:8190、H3引擎:8189的本机健康适配。远程响应只有在
 HTTP 2xx 且顶层布尔值 `success=true` 时才健康；连接/读取超时默认 2000/3000ms。
 `website` 启动时仍只自动启动 `python-a`、`quant-a` 两个 Python 服务；
-`scrapling-ui` 只通过首页按钮点击启动（`integration/scrapling`）。
+`scrapling-ui` 和 `skill-finder` 只通过首页按钮点击启动
+（`integration/scrapling`、`integration/skillfinder`）。
 
 ## 项目概述
 
@@ -20,8 +21,8 @@ C:/Code/Java_Code/love5000/website
 核心功能：
 
 - 提供个人主页静态站点。
-- 个人主页采用单视口电影化布局，包含四场景视频切换、只提供登录/注册的液态玻璃账户顶栏和 9 个带实时状态的服务入口。
-- 统一承载 `python-a`、`quant-a`、`scrapling-ui` 三个独立 Python 子服务的代码目录、首页入口、健康检测；前两者启动时自动拉起，`scrapling-ui` 由首页按钮点击启动。
+- 个人主页采用单视口电影化布局，包含四场景视频切换、只提供登录/注册的液态玻璃账户顶栏和 10 个带实时状态的服务入口。
+- 统一承载 `python-a`、`quant-a`、`scrapling-ui`、`skill-finder` 四个独立 Python 子服务的代码目录、首页入口、健康检测；前两者启动时自动拉起，`scrapling-ui` 和 `skill-finder` 由首页按钮点击启动。
 - 提供提示词控制台和静态提示词库页面，并在首页提供 Prompt Console 入口。
 - 提供基础 Spring MVC Web Demo。
 - 保留 OSS Demo 和 Nacos Discovery 示例代码。
@@ -42,15 +43,17 @@ C:/Code/Java_Code/love5000/website
 配置文件：
 
 - `pom.xml`：模块依赖、Java 8 编译配置、Spring Boot 主类。
-- `src/main/resources/application.yml`：端口、MySQL、Druid、静态资源路径，以及两个 Python 子服务的自动启动配置和 `scrapling-ui` 的点击启动配置。
+- `src/main/resources/application.yml`：端口、MySQL、Druid、静态资源路径，以及两个 Python 子服务的自动启动配置和 `scrapling-ui`、`skill-finder` 的点击启动配置。
 
 **关键**：`website` 是可独立启动的 Web 服务，默认端口为 `8080`。
 
-**关键**：`python-a`、`quant-a`、`scrapling-ui` 放在 `website/` 目录下，但仍然是独立 Python 服务，不是 Java Maven 模块，不加入父 `pom.xml` 的 `<modules>`。
+**关键**：`python-a`、`quant-a`、`scrapling-ui`、`skill-finder` 放在 `website/` 目录下，但仍然是独立 Python 服务，不是 Java Maven 模块，不加入父 `pom.xml` 的 `<modules>`。
 
 **关键**：直接启动 `website` 时会自动检查并拉起 `website/python-a`、`website/quant-a`。默认会把两个 Python 子服务的 stdout/stderr 继承到 `website` 控制台，便于在 IDEA Run/Terminal 中查看运行日志和接口访问日志。
 
-**关键**：`website/scrapling-ui` 不随 `website` 启动自动拉起。首页 Dock 的“Scrapling 抓取工坊”卡片是启动按钮：在线时直接打开，离线时调用 `POST /api/services/scrapling-ui/start` 拉起服务并等待健康，然后打开 `http://127.0.0.1:5176/`；`website` 关闭不会强杀该服务，重复点击会复用已有进程。
+**关键**：`website/scrapling-ui` 不随 `website` 启动自动拉起。首页 Dock 的“Scrapling 抓取工坊”卡片是启动按钮：在线时直接打开，离线时调用 `POST /api/services/scrapling-ui/start` 拉起服务，启动过程只在卡片内显示“启动中…”（不打开中间页面），就绪后自动打开 `http://127.0.0.1:5176/`；若浏览器拦截新窗口，卡片提示“已启动 · 点击打开”；`website` 关闭不会强杀该服务，重复点击会复用已有进程。
+
+**关键**：`website/skill-finder` 同样不随 `website` 启动自动拉起。首页 Dock 的“Skill Finder”卡片是启动按钮：在线时直接打开，离线时调用 `POST /api/services/skill-finder/start` 拉起服务，启动过程只在卡片内显示“启动中…”，就绪后自动打开 `http://127.0.0.1:5177/`；若浏览器拦截新窗口，卡片提示“已启动 · 点击打开”；启动前要求 `frontend/dist` 已构建；`website` 关闭不会强杀该服务，重复点击会复用已有进程。
 
 **文档同步约定**：每次修改 `website` 的首页入口、提示词控制台、自动启动配置、Python 子服务集成、端口、API、静态资源目录或测试方式时，必须同步更新本文件、`website/README.md`，以及根目录 `AGENTS.md` / `README.md` 中相关内容。
 
@@ -144,6 +147,24 @@ cd C:/Code/Java_Code/love5000/website/scrapling-ui/backend
 .venv/Scripts/python.exe -m uvicorn main:app --host 127.0.0.1 --port 5176
 ```
 
+首次准备 `skill-finder` 环境：
+
+```bash
+cd C:/Code/Java_Code/love5000/website/skill-finder/backend
+uv sync
+
+cd C:/Code/Java_Code/love5000/website/skill-finder/frontend
+npm install
+npm run build
+```
+
+单独启动 `skill-finder`（前端已构建后）：
+
+```bash
+cd C:/Code/Java_Code/love5000/website/skill-finder/backend
+.venv/Scripts/python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 5177
+```
+
 ## 项目结构
 
 ```text
@@ -169,6 +190,16 @@ website/
 │   └── frontend/
 │       ├── src/
 │       └── dist/          # npm run build 产物，gitignored
+├── skill-finder/
+│   ├── backend/
+│   │   ├── app/           # FastAPI 应用（采集、趋势、API、dist 托管）
+│   │   ├── sql/
+│   │   ├── tests/
+│   │   └── .env / .secrets/   # 本地私有，gitignored
+│   ├── frontend/
+│   │   ├── src/
+│   │   └── dist/          # npm run build 产物，gitignored
+│   └── docs/
 └── src/
     ├── main/
     │   ├── java/com/example/website/
@@ -185,7 +216,8 @@ website/
     │   │   │   ├── PythonAAutoStartRunner.java
     │   │   │   ├── QuantAAutoStartRunner.java
     │   │   │   ├── health/
-    │   │   │   └── scrapling/
+    │   │   │   ├── scrapling/
+    │   │   │   └── skillfinder/
     │   │   ├── nacosdiscovery/
     │   │   └── prompt/
     │   └── resources/
@@ -208,6 +240,7 @@ website/
 - `integration/PythonAAutoStartRunner.java`：启动或复用 `website/python-a`，健康检查地址为 `http://127.0.0.1:5174/api/health`。
 - `integration/QuantAAutoStartRunner.java`：启动或复用 `website/quant-a`，健康检查地址为 `http://127.0.0.1:5175/api/health`。
 - `integration/scrapling`：`ScraplingUiProcessManager` 负责按需启动/复用 `website/scrapling-ui`（优先 `backend/.venv`，回退 `uv run python`，等待健康默认 90s），`ScraplingUiController` 暴露 `POST /api/services/scrapling-ui/start` 与 `GET /api/services/scrapling-ui/status`；只由首页按钮点击触发，不做启动时自动拉起，也不在 `website` 关闭时强杀。
+- `integration/skillfinder`：`SkillFinderProcessManager` 负责按需启动/复用 `website/skill-finder`（优先 `backend/.venv`，回退 `uv run python`，uvicorn 模块为 `app.main:app`，等待健康默认 90s），`SkillFinderController` 暴露 `POST /api/services/skill-finder/start` 与 `GET /api/services/skill-finder/status`；同样只由首页按钮点击触发，不做启动时自动拉起，也不在 `website` 关闭时强杀。
 - `auth/WebsiteAuthUserRepository.java`：适配 `common` 的 `AuthUserRepository`，不直接写 SQL。
 - `auth/dao/WebsiteAuthUserDao.java`：认证用户表 MyBatis DAO。
 - `mapper/auth`：MyBatis XML Mapper，集中维护数据库 CRUD SQL。
@@ -226,6 +259,7 @@ website/
 - `python-a/`：A 股自选股 AI 研究台，独立 ThreadingHTTPServer 服务，默认端口 `5174`。
 - `quant-a/`：A 股量化研究台，独立 FastAPI 服务，默认端口 `5175`。
 - `scrapling-ui/`：可视化爬虫工作台（汉化版 Scrapling UI），独立 FastAPI + React 服务，默认端口 `5176`，前端 dist 由后端托管，首页按钮点击启动。
+- `skill-finder/`：AI 项目趋势追踪站（GitHub Trending 采集 + 排行展示），独立 FastAPI + Vue 3 服务，默认端口 `5177`，前端 dist 由后端托管，首页按钮点击启动；数据库使用腾讯云 MySQL 的 `skill_finder` 库。
 
 ## 配置约定
 
@@ -241,6 +275,7 @@ server.port=8080
 python-a: 5174
 quant-a: 5175
 scrapling-ui: 5176
+skill-finder: 5177
 ```
 
 静态资源路径：
@@ -325,6 +360,26 @@ scrapling-ui:
 - `website.service-health.services` 聚合清单必须包含 `scrapling-ui`
   （`http://127.0.0.1:5176/api/health`），但聚合探测不触发启动。
 
+`skill-finder` 点击启动约定：
+
+```yaml
+skill-finder:
+  click-start:
+    enabled: true
+    work-dir: website/skill-finder
+    command: uv
+    port: 5177
+    health-path: /api/health
+    startup-timeout-seconds: 90
+    log-to-console: true
+```
+
+- 不使用 `ApplicationRunner` 自动启动，只在首页按钮点击时调用启动接口。
+- 启动命令为 `.venv/Scripts/python.exe -m uvicorn app.main:app`（venv 缺失时回退
+  `uv run python -m uvicorn app.main:app`）；启动前要求 `frontend/dist/index.html` 已构建。
+- `website.service-health.services` 聚合清单必须包含 `skill-finder`
+  （`http://127.0.0.1:5177/api/health`），但聚合探测不触发启动。
+
 ## 代码规范
 
 Java 命名：
@@ -353,7 +408,8 @@ Spring 约定：
 - 提示词控制台放在 `src/main/resources/static/prompt-console`。
 - 页面引用资源时使用相对路径，不使用本机绝对路径。
 - 首页远程场景视频和装饰覆盖图是经产品提示词明确指定的外部媒体；必须保留黑色/渐变降级背景，外部媒体失败不得影响服务入口、鉴权或健康检测。
-- 首页保持单个 `100svh` 视口且不产生页面级滚动；服务数量超出可用宽度时只允许服务 Dock 自身横向滚动。
+- 首页保持单个 `100svh` 视口且不产生页面级滚动；服务 Dock 桌面端为单行 10 列，窄屏时只允许服务 Dock 自身横向滚动，不允许换行成两排。
+- `script.js` 的点击启动不得再打开“正在启动”中间页面：启动进度只在服务卡片内展示（“启动中…”→ 就绪后自动打开或提示“已启动 · 点击打开”）。
 
 ## 测试策略
 
@@ -376,6 +432,8 @@ src/test/java/com/example/website/integration/PythonAAutoStartRunnerTest.java
 src/test/java/com/example/website/integration/QuantAAutoStartRunnerTest.java
 src/test/java/com/example/website/integration/scrapling/ScraplingUiProcessManagerTest.java
 src/test/java/com/example/website/integration/scrapling/ScraplingUiControllerTest.java
+src/test/java/com/example/website/integration/skillfinder/SkillFinderProcessManagerTest.java
+src/test/java/com/example/website/integration/skillfinder/SkillFinderControllerTest.java
 src/test/java/com/example/website/integration/health/*.java
 ```
 
@@ -389,6 +447,8 @@ src/test/java/com/example/website/integration/health/*.java
 - 修改两个 Python 子服务自动启动逻辑时，至少运行对应 `*AutoStartRunnerTest`，并确认工作目录解析仍支持从仓库根目录和 `website/` 模块目录启动。
 - 修改 `scrapling-ui` 点击启动逻辑时，至少运行 `ScraplingUiProcessManagerTest` 和 `ScraplingUiControllerTest`；测试不得启动真实 Python 进程或浏览器，不得连接真实端口。
 - 修改 `scrapling-ui` 后端时，运行 `cd website/scrapling-ui/backend && uv run python -m unittest discover -s tests -v`。
+- 修改 `skill-finder` 点击启动逻辑时，至少运行 `SkillFinderProcessManagerTest` 和 `SkillFinderControllerTest`；测试不得启动真实 Python 进程，不得连接真实端口。
+- 修改 `skill-finder` 后端时，运行 `cd website/skill-finder/backend && .venv/Scripts/python.exe -m pytest -q` 和 `ruff check .`；修改前端时运行 `npm run lint && npm run typecheck && npm run test -- --run && npm run build`。
 
 覆盖率目标：
 
@@ -414,15 +474,16 @@ mvn -pl website -am spring-boot:run
 - **关键**：不要把正式业务代码继续放进 `demos` 包。
 - **关键**：新增或修改数据库 CRUD 时同步更新 DAO、Mapper XML、模型和测试。
 - **关键**：静态资源路径必须能从 `classpath:/static/` 加载。
-- **关键**：三个 Python 子服务必须保留在 `website/python-a`、`website/quant-a`、`website/scrapling-ui` 下，但不要加入 Maven modules；`scrapling-ui` 只由首页按钮点击启动。
+- **关键**：四个 Python 子服务必须保留在 `website/python-a`、`website/quant-a`、`website/scrapling-ui`、`website/skill-finder` 下，但不要加入 Maven modules；`scrapling-ui` 和 `skill-finder` 只由首页按钮点击启动。
 - **关键**：`scrapling-ui` 的 `.venv/`、`node_modules/`、`frontend/dist/`、`backend/jobs.db`、`*.log` 不提交；前端 dist 由 `npm run build` 生成。
+- **关键**：`skill-finder` 的 `.venv/`、`node_modules/`、`frontend/dist/`、`backend/.env`、`backend/.secrets/`、`*.log` 不提交；前端 dist 由 `npm run build` 生成。
 - **关键**：数据库密码和 Nacos 密码使用环境变量。
 - ⚠️ 不要在单元测试中连接真实 Nacos、真实 MySQL 或外部 OSS。
 - ⚠️ 不要提交 `target/`、IDE 缓存、Python `__pycache__/`、`.pytest_cache/`、本地密钥或服务日志。
 
 ## 本机模型与视频服务管理（2026-10-11）
 
-首页 Dock 增加「Qwen 本地模型」「视频操作台」「H3 音视频模型」，共9个入口。三张新卡片进入 `/local-services/index.html` 的对应区块；页面每15秒显示服务状态，首页每30秒更新状态。
+首页 Dock 增加「Qwen 本地模型」「视频操作台」「H3 音视频模型」，共10个入口。三张新卡片进入 `/local-services/index.html` 的对应区块；页面每15秒显示服务状态，首页每30秒更新状态。
 
 | 服务 | 本机目录 | 端口 | 管理操作 |
 | --- | --- | --- | --- |

@@ -1,8 +1,8 @@
-﻿# AGENTS.md
+# AGENTS.md
 
 ## 统一服务健康检查
 
-五个独立服务 `lovestory`、`imagetemplate`、`python-a`、`quant-a`、`scrapling-ui`
+六个独立服务 `lovestory`、`imagetemplate`、`python-a`、`quant-a`、`scrapling-ui`、`skill-finder`
 均提供 `GET /api/health`，响应顶层必须包含布尔值 `success=true` 和稳定的 `service`
 标识。`website` 使用 `ServiceHealthChecker` 统一探测，并通过
 `GET /api/services/health` 并行返回配置顺序一致的聚合结果；HTTP 200 表示聚合执行成功，
@@ -19,6 +19,7 @@
 - `python-a`：A 股自选股 AI 研究台，作为独立 Python 微应用接入，不加入 Maven 聚合模块。
 - `quant-a`：A 股量化研究台，作为独立 FastAPI 微服务接入，不加入 Maven 聚合模块，不写入 `website/python-a` 的 Obsidian 目录。
 - `scrapling-ui`：基于 Scrapling + Playwright 的可视化爬虫工作台（汉化版），作为独立 FastAPI + React 微服务接入，不加入 Maven 聚合模块；`website` 首页 Dock 卡片点击启动，不随 `website` 自动拉起。
+- `skill-finder`：AI 项目趋势追踪站（GitHub Trending 采集 + 排行展示），作为独立 FastAPI + Vue 3 微服务接入，不加入 Maven 聚合模块；`website` 首页 Dock 卡片点击启动，不随 `website` 自动拉起；数据库使用腾讯云 MySQL 的 `skill_finder` 库。
 
 核心技术栈：
 
@@ -31,7 +32,7 @@
 - 连接池：Alibaba Druid
 - 对象存储：Aliyun OSS SDK
 - 图片生成：OpenAI Images API
-- Python 微应用：Python 3.9+ / ThreadingHTTPServer / FastAPI / Uvicorn / DeepSeek Chat Completions API / 东方财富公开行情接口 / Obsidian Markdown
+- Python 微应用：Python 3.9+ / ThreadingHTTPServer / FastAPI / Uvicorn / SQLAlchemy / Vue 3 / DeepSeek Chat Completions API / 东方财富公开行情接口 / Obsidian Markdown
 - 测试：JUnit 5 + Spring Boot Test + Maven Surefire 2.22.2
 - 前端：原生 HTML / CSS / JavaScript
 
@@ -42,6 +43,8 @@
 **关键**：`quant-a` 是独立 FastAPI 微服务，不是 Java Maven 模块，不要把它加入父 `pom.xml` 的 `<modules>`。它的数据、配置和测试保持在 `website/quant-a/` 内，不写入 `website/python-a/obsidian-vault/`。
 
 **关键**：`scrapling-ui` 是独立 FastAPI + React 微服务，不是 Java Maven 模块，不要把它加入父 `pom.xml` 的 `<modules>`。它只由 `website` 首页 Dock 的“Scrapling 抓取工坊”卡片点击启动（`POST /api/services/scrapling-ui/start`），不随 `website` 启动自动拉起，`website` 关闭也不强杀；`website` 只提供启动接口、健康检测和入口链接，不把抓取业务逻辑改写进 Java Controller。
+
+**关键**：`skill-finder` 是独立 FastAPI + Vue 3 微服务，不是 Java Maven 模块，不要把它加入父 `pom.xml` 的 `<modules>`。它只由 `website` 首页 Dock 的“Skill Finder”卡片点击启动（`POST /api/services/skill-finder/start`），不随 `website` 启动自动拉起，`website` 关闭也不强杀；启动前要求 `frontend/dist` 已构建；`website` 只提供启动接口、健康检测和入口链接，不把趋势采集业务逻辑改写进 Java Controller。
 
 **关键**：每次修改项目结构、模块职责、启动命令、端口、配置项、API、数据目录、测试方式或部署入口时，必须同步更新根 `AGENTS.md` / `README.md`，以及受影响模块或微应用目录下的 `AGENTS.md` / `README.md`。文档和代码不一致时，本次改动不能视为完成。
 
@@ -92,7 +95,7 @@ mvn -pl lovestory -am spring-boot:run -Dspring-boot.run.main-class=com.ycxandwuq
 mvn -pl website -am spring-boot:run
 ```
 
-`website` 启动时会默认自动检查并启动 `python-a` 和 `quant-a`。如果本机对应健康检查已可用，则直接复用已有服务，不重复启动。两个 Python 子服务默认把 stdout/stderr 输出到 `website` 的同一个控制台，便于在 IDEA Run/Terminal 中直接查看运行日志和接口访问日志。`scrapling-ui` 不随 `website` 自动拉起，只由首页 Dock“Scrapling 抓取工坊”卡片点击启动。
+`website` 启动时会默认自动检查并启动 `python-a` 和 `quant-a`。如果本机对应健康检查已可用，则直接复用已有服务，不重复启动。两个 Python 子服务默认把 stdout/stderr 输出到 `website` 的同一个控制台，便于在 IDEA Run/Terminal 中直接查看运行日志和接口访问日志。`scrapling-ui` 和 `skill-finder` 不随 `website` 自动拉起，只由首页 Dock 卡片点击启动。
 
 启动 `imagetemplate`，默认端口 `8082`：
 
@@ -177,7 +180,39 @@ cd website/scrapling-ui/backend
 uv run python -m unittest discover -s tests -v
 ```
 
-日常本地联调直接启动 `website`：它会自动检查并拉起 `python-a` 和 `quant-a`；`scrapling-ui` 由首页按钮点击启动，首次使用前完成一次上面的环境准备即可。
+首次准备 `skill-finder` 环境（Python 3.11+）：
+
+```bash
+cd website/skill-finder/backend
+uv sync
+
+cd website/skill-finder/frontend
+npm install
+npm run build
+```
+
+单独启动 `skill-finder`（前端已构建后），默认端口 `5177`：
+
+```bash
+cd website/skill-finder/backend
+.venv/Scripts/python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 5177
+```
+
+运行 `skill-finder` 测试：
+
+```bash
+cd website/skill-finder/backend
+.venv/Scripts/python.exe -m ruff check .
+.venv/Scripts/python.exe -m pytest -q
+
+cd website/skill-finder/frontend
+npm run lint
+npm run typecheck
+npm run test -- --run
+npm run build
+```
+
+日常本地联调直接启动 `website`：它会自动检查并拉起 `python-a` 和 `quant-a`；`scrapling-ui`、`skill-finder` 由首页按钮点击启动，首次使用前完成一次上面的环境准备即可。
 
 ## 项目结构
 
@@ -232,6 +267,16 @@ love5000/
     │   ├── services/
     │   └── tests/
     └── frontend/           # React + TypeScript + Vite（已汉化）
+        ├── src/
+        └── dist/           # npm run build 产物，gitignored
+├── website/skill-finder/
+    ├── README.md
+    ├── backend/            # FastAPI + SQLAlchemy + Scrapling（Python 3.11+）
+    │   ├── app/            # 采集、趋势、API、/api/health、dist 托管
+    │   ├── sql/            # MySQL 建表与迁移脚本
+    │   ├── tests/          # pytest（unit + integration）
+    │   └── .env / .secrets/  # 本地私有，gitignored
+    └── frontend/           # Vue 3 + TypeScript + Vite
         ├── src/
         └── dist/           # npm run build 产物，gitignored
 ```
@@ -289,6 +334,32 @@ website/scrapling-ui/
         └── package.json / package-lock.json
 ```
 
+`skill-finder` 不参与 Maven 构建，下面结构只表示其独立 FastAPI + Vue 3 微服务边界：
+
+```text
+website/skill-finder/
+    ├── README.md
+    ├── AGENTS.md
+    ├── backend/                 # FastAPI + SQLAlchemy 2（异步）+ Scrapling（Python 3.11+）
+    │   ├── app/                 # 采集、趋势计算、REST API、/api/health、dist 托管
+    │   │   ├── api/             # /api/v1 路由
+    │   │   ├── collector/       # GitHub Trending 采集与 GitHub API 补全
+    │   │   ├── core/            # 配置与 APScheduler
+    │   │   ├── db/              # SQLAlchemy 模型与会话
+    │   │   ├── last30days/      # 近 30 天多源研究
+    │   │   ├── repositories/    # 数据访问
+    │   │   └── services/        # 趋势、统计、简介服务
+    │   ├── sql/                 # MySQL 建表与迁移脚本
+    │   ├── tests/               # pytest（unit + integration）
+    │   ├── pyproject.toml / uv.lock
+    │   ├── .env                 # 本地私有配置，禁止提交
+    │   └── .secrets/            # GitHub Token，禁止提交
+    └── frontend/                # Vue 3 + TypeScript + Vite
+        ├── src/
+        ├── tests/               # Vitest 单元测试 + Playwright e2e
+        └── dist/                # npm run build 产物，gitignored
+```
+
 ## 模块职责
 
 - `common/src/main/java/com/example/common/config`：公共配置和自动装配，例如 OSS 自动配置。
@@ -322,6 +393,12 @@ website/scrapling-ui/
 - `website/scrapling-ui/backend/tests`：unittest 测试，覆盖 `/api/health`、`/api/**` 404 和 dist 静态托管。
 - `website/scrapling-ui/frontend`：已汉化的 React + TypeScript + Vite 工作台前端；`dist` 为 `npm run build` 产物，由后端同端口托管。
 - `website/src/main/java/com/example/website/integration/scrapling`：`ScraplingUiProcessManager` + `ScraplingUiController`，提供点击启动与状态接口；优先 `backend/.venv`，回退 `uv run python`，等待健康默认 90s，不做启动时自动拉起。
+- `website/skill-finder/backend/app/main.py`：趋势追踪站后端入口，注册采集、榜单、统计和 last30days API，提供 `/api/health`（`success=true` + `service=skill-finder`）与 `frontend/dist` 静态托管（`/assets` 挂载 + SPA fallback）。
+- `website/skill-finder/backend/app/collector`：Scrapling GitHub Trending 日/周/月榜采集、AI 关键词过滤、GitHub API 字段补全。
+- `website/skill-finder/backend/app/last30days`：近 30 天最热多源研究（调用用户级 last30days skill，自动发现 `~/.codex`、`~/.agents`、`~/.claude` 目录）。
+- `website/skill-finder/backend/tests`：pytest 测试，覆盖 `/api/health`、`/api/**` 404、dist 静态托管、采集与趋势逻辑；集成测试需要独立测试库。
+- `website/skill-finder/frontend`：Vue 3 + TypeScript + Vite 前端（排行榜、筛选、详情）；`dist` 为 `npm run build` 产物，由后端同端口托管。
+- `website/src/main/java/com/example/website/integration/skillfinder`：`SkillFinderProcessManager` + `SkillFinderController`，提供点击启动与状态接口；优先 `backend/.venv`，回退 `uv run python`，uvicorn 模块为 `app.main:app`，等待健康默认 90s，不做启动时自动拉起。
 
 ## Python 微应用入口方式
 
@@ -363,6 +440,21 @@ website/scrapling-ui/
 - 生产部署如需统一域名，使用 Nginx、网关或 Spring 反向代理把 `/scrapling-ui/` 转发到 `127.0.0.1:5176`。
 - `scrapling-ui` 不是 Maven 模块，不执行 `mvn -pl scrapling-ui ...`；数据目录为其自身 `backend/jobs.db`，不写入其他微服务目录。
 
+## Skill Finder 微服务入口方式
+
+`skill-finder` 以独立 FastAPI + Vue 3 服务方式接入 `love5000`：
+
+- 只由 `website` 首页 Dock“Skill Finder”卡片点击启动，**不随** `website` 启动自动拉起，`website` 关闭也不强杀。
+- 启动接口：`POST http://127.0.0.1:8080/api/services/skill-finder/start`，返回 `{success, status, url}`；`status` 为 `started` 或 `already-running`。
+- 状态接口：`GET http://127.0.0.1:8080/api/services/skill-finder/status`。
+- 本地开发入口：启动后访问 `http://127.0.0.1:5177/`。
+- 健康检查入口：`GET http://127.0.0.1:5177/api/health`，响应中的 `success` 必须为 `true`，`service` 为 `skill-finder`。
+- 前端构建产物由后端同端口托管，运行时只有一个进程；首次使用需完成 `uv sync`、`npm install && npm run build`。
+- 数据库为腾讯云 MySQL 上的 `skill_finder` 库（与 `website` 的 `xixi` 库同机不同库），连接串与 GitHub Token 只放 `backend/.env` / `backend/.secrets/`（均已 gitignore）。
+- `website` 只提供启动接口、健康检测和入口链接，不把趋势采集业务逻辑改写进 Java Controller。
+- 生产部署如需统一域名，使用 Nginx、网关或 Spring 反向代理把 `/skill-finder/` 转发到 `127.0.0.1:5177`。
+- `skill-finder` 不是 Maven 模块，不执行 `mvn -pl skill-finder ...`，也不写入其他微服务目录。
+
 ## 微服务主页入口约定
 
 - 新增任何 Java 模块、Python 微应用或独立微服务时，必须同步更新 `website/src/main/resources/static/index.html` 的主页面入口。
@@ -382,6 +474,7 @@ website/scrapling-ui/
 - `python-a`：`5174`
 - `quant-a`：`5175`
 - `scrapling-ui`：`5176`
+- `skill-finder`：`5177`
 
 ### 数据库
 
@@ -391,6 +484,7 @@ website/scrapling-ui/
 - `python-a` 不使用 MySQL；默认写入本地 `website/python-a/obsidian-vault/A股AI/`。
 - `quant-a` 不使用 MySQL；默认使用 `website/quant-a/` 内部数据、配置和存储目录，不写入 `website/python-a` 的 Obsidian 目录。
 - `scrapling-ui` 不使用 MySQL；运行时数据只有自身 `backend/jobs.db`（SQLite，调度任务）和项目根 `todo_list.md`（路线图），不写入其他微服务目录。
+- `skill-finder` 使用腾讯云 MySQL 的 `skill_finder` 库（与 `xixi` 库同机不同库），包含 `repositories`、`star_snapshots`、`trending_entries`、`collection_runs`、`last30days_reports` 五张表；连接串只放 `website/skill-finder/backend/.env`，不写入其他微服务目录。
 
 ⚠️ **严重警告**：不要提交真实数据库密码、OSS AccessKey、OpenAI API Key。新增配置优先使用环境变量，例如 `${OPENAI_API_KEY:}`、`${LOVE530_OSS_ACCESS_KEY_ID:}`。
 
@@ -575,7 +669,24 @@ DELETE /api/scheduler/jobs/{job_id}
 POST   /api/scheduler/jobs/{job_id}/run
 ```
 
-`website` 侧点击启动与状态接口见“Scrapling UI 微服务入口方式”。
+`website` 侧点击启动与状态接口见“Scrapling UI 微服务入口方式”和“Skill Finder 微服务入口方式”。
+
+`skill-finder` 趋势追踪接口（统一前缀 `/api/v1`，另有统一健康检查 `GET /api/health`）：
+
+```text
+GET  /api/health
+GET  /api/v1/health
+GET  /api/v1/repositories?page=1&page_size=20&sort=daily_stars&category=AGENT&language=&min_stars=&q=
+GET  /api/v1/repositories/{owner}/{name}
+GET  /api/v1/languages
+GET  /api/v1/stats
+POST /api/v1/collections/refresh
+GET  /api/v1/last30days/rankings?direction=agent|skill
+POST /api/v1/last30days/rankings/refresh
+GET  /api/v1/last30days/status
+POST /api/v1/last30days
+POST /api/v1/admin/collections
+```
 
 新增接口响应至少包含：
 
@@ -604,6 +715,7 @@ POST   /api/scheduler/jobs/{job_id}/run
 - `python-a` 页面放在 `website/python-a/index.html`、`website/python-a/app.js`、`website/python-a/styles.css`，由 `website/python-a/server.py` 直接提供静态访问。
 - `quant-a` 页面放在 `website/quant-a/web`，由 `website/quant-a/main.py` 通过 FastAPI 静态资源能力提供访问。
 - `scrapling-ui` 前端源码放在 `website/scrapling-ui/frontend`，构建产物 `frontend/dist` 由 `backend/main.py` 同端口托管（`/assets` 挂载 + SPA fallback）；`dist` 不提交，本地用 `npm run build` 生成。
+- `skill-finder` 前端源码放在 `website/skill-finder/frontend`，构建产物 `frontend/dist` 由 `backend/app/main.py` 同端口托管（`/assets` 挂载 + SPA fallback + 路径穿越防护）；`dist` 不提交，本地用 `npm run build` 生成。`main.py` 顶部显式修复 Windows `.js`/`.mjs` MIME，不要删除。
 - 静态资源使用相对路径或明确的外部 URL，不引用本机绝对路径。
 - 不修改 `target/` 下的构建产物。
 
@@ -643,6 +755,8 @@ Python 约定：
 - 涉及网络请求、文件写入和 Obsidian 写入时要保留异常处理，不能因为单个外部接口失败导致页面整体不可用。
 - `quant-a` 使用 FastAPI + Uvicorn，运行配置优先使用环境变量或 `website/quant-a/configs` 内配置文件；不要把 `quant-a` 加入 Maven modules，不要复用或写入 `website/python-a/obsidian-vault/`。
 - `quant-a` 的量化评分、回测和报告输出必须保留风险提示和非投资建议边界，避免确定性买卖结论。
+- `skill-finder` 使用 FastAPI + SQLAlchemy 2（异步）+ APScheduler + Scrapling，运行配置优先使用 `backend/.env` 或环境变量；数据库连接、GitHub Token 与 `ADMIN_KEY` 只放本地私有文件，禁止提交。不要把 `skill-finder` 加入 Maven modules，也不要写入其他微服务目录。
+- `skill-finder` 的 GitHub Trending 采集、AI 关键词过滤和 last30days 研究必须保留失败降级路径：单个来源失败不得导致页面整体不可用。
 
 ## 测试策略
 
@@ -712,6 +826,20 @@ cd website/scrapling-ui/backend
 uv run python -m unittest discover -s tests -v
 ```
 
+`skill-finder` 修改后至少执行：
+
+```bash
+cd website/skill-finder/backend
+.venv/Scripts/python.exe -m ruff check .
+.venv/Scripts/python.exe -m pytest -q
+
+cd website/skill-finder/frontend
+npm run lint
+npm run typecheck
+npm run test -- --run
+npm run build
+```
+
 涉及 Java 点击启动逻辑时：
 
 ```bash
@@ -729,6 +857,7 @@ mvn -pl website -am test
 - OpenAI 图片生成测试不得真实调用外部 API；使用 mock 或可注入 HTTP 客户端。
 - `quant-a` 新增 API、因子、回测、组合或服务编排逻辑时，使用 pytest 覆盖成功路径和主要失败路径，不依赖真实外部行情接口。
 - `scrapling-ui` 后端测试使用 unittest + FastAPI TestClient，不启动 Playwright 浏览器；`website` 点击启动逻辑测试不启动真实 Python 进程、不连接真实端口。
+- `skill-finder` 后端测试使用 pytest + FastAPI TestClient；单元测试不连接远程 MySQL（集成测试需独立测试库与 `TEST_DATABASE_URL`，未设置时跳过）；`website` 点击启动逻辑测试不启动真实 Python 进程、不连接真实端口。
 
 覆盖率目标：
 
@@ -764,6 +893,7 @@ mvn -pl imagetemplate -am test
 - **关键**：修改 `website/python-a` 时不要提交 `deepseek.local.json`、`.env`、`__pycache__/`、`server.err.log`、`server.out.log`。
 - **关键**：修改 `website/quant-a` 时不要提交 `.env`、`__pycache__/`、`.pytest_cache/`、运行时数据库、缓存或生成报告；不要写入 `website/python-a/obsidian-vault/`。
 - **关键**：修改 `website/scrapling-ui` 时不要提交 `backend/.venv/`、`backend/jobs.db`、`frontend/node_modules/`、`frontend/dist/`、`*.log`；前端改动后重新 `npm run build`。
+- **关键**：修改 `website/skill-finder` 时不要提交 `backend/.venv/`、`backend/.env`、`backend/.secrets/`、`frontend/node_modules/`、`frontend/dist/`、`__pycache__/`、`.pytest_cache/`、`.ruff_cache/`、`*.log`；前端改动后重新 `npm run build`。
 - ⚠️ 不依赖远程生产 MySQL、真实 OSS、真实 OpenAI API 来通过单元测试。
 
 ## 常见任务指南
@@ -861,6 +991,29 @@ GET http://127.0.0.1:5176/api/health
 POST http://127.0.0.1:8080/api/services/scrapling-ui/start
 ```
 
+### 修改 skill-finder 微服务
+
+1. 后端改 `website/skill-finder/backend/app`，前端改 `website/skill-finder/frontend/src`；保持它作为独立 FastAPI + Vue 3 服务，不加入父 `pom.xml`。
+2. 前端改动后必须重新构建：`cd website/skill-finder/frontend && npm run build`；`dist` 不提交。
+3. 启动链路改动（端口、健康路径、启动命令、等待超时）时，同步更新 `website/src/main/resources/application.yml` 的 `skill-finder.click-start`、`SkillFinderProperties` 默认值和 `SkillFinderProcessManagerTest`。
+4. 新增或修改后端 API 时，同步更新 `website/skill-finder/AGENTS.md`、`website/skill-finder/README.md` 和本文件的 `skill-finder` 接口列表。
+5. 数据库连接、GitHub Token、`ADMIN_KEY` 只放 `backend/.env` / `backend/.secrets/`，禁止提交。
+6. 运行测试：
+
+```bash
+cd website/skill-finder/backend
+.venv/Scripts/python.exe -m ruff check .
+.venv/Scripts/python.exe -m pytest -q
+mvn -pl website -am test
+```
+
+7. 验证：
+
+```text
+GET http://127.0.0.1:5177/api/health
+POST http://127.0.0.1:8080/api/services/skill-finder/start
+```
+
 ## 代理协作原则
 
 - 先读根 `pom.xml` 和目标模块 `pom.xml`，确认模块边界后再改代码。
@@ -868,6 +1021,7 @@ POST http://127.0.0.1:8080/api/services/scrapling-ui/start
 - 小改动只跑相关模块测试；跨模块改动跑 `mvn test`。
 - 只改 `python-a` 时，不需要跑 Maven 测试；优先启动 Python 服务并验证 `/api/health` 和主要页面流程。
 - 只改 `scrapling-ui` 后端或前端时，优先运行其后端 unittest；改动 Java 点击启动逻辑时再跑 `mvn -pl website -am test`。
+- 只改 `skill-finder` 后端或前端时，优先运行其后端 pytest/ruff 和前端 lint/typecheck/test/build；改动 Java 点击启动逻辑时再跑 `mvn -pl website -am test`。
 - 修改配置文件时检查是否包含密钥，能改成环境变量就改成环境变量。
 - 不修改 `.idea/`、`target/`、运行时生成文件，除非任务明确要求。
 - 后续数据库 CRUD 使用 MyBatis DAO + XML Mapper，不新增 `JdbcTemplate`、JPA Repository 或 Java 内联 SQL。
@@ -888,7 +1042,7 @@ Single-context layout: root `CONTEXT.md` and `docs/adr/`, created lazily when ne
 
 ## 本机模型与视频服务管理（2026-10-11）
 
-首页 Dock 增加「Qwen 本地模型」「视频操作台」「H3 音视频模型」，共9个入口。三张新卡片进入 `/local-services/index.html` 的对应区块；页面每15秒显示服务状态，首页每30秒更新状态。
+首页 Dock 增加「Qwen 本地模型」「视频操作台」「H3 音视频模型」，共10个入口。三张新卡片进入 `/local-services/index.html` 的对应区块；页面每15秒显示服务状态，首页每30秒更新状态。
 
 | 服务 | 本机目录 | 端口 | 管理操作 |
 | --- | --- | --- | --- |
