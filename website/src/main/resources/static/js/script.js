@@ -28,6 +28,52 @@ function setupHeroVideo() {
     });
 }
 
+function setupSceneContent() {
+    var title = document.querySelector("#hero-title");
+    var statement = document.querySelector(".hero-statement");
+    var badgeCopy = document.querySelector(".hero-badge-copy");
+    var docks = Array.prototype.slice.call(document.querySelectorAll(".service-dock"));
+    var skipLink = document.querySelector(".skip-link");
+
+    function updateContent(sceneIndex) {
+        var button = document.querySelector('[data-scene-index="' + sceneIndex + '"]');
+        if (!button) {
+            return;
+        }
+
+        [
+            { element: title, attribute: "data-scene-title" },
+            { element: statement, attribute: "data-scene-statement" },
+            { element: badgeCopy, attribute: "data-scene-badge" }
+        ].forEach(function (copy) {
+            var text = button.getAttribute(copy.attribute);
+            if (copy.element && text !== null && copy.element.textContent.trim() !== text) {
+                copy.element.textContent = text;
+            }
+        });
+
+        var activeDock = document.getElementById(button.getAttribute("data-scene-dock"));
+        docks.forEach(function (dock) {
+            dock.hidden = dock !== activeDock || !dock.querySelector(".service-card");
+        });
+        if (skipLink) {
+            skipLink.hidden = !activeDock || activeDock.hidden;
+            if (activeDock) {
+                skipLink.setAttribute("href", "#" + activeDock.id);
+            }
+        }
+        if (sceneIndex === 2 && typeof window.ResizeObserver !== "function") {
+            window.requestAnimationFrame(function () {
+                window.dispatchEvent(new Event("resize"));
+            });
+        }
+    }
+
+    window.addEventListener("xixiscenechange", function (event) {
+        updateContent(event.detail.sceneIndex);
+    });
+}
+
 function setupVideoSwitcher() {
     var videos = Array.prototype.slice.call(document.querySelectorAll("[data-scene-video]"));
     var buttons = Array.prototype.slice.call(document.querySelectorAll("[data-scene-index]"));
@@ -1046,6 +1092,7 @@ function setupMotion() {
 
 document.addEventListener("DOMContentLoaded", function () {
     setupHeroVideo();
+    setupSceneContent();
     setupVideoSwitcher();
     setupAuth();
     setupServiceHealth();

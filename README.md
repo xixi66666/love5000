@@ -30,7 +30,7 @@ Maven 聚合模块：
 - `website/python-a`：A 股自选股 AI 研究台，默认端口 `5174`，随 `website` 自动拉起。
 - `website/quant-a`：A 股多因子量化研究台，默认端口 `5175`，随 `website` 自动拉起。
 - `website/scrapling-ui`：基于 Scrapling + Playwright 的可视化爬虫工作台（汉化版），默认端口 `5176`，由首页 Dock 卡片点击启动，不随 `website` 自动拉起。
-- `website/skill-finder`：AI 项目趋势追踪站（GitHub Trending 采集 + 排行展示），默认端口 `5177`，由首页 Dock 卡片点击启动，不随 `website` 自动拉起；数据库使用腾讯云 MySQL 的 `skill_finder` 库。
+- `website/skill-finder`：AI 项目趋势追踪站（GitHub Trending 采集 + 排行展示），默认端口 `5177`，由首页 Dock 卡片点击启动，不随 `website` 自动拉起；数据库与 `website` 共用腾讯云 MySQL 的 `xixi` 库。
 
 根目录下的 `python-a/`、`quant-a/` 不是当前主要接入路径；当前运行和文档维护以 `website/` 下的两个子服务为准。
 
@@ -52,6 +52,8 @@ mvn -pl website -am spring-boot:run
 `website` 默认端口为 `8080`，启动时会检查并自动拉起 `website/python-a` 和 `website/quant-a`。如果对应健康检查已经可用，会复用已有服务。`website/scrapling-ui` 和 `website/skill-finder` 不随启动拉起，由首页 Dock 卡片点击启动：离线时点击调用 `POST /api/services/scrapling-ui/start` 或 `POST /api/services/skill-finder/start` 拉起服务，启动过程只在卡片内提示“启动中…”（不打开中间页面）；就绪后自动打开对应页面，若浏览器拦截新窗口，卡片会显示“已启动 · 点击打开”，再点一次即可打开。在线时点击直接打开。
 
 首页是无需前端构建的单视口原生页面，集中展示恋爱相册、图片模板、Prompt Console、A 股研究台、Quant 研究台、Scrapling 抓取工坊和 Skill Finder。每个入口保留端口标识和实时状态；顶部只保留登录、注册账户操作，登录后切换为退出，移动端继续使用横向可滑动服务 Dock。
+
+四个场景分别支持独立文案与服务目录：01 Golden Hour 保留原诗句和 8 个服务入口；02 Still Water、03 Deep Woods、04 Quiet Dawn 各自使用暂定文案，服务区留空并隐藏，切回 01 恢复原目录。背景视频和动画不变；文案在首页各按钮的 `data-scene-title`、`data-scene-statement`、`data-scene-badge` 中配置，新服务沿用 `service-card` 放入各自的 `still-water-service-dock`、`deep-woods-service-dock`、`quiet-dawn-service-dock`。
 
 `imagetemplate` 首页同样无需前端构建，按“灵感大厅 → 模板解构 → Prompt 编导台 → 图片生成舱”组织为编辑式黑色 AI 创作工作台。页面使用本地虎主题背景、宽幅分屏首屏、内嵌图像标题、创作理念轮播、橙色高对比操作和三段横向交互面板；灵感大厅默认每页 48 条，顶部常驻搜索、仅图片开关、结果计数和清除筛选，桌面端左侧集中展示“一级功能 + 二级场景”及高级筛选，右侧使用 dense 密排结果网格。页面支持 300ms 搜索防抖、加载更多和详情按需读取；模板解构中的 JSON 可直接编辑并校验，进入 Prompt 编导台时同步到可继续修改的变量剧本。GSAP 3.13.0 与 ScrollTrigger 从模块本地静态资源加载，并对脚本缺失及 `prefers-reduced-motion` 提供静态降级；窄屏流程恢复为底部横向排列，切换场景保留已选模板、Prompt、生成参数和结果。
 
@@ -88,7 +90,7 @@ cd ../backend
 .venv/Scripts/python.exe -m uvicorn main:app --host 127.0.0.1 --port 5176
 ```
 
-`skill-finder` 首次使用前准备环境（数据库连接与 GitHub Token 放 `backend/.env` / `backend/.secrets/`，均已 gitignore），之后可手动启动：
+`skill-finder` 默认直接复用 `website/src/main/resources/application.yml` 的 `spring.datasource` 配置，解析其中的 `WEBSITE_DB_*` 环境变量，无需独立配置数据库；`DATABASE_URL` 环境变量或 `backend/.env` 可显式覆盖。GitHub Token 放 `backend/.secrets/`，私有文件均已 gitignore。原 `skill_finder` 库的五张业务表数据已复制到 `xixi`，源库保留。后端依赖包含 MySQL SHA-2 认证所需的 `cryptography`，通过 `uv sync` 安装；首次接入只补建缺失的业务表，集成测试使用独立测试库：
 
 ```bash
 cd website/skill-finder/backend
@@ -101,6 +103,12 @@ npm run build
 cd ../backend
 .venv/Scripts/python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 5177
 ```
+
+也可使用已安装的全局 Python 3.12+（默认 `python` 若是 3.9 则不能使用）。
+在 backend 目录执行 `uv pip install --python <python完整路径> -r pyproject.toml`
+和 `<python> -m playwright install chromium`，再将 `SCRAPLING_UI_COMMAND` 环境变量
+设为该解释器完整路径，重启 `website` 所在终端或 IDE。启动器会直接执行
+`<python> -m uvicorn` 并绕过 `.venv`。未设置时仍保留原 uv 启动方式。
 
 ## 端口
 
@@ -185,3 +193,15 @@ Strata以`--lazy`启动服务，第一条生成请求或「加载模型」按钮
 后端位于 `website/src/main/java/com/example/website/integration/local/`，停止脚本为classpath中的 `local-services/stop-service.ps1`。只停止命令同时匹配项目路径、脚本与端口的Python进程，拒绝停止占用端口的其他应用。日志在启动应用的工作目录中，文件名`love530-service.log`。新页面不需要npm构建。
 
 验证：`mvn -pl website -am test -Dtest=LocalServicesManagerTest,LocalServicesControllerTest,ServiceHealthPropertiesTest,ServiceHealthAggregatorTest,ServiceHealthCheckerTest,ServiceHealthControllerTest,HomepageStaticAssetsTest,WebsiteApplicationTests -Dsurefire.failIfNoSpecifiedTests=false`；`node --check website/src/main/resources/static/local-services/app.js`；`node website/src/test/js/homepage-motion.test.js`。单元测试不加载真实模型、不生成视频、不连接真实数据库。
+
+## Personal Agent Java 微服务（03 Deep Woods）
+
+`personal-agent/` 与 `website/`、`lovestory/` 同级，是 Java8 + Spring Boot2.6.13 的 Maven 模块，已加入父 pom。默认仅监听 `127.0.0.1:5178`。原生前端与业务 API 在模块内；website 只提供03服务卡片、健康聚合及点击启动，不改01的8个入口或四个背景动画。
+
+首次从仓库根目录执行 `mvn -pl personal-agent -am package -DskipTests`。可在IDEA运行 `com.example.personalagent.PersonalAgentApplication`，或执行 `java -jar personal-agent/target/personal-agent-0.0.1-SNAPSHOT.jar`。重启website后点击03个人Agent，启动器运行已构建jar（不自动Maven），验证 `success=true` + `service=personal-agent` 后打开；已在线则复用，陌生端口占用则拒绝。website启动/关闭不自动启停它。
+
+website接口：`POST /api/services/personal-agent/start`（返回 `{success,status,url}`）、`GET /api/services/personal-agent/status`；配置 `personal-agent.click-start.{enabled,work-dir,command,port,health-path,startup-timeout-seconds,log-to-console}`，默认目录 `personal-agent`，从仓库根或website启动都能定位；`PERSONAL_AGENT_COMMAND`可指定Java程序路径，默认java.home/bin/java。统一健康清单末尾追加个人Agent，保留已有顺序。
+
+私人数据默认 `%LOCALAPPDATA%/Love530/PersonalAgent/`，可用 `PERSONAL_AGENT_DATA_DIR`覆盖；本地H2账本经MyBatis DAO+XML持久化，金额BigDecimal，不使用远程MySQL。`vault/`可用Obsidian直接打开；历史按录入年月存放，按事件时间/录入时间/UUID查看，手工修改受哈希保护。默认DeepSeek，可通过环境变量配置Key/模型/HTTPS地址，密钥不回显或进入Git。
+
+功能包括对话、书籍与生活记录、长期记忆、想法行动、完整财务、事件触发复盘与网页未读提醒；接口及验证范围见 [personal-agent README](personal-agent/README.md)。验证：`mvn -pl personal-agent -am test`、`mvn -pl website -am test`、`node --check personal-agent/src/main/resources/static/app.js`。不要在测试使用真实财富或模型密钥。

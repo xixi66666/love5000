@@ -9,7 +9,7 @@ public class ScraplingUiProperties {
 
     private boolean enabled = true;
     private String workDir = "website/scrapling-ui";
-    private String command = "python";
+    private String command = "uv";
     private int port = 5176;
     private String healthPath = "/api/health";
     private int startupTimeoutSeconds = 90;

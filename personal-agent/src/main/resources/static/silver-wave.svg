@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" fill="none">
+  <defs>
+    <linearGradient id="silver" x1="250" y1="90" x2="780" y2="500" gradientUnits="userSpaceOnUse"><stop stop-color="#fff"/><stop offset=".2" stop-color="#b1bfd9"/><stop offset=".44" stop-color="#343e54"/><stop offset=".62" stop-color="#eaf3ff"/><stop offset=".83" stop-color="#8799b7"/><stop offset="1" stop-color="#111725"/></linearGradient>
+    <linearGradient id="edge" x1="100" y1="80" x2="860" y2="450" gradientUnits="userSpaceOnUse"><stop stop-color="#e7efff" stop-opacity="0"/><stop offset=".46" stop-color="#e7efff"/><stop offset="1" stop-color="#adbeeb" stop-opacity=".1"/></linearGradient>
+    <radialGradient id="glow"><stop stop-color="#577cc0" stop-opacity=".42"/><stop offset="1" stop-color="#577cc0" stop-opacity="0"/></radialGradient>
+  </defs>
+  <ellipse cx="540" cy="290" rx="420" ry="245" fill="url(#glow)"/>
+  <path d="M-80 400C125 436 217 397 326 186c70-136 164-168 285-65C740 230 746 418 1060 242l-5 142c-245 157-389 92-462-59-53-110-138-152-209-10-94 188-194 232-464 226Z" fill="url(#silver)" opacity=".85"/>
+  <g stroke="url(#edge)" stroke-width="1.2">
+    <path d="M-80 400C125 436 217 397 326 186c70-136 164-168 285-65C740 230 746 418 1060 242"/>
+    <path d="M-80 410C120 448 218 410 330 198c70-135 163-168 283-62 135 119 135 289 443 119"/>
+    <path d="M-80 421C120 460 225 421 333 210c71-136 163-162 283-57 135 119 135 289 440 116"/>
+    <path d="M-80 432C120 472 228 433 338 221c71-135 163-154 280-49 134 120 135 289 438 111"/>
+    <path d="M-80 443C120 484 233 446 341 232c71-135 163-146 280-41 134 120 135 284 435 107"/>
+    <path d="M-80 454C120 496 235 458 347 245c71-135 163-140 277-33 132 123 135 274 432 99"/>
+    <path d="M-80 465C120 508 239 471 350 257c71-135 163-132 277-25 130 124 135 264 429 90"/>
+    <path d="M-80 476C120 520 242 483 353 269c73-136 165-124 276-17 131 123 135 256 427 80"/>
+    <path d="M-80 487C120 532 244 496 357 281c73-136 165-117 275-9 133 122 135 247 424 71"/>
+    <path d="M-80 498C120 544 247 508 360 293c73-136 165-110 275-1 133 122 136 238 421 60"/>
+    <path d="M-80 509C120 556 251 520 363 305c74-133 164-102 275 7 133 122 135 225 418 53"/>
+    <path d="M-80 520C120 568 252 532 369 317c71-133 164-92 272 15 137 119 135 214 415 42"/>
+    <path d="M-80 531C120 580 255 544 373 329c71-133 164-84 272 23 137 117 135 200 411 34"/>
+  </g>
+  <path d="M-80 400C125 436 217 397 326 186c70-136 164-168 285-65C740 230 746 418 1060 242" stroke="url(#edge)" stroke-width="3"/>
+</svg>

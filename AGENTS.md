@@ -2,7 +2,7 @@
 
 ## 统一服务健康检查
 
-六个独立服务 `lovestory`、`imagetemplate`、`python-a`、`quant-a`、`scrapling-ui`、`skill-finder`
+七个独立服务 `lovestory`、`imagetemplate`、`python-a`、`quant-a`、`scrapling-ui`、`skill-finder`、`personal-agent`
 均提供 `GET /api/health`，响应顶层必须包含布尔值 `success=true` 和稳定的 `service`
 标识。`website` 使用 `ServiceHealthChecker` 统一探测，并通过
 `GET /api/services/health` 并行返回配置顺序一致的聚合结果；HTTP 200 表示聚合执行成功，
@@ -12,6 +12,7 @@
 
 `love5000` 是一个 Java 8 + Spring Boot 2.6.13 的 Maven 多模块项目，父工程 artifactId 为 `love530`。当前模块：
 
+- `personal-agent`：与website同级的Java Maven个人Agent模块（5178），本地H2账本/专属Obsidian、想法行动、阅读记忆、财务及事件复盘；仅03点击启动。
 - `common`：公共能力模块，提供 OSS 自动配置、上传工具，以及通用登录/注册/Session 鉴权能力。
 - `lovestory`：恋爱相册 Web 应用，提供静态页面、照片上传、照片列表、删除接口、留言板功能和吉他视频卡片模块。
 - `website`：个人主页/展示站点 Web 应用，包含主页静态资源、Web Demo、OSS Demo、Nacos Discovery 示例和提示词控制台入口。
@@ -19,7 +20,7 @@
 - `python-a`：A 股自选股 AI 研究台，作为独立 Python 微应用接入，不加入 Maven 聚合模块。
 - `quant-a`：A 股量化研究台，作为独立 FastAPI 微服务接入，不加入 Maven 聚合模块，不写入 `website/python-a` 的 Obsidian 目录。
 - `scrapling-ui`：基于 Scrapling + Playwright 的可视化爬虫工作台（汉化版），作为独立 FastAPI + React 微服务接入，不加入 Maven 聚合模块；`website` 首页 Dock 卡片点击启动，不随 `website` 自动拉起。
-- `skill-finder`：AI 项目趋势追踪站（GitHub Trending 采集 + 排行展示），作为独立 FastAPI + Vue 3 微服务接入，不加入 Maven 聚合模块；`website` 首页 Dock 卡片点击启动，不随 `website` 自动拉起；数据库使用腾讯云 MySQL 的 `skill_finder` 库。
+- `skill-finder`：AI 项目趋势追踪站（GitHub Trending 采集 + 排行展示），作为独立 FastAPI + Vue 3 微服务接入，不加入 Maven 聚合模块；`website` 首页 Dock 卡片点击启动，不随 `website` 自动拉起；数据库与 `website` 共用腾讯云 MySQL 的 `xixi` 库。
 
 核心技术栈：
 
@@ -47,6 +48,13 @@
 **关键**：`skill-finder` 是独立 FastAPI + Vue 3 微服务，不是 Java Maven 模块，不要把它加入父 `pom.xml` 的 `<modules>`。它只由 `website` 首页 Dock 的“Skill Finder”卡片点击启动（`POST /api/services/skill-finder/start`），不随 `website` 启动自动拉起，`website` 关闭也不强杀；启动前要求 `frontend/dist` 已构建；`website` 只提供启动接口、健康检测和入口链接，不把趋势采集业务逻辑改写进 Java Controller。
 
 **关键**：每次修改项目结构、模块职责、启动命令、端口、配置项、API、数据目录、测试方式或部署入口时，必须同步更新根 `AGENTS.md` / `README.md`，以及受影响模块或微应用目录下的 `AGENTS.md` / `README.md`。文档和代码不一致时，本次改动不能视为完成。
+
+`scrapling-ui` 同时支持全局 Python 3.12+：将环境变量 `SCRAPLING_UI_COMMAND`
+设为该解释器的完整路径（或将 `scrapling-ui.click-start.command` 配为该路径），
+启动器直接执行 `<python> -m uvicorn`，不使用 `.venv`。首次在 backend 目录执行
+`uv pip install --python <python完整路径> -r pyproject.toml` 和
+`<python> -m playwright install chromium`；默认 Python 3.9 不支持。
+未设置时仍用 uv，优先 `.venv`，缺失时回退 `uv run python`。
 
 ## 开发命令
 
@@ -450,7 +458,7 @@ website/skill-finder/
 - 本地开发入口：启动后访问 `http://127.0.0.1:5177/`。
 - 健康检查入口：`GET http://127.0.0.1:5177/api/health`，响应中的 `success` 必须为 `true`，`service` 为 `skill-finder`。
 - 前端构建产物由后端同端口托管，运行时只有一个进程；首次使用需完成 `uv sync`、`npm install && npm run build`。
-- 数据库为腾讯云 MySQL 上的 `skill_finder` 库（与 `website` 的 `xixi` 库同机不同库），连接串与 GitHub Token 只放 `backend/.env` / `backend/.secrets/`（均已 gitignore）。
+- 数据库与 `website` 共用腾讯云 MySQL 上的 `xixi` 库，默认直接读取 `website/src/main/resources/application.yml` 的 `spring.datasource`，并解析 `WEBSITE_DB_*` 环境变量；无需复制凭据。可用 `DATABASE_URL` 环境变量或自身 `backend/.env` 显式覆盖，GitHub Token 放 `backend/.secrets/`（私有文件均已 gitignore）。后端依赖包含 `cryptography`，用于 MySQL SHA-2 认证；缺失时重新执行 `uv sync`。
 - `website` 只提供启动接口、健康检测和入口链接，不把趋势采集业务逻辑改写进 Java Controller。
 - 生产部署如需统一域名，使用 Nginx、网关或 Spring 反向代理把 `/skill-finder/` 转发到 `127.0.0.1:5177`。
 - `skill-finder` 不是 Maven 模块，不执行 `mvn -pl skill-finder ...`，也不写入其他微服务目录。
@@ -459,6 +467,7 @@ website/skill-finder/
 
 - 新增任何 Java 模块、Python 微应用或独立微服务时，必须同步更新 `website/src/main/resources/static/index.html` 的主页面入口。
 - 当前主页面采用四场景电影化单视口布局，服务入口位于底部液态玻璃 Dock；新增入口时沿用现有 `service-card` 结构，并验证桌面宽度和移动端横向滚动。
+- 四场景按钮通过 `data-scene-title` / `data-scene-statement` / `data-scene-badge` 配置各自文案，通过 `data-scene-dock` 选择服务目录。01 Golden Hour 保留原文案与 8 个入口；02 Still Water、03 Deep Woods、04 Quiet Dawn 分别使用独立的 `still-water-service-dock`、`deep-woods-service-dock`、`quiet-dawn-service-dock`，未添加卡片时隐藏整个 Dock。背景视频、动画和切换时序保持不变。
 - 主页面入口需要包含服务名称、端口或访问标识，并配置实时可用性检测地址。
 - 入口样式和状态点维护在 `website/src/main/resources/static/css/style.css`，健康检测逻辑维护在 `website/src/main/resources/static/js/script.js`。
 - 如果新增服务没有专门健康检查接口，优先使用其首页或登录页作为检测地址；跨端口检测可使用前端 `no-cors` 方式，只把网络失败视为不可用。
@@ -475,6 +484,7 @@ website/skill-finder/
 - `quant-a`：`5175`
 - `scrapling-ui`：`5176`
 - `skill-finder`：`5177`
+- `personal-agent`：`5178`
 
 ### 数据库
 
@@ -484,7 +494,7 @@ website/skill-finder/
 - `python-a` 不使用 MySQL；默认写入本地 `website/python-a/obsidian-vault/A股AI/`。
 - `quant-a` 不使用 MySQL；默认使用 `website/quant-a/` 内部数据、配置和存储目录，不写入 `website/python-a` 的 Obsidian 目录。
 - `scrapling-ui` 不使用 MySQL；运行时数据只有自身 `backend/jobs.db`（SQLite，调度任务）和项目根 `todo_list.md`（路线图），不写入其他微服务目录。
-- `skill-finder` 使用腾讯云 MySQL 的 `skill_finder` 库（与 `xixi` 库同机不同库），包含 `repositories`、`star_snapshots`、`trending_entries`、`collection_runs`、`last30days_reports` 五张表；连接串只放 `website/skill-finder/backend/.env`，不写入其他微服务目录。
+- `skill-finder` 与 `website` 共用腾讯云 MySQL 的 `xixi` 库，使用 `repositories`、`star_snapshots`、`trending_entries`、`collection_runs`、`last30days_reports` 五张表；默认复用 `website/src/main/resources/application.yml` 的数据源配置，`DATABASE_URL` 可显式覆盖。首次接入只补建缺失表，不删除或重建 `xixi` 的已有表；原 `skill_finder` 库的五张业务表数据已复制到 `xixi`，源库保留；集成测试必须使用独立测试库。
 
 ⚠️ **严重警告**：不要提交真实数据库密码、OSS AccessKey、OpenAI API Key。新增配置优先使用环境变量，例如 `${OPENAI_API_KEY:}`、`${LOVE530_OSS_ACCESS_KEY_ID:}`。
 
@@ -1061,3 +1071,15 @@ Strata以`--lazy`启动服务，第一条生成请求或「加载模型」按钮
 后端位于 `website/src/main/java/com/example/website/integration/local/`，停止脚本为classpath中的 `local-services/stop-service.ps1`。只停止命令同时匹配项目路径、脚本与端口的Python进程，拒绝停止占用端口的其他应用。日志在启动应用的工作目录中，文件名`love530-service.log`。新页面不需要npm构建。
 
 验证：`mvn -pl website -am test -Dtest=LocalServicesManagerTest,LocalServicesControllerTest,ServiceHealthPropertiesTest,ServiceHealthAggregatorTest,ServiceHealthCheckerTest,ServiceHealthControllerTest,HomepageStaticAssetsTest,WebsiteApplicationTests -Dsurefire.failIfNoSpecifiedTests=false`；`node --check website/src/main/resources/static/local-services/app.js`；`node website/src/test/js/homepage-motion.test.js`。单元测试不加载真实模型、不生成视频、不连接真实数据库。
+
+## Personal Agent Java 微服务（03 Deep Woods）
+
+`personal-agent/` 与 `website/`、`lovestory/` 同级，是 Java8 + Spring Boot2.6.13 的 Maven 模块，已加入父 pom。默认仅监听 `127.0.0.1:5178`。原生前端与业务 API 在模块内；website 只提供03服务卡片、健康聚合及点击启动，不改01的8个入口或四个背景动画。
+
+首次从仓库根目录执行 `mvn -pl personal-agent -am package -DskipTests`。可在IDEA运行 `com.example.personalagent.PersonalAgentApplication`，或执行 `java -jar personal-agent/target/personal-agent-0.0.1-SNAPSHOT.jar`。重启website后点击03个人Agent，启动器运行已构建jar（不自动Maven），验证 `success=true` + `service=personal-agent` 后打开；已在线则复用，陌生端口占用则拒绝。website启动/关闭不自动启停它。
+
+website接口：`POST /api/services/personal-agent/start`（返回 `{success,status,url}`）、`GET /api/services/personal-agent/status`；配置 `personal-agent.click-start.{enabled,work-dir,command,port,health-path,startup-timeout-seconds,log-to-console}`，默认目录 `personal-agent`，从仓库根或website启动都能定位；`PERSONAL_AGENT_COMMAND`可指定Java程序路径，默认java.home/bin/java。统一健康清单末尾追加个人Agent，保留已有顺序。
+
+私人数据默认 `%LOCALAPPDATA%/Love530/PersonalAgent/`，可用 `PERSONAL_AGENT_DATA_DIR`覆盖；本地H2账本经MyBatis DAO+XML持久化，金额BigDecimal，不使用远程MySQL。`vault/`可用Obsidian直接打开；历史按录入年月存放，按事件时间/录入时间/UUID查看，手工修改受哈希保护。默认DeepSeek，可通过环境变量配置Key/模型/HTTPS地址，密钥不回显或进入Git。
+
+功能包括对话、书籍与生活记录、长期记忆、想法行动、完整财务、事件触发复盘与网页未读提醒；接口及验证范围见 [personal-agent README](personal-agent/README.md)。验证：`mvn -pl personal-agent -am test`、`mvn -pl website -am test`、`node --check personal-agent/src/main/resources/static/app.js`。不要在测试使用真实财富或模型密钥。

@@ -259,7 +259,7 @@ website/
 - `python-a/`：A 股自选股 AI 研究台，独立 ThreadingHTTPServer 服务，默认端口 `5174`。
 - `quant-a/`：A 股量化研究台，独立 FastAPI 服务，默认端口 `5175`。
 - `scrapling-ui/`：可视化爬虫工作台（汉化版 Scrapling UI），独立 FastAPI + React 服务，默认端口 `5176`，前端 dist 由后端托管，首页按钮点击启动。
-- `skill-finder/`：AI 项目趋势追踪站（GitHub Trending 采集 + 排行展示），独立 FastAPI + Vue 3 服务，默认端口 `5177`，前端 dist 由后端托管，首页按钮点击启动；数据库使用腾讯云 MySQL 的 `skill_finder` 库。
+- `skill-finder/`：AI 项目趋势追踪站（GitHub Trending 采集 + 排行展示），独立 FastAPI + Vue 3 服务，默认端口 `5177`，前端 dist 由后端托管，首页按钮点击启动；数据库与 `website` 共用腾讯云 MySQL 的 `xixi` 库，默认直接读取 `src/main/resources/application.yml` 的 `spring.datasource` 并解析 `WEBSITE_DB_*`，可用 `DATABASE_URL` 环境变量或自身 `backend/.env` 覆盖。原 `skill_finder` 的五张业务表数据已复制到 `xixi`，源库保留。`uv sync` 安装的 `cryptography` 用于 MySQL SHA-2 认证；首次接入仅补建缺失业务表，集成测试使用独立测试库。
 
 ## 配置约定
 
@@ -345,7 +345,7 @@ scrapling-ui:
   click-start:
     enabled: true
     work-dir: website/scrapling-ui
-    command: uv
+    command: ${SCRAPLING_UI_COMMAND:uv}
     port: 5176
     health-path: /api/health
     startup-timeout-seconds: 90
@@ -353,8 +353,12 @@ scrapling-ui:
 ```
 
 - 不使用 `ApplicationRunner` 自动启动，只在首页按钮点击时调用启动接口。
-- `command` 是 venv 缺失时的回退启动器，默认 `uv`（执行 `uv run python`）；
-  venv 存在时优先 `backend/.venv/Scripts/python.exe`。
+- `command` 可由 `SCRAPLING_UI_COMMAND` 覆盖。默认 `uv` 时优先
+  `backend/.venv/Scripts/python.exe`，缺失时执行 `uv run python`。
+- 显式指定 Python 命令或完整路径时直接执行 `<python> -m uvicorn`，绕过 `.venv`；
+  支持全局 Python 3.12+，不支持默认的 Python 3.9。在 backend 目录使用
+  `uv pip install --python <python完整路径> -r pyproject.toml` 准备全局依赖，
+  再运行 `<python> -m playwright install chromium`；设置用户环境变量后重启终端或 IDE。
 - 启动器注入 `PYTHONUTF8=1`、`PYTHONIOENCODING=utf-8`、`PYTHONUNBUFFERED=1`，
   规避 Windows GBK 控制台 emoji 日志崩溃。
 - `website.service-health.services` 聚合清单必须包含 `scrapling-ui`
@@ -407,6 +411,7 @@ Spring 约定：
 - 图片放在 `src/main/resources/static/img`。
 - 提示词控制台放在 `src/main/resources/static/prompt-console`。
 - 页面引用资源时使用相对路径，不使用本机绝对路径。
+- 首页各场景的文案配置在 `index.html` 对应按钮的 `data-scene-title` / `data-scene-statement` / `data-scene-badge`；`data-scene-dock` 指向该场景的服务目录，`setupSceneContent` 监听现有 `xixiscenechange` 事件切换内容。01 Golden Hour 保持原诗句、布局和 8 个入口；02 Still Water、03 Deep Woods、04 Quiet Dawn 分别使用独立的 `still-water-service-dock`、`deep-woods-service-dock`、`quiet-dawn-service-dock`，空目录隐藏，新增服务沿用 `service-card`。不要修改四场景的背景动画。
 - 首页远程场景视频和装饰覆盖图是经产品提示词明确指定的外部媒体；必须保留黑色/渐变降级背景，外部媒体失败不得影响服务入口、鉴权或健康检测。
 - 首页保持单个 `100svh` 视口且不产生页面级滚动；服务 Dock 桌面端为单行 8 列且 8 个入口一屏全部可见（列宽用 `repeat(8, minmax(0, 1fr))` 随容器自适应收缩，不产生横向滚动），1180px 及以下才切换为定宽列并只允许服务 Dock 自身横向滚动，任何宽度都不允许换行成两排。
 - `script.js` 的点击启动不得再打开“正在启动”中间页面：启动进度只在服务卡片内展示（“启动中…”→ 就绪后自动打开或提示“已启动 · 点击打开”）。
@@ -503,3 +508,15 @@ Strata以`--lazy`启动服务，第一条生成请求或「加载模型」按钮
 后端位于 `website/src/main/java/com/example/website/integration/local/`，停止脚本为classpath中的 `local-services/stop-service.ps1`。只停止命令同时匹配项目路径、脚本与端口的Python进程，拒绝停止占用端口的其他应用。日志在启动应用的工作目录中，文件名`love530-service.log`。新页面不需要npm构建。
 
 验证：`mvn -pl website -am test -Dtest=LocalServicesManagerTest,LocalServicesControllerTest,ServiceHealthPropertiesTest,ServiceHealthAggregatorTest,ServiceHealthCheckerTest,ServiceHealthControllerTest,HomepageStaticAssetsTest,WebsiteApplicationTests -Dsurefire.failIfNoSpecifiedTests=false`；`node --check website/src/main/resources/static/local-services/app.js`；`node website/src/test/js/homepage-motion.test.js`。单元测试不加载真实模型、不生成视频、不连接真实数据库。
+
+## Personal Agent Java 微服务（03 Deep Woods）
+
+`personal-agent/` 与 `website/`、`lovestory/` 同级，是 Java8 + Spring Boot2.6.13 的 Maven 模块，已加入父 pom。默认仅监听 `127.0.0.1:5178`。原生前端与业务 API 在模块内；website 只提供03服务卡片、健康聚合及点击启动，不改01的8个入口或四个背景动画。
+
+首次从仓库根目录执行 `mvn -pl personal-agent -am package -DskipTests`。可在IDEA运行 `com.example.personalagent.PersonalAgentApplication`，或执行 `java -jar personal-agent/target/personal-agent-0.0.1-SNAPSHOT.jar`。重启website后点击03个人Agent，启动器运行已构建jar（不自动Maven），验证 `success=true` + `service=personal-agent` 后打开；已在线则复用，陌生端口占用则拒绝。website启动/关闭不自动启停它。
+
+website接口：`POST /api/services/personal-agent/start`（返回 `{success,status,url}`）、`GET /api/services/personal-agent/status`；配置 `personal-agent.click-start.{enabled,work-dir,command,port,health-path,startup-timeout-seconds,log-to-console}`，默认目录 `personal-agent`，从仓库根或website启动都能定位；`PERSONAL_AGENT_COMMAND`可指定Java程序路径，默认java.home/bin/java。统一健康清单末尾追加个人Agent，保留已有顺序。
+
+私人数据默认 `%LOCALAPPDATA%/Love530/PersonalAgent/`，可用 `PERSONAL_AGENT_DATA_DIR`覆盖；本地H2账本经MyBatis DAO+XML持久化，金额BigDecimal，不使用远程MySQL。`vault/`可用Obsidian直接打开；历史按录入年月存放，按事件时间/录入时间/UUID查看，手工修改受哈希保护。默认DeepSeek，可通过环境变量配置Key/模型/HTTPS地址，密钥不回显或进入Git。
+
+功能包括对话、书籍与生活记录、长期记忆、想法行动、完整财务、事件触发复盘与网页未读提醒；接口及验证范围见 [personal-agent README](../personal-agent/README.md)。验证：`mvn -pl personal-agent -am test`、`mvn -pl website -am test`、`node --check personal-agent/src/main/resources/static/app.js`。不要在测试使用真实财富或模型密钥。

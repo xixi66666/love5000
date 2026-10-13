@@ -1,5 +1,5 @@
 -- Migration: add the trending_entries table used by the GitHub Trending collector.
--- Execute once against an existing skill_finder database.
+-- Execute once against the xixi database used by Skill Finder.
 
 SET NAMES utf8mb4;
 SET time_zone = '+00:00';

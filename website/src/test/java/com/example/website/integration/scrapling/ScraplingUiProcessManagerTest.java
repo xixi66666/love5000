@@ -50,6 +50,38 @@ class ScraplingUiProcessManagerTest {
     }
 
     @Test
+    void usesConfiguredGlobalPythonEvenWhenVirtualEnvironmentExists(@TempDir Path tempDir) throws Exception {
+        Path venvPython = tempDir.resolve(".venv").resolve("Scripts").resolve("python.exe");
+        Files.createDirectories(venvPython.getParent());
+        Files.createFile(venvPython);
+        String globalPython = tempDir.resolve("Global Python").resolve("python.exe").toString();
+        ScraplingUiProcessManager manager = newManager(mockChecker(), properties(tempDir, globalPython));
+
+        ProcessBuilder builder = manager.createProcessBuilder(tempDir.toFile());
+
+        assertThat(builder.command()).startsWith(globalPython, "-m", "uvicorn");
+        assertThat(builder.command()).doesNotContain("run", "python", venvPython.toString());
+    }
+
+    @Test
+    void usesGlobalPythonCommandWithoutUvArguments(@TempDir Path tempDir) {
+        ScraplingUiProcessManager manager = newManager(mockChecker(), properties(tempDir, "python"));
+
+        ProcessBuilder builder = manager.createProcessBuilder(tempDir.toFile());
+
+        assertThat(builder.command()).startsWith("python", "-m", "uvicorn");
+    }
+
+    @Test
+    void supportsAbsoluteUvExecutablePath(@TempDir Path tempDir) {
+        String uvCommand = tempDir.resolve("Tools").resolve("uv.exe").toString();
+        ScraplingUiProcessManager manager = newManager(mockChecker(), properties(tempDir, uvCommand));
+
+        assertThat(manager.createProcessBuilder(tempDir.toFile()).command())
+                .startsWith(uvCommand, "run", "python", "-m", "uvicorn");
+    }
+
+    @Test
     void returnsAlreadyRunningWhenHealthCheckSucceeds() {
         ServiceHealthChecker checker = mockChecker();
         when(checker.check(any(ServiceHealthDefinition.class)))

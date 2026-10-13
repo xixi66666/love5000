@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Noto+Serif+SC:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=7.6">
+    <link rel="stylesheet" href="css/style.css?v=7.8">
 </head>
 
 <body>
@@ -56,24 +56,32 @@
             <div class="hero-copy">
                 <p class="hero-badge liquid-glass">
                     <span class="badge-pulse" aria-hidden="true"></span>
-                    8 个入口，连接你的个人服务与本机模型
+                    <span class="hero-badge-copy">8 个入口，连接你的个人服务与本机模型</span>
                 </p>
                 <h1 id="hero-title">醉后不知天在水</h1>
                 <p class="hero-statement">
                     满船清梦压星河
                 </p>
 
-                <div class="scene-switcher" role="group" aria-label="切换背景场景">
-                    <button class="scene-button is-active" type="button" data-scene-index="0" aria-pressed="true">
+                <div class="scene-switcher" role="group" aria-label="切换页面场景">
+                    <button class="scene-button is-active" type="button" data-scene-index="0" aria-pressed="true"
+                            data-scene-title="醉后不知天在水" data-scene-statement="满船清梦压星河"
+                            data-scene-badge="8 个入口，连接你的个人服务与本机模型" data-scene-dock="service-dock">
                         <span>01</span> Golden Hour
                     </button>
-                    <button class="scene-button" type="button" data-scene-index="1" aria-pressed="false">
+                    <button class="scene-button" type="button" data-scene-index="1" aria-pressed="false"
+                            data-scene-title="让心事慢慢沉静" data-scene-statement="这里，留给一段安静的心声。"
+                            data-scene-badge="Still Water · 独立服务空间" data-scene-dock="still-water-service-dock">
                         <span>02</span> Still Water
                     </button>
-                    <button class="scene-button" type="button" data-scene-index="2" aria-pressed="false">
+                    <button class="scene-button" type="button" data-scene-index="2" aria-pressed="false"
+                            data-scene-title="把故事写进林间" data-scene-statement="这里，留给下一句自己的话。"
+                            data-scene-badge="Deep Woods · 独立服务空间" data-scene-dock="deep-woods-service-dock">
                         <span>03</span> Deep Woods
                     </button>
-                    <button class="scene-button" type="button" data-scene-index="3" aria-pressed="false">
+                    <button class="scene-button" type="button" data-scene-index="3" aria-pressed="false"
+                            data-scene-title="等晨光轻轻落下" data-scene-statement="这里，留给一个新的开始。"
+                            data-scene-badge="Quiet Dawn · 独立服务空间" data-scene-dock="quiet-dawn-service-dock">
                         <span>04</span> Quiet Dawn
                     </button>
                 </div>
@@ -141,6 +149,27 @@
                 </a>
             </nav>
         </section>
+        <section class="service-dock liquid-glass" id="still-water-service-dock" aria-label="Still Water 服务目录" hidden>
+            <nav class="service-grid" aria-label="Still Water 服务入口">
+                <!-- Still Water 的新服务卡片放在这里；未添加服务时整个 Dock 保持隐藏。 -->
+            </nav>
+        </section>
+        <section class="service-dock liquid-glass" id="deep-woods-service-dock" aria-label="Deep Woods 服务目录" hidden>
+            <nav class="service-grid" aria-label="Deep Woods 服务入口">
+                <a class="service-card" href="http://127.0.0.1:5178/" target="_blank" rel="noopener"
+                   data-health-url="http://127.0.0.1:5178/api/health" data-health-mode="no-cors"
+                   data-start-url="/api/services/personal-agent/start" data-app-url="http://127.0.0.1:5178/">
+                    <span class="service-index">01</span>
+                    <span class="service-copy"><strong>个人 Agent</strong><small>PERSONAL AGENT · 5178</small></span>
+                    <span class="service-status" aria-label="检测中" title="检测中"></span>
+                </a>
+            </nav>
+        </section>
+        <section class="service-dock liquid-glass" id="quiet-dawn-service-dock" aria-label="Quiet Dawn 服务目录" hidden>
+            <nav class="service-grid" aria-label="Quiet Dawn 服务入口">
+                <!-- Quiet Dawn 的新服务卡片放在这里；未添加服务时整个 Dock 保持隐藏。 -->
+            </nav>
+        </section>
     </div>
 
 </section>
@@ -169,7 +198,7 @@
 </div>
 
 <script src="js/vendor/gsap.min.js"></script>
-    <script src="js/script.js?v=7.6"></script>
+    <script src="js/script.js?v=7.9"></script>
 </body>
 
 </html>

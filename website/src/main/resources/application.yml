@@ -2,7 +2,7 @@ spring:
   datasource:
     type: com.alibaba.druid.pool.DruidDataSource
     username: ${WEBSITE_DB_USERNAME:root}
-    password: ${WEBSITE_DB_PASSWORD:}
+    password: ${WEBSITE_DB_PASSWORD:kuosi}
     url: ${WEBSITE_DB_URL:jdbc:mysql://49.232.128.132:3306/xixi?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
@@ -48,7 +48,7 @@ scrapling-ui:
   click-start:
     enabled: true
     work-dir: website/scrapling-ui
-    command: uv
+    command: ${SCRAPLING_UI_COMMAND:uv}
     port: 5176
     health-path: /api/health
     startup-timeout-seconds: 90
@@ -60,6 +60,16 @@ skill-finder:
     work-dir: website/skill-finder
     command: uv
     port: 5177
+    health-path: /api/health
+    startup-timeout-seconds: 90
+    log-to-console: true
+
+personal-agent:
+  click-start:
+    enabled: true
+    work-dir: personal-agent
+    command: ${PERSONAL_AGENT_COMMAND:}
+    port: 5178
     health-path: /api/health
     startup-timeout-seconds: 90
     log-to-console: true
@@ -94,3 +104,5 @@ website:
         url: http://127.0.0.1:8080/api/services/local/aimedia/health
       - name: h3
         url: http://127.0.0.1:8080/api/services/local/h3/health
+      - name: personal-agent
+        url: http://127.0.0.1:5178/api/health

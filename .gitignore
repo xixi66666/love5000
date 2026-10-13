@@ -52,3 +52,14 @@ website/quant-a/data/
 website/python-a/deepseek.local.json
 website/python-a/server.out.log
 website/python-a/server.err.log
+
+### Personal Agent private runtime ###
+personal-agent/data/
+personal-agent/.secrets/
+personal-agent/.runtime/
+
+### Local dependency cache and generated data ###
+/.m2/
+/website/video/config.local.json
+/website/video/anime_projects/
+/website/python-a/obsidian-vault/**/data/stock-metadata/

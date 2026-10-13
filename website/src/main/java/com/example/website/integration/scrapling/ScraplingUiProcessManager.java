@@ -57,7 +57,7 @@ public class ScraplingUiProcessManager {
             process = builder.start();
         } catch (IOException e) {
             throw new ScraplingUiStartException(
-                    "scrapling-ui 启动失败，请确认已安装 uv 并在 website/scrapling-ui/backend 执行 uv sync。原因："
+                    "scrapling-ui 启动失败，请检查 click-start.command 指定的 Python 与依赖；使用 uv 时请执行 uv sync。原因："
                             + e.getMessage());
         }
 
@@ -130,6 +130,12 @@ public class ScraplingUiProcessManager {
 
     private List<String> resolvePythonCommand(File backendDir) {
         List<String> commandParts = new ArrayList<String>();
+        String configuredCommand = properties.getCommand();
+        String executableName = new File(configuredCommand).getName();
+        if (!"uv".equalsIgnoreCase(executableName) && !"uv.exe".equalsIgnoreCase(executableName)) {
+            commandParts.add(configuredCommand);
+            return commandParts;
+        }
 
         File windowsVirtualEnvPython = new File(backendDir,
                 ".venv" + File.separator + "Scripts" + File.separator + "python.exe");

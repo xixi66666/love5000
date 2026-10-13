@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.personalagent.storage.DocumentDao">
+  <resultMap id="document" type="map">
+    <result column="collection" property="collection" javaType="java.lang.String"/>
+    <result column="id" property="id" javaType="java.lang.String"/>
+    <result column="body" property="body" javaType="java.lang.String" jdbcType="CLOB" typeHandler="org.apache.ibatis.type.ClobTypeHandler"/>
+  </resultMap>
+  <select id="all" resultMap="document">SELECT collection,id,body FROM agent_document</select>
+  <insert id="upsert">MERGE INTO agent_document(collection,id,body) KEY(collection,id) VALUES(#{collection},#{id},#{body})</insert>
+  <delete id="delete">DELETE FROM agent_document WHERE collection=#{collection} AND id=#{id}</delete>
+</mapper>

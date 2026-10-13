@@ -64,9 +64,17 @@ npm install
 npm run build
 ```
 
-- 后端要求 Python 3.14，由 `uv` 自动准备（`.python-version` = 3.14）。
+- 后端支持 Python 3.12+，`uv` 默认自动准备 Python 3.14（`.python-version` = 3.14）。
 - `playwright install chromium` 会下载 Chromium（约 112MB），是画布功能必需项。
 - 前端构建使用已安装的 node/npm；上游脚本使用 bun，本集成不依赖 bun。
+
+使用全局 Python 时，在 backend 目录执行
+`uv pip install --python <python完整路径> -r pyproject.toml` 和
+`<python> -m playwright install chromium`。将 `SCRAPLING_UI_COMMAND` 环境变量设为
+该解释器完整路径，重启 `website` 所在终端或 IDE；启动器会直接执行
+`<python> -m uvicorn`，即使 `.venv` 存在也不会使用它。默认 Python 3.9 不支持。
+全局模式手动启动：`<python> -m uvicorn main:app --host 127.0.0.1 --port 5176`；
+测试：`<python> -m unittest discover -s tests -v`。未设置环境变量时仍保留 uv 模式。
 
 ## 启动与访问
 

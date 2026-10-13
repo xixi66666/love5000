@@ -1,0 +1,35 @@
+server:
+  address: 127.0.0.1
+  port: ${PERSONAL_AGENT_PORT:5178}
+  servlet:
+    session:
+      cookie:
+        name: PERSONAL_AGENT_SESSION
+        http-only: true
+        same-site: strict
+      timeout: 8h
+spring:
+  application:
+    name: personal-agent
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+  sql:
+    init:
+      mode: never
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
+mybatis:
+  mapper-locations: classpath*:mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+agent:
+  data-dir: ${PERSONAL_AGENT_DATA_DIR:}
+  api-base: ${PERSONAL_AGENT_API_BASE:https://api.deepseek.com}
+  model: ${PERSONAL_AGENT_MODEL:deepseek-flash}
+  api-key: ${PERSONAL_AGENT_API_KEY:}
+  skill-roots: ${PERSONAL_AGENT_SKILL_ROOTS:}
+  book-roots: ${PERSONAL_AGENT_BOOK_ROOTS:}
+  background: ${PERSONAL_AGENT_BACKGROUND:true}

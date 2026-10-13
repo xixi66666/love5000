@@ -16,7 +16,7 @@
   - `GET  http://127.0.0.1:8080/api/services/skill-finder/status`
 - 不随 `website` 启动自动拉起，`website` 关闭也不强杀；重复点击复用已有进程。
 - Java 启动器（`website` 的 `integration/skillfinder` 包）优先使用 `backend/.venv/Scripts/python.exe`，缺失时回退 `uv run python`；启动前要求 `frontend/dist/index.html` 已构建。
-- 数据库使用腾讯云 MySQL 实例上的 `skill_finder` 库（与 `website` 的 `xixi` 库同机不同库），建表脚本见 `backend/sql/schema.sql`。
+- 数据库与 `website` 共用腾讯云 MySQL 实例上的 `xixi` 库，建表脚本见 `backend/sql/schema.sql`。
 
 ## 功能
 
@@ -41,7 +41,7 @@ cd website/skill-finder/backend
 uv sync
 ```
 
-也可以使用标准 venv + pip 安装 `pyproject.toml` 依赖。
+也可以使用标准 venv + pip 安装 `pyproject.toml` 依赖。依赖包含 `cryptography`，用于 MySQL `caching_sha2_password` / `sha256_password` 的 RSA 认证；缺失时重新执行 `uv sync`。
 
 前端（Node.js 18+）：
 
@@ -53,10 +53,12 @@ npm run build
 
 `frontend/dist` 是启动前置条件，未构建时启动接口返回“前端尚未构建”错误。
 
-配置 `backend/.env`（本地私有文件，已被 `.gitignore` 排除，禁止提交）：
+数据库默认直接读取 `website/src/main/resources/application.yml` 的 `spring.datasource`，并解析 `WEBSITE_DB_URL` / `WEBSITE_DB_USERNAME` / `WEBSITE_DB_PASSWORD`；JDBC URL 转换为 `mysql+asyncmy` 连接串，字符集使用 utf8mb4，凭据自动 URL 编码，不打印或复制到文件。无需另建数据库 `.env`。显式 `DATABASE_URL` 环境变量或 `backend/.env` 配置优先于共享数据源。
+
+如需独立覆盖数据库或其他设置，可配置 `backend/.env`（本地私有文件，已被 `.gitignore` 排除，禁止提交）：
 
 ```dotenv
-DATABASE_URL=mysql+asyncmy://<user>:<password>@49.232.128.132:3306/skill_finder?charset=utf8mb4
+DATABASE_URL=mysql+asyncmy://YOUR_USERNAME_HERE:YOUR_PASSWORD_HERE@49.232.128.132:3306/xixi?charset=utf8mb4
 ADMIN_KEY=replace_with_a_long_random_value
 BUSINESS_TIMEZONE=Asia/Shanghai
 COLLECTION_CRON=0 2 * * *
@@ -93,7 +95,9 @@ cd website/skill-finder/backend
 | `POST /api/v1/last30days` | 自由主题研究（调试用，页面不再使用） |
 | `POST /api/v1/admin/collections` | 手动触发采集（需 `X-Admin-Key`） |
 
-> 首次部署到新库前需执行最新的 `backend/sql/schema.sql`（腾讯云 `skill_finder` 库已包含 `collection_runs`、`last30days_reports`、`repositories`、`star_snapshots`、`trending_entries` 五张表）。
+> 首次接入 `xixi` 时，按 `backend/sql/schema.sql` 仅补建缺失的 `collection_runs`、`last30days_reports`、`repositories`、`star_snapshots`、`trending_entries` 五张业务表，不删除或重建已有表。已有同名表应先核对结构。
+
+原 `skill_finder` 库的这五张表数据已复制到 `xixi`，保留原始 ID、关联关系和缓存内容，源库保留；后续运行与采集写入 `xixi`。
 
 ## 运行测试
 
@@ -105,7 +109,7 @@ cd website/skill-finder/backend
 .venv/Scripts/python.exe -m pytest -q
 ```
 
-> **警告**：MySQL 集成测试的 fixture 会 **DROP 并重建全部数据表**。必须使用**独立测试库**，严禁指向生产库（如 `skill_finder`）。
+> **警告**：MySQL 集成测试的 fixture 会 **DROP 并重建业务数据表**。必须使用**独立测试库**，严禁指向运行库 `xixi`。
 >
 > 先创建测试库并执行建表脚本，再设置 `TEST_DATABASE_URL`：
 >

@@ -657,6 +657,11 @@ body.video-ready .scene-video.is-active {
     scroll-snap-type: x proximity;
 }
 
+/* Deep Woods owns one service; keep Golden Hour's eight-column layout intact. */
+#deep-woods-service-dock .service-grid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 220px));
+}
+
 .service-grid::-webkit-scrollbar {
     display: none;
 }

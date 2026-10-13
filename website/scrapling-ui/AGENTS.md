@@ -5,7 +5,7 @@
 `website/scrapling-ui` 是 `love5000` 中的独立可视化爬虫微服务，**不是** Java Maven 模块，
 不加入父 `pom.xml` 的 `<modules>`，不执行 `mvn -pl scrapling-ui ...`。
 
-- 后端：`backend/main.py`，FastAPI + Playwright + APScheduler，Python 3.14（uv 管理）。
+- 后端：`backend/main.py`，FastAPI + Playwright + APScheduler，Python 3.12+（uv 默认管理 3.14）。
 - 前端：`frontend/`，React + TypeScript + Vite，已汉化；构建产物 `frontend/dist` 由后端同端口托管。
 - 默认端口 `5176`，`GET /api/health` 返回 `{"success": true, "service": "scrapling-ui"}`。
 - Java 侧只负责点击启动、健康检测和入口链接（`website` 的 `integration.scrapling` 包），
@@ -23,9 +23,13 @@ cd website/scrapling-ui/backend
 .venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 5176
 ```
 
-Java 端 Python 命令解析顺序：`backend/.venv/Scripts/python.exe`（Unix 为 `.venv/bin/python`）
-→ 回退 `uv run python`（`scrapling-ui.click-start.command` 默认 `uv`）。
-venv 缺失且 uv 不可用时返回明确错误，不做长时间空等。
+Java 端 `scrapling-ui.click-start.command` 可由 `SCRAPLING_UI_COMMAND` 覆盖，默认 `uv`。
+uv 模式优先 `backend/.venv/Scripts/python.exe`（Unix 为 `.venv/bin/python`），
+缺失时回退 `uv run python`。显式指定 Python 命令或完整路径时直接执行
+`<python> -m uvicorn`，绕过 `.venv`，支持全局 Python 3.12+（Python 3.9 不支持）。
+在 backend 目录执行 `uv pip install --python <python完整路径> -r pyproject.toml`
+和 `<python> -m playwright install chromium` 准备全局依赖；设置用户环境变量后重启终端或 IDE。
+全局模式测试使用 `<python> -m unittest discover -s tests -v`。
 
 ## 环境准备
 

@@ -83,7 +83,7 @@ POST /api/services/skill-finder/start
 GET  /api/services/skill-finder/status
 ```
 
-启动成功后页面为 `http://127.0.0.1:5177/`（后端同端口托管前端构建产物，数据库为腾讯云 `skill_finder` 库）。首次使用需准备环境：
+启动成功后页面为 `http://127.0.0.1:5177/`（后端同端口托管前端构建产物，数据库与 `website` 共用腾讯云 `xixi` 库）。默认直接读取 `src/main/resources/application.yml` 的 `spring.datasource`，解析 `WEBSITE_DB_*` 环境变量，无需单独填写连接串；`DATABASE_URL` 环境变量或 `skill-finder/backend/.env` 可显式覆盖。原 `skill_finder` 的五张业务表数据已复制到 `xixi`，源库保留。`uv sync` 会安装 MySQL SHA-2 认证所需的 `cryptography`。首次接入只补建缺失业务表，集成测试使用独立测试库。首次使用需准备环境：
 
 ```bash
 cd website/skill-finder/backend
@@ -117,6 +117,14 @@ skill-finder/
 ```
 
 首页保持原生 HTML / CSS / JavaScript 架构，不需要额外前端构建。四段远程视频在 1000ms 内交叉淡入淡出；背景资源不可用时自动显示黑色渐变降级背景。顶部只显示登录、注册，登录后切换为退出；不提供额外导航按钮或移动端汉堡菜单。服务 Dock 在桌面以单行 8 列展示且 8 个入口一屏全部可见（列宽自适应收缩，不产生横向滚动），1180px 及以下才切换为可滑动的定宽列，并继续每 30 秒刷新一次服务状态。图片模板入口仍要求先通过站点 Session 登录。GSAP 动效库本地化在 `static/js/vendor/gsap.min.js`，用于首页入场动画与场景切换文案交叉淡化，`prefers-reduced-motion` 或加载失败时自动降级。首页 8 个服务卡片由 `script.js` 的 `setupServiceFx` 注入 WebGL canvas 渲染 GLSL 环境流光（SDF 圆角矩形柔化边框流光带 + 卡片内部宽幅流光与环境反光 + hover 指针光泽），并用弹簧物理驱动克制的卡片反馈（idle 呼吸波浪、hover 轻抬、点击压缩、健康状态 online 上跳脉冲）；四个视频场景分别映射暮霞、山湖、雪林、晨光草甸中等偏高饱和度色板，切换时 WebGL 颜色平滑插值，`prefers-reduced-motion`、WebGL 不可用或初始化失败时降级为随场景换色的 CSS hover。`scrapling-ui` 和 `skill-finder` 卡片离线时点击会进入“启动中”状态（橙色脉冲状态点 + 卡片内文案，不打开中间页面），就绪后自动打开对应工作台；若浏览器拦截新窗口，卡片显示“已启动 · 点击打开”。
+
+全局 Python 模式：支持 Python 3.12+。在 `scrapling-ui/backend` 目录执行
+`uv pip install --python <python完整路径> -r pyproject.toml` 和
+`<python> -m playwright install chromium`，再将 `SCRAPLING_UI_COMMAND` 环境变量设为
+该解释器完整路径，重启 `website` 所在终端或 IDE。显式 Python 配置直接执行
+`<python> -m uvicorn`，不使用 `.venv`；未设置时仍保留 uv 模式。
+
+首页场景内容在 `index.html` 的四个场景按钮上分别配置：`data-scene-title` 为主句、`data-scene-statement` 为副句、`data-scene-badge` 为上方提示，`data-scene-dock` 指定服务目录。01 Golden Hour 保持原诗句和八个入口；02 Still Water、03 Deep Woods、04 Quiet Dawn 各自使用暂定文案和独立的 `still-water-service-dock`、`deep-woods-service-dock`、`quiet-dawn-service-dock`，目录为空时不显示 Dock，也不显示指向隐藏目录的跳转链接；切回 01 恢复原服务。暂定主句分别为“让心事慢慢沉静”“把故事写进林间”“等晨光轻轻落下”，可独立替换为个人文案。新入口直接放入各自的 `service-grid` 并沿用 `service-card` 结构、健康检测和按需启动属性；四段背景视频、动画和 1000ms 切换时序不变。
 
 ## 测试
 
@@ -155,3 +163,15 @@ Strata以`--lazy`启动服务，第一条生成请求或「加载模型」按钮
 后端位于 `website/src/main/java/com/example/website/integration/local/`，停止脚本为classpath中的 `local-services/stop-service.ps1`。只停止命令同时匹配项目路径、脚本与端口的Python进程，拒绝停止占用端口的其他应用。日志在启动应用的工作目录中，文件名`love530-service.log`。新页面不需要npm构建。
 
 验证：`mvn -pl website -am test -Dtest=LocalServicesManagerTest,LocalServicesControllerTest,ServiceHealthPropertiesTest,ServiceHealthAggregatorTest,ServiceHealthCheckerTest,ServiceHealthControllerTest,HomepageStaticAssetsTest,WebsiteApplicationTests -Dsurefire.failIfNoSpecifiedTests=false`；`node --check website/src/main/resources/static/local-services/app.js`；`node website/src/test/js/homepage-motion.test.js`。单元测试不加载真实模型、不生成视频、不连接真实数据库。
+
+## Personal Agent Java 微服务（03 Deep Woods）
+
+`personal-agent/` 与 `website/`、`lovestory/` 同级，是 Java8 + Spring Boot2.6.13 的 Maven 模块，已加入父 pom。默认仅监听 `127.0.0.1:5178`。原生前端与业务 API 在模块内；website 只提供03服务卡片、健康聚合及点击启动，不改01的8个入口或四个背景动画。
+
+首次从仓库根目录执行 `mvn -pl personal-agent -am package -DskipTests`。可在IDEA运行 `com.example.personalagent.PersonalAgentApplication`，或执行 `java -jar personal-agent/target/personal-agent-0.0.1-SNAPSHOT.jar`。重启website后点击03个人Agent，启动器运行已构建jar（不自动Maven），验证 `success=true` + `service=personal-agent` 后打开；已在线则复用，陌生端口占用则拒绝。website启动/关闭不自动启停它。
+
+website接口：`POST /api/services/personal-agent/start`（返回 `{success,status,url}`）、`GET /api/services/personal-agent/status`；配置 `personal-agent.click-start.{enabled,work-dir,command,port,health-path,startup-timeout-seconds,log-to-console}`，默认目录 `personal-agent`，从仓库根或website启动都能定位；`PERSONAL_AGENT_COMMAND`可指定Java程序路径，默认java.home/bin/java。统一健康清单末尾追加个人Agent，保留已有顺序。
+
+私人数据默认 `%LOCALAPPDATA%/Love530/PersonalAgent/`，可用 `PERSONAL_AGENT_DATA_DIR`覆盖；本地H2账本经MyBatis DAO+XML持久化，金额BigDecimal，不使用远程MySQL。`vault/`可用Obsidian直接打开；历史按录入年月存放，按事件时间/录入时间/UUID查看，手工修改受哈希保护。默认DeepSeek，可通过环境变量配置Key/模型/HTTPS地址，密钥不回显或进入Git。
+
+功能包括对话、书籍与生活记录、长期记忆、想法行动、完整财务、事件触发复盘与网页未读提醒；接口及验证范围见 [personal-agent README](../personal-agent/README.md)。验证：`mvn -pl personal-agent -am test`、`mvn -pl website -am test`、`node --check personal-agent/src/main/resources/static/app.js`。不要在测试使用真实财富或模型密钥。

@@ -35,6 +35,8 @@ class HomepageStaticAssetsTest {
         assertTrue(html.contains("data-health-url=\"http://127.0.0.1:5175/api/health\""));
         assertTrue(html.contains("data-health-url=\"http://127.0.0.1:5176/api/health\""));
         assertTrue(html.contains("data-health-url=\"http://127.0.0.1:5177/api/health\""));
+        assertTrue(html.contains("data-health-url=\"http://127.0.0.1:5178/api/health\""));
+        assertTrue(html.contains("data-start-url=\"/api/services/personal-agent/start\""));
         assertTrue(html.contains("data-health-url=\"/local-services/index.html\""));
         assertEquals(1, html.split("href=\"local-services/index.html", -1).length - 1);
         assertTrue(html.contains("data-auth-required=\"true\""));
@@ -61,6 +63,26 @@ class HomepageStaticAssetsTest {
 
         assertEquals(services.size() - GROUPED_LOCAL_SERVICES + LOCAL_ONLY_ENTRIES, homepageCards,
                 "首页 Dock 卡片数 = service-health 清单 - 合并的本机服务 + 本地页面入口");
+
+        assertEquals("personal-agent", ((Map<?, ?>) services.get(services.size() - 1)).get("name"),
+                "新服务追加在健康清单末尾，不改变原服务顺序");
+    }
+
+    @Test
+    void personalAgentOnlyAppearsInDeepWoodsAndGoldenHourKeepsEightEntries() throws IOException {
+        String html = readResource("/static/index.html");
+        String goldenHour = dock(html, "service-dock");
+        String deepWoods = dock(html, "deep-woods-service-dock");
+
+        assertEquals(8, countCards(goldenHour));
+        assertFalse(goldenHour.contains("personal-agent"));
+        assertEquals(1, countCards(deepWoods));
+        assertTrue(deepWoods.contains("data-app-url=\"http://127.0.0.1:5178/\""));
+        assertTrue(deepWoods.contains("PERSONAL AGENT · 5178"));
+        assertEquals(0, countCards(dock(html, "still-water-service-dock")));
+        assertEquals(0, countCards(dock(html, "quiet-dawn-service-dock")));
+        assertFalse(deepWoods.contains("5174"));
+        assertFalse(deepWoods.contains("5177"));
     }
 
     @Test
@@ -92,6 +114,18 @@ class HomepageStaticAssetsTest {
         assertTrue(desktopNavigation.contains("auth-logout-button"));
         assertFalse(desktopNavigation.contains("<a "));
         assertEquals(3, desktopNavigation.split("<button", -1).length - 1);
+    }
+
+    private String dock(String html, String id) {
+        int start = html.indexOf("id=\"" + id + "\"");
+        assertTrue(start >= 0, "Missing service dock: " + id);
+        int end = html.indexOf("</section>", start);
+        assertTrue(end > start);
+        return html.substring(start, end);
+    }
+
+    private int countCards(String html) {
+        return html.split("class=\"service-card\"", -1).length - 1;
     }
 
     private String readResource(String path) throws IOException {
