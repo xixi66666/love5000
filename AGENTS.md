@@ -1042,7 +1042,9 @@ Single-context layout: root `CONTEXT.md` and `docs/adr/`, created lazily when ne
 
 ## 本机模型与视频服务管理（2026-10-11）
 
-首页 Dock 增加「Qwen 本地模型」「视频操作台」「H3 音视频模型」，共10个入口。三张新卡片进入 `/local-services/index.html` 的对应区块；页面每15秒显示服务状态，首页每30秒更新状态。
+首页 Dock 将「Qwen 本地模型」「视频操作台」「H3 音视频模型」合并为「模型与视频」，共8个入口。统一卡片进入 `/local-services/index.html`，首页每30秒检测管理页可访问性；三个服务仍在管理页分别操作，每15秒刷新各自状态，统一健康检查清单保留三项探测。
+
+管理页借鉴 MotionSite 网站的排版与动效思路，采用独立设计的深色冰蓝工作台、Geist 字体与紧凑三服务网格；首屏背景使用 MotionSite 背景库的 Pulse 等离子光环静音循环视频，不复用其他操作台的风景素材。桌面三列、平板两列且 H3 横跨整行、手机单列；原有服务按钮、API 和15秒状态刷新保留。动效集中在 `static/local-services/motion.js`，复用本地 GSAP/ScrollTrigger 3.12.5，提供首屏入场、能力速览切换、文字渐显及几何视觉缩放/淡化。视频与海报位于 `static/local-services/media/`（10秒、1280×720、24fps、约2MB）；支持顶部暂停/播放、隐藏标签页及滚出背景区域自动暂停，视频失败保留 JPG 与 CSS 背景，`prefers-reduced-motion` 下不下载视频。背景播放不依赖 GSAP；动效库缺失时保留可操作页面，无需 npm 构建。
 
 | 服务 | 本机目录 | 端口 | 管理操作 |
 | --- | --- | --- | --- |

@@ -3,52 +3,94 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>本机服务 · XiXi</title>
-    <link rel="stylesheet" href="app.css">
+    <meta name="theme-color" content="#101211">
+    <title>模型与视频 · XiXi</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="app.css?v=2.2">
 </head>
 <body>
+<a class="skip-link" href="#services">跳到服务操作</a>
+<div class="workspace-environment" aria-hidden="true">
+    <img class="background-film background-poster" src="media/pulse-ring.jpg" alt="" fetchpriority="high">
+    <video class="background-film" id="workspace-film" muted loop playsinline preload="none" poster="media/pulse-ring.jpg" data-src="media/pulse-ring.mp4" hidden></video>
+    <div class="environment-shade"></div>
+    <div class="environment-grid"></div><div class="environment-glow"></div>
+    <span class="ambient-orbit orbit-a"></span><span class="ambient-orbit orbit-b"></span>
+</div>
+<header class="site-header">
+    <a class="brand" href="../index.html" aria-label="返回 XiXi 主页">XiXi<span class="brand-dot"></span></a>
+    <nav class="workspace-nav" aria-label="工作区导航"><a href="#services">本机服务</a><a href="#workflow">使用顺序</a><a class="back" href="../index.html">返回主页 <span aria-hidden="true">↗</span></a></nav>
+    <div class="workspace-tools"><span class="workspace-note"><span class="note-light" aria-hidden="true"></span>本机服务 · 按需启动</span><button class="background-toggle" type="button" aria-label="暂停背景动画" aria-pressed="true" hidden><span data-background-icon aria-hidden="true">Ⅱ</span><span data-background-label>暂停背景</span></button></div>
+</header>
 <main>
-    <header>
-        <a class="back" href="../index.html">← 返回主页</a>
-        <span class="eyebrow">LOCAL WORKSPACE</span>
-        <h1>你的本机工作区</h1>
-        <p>从这里启动服务、释放模型，或结束今天的运行。</p>
-    </header>
-    <div class="notice">生成视频前，请先卸载 Qwen 模型，为 H3 留出内存和显存。卸载模型会保留文件，下次使用时可以重新加载。</div>
-    <div class="cards">
-        <section class="card" id="strata" data-service="strata">
-            <div class="card-heading"><span class="number">01</span><span class="status" data-status>检测中</span></div>
-            <span class="eyebrow">STRATA · 9999</span><h2>Qwen 本地模型</h2>
-            <p>Qwen3.8-Flash-Next · IQ3_S<br>128K 上下文，供网页和 Claude Code 使用。</p>
-            <div class="model-state" data-model-state>正在读取模型状态…</div>
-            <div class="actions">
-                <button data-action="start">只启动服务</button><button class="primary" data-action="load">加载模型</button>
-                <button data-action="unload">卸载模型</button><button class="stop" data-action="stop">关闭服务</button>
+    <section class="hero page-width" aria-labelledby="workspace-title">
+        <div class="hero-copy">
+            <p class="hero-intro">你的本机工作区</p>
+            <h1 id="workspace-title">本机模型<span class="hero-title-image" aria-hidden="true"></span><em>与视频。</em></h1>
+            <p class="hero-description">对话、编排与音视频生成，在一个地方管理三项本机服务。</p>
+            <div class="hero-actions"><a class="button primary" href="#services">管理本机服务 <span aria-hidden="true">↓</span></a><a class="button secondary" href="#workflow">查看使用顺序 <span aria-hidden="true">↗</span></a></div>
+        </div>
+        <div class="workspace-preview" aria-label="工作区能力速览" aria-roledescription="轮播">
+            <div class="preview-slides">
+                <div class="preview-slide is-active" data-preview-slide><span class="preview-label">语言与推理</span><a href="#strata">Qwen 本地模型 <span aria-hidden="true">↗</span></a></div>
+                <div class="preview-slide" data-preview-slide hidden><span class="preview-label">故事与镜头</span><a href="#aimedia">视频操作台 <span aria-hidden="true">↗</span></a></div>
+                <div class="preview-slide" data-preview-slide hidden><span class="preview-label">画面与声音</span><a href="#h3">H3 音视频模型 <span aria-hidden="true">↗</span></a></div>
             </div>
-            <a class="open-app" data-open-app href="http://127.0.0.1:9999/" target="_blank" rel="noopener">打开 Qwen 网页 ↗</a>
-            <p class="feedback" data-feedback role="status" aria-live="polite"></p>
-        </section>
-        <section class="card" id="aimedia" data-service="aimedia">
-            <div class="card-heading"><span class="number">02</span><span class="status" data-status>检测中</span></div>
-            <span class="eyebrow">AIMEDIA · 8190</span><h2>视频操作台</h2>
-            <p>编剧、分镜、作品管理和视频制作。<br>操作台服务与生成引擎分别管理。</p>
-            <div class="model-state">打开操作台不会在这里自动加载 H3 权重。</div>
-            <div class="actions"><button class="primary" data-action="start">启动操作台</button><button class="stop" data-action="stop">关闭操作台</button></div>
-            <a class="open-app" data-open-app href="http://127.0.0.1:8190/" target="_blank" rel="noopener">进入视频操作台 ↗</a>
-            <p class="feedback" data-feedback role="status" aria-live="polite"></p>
-        </section>
-        <section class="card" id="h3" data-service="h3">
-            <div class="card-heading"><span class="number">03</span><span class="status" data-status>检测中</span></div>
-            <span class="eyebrow">COMFYUI · 8189</span><h2>H3 音视频模型</h2>
-            <p>MiniMax H3 · Ref2VA INT8<br>通过视频操作台生成画面与原生声音。</p>
-            <div class="model-state" data-model-state>模型在提交 H3 生成任务后加载。</div>
-            <div class="actions"><button class="primary" data-action="start">启动生成引擎</button><button data-action="unload">释放模型内存</button><button class="stop" data-action="stop">关闭生成引擎</button></div>
-            <a class="open-app" data-open-app href="http://127.0.0.1:8189/" target="_blank" rel="noopener">打开 ComfyUI ↗</a>
-            <p class="feedback" data-feedback role="status" aria-live="polite"></p>
-        </section>
-    </div>
-    <footer>关闭浏览器或 love530 不会自动关闭这些本机服务。停止服务时会保留模型文件与作品。</footer>
+            <div class="preview-controls" aria-label="切换工作区能力"><button type="button" data-preview="0" aria-label="语言与推理" aria-pressed="true"></button><button type="button" data-preview="1" aria-label="故事与镜头" aria-pressed="false"></button><button type="button" data-preview="2" aria-label="画面与声音" aria-pressed="false"></button></div>
+        </div>
+    </section>
+    <section class="services-section page-width" id="services" aria-labelledby="services-title">
+        <div class="section-heading"><div><p class="section-caption">由你掌控，按需运行</p><h2 id="services-title">本机服务</h2></div><p>独立启动，独立管理。<br>运行状态每 15 秒自动更新。</p></div>
+        <div class="notice"><span class="notice-mark" aria-hidden="true">↳</span><p>生成视频前，先卸载 Qwen 模型，为 H3 留出内存和显存。<span>卸载会保留模型文件，下次可以重新加载。</span></p></div>
+        <div class="cards">
+            <section class="card" id="strata" data-service="strata" aria-labelledby="strata-title">
+                <div class="card-heading"><span class="service-type">语言模型</span><span class="status" data-status role="status">检测中</span></div>
+                <div class="service-art art-qwen" aria-hidden="true"><span class="orbit orbit-one"></span><span class="orbit orbit-two"></span><span class="orbit orbit-three"></span><span class="orbit-core"></span></div>
+                <div class="card-copy"><span class="eyebrow">STRATA · 9999</span><h3 id="strata-title">Qwen 本地模型</h3><p>Qwen3.8-Flash-Next · IQ3_S<br>128K 上下文，供网页和 Claude Code 使用。</p></div>
+                <div class="model-state" data-model-state>正在读取模型状态…</div>
+                <div class="actions"><button data-action="start">只启动服务</button><button class="primary" data-action="load">加载模型</button><button data-action="unload">卸载模型</button><button class="stop" data-action="stop">关闭服务</button></div>
+                <a class="open-app" data-open-app href="http://127.0.0.1:9999/" target="_blank" rel="noopener">打开 Qwen 网页 <span aria-hidden="true">↗</span></a>
+                <p class="feedback" data-feedback role="status" aria-live="polite"></p>
+            </section>
+            <section class="card" id="aimedia" data-service="aimedia" aria-labelledby="aimedia-title">
+                <div class="card-heading"><span class="service-type">创作操作台</span><span class="status" data-status role="status">检测中</span></div>
+                <div class="service-art art-aimedia" aria-hidden="true"><span class="film-frame frame-back"></span><span class="film-frame frame-front"></span><span class="frame-line"></span></div>
+                <div class="card-copy"><span class="eyebrow">AIMEDIA · 8190</span><h3 id="aimedia-title">视频操作台</h3><p>编剧、分镜、作品管理和视频制作。<br>操作台服务与生成引擎分别管理。</p></div>
+                <div class="model-state">打开操作台不会在这里自动加载 H3 权重。</div>
+                <div class="actions"><button class="primary" data-action="start">启动操作台</button><button class="stop" data-action="stop">关闭操作台</button></div>
+                <a class="open-app" data-open-app href="http://127.0.0.1:8190/" target="_blank" rel="noopener">进入视频操作台 <span aria-hidden="true">↗</span></a>
+                <p class="feedback" data-feedback role="status" aria-live="polite"></p>
+            </section>
+            <section class="card" id="h3" data-service="h3" aria-labelledby="h3-title">
+                <div class="card-heading"><span class="service-type">生成引擎</span><span class="status" data-status role="status">检测中</span></div>
+                <div class="service-art art-h3" aria-hidden="true"><span class="sound-bar"></span><span class="sound-bar"></span><span class="sound-bar"></span><span class="sound-bar"></span><span class="sound-bar"></span><span class="sound-bar"></span><span class="sound-bar"></span><span class="sound-bar"></span><span class="sound-bar"></span></div>
+                <div class="card-copy"><span class="eyebrow">COMFYUI · 8189</span><h3 id="h3-title">H3 音视频模型</h3><p>MiniMax H3 · Ref2VA INT8<br>通过视频操作台生成画面与原生声音。</p></div>
+                <div class="model-state" data-model-state>模型在提交 H3 生成任务后加载。</div>
+                <div class="actions"><button class="primary" data-action="start">启动生成引擎</button><button data-action="unload">释放模型内存</button><button class="stop" data-action="stop">关闭生成引擎</button></div>
+                <a class="open-app" data-open-app href="http://127.0.0.1:8189/" target="_blank" rel="noopener">打开 ComfyUI <span aria-hidden="true">↗</span></a>
+                <p class="feedback" data-feedback role="status" aria-live="polite"></p>
+            </section>
+        </div>
+    </section>
+    <section class="workflow-section page-width" id="workflow" aria-labelledby="workflow-title">
+        <div class="workflow-intro"><p class="section-caption">让创作顺畅发生</p><h2 id="workflow-title">按你的节奏，<br>逐步开始。</h2><p>让需要的工具在线，<br>让空闲的资源休息。</p><a href="#services" class="text-link">回到服务操作 <span aria-hidden="true">↗</span></a></div>
+        <div class="workflow-steps">
+            <article class="workflow-step"><span class="step-symbol" aria-hidden="true">↗</span><h3>先整理想法</h3><p><span data-reveal-word>需要对话与推理时，</span><span data-reveal-word>启动 Qwen 并加载模型。</span><span data-reveal-word>在视频操作台里编排故事与分镜。</span></p><a href="#strata">管理 Qwen <span aria-hidden="true">↗</span></a></article>
+            <article class="workflow-step"><span class="step-symbol" aria-hidden="true">↳</span><h3>再生成画面</h3><p><span data-reveal-word>先卸载 Qwen，</span><span data-reveal-word>再启动 H3 生成引擎。</span><span data-reveal-word>提交生成任务后才加载 H3 权重。</span></p><a href="#h3">管理生成引擎 <span aria-hidden="true">↗</span></a></article>
+            <article class="workflow-step"><span class="step-symbol" aria-hidden="true">○</span><h3>最后释放资源</h3><p><span data-reveal-word>等待生成任务结束后，</span><span data-reveal-word>释放模型内存或关闭服务。</span><span data-reveal-word>模型文件与作品都会保留。</span></p><a href="#services">回到服务操作 <span aria-hidden="true">↗</span></a></article>
+        </div>
+    </section>
+    <footer class="workspace-footer page-width">
+        <div class="footer-heading"><h2>回到你的工作区。</h2><a class="footer-action" href="#services" aria-label="回到本机服务操作">↗</a></div>
+        <nav class="service-shortcuts" aria-label="快速定位服务"><a href="#strata"><span>Qwen</span><small>语言与推理</small><span aria-hidden="true">↗</span></a><a href="#aimedia"><span>AIMedia</span><small>故事与镜头</small><span aria-hidden="true">↗</span></a><a href="#h3"><span>H3</span><small>画面与声音</small><span aria-hidden="true">↗</span></a></nav>
+        <div class="footer-bottom"><a class="brand" href="../index.html">XiXi<span class="brand-dot"></span></a><p>关闭浏览器或 love530 不会自动关闭本机服务。停止服务会保留模型文件与作品。</p><a href="../index.html">返回主页 <span aria-hidden="true">↗</span></a></div>
+    </footer>
 </main>
-<script src="app.js"></script>
+<script src="../js/vendor/gsap.min.js"></script>
+<script src="../js/vendor/ScrollTrigger.min.js"></script>
+<script src="app.js?v=2.2"></script>
+<script src="motion.js?v=2.2"></script>
 </body>
 </html>

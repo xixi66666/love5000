@@ -20,7 +20,7 @@ mvn -pl website -am '-Dtest=ServiceHealthCheckerTest,ServiceHealthAggregatorTest
 - 个人主页静态站点。
 - 单视口电影化服务主页：四段背景视频可切换，支持仅包含登录/注册账户操作的液态玻璃顶栏和 Deep Woods 场景配色。
 - 提示词控制台和静态提示词库页面（深色影院式设计，本地 GSAP + ScrollTrigger 动效，`prefers-reduced-motion` 可降级）。
-- 恋爱相册、图片模板、Prompt Console、`python-a`、`quant-a`、`scrapling-ui`、`skill-finder`、Qwen 本地模型、视频操作台、H3 共 10 个入口及实时健康状态。
+- 恋爱相册、图片模板、Prompt Console、`python-a`、`quant-a`、`scrapling-ui`、`skill-finder`、模型与视频共 8 个入口及实时健康状态。
 - `scrapling-ui` 卡片是“点击启动”按钮：离线时点击拉起服务并在卡片内显示“启动中…”，就绪后自动打开工作台；若浏览器拦截新窗口则提示“已启动 · 点击打开”。在线时点击直接打开。
 - `skill-finder` 卡片同样是“点击启动”按钮：离线时点击拉起服务并在卡片内显示“启动中…”，就绪后自动打开趋势站；若浏览器拦截新窗口则提示“已启动 · 点击打开”。在线时点击直接打开。
 - Web、OSS、Nacos Discovery 示例代码。
@@ -116,7 +116,7 @@ scrapling-ui/
 skill-finder/
 ```
 
-首页保持原生 HTML / CSS / JavaScript 架构，不需要额外前端构建。四段远程视频在 1000ms 内交叉淡入淡出；背景资源不可用时自动显示黑色渐变降级背景。顶部只显示登录、注册，登录后切换为退出；不提供额外导航按钮或移动端汉堡菜单。服务 Dock 在桌面以单行 10 列展示且 10 个入口一屏全部可见（列宽自适应收缩，不产生横向滚动），1180px 及以下才切换为可滑动的定宽列，并继续每 30 秒刷新一次服务状态。图片模板入口仍要求先通过站点 Session 登录。GSAP 动效库本地化在 `static/js/vendor/gsap.min.js`，用于首页入场动画与场景切换文案交叉淡化，`prefers-reduced-motion` 或加载失败时自动降级。首页 10 个服务卡片由 `script.js` 的 `setupServiceFx` 注入 WebGL canvas 渲染 GLSL 环境流光（SDF 圆角矩形柔化边框流光带 + 卡片内部宽幅流光与环境反光 + hover 指针光泽），并用弹簧物理驱动克制的卡片反馈（idle 呼吸波浪、hover 轻抬、点击压缩、健康状态 online 上跳脉冲）；四个视频场景分别映射暮霞、山湖、雪林、晨光草甸中等偏高饱和度色板，切换时 WebGL 颜色平滑插值，`prefers-reduced-motion`、WebGL 不可用或初始化失败时降级为随场景换色的 CSS hover。`scrapling-ui` 和 `skill-finder` 卡片离线时点击会进入“启动中”状态（橙色脉冲状态点 + 卡片内文案，不打开中间页面），就绪后自动打开对应工作台；若浏览器拦截新窗口，卡片显示“已启动 · 点击打开”。
+首页保持原生 HTML / CSS / JavaScript 架构，不需要额外前端构建。四段远程视频在 1000ms 内交叉淡入淡出；背景资源不可用时自动显示黑色渐变降级背景。顶部只显示登录、注册，登录后切换为退出；不提供额外导航按钮或移动端汉堡菜单。服务 Dock 在桌面以单行 8 列展示且 8 个入口一屏全部可见（列宽自适应收缩，不产生横向滚动），1180px 及以下才切换为可滑动的定宽列，并继续每 30 秒刷新一次服务状态。图片模板入口仍要求先通过站点 Session 登录。GSAP 动效库本地化在 `static/js/vendor/gsap.min.js`，用于首页入场动画与场景切换文案交叉淡化，`prefers-reduced-motion` 或加载失败时自动降级。首页 8 个服务卡片由 `script.js` 的 `setupServiceFx` 注入 WebGL canvas 渲染 GLSL 环境流光（SDF 圆角矩形柔化边框流光带 + 卡片内部宽幅流光与环境反光 + hover 指针光泽），并用弹簧物理驱动克制的卡片反馈（idle 呼吸波浪、hover 轻抬、点击压缩、健康状态 online 上跳脉冲）；四个视频场景分别映射暮霞、山湖、雪林、晨光草甸中等偏高饱和度色板，切换时 WebGL 颜色平滑插值，`prefers-reduced-motion`、WebGL 不可用或初始化失败时降级为随场景换色的 CSS hover。`scrapling-ui` 和 `skill-finder` 卡片离线时点击会进入“启动中”状态（橙色脉冲状态点 + 卡片内文案，不打开中间页面），就绪后自动打开对应工作台；若浏览器拦截新窗口，卡片显示“已启动 · 点击打开”。
 
 ## 测试
 
@@ -136,7 +136,9 @@ cd website/skill-finder/frontend && npm run test -- --run
 
 ## 本机模型与视频服务管理（2026-10-11）
 
-首页 Dock 增加「Qwen 本地模型」「视频操作台」「H3 音视频模型」，共10个入口。三张新卡片进入 `/local-services/index.html` 的对应区块；页面每15秒显示服务状态，首页每30秒更新状态。
+首页 Dock 将「Qwen 本地模型」「视频操作台」「H3 音视频模型」合并为「模型与视频」，共8个入口。统一卡片进入 `/local-services/index.html`，首页每30秒检测管理页可访问性；三个服务仍在管理页分别操作，每15秒刷新各自状态，统一健康检查清单保留三项探测。
+
+管理页借鉴 MotionSite 网站的排版与动效思路，采用独立设计的深色冰蓝工作台、Geist 字体与紧凑三服务网格；首屏背景使用 MotionSite 背景库的 Pulse 等离子光环静音循环视频，不复用其他操作台的风景素材。桌面三列、平板两列且 H3 横跨整行、手机单列；原有服务按钮、API 和15秒状态刷新保留。动效集中在 `static/local-services/motion.js`，复用本地 GSAP/ScrollTrigger 3.12.5，提供首屏入场、能力速览切换、文字渐显及几何视觉缩放/淡化。视频与海报位于 `static/local-services/media/`（10秒、1280×720、24fps、约2MB）；支持顶部暂停/播放、隐藏标签页及滚出背景区域自动暂停，视频失败保留 JPG 与 CSS 背景，`prefers-reduced-motion` 下不下载视频。背景播放不依赖 GSAP；动效库缺失时保留可操作页面，无需 npm 构建。
 
 | 服务 | 本机目录 | 端口 | 管理操作 |
 | --- | --- | --- | --- |

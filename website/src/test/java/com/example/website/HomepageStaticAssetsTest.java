@@ -35,18 +35,19 @@ class HomepageStaticAssetsTest {
         assertTrue(html.contains("data-health-url=\"http://127.0.0.1:5175/api/health\""));
         assertTrue(html.contains("data-health-url=\"http://127.0.0.1:5176/api/health\""));
         assertTrue(html.contains("data-health-url=\"http://127.0.0.1:5177/api/health\""));
-        assertTrue(html.contains("data-health-url=\"/api/services/local/strata/health\""));
-        assertTrue(html.contains("data-health-url=\"/api/services/local/aimedia/health\""));
-        assertTrue(html.contains("data-health-url=\"/api/services/local/h3/health\""));
+        assertTrue(html.contains("data-health-url=\"/local-services/index.html\""));
+        assertEquals(1, html.split("href=\"local-services/index.html", -1).length - 1);
         assertTrue(html.contains("data-auth-required=\"true\""));
     }
 
     /**
      * 首页 Dock 中不参与 service-health 聚合探测的本地页面入口。
-     * 当前只有 Prompt Console：它由 website 自身提供，不是独立微服务。
+     * 当前为 Prompt Console 和模型与视频管理页，由 website 自身提供。
      * 新增此类入口时要同步 +1，否则下面的断言会失败。
      */
-    private static final int LOCAL_ONLY_ENTRIES = 1;
+    private static final int LOCAL_ONLY_ENTRIES = 2;
+    // Strata、AIMedia、H3 的健康检测保留，首页合并到模型与视频管理页入口。
+    private static final int GROUPED_LOCAL_SERVICES = 3;
 
     @Test
     void homepageDockShowsEveryServiceFromTheHealthList() throws IOException {
@@ -58,8 +59,8 @@ class HomepageStaticAssetsTest {
         Map<?, ?> serviceHealth = (Map<?, ?>) website.get("service-health");
         List<?> services = (List<?>) serviceHealth.get("services");
 
-        assertEquals(services.size() + LOCAL_ONLY_ENTRIES, homepageCards,
-                "首页 Dock 卡片数 = service-health 清单 + 本地页面入口；新增服务时两处都要改");
+        assertEquals(services.size() - GROUPED_LOCAL_SERVICES + LOCAL_ONLY_ENTRIES, homepageCards,
+                "首页 Dock 卡片数 = service-health 清单 - 合并的本机服务 + 本地页面入口");
     }
 
     @Test

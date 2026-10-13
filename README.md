@@ -22,7 +22,7 @@ Maven 聚合模块：
 
 - `common`：公共 OSS 工具、自动配置和通用 Session 认证能力。
 - `lovestory`：恋爱相册、照片上传、留言板和吉他视频卡片 Web 应用。
-- `website`：电影化个人主页/展示站点、提示词控制台，以及 10 个服务入口、实时健康状态和 Python 子服务自动启动；首页提供四场景视频切换与响应式液态玻璃服务 Dock。
+- `website`：电影化个人主页/展示站点、提示词控制台，以及 8 个服务入口、实时健康状态和 Python 子服务自动启动；首页提供四场景视频切换与响应式液态玻璃服务 Dock。
 - `imagetemplate`：聚合 47 条精选图片模板和 Prompt Console 的 4409 条公开提示词，总计 4456 条，并按 15 个一级功能与二级场景检索；提供按需详情和 OpenAI Images API 生成服务（默认模型 `gpt-image-2.5-sunburst`），前端采用虎主题编辑式黑色工作台、橙色高对比操作、dense 模板展廊和本地 GSAP 滚动动效，模板 JSON 与变量剧本均可手工编辑。
 
 独立 Python 微应用：
@@ -166,7 +166,9 @@ cd website/skill-finder/frontend && npm run test -- --run
 
 ## 本机模型与视频服务管理（2026-10-11）
 
-首页 Dock 增加「Qwen 本地模型」「视频操作台」「H3 音视频模型」，共10个入口。三张新卡片进入 `/local-services/index.html` 的对应区块；页面每15秒显示服务状态，首页每30秒更新状态。
+首页 Dock 将「Qwen 本地模型」「视频操作台」「H3 音视频模型」合并为「模型与视频」，共8个入口。统一卡片进入 `/local-services/index.html`，首页每30秒检测管理页可访问性；三个服务仍在管理页分别操作，每15秒刷新各自状态，统一健康检查清单保留三项探测。
+
+管理页借鉴 MotionSite 网站的排版与动效思路，采用独立设计的深色冰蓝工作台、Geist 字体与紧凑三服务网格；首屏背景使用 MotionSite 背景库的 Pulse 等离子光环静音循环视频，不复用其他操作台的风景素材。桌面三列、平板两列且 H3 横跨整行、手机单列；原有服务按钮、API 和15秒状态刷新保留。动效集中在 `static/local-services/motion.js`，复用本地 GSAP/ScrollTrigger 3.12.5，提供首屏入场、能力速览切换、文字渐显及几何视觉缩放/淡化。视频与海报位于 `static/local-services/media/`（10秒、1280×720、24fps、约2MB）；支持顶部暂停/播放、隐藏标签页及滚出背景区域自动暂停，视频失败保留 JPG 与 CSS 背景，`prefers-reduced-motion` 下不下载视频。背景播放不依赖 GSAP；动效库缺失时保留可操作页面，无需 npm 构建。
 
 | 服务 | 本机目录 | 端口 | 管理操作 |
 | --- | --- | --- | --- |

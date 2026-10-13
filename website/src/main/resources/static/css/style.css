@@ -647,9 +647,9 @@ body.video-ready .scene-video.is-active {
     position: relative;
     z-index: 2;
     display: grid;
-    /* 10 个服务入口在桌面端始终一屏一行：列宽随容器自适应收缩，不产生横向滚动。
+    /* 8 个服务入口在桌面端始终一屏一行：列宽随容器自适应收缩，不产生横向滚动。
        窄屏（<=1180px）由媒体查询切换为定宽 + 横向滑动。 */
-    grid-template-columns: repeat(10, minmax(0, 1fr));
+    grid-template-columns: repeat(8, minmax(0, 1fr));
     gap: 4px;
     overflow-x: auto;
     padding: 0 7px 7px;
@@ -1015,7 +1015,7 @@ body.service-fx-on .service-card:focus-visible {
 
 @media (max-width: 1180px) {
     .service-grid {
-        grid-template-columns: repeat(10, minmax(154px, 154px));
+        grid-template-columns: repeat(8, minmax(154px, 154px));
     }
 
     .dock-hint {
@@ -1125,7 +1125,7 @@ body.service-fx-on .service-card:focus-visible {
     }
 
     .service-grid {
-        grid-template-columns: repeat(10, minmax(150px, 150px));
+        grid-template-columns: repeat(8, minmax(150px, 150px));
         gap: 4px;
         padding: 0 6px 6px;
     }

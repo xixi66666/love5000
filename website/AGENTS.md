@@ -21,7 +21,7 @@ C:/Code/Java_Code/love5000/website
 核心功能：
 
 - 提供个人主页静态站点。
-- 个人主页采用单视口电影化布局，包含四场景视频切换、只提供登录/注册的液态玻璃账户顶栏和 10 个带实时状态的服务入口。
+- 个人主页采用单视口电影化布局，包含四场景视频切换、只提供登录/注册的液态玻璃账户顶栏和 8 个带实时状态的服务入口。
 - 统一承载 `python-a`、`quant-a`、`scrapling-ui`、`skill-finder` 四个独立 Python 子服务的代码目录、首页入口、健康检测；前两者启动时自动拉起，`scrapling-ui` 和 `skill-finder` 由首页按钮点击启动。
 - 提供提示词控制台和静态提示词库页面，并在首页提供 Prompt Console 入口。
 - 提供基础 Spring MVC Web Demo。
@@ -408,7 +408,7 @@ Spring 约定：
 - 提示词控制台放在 `src/main/resources/static/prompt-console`。
 - 页面引用资源时使用相对路径，不使用本机绝对路径。
 - 首页远程场景视频和装饰覆盖图是经产品提示词明确指定的外部媒体；必须保留黑色/渐变降级背景，外部媒体失败不得影响服务入口、鉴权或健康检测。
-- 首页保持单个 `100svh` 视口且不产生页面级滚动；服务 Dock 桌面端为单行 10 列且 10 个入口一屏全部可见（列宽用 `repeat(10, minmax(0, 1fr))` 随容器自适应收缩，不产生横向滚动），1180px 及以下才切换为定宽列并只允许服务 Dock 自身横向滚动，任何宽度都不允许换行成两排。
+- 首页保持单个 `100svh` 视口且不产生页面级滚动；服务 Dock 桌面端为单行 8 列且 8 个入口一屏全部可见（列宽用 `repeat(8, minmax(0, 1fr))` 随容器自适应收缩，不产生横向滚动），1180px 及以下才切换为定宽列并只允许服务 Dock 自身横向滚动，任何宽度都不允许换行成两排。
 - `script.js` 的点击启动不得再打开“正在启动”中间页面：启动进度只在服务卡片内展示（“启动中…”→ 就绪后自动打开或提示“已启动 · 点击打开”）。
 
 ## 测试策略
@@ -444,7 +444,7 @@ src/test/java/com/example/website/integration/health/*.java
 - 修改 Nacos 示例时，测试中不要依赖真实 Nacos 服务。
 - 修改数据库相关配置时，测试中不要连接远程 MySQL。
 - 修改静态页面后，启动服务并访问 `http://localhost:8080/` 手动验证。
-- `HomepageStaticAssetsTest` 断言首页 Dock 卡片数 = `website.service-health.services` 条数 + `LOCAL_ONLY_ENTRIES`（当前 1：仅 Prompt Console 是 website 自身页面、不参与聚合探测）。新增或移除服务入口时必须同步 `index.html`、`application.yml` 和该常量，否则测试失败。
+- `HomepageStaticAssetsTest` 断言首页 Dock 卡片数 = `website.service-health.services` 条数 - `GROUPED_LOCAL_SERVICES`（当前 3：Strata、AIMedia、H3 合并入口）+ `LOCAL_ONLY_ENTRIES`（当前 2：Prompt Console、模型与视频管理页）。调整入口时同步 `index.html`、布局和测试常量；仅合并入口时保留 `application.yml` 中各服务的独立健康探测。
 - 修改两个 Python 子服务自动启动逻辑时，至少运行对应 `*AutoStartRunnerTest`，并确认工作目录解析仍支持从仓库根目录和 `website/` 模块目录启动。
 - 修改 `scrapling-ui` 点击启动逻辑时，至少运行 `ScraplingUiProcessManagerTest` 和 `ScraplingUiControllerTest`；测试不得启动真实 Python 进程或浏览器，不得连接真实端口。
 - 修改 `scrapling-ui` 后端时，运行 `cd website/scrapling-ui/backend && uv run python -m unittest discover -s tests -v`。
@@ -484,7 +484,9 @@ mvn -pl website -am spring-boot:run
 
 ## 本机模型与视频服务管理（2026-10-11）
 
-首页 Dock 增加「Qwen 本地模型」「视频操作台」「H3 音视频模型」，共10个入口。三张新卡片进入 `/local-services/index.html` 的对应区块；页面每15秒显示服务状态，首页每30秒更新状态。
+首页 Dock 将「Qwen 本地模型」「视频操作台」「H3 音视频模型」合并为「模型与视频」，共8个入口。统一卡片进入 `/local-services/index.html`，首页每30秒检测管理页可访问性；三个服务仍在管理页分别操作，每15秒刷新各自状态，统一健康检查清单保留三项探测。
+
+管理页借鉴 MotionSite 网站的排版与动效思路，采用独立设计的深色冰蓝工作台、Geist 字体与紧凑三服务网格；首屏背景使用 MotionSite 背景库的 Pulse 等离子光环静音循环视频，不复用其他操作台的风景素材。桌面三列、平板两列且 H3 横跨整行、手机单列；原有服务按钮、API 和15秒状态刷新保留。动效集中在 `static/local-services/motion.js`，复用本地 GSAP/ScrollTrigger 3.12.5，提供首屏入场、能力速览切换、文字渐显及几何视觉缩放/淡化。视频与海报位于 `static/local-services/media/`（10秒、1280×720、24fps、约2MB）；支持顶部暂停/播放、隐藏标签页及滚出背景区域自动暂停，视频失败保留 JPG 与 CSS 背景，`prefers-reduced-motion` 下不下载视频。背景播放不依赖 GSAP；动效库缺失时保留可操作页面，无需 npm 构建。
 
 | 服务 | 本机目录 | 端口 | 管理操作 |
 | --- | --- | --- | --- |
