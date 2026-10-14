@@ -91,7 +91,7 @@ class HomepageStaticAssetsTest {
         String javascript = readResource("/static/js/script.js");
 
         assertTrue(css.contains(".liquid-glass::before"));
-        assertTrue(css.contains("@keyframes train-bob"));
+        assertTrue(css.contains("@keyframes ken-burns"));
         assertTrue(css.contains(".scene-deep-woods"));
         assertTrue(css.contains("@media (prefers-reduced-motion: reduce)"));
 

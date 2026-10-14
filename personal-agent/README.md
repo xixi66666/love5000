@@ -2,7 +2,9 @@
 
 与 `website`、`lovestory` 同级的 **Java 8 + Spring Boot 2.6.13 Maven 模块**，默认只监听 `127.0.0.1:5178`。原生 HTML/CSS/JavaScript 由服务同端口托管，无 Python、Node 或前端构建依赖。
 
-页面参考本机 `D:/Code/rea/_reference/motionsites/free-prompts/original-prompts.md` 的第3（黑白AI）、第10（玻璃仪表盘）、第11（双栏注册）份原创提示词，采用银白波浪、冰蓝点缀与玻璃面板。登录为双栏，工作台突出对话、真实记录数量、想法和复盘；七个工作区共享图标导航，手机端使用可展开导航。视觉素材和图标均为模块内SVG，不依赖外部图片/字体/CDN。快捷建议仅填入对话框，用户确认后才发送；减少动态效果偏好会关闭装饰动画。
+页面保留 [MotionSites官方动画教程](https://motionsites.ai/lesson/build-animated-website-with-motionsites) 参考的顶部胶囊导航、大字排版和深色玻璃面板，背景改为 [Yaroslav Shuraev 的森林湖泊晨雾实拍](https://www.pexels.com/video/foggy-day-in-a-lake-in-the-forest-5563080/)，采用森林灰绿与温白配色。登录与七个工作区共享连续背景，切页通过150ms退出、420ms进入和区块错峰完成；资料请求期间保留旧视图，过期请求不覆盖新页面。阅读与财富子页也有渐隐与位移转场，统计仍来自实际记录。
+
+背景由4K原片制作成1920×1080、24fps、约35秒的静音视频（约23MB），高清海报约87KB，均在 `src/main/resources/static/media/` 本地托管，来源、Pexels授权与规格见 [素材说明](src/main/resources/static/media/README.md)。运行时不依赖外部图片、字体、CDN或新前端框架。`motion.js` 用原生视频和Web Animations处理入场、页面切换、背景构图与色调过渡；背景可暂停，标签页隐藏时停播，自动播放失败保留海报。减少动画偏好下不自动下载视频，关闭转场，仍可主动播放背景。快捷建议仅填入对话框，用户确认后才发送。
 
 ## 启动
 
@@ -16,6 +18,8 @@ java -jar personal-agent/target/personal-agent-0.0.1-SNAPSHOT.jar
 也可以在 IDEA 运行 `com.example.personalagent.PersonalAgentApplication`。访问 `http://127.0.0.1:5178/`，首次设置个人空间密码（8–128字符）。之后只需登录此空间。该会话独立于 website，密码以随机盐 PBKDF2-HMAC-SHA256 哈希保存，写入 API 校验 CSRF。
 
 重启 website 后，点击 **03 Deep Woods → 个人 Agent** 可启动已构建的 jar；已在线则复用。website 不自动运行 Maven、不自动启动 Agent，也不会在关闭时强杀它。端口被其他程序占用时拒绝启动，不停止其他应用。01 保留原文案、八个入口和背景，四个背景动画均未修改。
+
+从 `localhost:8080` 跳转到 `127.0.0.1:5178` 时，浏览器会标为跨站导航。首页 `/`、`/index.html` 仅允许无Origin的GET顶层文档导航进入；API、iframe及跨站fetch仍拒绝，登录和CSRF校验保持。升级此校验后重启个人Agent；首页启动jar之前先重新构建，无需重启website。
 
 开发中可使用：
 
@@ -109,8 +113,12 @@ Bases 使用 `.base` 表格、显式 sort 与属性过滤；没有 Bases 时仍�
 mvn -pl personal-agent -am test
 mvn -pl website -am test
 node --check personal-agent/src/main/resources/static/app.js
+node --check personal-agent/src/main/resources/static/motion.js
+node personal-agent/src/test/js/motion.test.js
 node --check website/src/main/resources/static/js/script.js
 ```
+
+入口来源校验回归覆盖跨本机主机名的首页导航，以及API、iframe、跨站fetch和远程连接的拒绝路径；此次修复后36项JUnit测试通过，并用隔离实例验证浏览器从localhost跳转到127.0.0.1后正常显示个人空间入口。
 
 测试使用本地临时目录、构造财务数据与模型/行情替身，不读取真实财务或调用真实云端API。已涵盖10年/10,000条历史分页、不重复与游标失效、来源删除、手工笔记保护、短中文检索、重启持久化与备份。账本版本缓存减少重复重算，但 Store 的事务修改会复制当前文档集合；10万财务事件性能目标尚未验证，不宣称500ms或100ms指标已经达成。
 

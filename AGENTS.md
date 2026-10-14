@@ -467,6 +467,7 @@ website/skill-finder/
 
 - 新增任何 Java 模块、Python 微应用或独立微服务时，必须同步更新 `website/src/main/resources/static/index.html` 的主页面入口。
 - 当前主页面采用四场景电影化单视口布局，服务入口位于底部液态玻璃 Dock；新增入口时沿用现有 `service-card` 结构，并验证桌面宽度和移动端横向滚动。
+- 四场景仅展示原风景视频，不添加车窗覆盖图或车窗晃动动画；保留暗角、颗粒、背景降级和原视频切换时序。
 - 四场景按钮通过 `data-scene-title` / `data-scene-statement` / `data-scene-badge` 配置各自文案，通过 `data-scene-dock` 选择服务目录。01 Golden Hour 保留原文案与 8 个入口；02 Still Water、03 Deep Woods、04 Quiet Dawn 分别使用独立的 `still-water-service-dock`、`deep-woods-service-dock`、`quiet-dawn-service-dock`，未添加卡片时隐藏整个 Dock。背景视频、动画和切换时序保持不变。
 - 主页面入口需要包含服务名称、端口或访问标识，并配置实时可用性检测地址。
 - 入口样式和状态点维护在 `website/src/main/resources/static/css/style.css`，健康检测逻辑维护在 `website/src/main/resources/static/js/script.js`。
@@ -1078,8 +1079,12 @@ Strata以`--lazy`启动服务，第一条生成请求或「加载模型」按钮
 
 首次从仓库根目录执行 `mvn -pl personal-agent -am package -DskipTests`。可在IDEA运行 `com.example.personalagent.PersonalAgentApplication`，或执行 `java -jar personal-agent/target/personal-agent-0.0.1-SNAPSHOT.jar`。重启website后点击03个人Agent，启动器运行已构建jar（不自动Maven），验证 `success=true` + `service=personal-agent` 后打开；已在线则复用，陌生端口占用则拒绝。website启动/关闭不自动启停它。
 
+入口支持从 `http://localhost:8080/` 跳转到 `http://127.0.0.1:5178/`：仅允许无Origin的首页（`/`、`/index.html`）顶层GET文档导航跨站进入，API及嵌入页面仍拒绝跨站请求，登录和CSRF校验保持。更新此校验后需重启个人Agent；通过首页启动jar时应先重新构建。
+
 website接口：`POST /api/services/personal-agent/start`（返回 `{success,status,url}`）、`GET /api/services/personal-agent/status`；配置 `personal-agent.click-start.{enabled,work-dir,command,port,health-path,startup-timeout-seconds,log-to-console}`，默认目录 `personal-agent`，从仓库根或website启动都能定位；`PERSONAL_AGENT_COMMAND`可指定Java程序路径，默认java.home/bin/java。统一健康清单末尾追加个人Agent，保留已有顺序。
 
 私人数据默认 `%LOCALAPPDATA%/Love530/PersonalAgent/`，可用 `PERSONAL_AGENT_DATA_DIR`覆盖；本地H2账本经MyBatis DAO+XML持久化，金额BigDecimal，不使用远程MySQL。`vault/`可用Obsidian直接打开；历史按录入年月存放，按事件时间/录入时间/UUID查看，手工修改受哈希保护。默认DeepSeek，可通过环境变量配置Key/模型/HTTPS地址，密钥不回显或进入Git。
+
+个人Agent页面保留MotionSites参考的顶部胶囊导航和原生页面转场，背景采用Pexels摄影者Yaroslav Shuraev的森林湖泊晨雾实拍（4K原片转1920×1080、24fps、约35秒），配色为森林灰绿与温白。本地视频/海报在 `personal-agent/src/main/resources/static/media/`（约23MB/87KB，来源与授权见其中README），`motion.js`处理连续播放、暂停、后台停播和减少动画降级。七页资料读取保留旧视图，最新请求就绪后渐隐/位移切换；原生动画测试 `node personal-agent/src/test/js/motion.test.js`，无新增前端构建依赖。
 
 功能包括对话、书籍与生活记录、长期记忆、想法行动、完整财务、事件触发复盘与网页未读提醒；接口及验证范围见 [personal-agent README](personal-agent/README.md)。验证：`mvn -pl personal-agent -am test`、`mvn -pl website -am test`、`node --check personal-agent/src/main/resources/static/app.js`。不要在测试使用真实财富或模型密钥。

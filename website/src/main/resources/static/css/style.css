@@ -110,7 +110,6 @@ button {
 
 .scene-background,
 .scene-video,
-.scene-overlay,
 .scene-shade,
 .scene-grain {
     position: absolute;
@@ -170,25 +169,6 @@ body.video-ready .scene-video.is-active {
 
 .scene-video.is-active {
     opacity: 1;
-}
-
-.scene-overlay {
-    z-index: 1;
-    object-fit: cover;
-    pointer-events: none;
-    opacity: 0.86;
-    animation: train-bob 5s ease-in-out infinite;
-}
-
-@keyframes train-bob {
-    0%,
-    100% {
-        transform: translateY(0);
-    }
-
-    50% {
-        transform: translateY(-4px);
-    }
 }
 
 .scene-shade {
@@ -1212,7 +1192,6 @@ body.service-fx-on .service-card:focus-visible {
         scroll-behavior: auto;
     }
 
-    .scene-overlay,
     .scene-video.is-active {
         animation: none;
     }

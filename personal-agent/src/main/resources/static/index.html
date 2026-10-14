@@ -4,29 +4,33 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <meta name="theme-color" content="#0b0d12">
+  <meta name="theme-color" content="#0a1210">
   <title>个人 Agent · Deep Woods</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/style.css?v=2">
-  <script src="/app.js?v=2" defer></script>
+  <link rel="stylesheet" href="/style.css?v=4">
+  <script src="/motion.js?v=4" defer></script>
+  <script src="/app.js?v=4" defer></script>
 </head>
 <body>
+  <div id="ambient-scene" class="ambient-scene" aria-hidden="true">
+    <video id="ambient-video" muted loop playsinline preload="none" data-src="/media/motion-background.mp4?v=4" poster="/media/motion-background.jpg?v=4"></video>
+    <div id="ambient-tint" class="ambient-tint"></div>
+    <div class="ambient-vignette"></div>
+  </div>
   <a class="skip-link" href="#main">跳到主要内容</a>
+  <button id="motion-toggle" class="motion-toggle" type="button" aria-label="暂停背景动画" aria-pressed="false"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"></path></svg><span data-motion-label>暂停背景</span></button>
   <div id="auth-screen" class="auth-screen" hidden>
+    <a class="wordmark auth-brand" href="http://localhost:8080/"><span class="brand-symbol" aria-hidden="true"><svg><use href="/icons.svg#mark"></use></svg></span><span>Personal Agent<span class="brand-caption">DEEP WOODS</span></span></a>
     <section class="auth-visual" aria-label="个人空间介绍">
-      <a class="wordmark" href="http://localhost:8080/"><span class="brand-symbol" aria-hidden="true"><svg><use href="/icons.svg#mark"></use></svg></span><span>Personal Agent<span class="brand-caption">DEEP WOODS</span></span></a>
       <div class="auth-story">
-        <p class="eyebrow"><span class="status-dot"></span> YOUR LIFE, WITH A LITTLE MORE CLARITY</p>
+        <p class="eyebrow"><span class="status-dot"></span> A SPACE THAT GROWS WITH YOU</p>
         <h2>认识自己。<br><span>走向未来。</span></h2>
-        <p>让阅读成为判断，让想法走向行动。<br>一个会记得你、也陪你向前的个人空间。</p>
+        <p>让阅读成为判断，让想法走向行动。<br>值得记住的事，都留在这里。</p>
       </div>
-      <img class="auth-wave" src="/silver-wave.svg" alt="" width="960" height="540">
-      <div class="auth-visual-footer"><span>记忆 · 行动 · 财富</span><span>ONE SPACE. YOUR PERSPECTIVE.</span></div>
     </section>
     <section class="auth-card">
-      <div class="auth-card-top"><span class="section-index">01 / YOUR SPACE</span><a href="http://localhost:8080/">返回主页 <svg class="icon"><use href="/icons.svg#arrow"></use></svg></a></div>
+      <div class="auth-card-top"><span class="section-index">YOUR PRIVATE SPACE</span><a href="http://localhost:8080/">返回主页 <svg class="icon"><use href="/icons.svg#arrow"></use></svg></a></div>
       <div class="auth-form-body">
-        <div class="auth-emblem" aria-hidden="true"><svg><use href="/icons.svg#spark"></use></svg></div>
         <p class="eyebrow">PERSONAL INTELLIGENCE</p>
         <h1 id="auth-title">回到自己的空间</h1>
         <p id="auth-description" class="muted">记下今天，理解过去，慢慢走向你想要的未来。</p>
@@ -43,28 +47,25 @@
       </div>
       <p class="auth-card-footer">把值得记住的事，留给未来的自己。</p>
     </section>
+    <div class="auth-visual-footer"><span>记忆 · 行动 · 财富</span><span>YOUR STORY, STILL UNFOLDING.</span></div>
   </div>
   <div id="app-shell" class="app-shell" hidden>
-    <aside class="sidebar">
+    <header class="sidebar app-nav">
       <a class="wordmark" href="#workspace"><span class="brand-symbol" aria-hidden="true"><svg><use href="/icons.svg#mark"></use></svg></span><span>Personal Agent<span class="brand-caption">DEEP WOODS</span></span></a>
       <button id="nav-toggle" class="nav-toggle" type="button" aria-label="展开导航" aria-expanded="false" aria-controls="navigation"><svg class="icon"><use href="/icons.svg#menu"></use></svg></button>
-      <p class="sidebar-caption">你的长期视角</p>
       <nav id="navigation" aria-label="主要导航">
-        <span class="nav-label">个人空间</span>
-        <a href="#workspace" data-page="workspace"><svg class="icon"><use href="/icons.svg#grid"></use></svg><span>个人工作台</span></a>
-        <a href="#ideas" data-page="ideas"><svg class="icon"><use href="/icons.svg#idea"></use></svg><span>想法与行动</span></a>
-        <a href="#reading" data-page="reading"><svg class="icon"><use href="/icons.svg#book"></use></svg><span>阅读与生活</span></a>
-        <a href="#finance" data-page="finance"><svg class="icon"><use href="/icons.svg#wallet"></use></svg><span>我的财富</span></a>
-        <span class="nav-label nav-label-secondary">沉淀与回看</span>
-        <a href="#memories" data-page="memories"><svg class="icon"><use href="/icons.svg#memory"></use></svg><span>长期记忆</span></a>
-        <a href="#history" data-page="history"><svg class="icon"><use href="/icons.svg#history"></use></svg><span>历史与复盘</span><span id="unread-badge" class="count" hidden>0</span></a>
-        <a href="#settings" data-page="settings"><svg class="icon"><use href="/icons.svg#settings"></use></svg><span>设置与资料</span></a>
+        <a href="#workspace" data-page="workspace" aria-label="个人工作台与对话"><svg class="icon"><use href="/icons.svg#spark"></use></svg><span>对话</span></a>
+        <a href="#ideas" data-page="ideas" aria-label="想法与行动"><svg class="icon"><use href="/icons.svg#idea"></use></svg><span>想法</span></a>
+        <a href="#reading" data-page="reading" aria-label="阅读与生活"><svg class="icon"><use href="/icons.svg#book"></use></svg><span>阅读</span></a>
+        <a href="#finance" data-page="finance" aria-label="我的财富"><svg class="icon"><use href="/icons.svg#wallet"></use></svg><span>财富</span></a>
+        <a href="#memories" data-page="memories" aria-label="长期记忆"><svg class="icon"><use href="/icons.svg#memory"></use></svg><span>记忆</span></a>
+        <a href="#history" data-page="history" aria-label="历史与复盘"><svg class="icon"><use href="/icons.svg#history"></use></svg><span>复盘</span><span id="unread-badge" class="count" hidden>0</span></a>
+        <a href="#settings" data-page="settings" aria-label="设置与资料"><svg class="icon"><use href="/icons.svg#settings"></use></svg><span>设置</span></a>
       </nav>
       <div class="sidebar-bottom">
-        <div class="space-card"><div class="space-card-icon"><svg class="icon"><use href="/icons.svg#shield"></use></svg></div><strong>属于你的空间</strong><p>想法有去处，成长有记录。</p><span><i class="status-dot"></i>本机私人资料</span></div>
-        <div class="sidebar-links"><a href="http://localhost:8080/"><svg class="icon"><use href="/icons.svg#back"></use></svg>返回主页</a><button id="logout-button" class="text-button">退出</button></div>
+        <div class="sidebar-links"><a href="http://localhost:8080/" aria-label="返回 website 主页"><svg class="icon"><use href="/icons.svg#back"></use></svg><span>主页</span></a><button id="logout-button" class="text-button" type="button">退出</button></div>
       </div>
-    </aside>
+    </header>
     <main id="main" tabindex="-1">
       <header class="page-header">
         <div><p class="eyebrow" id="page-eyebrow">YOUR PERSONAL SPACE</p><h1 id="page-title">个人工作台</h1><p id="page-description" class="muted">留住值得记住的事，看清值得迈出的下一步。</p></div>

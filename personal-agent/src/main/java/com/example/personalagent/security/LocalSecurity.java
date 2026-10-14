@@ -30,7 +30,10 @@ public class LocalSecurity implements WebMvcConfigurer,HandlerInterceptor {
         if(origin!=null){try{URI u=URI.create(origin);int port=u.getPort()<0?80:u.getPort();if(!"http".equals(u.getScheme())||!host.equalsIgnoreCase(u.getHost())||port!=req.getServerPort())return fail(res,403,"来源不被允许");}catch(Exception e){return fail(res,403,"来源无效");}}
         String path=req.getRequestURI();
         // Health has no private fields and remains usable by the homepage no-cors probe.
-        if("cross-site".equals(fetch))return fail(res,403,"来源不被允许");
+        // Opening the public entry from localhost:8080 to 127.0.0.1 is a cross-site document navigation.
+        boolean entryNavigation=origin==null&&"GET".equals(req.getMethod())&&("/".equals(path)||"/index.html".equals(path))
+                &&"navigate".equals(req.getHeader("Sec-Fetch-Mode"))&&"document".equals(req.getHeader("Sec-Fetch-Dest"));
+        if("cross-site".equals(fetch)&&!entryNavigation)return fail(res,403,"来源不被允许");
         if(!path.startsWith("/api/"))return true;
         res.setHeader("Cache-Control","no-store");
         if(path.equals("/api/auth/status")||path.equals("/api/auth/login")||path.equals("/api/auth/setup"))return true;

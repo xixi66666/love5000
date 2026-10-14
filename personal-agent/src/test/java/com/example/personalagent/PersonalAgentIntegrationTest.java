@@ -32,6 +32,23 @@ class PersonalAgentIntegrationTest {
     @Autowired MockMvc mvc;@Autowired ObjectMapper json;@Autowired RecordService records;@Autowired VaultService vault;@Autowired KnowledgeService knowledge;@Autowired Store store;@Autowired DocumentDao dao;@Autowired PlatformTransactionManager manager;@SpyBean AgentService agent;
     static MockHttpSession session;static String csrf;
     private JsonNode body(MvcResult result)throws Exception{return json.readTree(result.getResponse().getContentAsString()).path("data");}
+    @Test @Order(0) void allowsHomepageEntryNavigationAcrossLocalHosts()throws Exception {
+        for(String path:Arrays.asList("/","/index.html")) {
+            mvc.perform(get(path).header("Sec-Fetch-Site","cross-site").header("Sec-Fetch-Mode","navigate").header("Sec-Fetch-Dest","document")
+                    .with(req->{req.setServerName("127.0.0.1");req.setServerPort(5178);return req;})).andExpect(status().isOk());
+        }
+    }
+    @Test @Order(0) void crossSiteNavigationDoesNotPermitApisOrEmbeddedPages()throws Exception {
+        mvc.perform(get("/api/auth/status").header("Sec-Fetch-Site","cross-site").header("Sec-Fetch-Mode","navigate").header("Sec-Fetch-Dest","document")).andExpect(status().isForbidden());
+        mvc.perform(post("/api/auth/setup").header("Sec-Fetch-Site","cross-site").header("Sec-Fetch-Mode","navigate").header("Sec-Fetch-Dest","document").contentType("application/json").content("{}")).andExpect(status().isForbidden());
+        mvc.perform(get("/").header("Sec-Fetch-Site","cross-site").header("Sec-Fetch-Mode","cors").header("Sec-Fetch-Dest","empty")).andExpect(status().isForbidden());
+        mvc.perform(get("/").header("Sec-Fetch-Site","cross-site").header("Sec-Fetch-Mode","navigate").header("Sec-Fetch-Dest","iframe")).andExpect(status().isForbidden());
+        mvc.perform(get("/app.js").header("Sec-Fetch-Site","cross-site").header("Sec-Fetch-Mode","navigate").header("Sec-Fetch-Dest","document")).andExpect(status().isForbidden());
+        mvc.perform(get("/").header("Sec-Fetch-Site","cross-site").header("Sec-Fetch-Mode","navigate").header("Sec-Fetch-Dest","document").header("Origin","http://localhost:8080")).andExpect(status().isForbidden());
+        mvc.perform(get("/").header("Sec-Fetch-Site","cross-site").header("Sec-Fetch-Mode","navigate").header("Sec-Fetch-Dest","document")
+                .with(req->{req.setRemoteAddr("10.0.0.2");return req;})).andExpect(status().isForbidden());
+        mvc.perform(get("/api/health").header("Sec-Fetch-Site","cross-site")).andExpect(status().isOk()).andExpect(jsonPath("$.service").value("personal-agent"));
+    }
     @Test @Order(1) void localAuthenticationAndOriginGuards()throws Exception {
         mvc.perform(get("/api/health")).andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true)).andExpect(jsonPath("$.service").value("personal-agent"));
         mvc.perform(get("/api/settings")).andExpect(status().isUnauthorized());
