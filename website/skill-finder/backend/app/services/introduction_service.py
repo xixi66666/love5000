@@ -163,6 +163,10 @@ def _model_chain(raw: str) -> list[str]:
 
 
 def _resolve_api_key() -> str:
+    if settings.intro_api_key.get_secret_value().strip():
+        return settings.intro_api_key.get_secret_value().strip()
+    if not settings.intro_api_base.startswith("https://opencode.ai/"):
+        raise IntroductionGenerationError("请为当前模型服务设置 INTRO_API_KEY。")
     if settings.opencode_api_key.strip():
         return settings.opencode_api_key.strip()
     auth_path = Path.home() / ".local" / "share" / "opencode" / "auth.json"

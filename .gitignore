@@ -61,5 +61,6 @@ personal-agent/.runtime/
 ### Local dependency cache and generated data ###
 /.m2/
 /website/video/config.local.json
+/website/skill-finder/backend/data/
 /website/video/anime_projects/
 /website/python-a/obsidian-vault/**/data/stock-metadata/

@@ -103,7 +103,7 @@ class GitHubClient:
         token: str,
         retry_delays: tuple[float, ...] = DEFAULT_RETRY_DELAYS,
     ) -> None:
-        self._token = token
+        self._token = token.strip()
         self._retry_delays = retry_delays
         self._client: httpx.AsyncClient | None = None
 
@@ -161,6 +161,12 @@ class GitHubClient:
     ) -> httpx.Response:
         assert self._client is not None
         allowed = status_codes or [200]
+        headers = {
+            "Accept": accept or ACCEPT_HEADER,
+            "X-GitHub-Api-Version": API_VERSION,
+        }
+        if self._token:
+            headers["Authorization"] = f"Bearer {self._token}"
         last_exc: GitHubRequestError | None = None
         for attempt in range(len(self._retry_delays)):
             try:
@@ -168,11 +174,7 @@ class GitHubClient:
                     method,
                     url,
                     params=params,
-                    headers={
-                        "Accept": accept or ACCEPT_HEADER,
-                        "Authorization": f"Bearer {self._token}",
-                        "X-GitHub-Api-Version": API_VERSION,
-                    },
+                    headers=headers,
                 )
             except httpx.TransportError as exc:
                 last_exc = GitHubRequestError(

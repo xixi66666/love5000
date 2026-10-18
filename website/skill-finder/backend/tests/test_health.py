@@ -39,7 +39,7 @@ def test_built_javascript_asset_is_served_with_javascript_mime_type() -> None:
         return
 
     html = index_file.read_text(encoding="utf-8")
-    match = re.search(r'src="(/assets/[^"]+\.js)"', html)
+    match = re.search(r'src="(?:/[^"/]*)*(/assets/[^"/]+\.js)"', html)
     assert match is not None, "built index.html should reference a JS asset"
 
     response = TestClient(app).get(match.group(1))

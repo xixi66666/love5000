@@ -80,6 +80,7 @@ class Settings(BaseSettings):
     intro_enabled: bool = False
     intro_model: str = "opencode-go/ox-alpha-free,opencode-go/deepseek-v4-flash"
     intro_api_base: str = "https://opencode.ai/zen/go/v1"
+    intro_api_key: SecretStr = SecretStr("")
     opencode_api_key: str = ""
     intro_concurrency: int = 8
     intro_batch_size: int = 5
@@ -89,6 +90,14 @@ class Settings(BaseSettings):
     last30days_python: str = ""
     last30days_memory_dir: str = ""
     last30days_timeout_seconds: int = 600
+    daily_reports_dir: str = "data/daily-reports"
+    daily_public_url: str = "http://127.0.0.1:5177"
+    daily_tts_voice: str = "zh-CN-YunxiNeural"
+    daily_font: str = ""
+    daily_qq_target: str = ""
+    daily_openclaw_command: str = ""
+    douyin_storage_state: str = ".secrets/douyin-state.json"
+    douyin_publish_enabled: bool = False
 
     @model_validator(mode="after")
     def _load_token_from_file(self) -> Settings:

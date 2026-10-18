@@ -173,6 +173,9 @@ class CollectionService:
                 for rank, repository in enumerate(repositories, start=1)
                 if repository.full_name in stored
             ]
+            if repositories and not entries:
+                logger.warning("preserving previous %s ranking after incomplete API enrichment", period)
+                continue
             await self.trending_store.replace_period(period, entries, fetched_at)
 
         await self._generate_introductions(intro_pending)

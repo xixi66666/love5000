@@ -1,0 +1,8 @@
+# Server timezone must be Asia/Shanghai; install as /etc/cron.d/skill-finder.
+SHELL=/bin/sh
+CRON_TZ=Asia/Shanghai
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+10 7 * * * root /opt/skill-finder/current/deploy/run-daily.sh collect >> /var/log/skill-finder-daily.log 2>&1
+30,45 7 * * * root /opt/skill-finder/current/deploy/run-daily.sh generate >> /var/log/skill-finder-daily.log 2>&1
+0 8 * * * root /opt/skill-finder/current/deploy/run-daily.sh notify >> /var/log/skill-finder-daily.log 2>&1
+15 */6 * * * root /opt/skill-finder/current/deploy/renew-certificate.sh >> /var/log/skill-finder-certificate.log 2>&1

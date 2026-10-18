@@ -8,12 +8,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.collector.classifier import Classification
 from app.collector.github_client import GitHubRepository
-from app.db.models import Repository
+from app.db.models import Repository, TrendingEntry
 
 
 class RepositoryStore:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+
+    async def daily_report_candidates(self, since: datetime) -> list[tuple]:
+        rows = await self._session.execute(
+            select(Repository, TrendingEntry)
+            .join(TrendingEntry, Repository.id == TrendingEntry.repository_id)
+            .where(
+                Repository.available.is_(True),
+                TrendingEntry.period == "daily",
+                TrendingEntry.fetched_at >= since,
+            )
+            .order_by(TrendingEntry.stars_gained.desc(), TrendingEntry.rank_position.asc())
+            .limit(10)
+        )
+        return list(rows.all())
 
     async def upsert(self, repo: GitHubRepository, classification: Classification) -> Repository:
         now = datetime.now(UTC)

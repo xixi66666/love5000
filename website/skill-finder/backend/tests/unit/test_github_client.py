@@ -15,6 +15,16 @@ from app.collector.github_client import (
 API = "https://api.github.com"
 
 
+@respx.mock
+async def test_public_repository_without_token_omits_authorization_header() -> None:
+    route = respx.get(f"{API}/repos/octocat/agent-hub").mock(
+        return_value=httpx.Response(200, json=make_repo_payload())
+    )
+    async with GitHubClient(token="") as anonymous:
+        assert await anonymous.get_repository("octocat/agent-hub") is not None
+    assert "authorization" not in route.calls.last.request.headers
+
+
 def make_repo_payload(github_id: int = 1, name: str = "agent-hub") -> dict:
     return {
         "id": github_id,

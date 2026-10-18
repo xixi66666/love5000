@@ -316,6 +316,15 @@ async def test_failed_enrichment_is_counted_and_skipped() -> None:
     assert [entry.repository_id for entry in entries] == [1]
 
 
+async def test_all_api_enrichment_failures_preserve_the_previous_period() -> None:
+    scraper = FakeScraper(pages={"daily": [make_trending("acme", "agent-flaky")]})
+    github = FakeGitHubClient(failures={"acme/agent-flaky": GitHubRequestError("offline")})
+    service = make_service(scraper, github)
+    result = await service.run()
+    assert result.status == "PARTIAL"
+    assert "daily" not in [period for period, _, _ in service.trending_store.replaced]
+
+
 async def test_ineligible_repositories_are_skipped() -> None:
     scraper = FakeScraper(
         pages={
