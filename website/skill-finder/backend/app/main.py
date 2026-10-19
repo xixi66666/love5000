@@ -14,7 +14,16 @@ from app.api.errors import (
     http_exception_handler,
     internal_error_handler,
 )
-from app.api.v1 import admin, collections, daily_reports, health, last30days, repositories, stats
+from app.api.v1 import (
+    admin,
+    collections,
+    daily_reports,
+    health,
+    last30days,
+    repositories,
+    stats,
+    template_editor,
+)
 from app.core.config import settings
 from app.core.scheduler import start_scheduler
 
@@ -47,6 +56,7 @@ app.include_router(collections.router, prefix="/api/v1")
 app.include_router(repositories.router, prefix="/api/v1")
 app.include_router(stats.router, prefix="/api/v1")
 app.include_router(last30days.router, prefix="/api/v1")
+app.include_router(template_editor.router, prefix="/api/v1")
 app.include_router(daily_reports.router, prefix="/api/v1")
 
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)

@@ -9,6 +9,7 @@ import sys
 from app.core.config import settings
 from app.daily import store
 from app.daily.pipeline import generate, now
+from app.daily.progress import Tracker
 
 
 def notify(day: str) -> dict:
@@ -21,27 +22,40 @@ def notify(day: str) -> dict:
         if not settings.daily_qq_target or not settings.daily_openclaw_command:
             report["qq_status"] = "not_configured"
             store.save(report)
+            Tracker(day).set("notify", "skipped", "QQ 接入口暂未配置。")
             return report
         url = settings.daily_public_url.rstrip("/") + "/daily-reports?date=" + day
         message = (
             f"{report['title']}已生成。\n中文配音、竖屏视频、项目链接：{url}\n"
             "请先预览，在审核页批准后才会提交抖音发布。"
         )
-        subprocess.run([
-            settings.daily_openclaw_command, "message", "send", "--channel", "qqbot",
-            "--target", settings.daily_qq_target, "--message", message,
-        ], check=True, capture_output=True, timeout=120)
+        progress = Tracker(day)
+        progress.begin("notify", "正在通过已配置的 QQ 接入口发送日报链接。")
+        try:
+            subprocess.run([
+                settings.daily_openclaw_command, "message", "send", "--channel", "qqbot",
+                "--target", settings.daily_qq_target, "--message", message,
+            ], check=True, capture_output=True, timeout=120)
+        except (OSError, subprocess.SubprocessError):
+            progress.set("notify", "failed", "通知发送失败，请检查 QQ 接入口配置后重试。")
+            raise
         report.update(qq_status="sent", qq_sent_at=now())
         store.save(report)
+        progress.finish("notify", "QQ 日报链接已送达。")
         return report
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=["generate", "collect", "notify", "publish", "login"])
+    parser.add_argument("action", choices=["generate", "collect", "notify", "publish", "login", "sample"])
     parser.add_argument("--collect", action="store_true")
     parser.add_argument("--date", default=now()[:10])
     args = parser.parse_args()
+    if args.action == "sample":
+        from app.daily.sample import generate_sample
+
+        print(json.dumps(generate_sample(), ensure_ascii=False))
+        return
     if args.action == "login":
         from app.daily.douyin_login import login
 

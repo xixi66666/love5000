@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import re
+import signal
 import subprocess
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
 from app.core.config import settings
+from app.daily.progress import current
 
 WIDTH, HEIGHT = 720, 1280
 BG, INK, MUTED, GREEN = "#07090c", "#f4f6f8", "#b3bbc8", "#c9fe6e"
@@ -61,12 +64,25 @@ def card(scene: dict, day: str, path: Path) -> None:
     image.save(path)
 
 
-def run(args: list[str], *, cwd: Path | None = None, timeout: int = 900) -> str:
-    result = subprocess.run(args, check=False, cwd=cwd, capture_output=True, timeout=timeout)
-    if result.returncode:
+def run(args: list[str], *, cwd: Path | None = None, timeout: int = 900,
+        env: dict[str, str] | None = None) -> str:
+    process = subprocess.Popen(args, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                               env=env, start_new_session=os.name != "nt")
+    try:
+        output, _ = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        # 只终止本次创建的进程树，防止 Node 超时后遗留 Chromium / FFmpeg。
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                           capture_output=True, check=False, timeout=30)
+        else:
+            os.killpg(process.pid, signal.SIGKILL)
+        process.communicate()
+        raise RuntimeError(f"{Path(args[0]).name} timed out") from None
+    if process.returncode:
         # Do not leak subprocess environments or upstream URLs into public reports.
-        raise RuntimeError(f"{Path(args[0]).name} failed (exit {result.returncode})")
-    return result.stdout.decode("utf-8", "replace")
+        raise RuntimeError(f"{Path(args[0]).name} failed (exit {process.returncode})")
+    return output.decode("utf-8", "replace")
 
 
 async def speech(text: str, target: Path) -> None:
@@ -103,7 +119,11 @@ def subtitles(text: str, duration: float, offset: float = 0, index: int = 1) -> 
     return "\n".join(result), index
 
 
-def render(scenes: list[dict], day: str, directory: Path) -> float:
+def render_legacy(scenes: list[dict], day: str, directory: Path) -> float:
+    progress = current()
+    if progress:
+        progress.set("assets", "skipped", "显式 legacy 模式使用原文字卡片。")
+        progress.begin("voice", "旧版 Edge 配音与卡片合成中。", total=len(scenes))
     subtitles_all, offset, next_index = [], 0.0, 1
     for i, scene in enumerate(scenes):
         work = directory / f"scene-{i:02}"
@@ -140,4 +160,16 @@ def render(scenes: list[dict], day: str, directory: Path) -> float:
     ], cwd=directory)
     (directory / "subtitles.srt").write_text("\n".join(subtitles_all), encoding="utf-8")
     (directory / "poster.png").write_bytes((directory / "scene-00/card.png").read_bytes())
+    if progress:
+        progress.finish("voice", "旧版配音已生成。")
+        progress.set("captions", "completed", "旧版字幕使用估算时间，不属于新版实测对齐。")
+        progress.finish("render", "旧版卡片视频已合成。")
     return offset
+
+
+def render(scenes: list[dict], day: str, directory: Path) -> float:
+    if settings.daily_video_renderer == "legacy":
+        return render_legacy(scenes, day, directory)
+    from app.daily.remotion import render as render_remotion
+
+    return render_remotion(scenes, day, directory)

@@ -1,12 +1,25 @@
+FROM node:22-bookworm-slim AS video-renderer
+WORKDIR /renderer
+RUN npm install --global pnpm@11.25.0
+COPY video-renderer/package.json video-renderer/pnpm-lock.yaml video-renderer/pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
+COPY video-renderer/src ./src
+COPY video-renderer/scripts ./scripts
+COPY video-renderer/tsconfig.json ./
+RUN pnpm run typecheck
+
 FROM python:3.12-slim-bookworm
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 HOME=/tmp TZ=Asia/Shanghai
 ARG DOWNLOAD_PROXY=
 RUN if [ -n "$DOWNLOAD_PROXY" ]; then export http_proxy="$DOWNLOAD_PROXY" https_proxy="$DOWNLOAD_PROXY"; fi; \
     sed -i 's|http://deb.debian.org/debian|https://mirrors.cloud.tencent.com/debian|g' /etc/apt/sources.list.d/debian.sources && \
-    apt-get -o Acquire::Retries=5 update && apt-get -o Acquire::Retries=5 install -y --no-install-recommends ffmpeg fonts-noto-cjk ca-certificates \
+    apt-get -o Acquire::Retries=5 update && apt-get -o Acquire::Retries=5 install -y --no-install-recommends ffmpeg fonts-noto-cjk ca-certificates chromium \
     libnss3 libatk-bridge2.0-0 libgbm1 libasound2 \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app/backend
+ENV REMOTION_BROWSER_EXECUTABLE=/usr/bin/chromium
+COPY --from=video-renderer /usr/local/bin/node /usr/local/bin/node
+COPY --from=video-renderer /renderer /app/video-renderer
 COPY backend/pyproject.toml ./
 COPY deploy/requirements.lock /tmp/requirements.lock
 RUN pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple -r /tmp/requirements.lock \

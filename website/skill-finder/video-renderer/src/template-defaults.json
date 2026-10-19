@@ -1,0 +1,13 @@
+{
+  "accent": "#ff6038",
+  "background": "#f4f1e9",
+  "foreground": "#101618",
+  "brand": "SKILL FINDER",
+  "tagline": "先看用途，再看热度。",
+  "headlineSize": 80,
+  "captionSize": 48,
+  "captionBottom": 310,
+  "safeRight": 150,
+  "mediaTop": 610,
+  "motion": 1
+}

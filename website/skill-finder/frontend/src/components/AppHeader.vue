@@ -62,7 +62,7 @@ onUnmounted(() => {
       <nav class="primary-nav" aria-label="主导航">
         <RouterLink to="/" class="nav-link">榜单</RouterLink>
         <RouterLink to="/last30days" class="nav-link">近 30 天最热</RouterLink>
-        <RouterLink to="/daily-reports" class="nav-link">日报与视频</RouterLink>
+        <RouterLink to="/daily-reports" class="nav-link">制作操作台</RouterLink>
       </nav>
 
       <div class="search-box">

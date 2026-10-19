@@ -4,9 +4,10 @@ set -eu
 # containers when installing a newer release; never touch the existing web/MySQL services.
 if ! docker container inspect skill-finder >/dev/null 2>&1; then
   docker run -d --name skill-finder --restart unless-stopped --network host \
-    --user 65532:65532 --read-only --tmpfs /tmp:rw,nosuid,nodev,size=128m \
-    --security-opt no-new-privileges --cap-drop ALL --pids-limit 160 \
-    --memory 640m --memory-swap 1280m --cpus 1 \
+    --user 65532:65532 --read-only --tmpfs /tmp:rw,nosuid,nodev,size=512m \
+    --security-opt no-new-privileges --cap-drop ALL --pids-limit 512 \
+    --memory "${SKILL_FINDER_MEMORY:-3g}" --memory-swap "${SKILL_FINDER_MEMORY_SWAP:-4g}" \
+    --cpus "${SKILL_FINDER_CPUS:-2}" \
     --log-opt max-size=10m --log-opt max-file=3 \
     --env-file /etc/skill-finder/service.env \
     -v /var/lib/skill-finder:/data \

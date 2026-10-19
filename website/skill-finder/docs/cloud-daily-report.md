@@ -47,13 +47,15 @@
 定时任务由服务器 crond 执行，无需在 Codex 桌面另建重复提醒。
 
 1. 07:10 采集 GitHub Trending 日/周/月榜，沿用 AI / Agent / Skill / MCP / Plugin 范围。
-2. 07:30 生成当天日报、中文配音、字幕和 720×1280 竖屏视频；07:45 对失败任务重试。
+2. 07:30 生成当天日报、中文配音、字幕和竖屏视频；07:45 对失败任务重试。新版代码默认
+   Remotion 1080×1920 / 30 FPS，云端升级前需按 `remotion-integration.md` 准备依赖、素材、模型缓存和资源。
 3. 08:00 调用送达任务。QQ 当前按用户要求不配置，任务记录 `not_configured`，不谎报送达。
 4. 报告进入 `pending_review`，网站可预览、下载；不会因 08:00 到点而自动批准。
 
 生成读取当天的快照；没有新数据则失败。AI 项目不足十个时如实标注数量，不补入旧数据。
 视频由后向前倒数，每项展示名称、今日新增 Star、实际用途和来源日期；保留配音与字幕文件。
-配音使用 Edge TTS `zh-CN-YunxiNeural`，失败时明确报告失败，不生成“静音成功”视频。
+新版默认使用 MiMo TTS 和真实音轨转写字幕，需私有 `MIMO_API_KEY`；显式 legacy 回退仍使用
+Edge TTS `zh-CN-YunxiNeural`。失败时明确报告失败，不生成“静音成功”视频。
 中文项目介绍通过用户明确提供的 DeepSeek Key 调用官方 API；`INTRO_API_KEY` 优先于旧 OpenCode 配置。
 非 OpenCode 模型地址未配置通用密钥时，不会回退读取本机 OpenCode 凭据。
 
@@ -114,6 +116,9 @@ QQ 根据用户要求暂不绑定，未安装或未授权的渠道不被报告�
 回滚只切换本服务版本，不回滚或 DROP 共享数据库。
 
 ## 测试
+
+模板编辑器沿用现有端口、管理鉴权和 data 持久卷，不开放 Studio。源码与样式编辑、编译、
+保存/恢复接口及 `video-template/` 备份边界见 [模板编辑器](template-editor.md)。本地验证不代表已部署到云端。
 
 后端 `ruff check .`、`pytest -q`；集成测试只允许独立 TEST_DATABASE_URL，未设置时跳过。
 `tests/unit/test_daily_reports.py` 覆盖认证、哈希绑定、拒绝发布、无新数据失败和日期校验。

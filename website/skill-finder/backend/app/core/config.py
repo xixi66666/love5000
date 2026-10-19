@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import re
 from pathlib import Path
+from typing import Literal
 from urllib.parse import unquote, urlsplit
 
 import yaml
@@ -93,6 +94,22 @@ class Settings(BaseSettings):
     daily_reports_dir: str = "data/daily-reports"
     daily_public_url: str = "http://127.0.0.1:5177"
     daily_tts_voice: str = "zh-CN-YunxiNeural"
+    daily_video_renderer: Literal["remotion", "legacy"] = "remotion"
+    daily_node_command: str = "node"
+    remotion_browser_executable: str = ""
+    remotion_concurrency: int = Field(default=2, ge=1, le=8)
+    daily_render_timeout_seconds: int = Field(default=1800, ge=60, le=7200)
+    daily_tts_provider: Literal["edge", "mimo"] = "mimo"
+    mimo_api_key: SecretStr = SecretStr("")
+    mimo_api_base: str = "https://api.xiaomimimo.com/v1"
+    mimo_tts_model: str = "mimo-v2.5-tts"
+    mimo_tts_voice: str = "苏打"
+    mimo_tts_style: str = "自然的中文科技工具推荐，语速明快但不赶，短句清楚，重点词有重音，保留自然停顿，不夸张播报。"
+    daily_whisper_model: str = "small"
+    daily_assets_dir: str = "data/video-assets"
+    daily_require_demo_assets: bool = True
+    daily_ffmpeg_command: str = "ffmpeg"
+    daily_ffprobe_command: str = "ffprobe"
     daily_font: str = ""
     daily_qq_target: str = ""
     daily_openclaw_command: str = ""

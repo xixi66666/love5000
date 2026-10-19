@@ -1,0 +1,6 @@
+node_modules/
+.remotion/
+out/
+dist/
+public/runtime/
+.test-tmp/
