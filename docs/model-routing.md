@@ -8,6 +8,7 @@
 | 来源 / 能力 | 模型或配置 | 实际状态 |
 | --- | --- | --- |
 | DeepSeek / 文本 | `deepseek-flash`、`deepseek-v4-pro` | 已用现有私有凭据查询 `/models`，两个模型均被列出，未执行收费生成 |
+| Xiaomi MiMo / 文本 | `mimo-v2.6-pro`、`mimo-v2.6-flash` | 复用现有私有 MiMo Key；目录核验及统一网关真实生成均已通过（Pro JSON、Flash 文本），支持全局选择和局部覆盖 |
 | Strata / 本机文本 | Qwen3.8-Flash-Next IQ3_S，9999 | 当前离线；安装完整时可从选择器启动，读取真实模型 ID，首次生成加载权重 |
 | Skill Finder / 文本 | `INTRO_API_BASE`、`INTRO_MODEL` | 读取私有 .env 及引用的密钥文件；相同地址与密钥来源合并展示 |
 | 个人 Agent / 文本 | `PERSONAL_AGENT_*` | 显式配置提供方时纳入目录，也可直接使用统一 DeepSeek |
@@ -48,6 +49,30 @@ website 从根或 website 目录启动均可定位配置；独立 jar 部署通�
 生成代理只允许服务端调用。未选择统一模型时保留原逻辑；已选择但网关离线时报错，不静默换模型。
 状态原子保存失败时，不更新内存选择，不谎报成功。
 
+### MiMo V2.6 文本模型
+
+统一入口自动读取 `MIMO_API_KEY`、`MIMO_API_BASE` 和 `MIMO_CHAT_MODELS`：环境变量优先，
+没有设置时复用 `website/skill-finder/backend/.env`，不复制密钥。
+默认官方 OpenAI 兼容地址 `https://api.xiaomimimo.com/v1`，使用官方支持的 `Authorization: Bearer` 鉴权。
+默认文本列表为 `mimo-v2.6-pro,mimo-v2.6-flash`，还会与实时 `/models` 结果取交集，认证失败时不能选择。
+目录中的 ASR/TTS 不进入文本列表；即将下线的 V2.5 与定制 Ultraspeed 也不自动加入。
+如已购买定制服务，可显式扩展 `MIMO_CHAT_MODELS`，最终仍需模型目录核验。
+
+模型 ID 为 `mimo:mimo-v2.6-pro` / `mimo:mimo-v2.6-flash`，直接复用现有主页和工作台选择器。
+接入不会修改已经保存的全局或局部选择；需要使用时在页面选择对应 MiMo 型号即可。
+现有 `MIMO_TTS_MODEL=mimo-v2.5-tts`、音色和配音流程保留。
+
+网关将现有微服务的 `max_tokens` 映射为 MiMo 官方 `max_completion_tokens`；已显式传入后者时优先保留。
+未指定预算时使用8192；默认 `thinking.type=disabled`，适配短输出选择器修复与 JSON 解析。
+服务端请求可以显式开启思考；此时按官方约束移除自定义 `temperature` / `top_p`，
+预算同时覆盖思考和最终输出。`response_format=json_object` 原样传递，提示词仍须要求输出正确 JSON 结构。
+鉴权、JSON 和模型选择失败均沿用已有脱敏错误，不回显密钥，不自动切换其他提供方。
+
+官方资料：[首次调用](https://mimo.mi.com/docs/zh-CN/quick-start/summary/first-api-call)、
+[模型列表](https://mimo.mi.com/docs/zh-CN/quick-start/summary/model)、
+[深度思考](https://mimo.mi.com/docs/zh-CN/quick-start/usage-guide/text-generation/deep-thinking)、
+[结构化输出](https://mimo.mi.com/docs/zh-CN/quick-start/usage-guide/text-generation/structured-output)。
+
 浏览器默认本机8080，改端口需配置宿主 `data-model-hub` 并更新已知 Origin 清单。
 云端独立服务保持原配置，此入口不扩大为远程管理接口。
 
@@ -78,3 +103,10 @@ Skill Finder 运行前端 lint/typecheck/test/build、后端 pytest/ruff；Scrap
 公共客户端回归：`python -m unittest discover -s website/model-routing -p 'test_*.py'`。
 
 手动验证全局默认、局部覆盖、恢复跟随、重启持久化、离线失败、桌面/手机、键盘单选、Esc 和搜索错误状态。
+
+MiMo 回归：`mvn -pl website -am test`，`MimoModelRoutingTest` 覆盖私有配置复用与环境变量优先、
+TTS/ASR/旧型号过滤、全局/局部路由、令牌字段转换、思考模式和失败脱敏。
+
+2026-10-20 验证结果：website/common 共166项测试通过，website jar 已重新打包。
+隔离网关使用真实私有凭据验证 Pro 的 JSON 输出与 Flash 的普通文本输出均成功；
+两次请求只包含公开测试文本，未切换实际业务服务的全局/局部选择，也未修改 TTS 配置。

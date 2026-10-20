@@ -17,6 +17,10 @@ public class ModelSources {
             this.id=id; this.label=label; this.base=base.replaceAll("/+$", ""); this.key=key;
             this.configured=Arrays.asList(models.split(","));
         }
+        boolean acceptsModel(String model) {
+            // MiMo 目录还列出即将下线和定制服务模型，文本入口只展示明确配置的型号。
+            return !"mimo".equals(id) || configured.stream().anyMatch(name -> name.trim().equals(model));
+        }
     }
     private final Environment env;
     private final ObjectMapper json;
@@ -70,6 +74,10 @@ public class ModelSources {
         }
         sources.add(new Source("intro","Skill Finder 网关",introBase,introKey,
                 value(intro,"INTRO_MODEL","ox-alpha-free,deepseek-v4-flash").replace("opencode-go/","")));
+        sources.add(new Source("mimo", "Xiaomi MiMo",
+                value(intro, "MIMO_API_BASE", "https://api.xiaomimimo.com/v1"),
+                value(intro, "MIMO_API_KEY", ""),
+                value(intro, "MIMO_CHAT_MODELS", "mimo-v2.6-pro,mimo-v2.6-flash")));
         sources.add(new Source("openai","OpenAI 兼容接口",env.getProperty("OPENAI_BASE_URL","https://api.openai.com/v1"),
                 env.getProperty("OPENAI_API_KEY",""),env.getProperty("OPENAI_CHAT_MODEL","")));
         sources.add(new Source("personal","个人 Agent 网关",env.getProperty("PERSONAL_AGENT_API_BASE","https://api.deepseek.com"),

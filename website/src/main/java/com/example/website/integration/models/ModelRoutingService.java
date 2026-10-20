@@ -53,7 +53,7 @@ public class ModelRoutingService {
             if(configured) try { JsonNode data=http.request(source.base+"/models",source.key,null,6000);
                 if(data.path("data").isArray()) { verified=true; for(JsonNode model:data.path("data")) {
                     String id=model.path("id").asText();
-                    if(isChatModel(id)) models.add(id);
+                    if(isChatModel(id) && source.acceptsModel(id)) models.add(id);
                 }}
             } catch(Exception ignored) { }
             if(!verified) for(String name:source.configured) if(!name.trim().isEmpty()) models.add(name.trim());
@@ -71,7 +71,7 @@ public class ModelRoutingService {
     }
     static boolean isChatModel(String id) {
         String m=id.toLowerCase(Locale.ROOT);
-        return !m.isEmpty() && !m.matches(".*(image|dall-e|whisper|tts|embedding|moderation|sora|audio|realtime|transcri|rerank).*");
+        return !m.isEmpty() && !m.matches(".*(image|dall-e|whisper|tts|asr|embedding|moderation|sora|audio|realtime|transcri|rerank).*");
     }
     public synchronized Map<String,Object> effective(String service) {
         validateService(service);String override=selections.getOrDefault(service,"");
@@ -114,6 +114,18 @@ public class ModelRoutingService {
         ObjectNode payload=body.deepCopy();payload.put("model",selected.model);payload.put("stream",false);
         // 禁止客户端通过兼容接口传入任意工具或回调地址。
         payload.remove(Arrays.asList("tools","tool_choice","functions","function_call","webhook","callback_url"));
+        if ("mimo".equals(selected.source.id)) {
+            // MiMo 官方使用 max_completion_tokens，现有微服务仍可沿用 max_tokens。
+            JsonNode maxTokens = payload.remove("max_tokens");
+            if (!payload.has("max_completion_tokens")) {
+                payload.set("max_completion_tokens", maxTokens == null ? json.getNodeFactory().numberNode(8192) : maxTokens);
+            }
+            // 直接输出任务默认关闭思考，避免选择器/JSON 的短预算只产生推理内容。
+            if (!payload.has("thinking")) payload.putObject("thinking").put("type", "disabled");
+            if ("enabled".equals(payload.path("thinking").path("type").asText())) {
+                payload.remove(Arrays.asList("temperature", "top_p"));
+            }
+        }
         try { return http.request(selected.source.base+"/chat/completions",selected.source.key,payload,300000); }
         catch(Exception e) { fail(502,"模型请求失败，请检查提供方状态或私有凭据后重试");return null; }
     }
