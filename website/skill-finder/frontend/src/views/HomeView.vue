@@ -246,14 +246,24 @@ let pollTimer: ReturnType<typeof setInterval> | null = null
 let pollElapsedMs = 0
 let pollSawRunning = false
 let pollBaseline: string | null = null
+let pollBaselineRunId: number | null = null
+let pollInFlight = false
+let refreshDisposed = false
 
 async function onRefreshData() {
   if (refreshing.value) return
-  refreshNotice.value = ''
+  refreshing.value = true
+  refreshNotice.value = '正在提交采集请求…'
   try {
-    pollBaseline = lastCollectionAt.value
+    const baseline = await fetchStats()
+    if (refreshDisposed) return
+    pollBaseline = baseline.last_successful_collection_at
+    pollBaselineRunId = baseline.last_run_id ?? null
     await triggerCollectionRefresh()
+    if (refreshDisposed) return
   } catch (cause: unknown) {
+    if (refreshDisposed) return
+    refreshing.value = false
     refreshNotice.value = cause instanceof Error ? fromAxiosError(cause).userMessage : '触发采集失败，请稍后重试。'
     return
   }
@@ -267,35 +277,45 @@ async function onRefreshData() {
 }
 
 async function pollCollectionStatus() {
+  if (pollInFlight || !refreshing.value || refreshDisposed) return
+  pollInFlight = true
   pollElapsedMs += POLL_INTERVAL_MS
   try {
     const statsData = await fetchStats()
-    if (statsData.last_run_status === 'RUNNING') pollSawRunning = true
+    if (refreshDisposed || !refreshing.value) return
+    const isNewRun = statsData.last_run_id != null && statsData.last_run_id !== pollBaselineRunId
+    if (statsData.last_run_status === 'RUNNING' && (isNewRun || statsData.last_run_id == null)) {
+      pollSawRunning = true
+    }
     const succeededAt = statsData.last_successful_collection_at
     if (succeededAt && succeededAt !== pollBaseline) {
-      finishRefresh('')
+      finishRefresh(statsData.last_run_status === 'PARTIAL'
+        ? statsData.last_run_warning || '榜单已更新，部分内容未完成。'
+        : '', true)
       return
     }
-    if (pollSawRunning && statsData.last_run_status === 'FAILED') {
-      finishRefresh('采集执行失败，请稍后重试。')
+    if ((isNewRun || pollSawRunning) && statsData.last_run_status === 'FAILED') {
+      finishRefresh(statsData.last_run_error || '采集执行失败，请检查网络后重试。')
       return
     }
   } catch {
     // 轮询中的瞬时网络错误不中断等待
+  } finally {
+    pollInFlight = false
   }
   if (pollElapsedMs >= POLL_TIMEOUT_MS) {
     finishRefresh('采集超时，请稍后手动刷新页面查看结果。')
   }
 }
 
-function finishRefresh(notice: string) {
+function finishRefresh(notice: string, reload = false) {
   if (pollTimer) {
     clearInterval(pollTimer)
     pollTimer = null
   }
   refreshing.value = false
   refreshNotice.value = notice
-  if (!notice) {
+  if (!notice || reload) {
     void loadRepositories()
     void loadHeaderData()
   }
@@ -448,6 +468,7 @@ watch(items, async () => {
 })
 
 onUnmounted(() => {
+  refreshDisposed = true
   document.removeEventListener('keydown', onKeydown)
   if (pollTimer) {
     clearInterval(pollTimer)

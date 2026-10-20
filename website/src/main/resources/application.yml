@@ -83,6 +83,9 @@ website:
     h3-port: 8189
     startup-timeout-seconds: 180
   service-health:
+    # 启动巡检一次，后续每 30 分钟检查；首页只读取缓存结果。
+    check-interval-ms: 1800000
+    scheduled-enabled: true
     connect-timeout-ms: 2000
     read-timeout-ms: 3000
     services:

@@ -78,6 +78,8 @@ onUnmounted(() => {
         />
       </div>
 
+      <div class="model-picker" data-model-picker data-model-scope="skill-finder"></div>
+
       <button
         class="theme-toggle"
         type="button"
@@ -260,9 +262,17 @@ onUnmounted(() => {
 
   .search-box {
     order: 4;
-    flex-basis: 100%;
+    flex: 1 1 110px;
+    min-width: 0;
     max-width: none;
     margin-left: 0;
+  }
+
+  .model-picker {
+    order: 4;
+    flex: 0 1 155px;
+    min-width: 0;
+    max-width: 48%;
   }
 }
 </style>

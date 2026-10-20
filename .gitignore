@@ -59,6 +59,7 @@ personal-agent/.secrets/
 personal-agent/.runtime/
 
 ### Local dependency cache and generated data ###
+/.runtime/
 /.m2/
 /website/video/config.local.json
 /website/skill-finder/backend/data/

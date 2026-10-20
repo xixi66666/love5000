@@ -82,6 +82,7 @@ class Settings(BaseSettings):
     intro_model: str = "opencode-go/ox-alpha-free,opencode-go/deepseek-v4-flash"
     intro_api_base: str = "https://opencode.ai/zen/go/v1"
     intro_api_key: SecretStr = SecretStr("")
+    intro_api_key_file: str = Field(default="", repr=False)
     opencode_api_key: str = ""
     intro_concurrency: int = 8
     intro_batch_size: int = 5

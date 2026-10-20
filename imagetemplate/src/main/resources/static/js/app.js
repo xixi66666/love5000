@@ -1,4 +1,25 @@
 (function () {
+    // 图片模型只对当前工作台生效；仅持久化名称，不保存密钥。
+    (function setupImageModelPicker() {
+        var select = document.getElementById('imageModelSelect');
+        if (!select) return;
+        fetchJson('/api/image-templates/models').then(function (data) {
+            select.replaceChildren();
+            var stored = '';
+            try { stored = localStorage.getItem('imagetemplate.model') || ''; } catch (ignored) {}
+            data.models.forEach(function (model) {
+                var option = document.createElement('option');
+                option.value = model;
+                option.textContent = model.replace('gpt-image-', '') + (model === data.defaultModel ? ' · 默认' : '');
+                select.appendChild(option);
+            });
+            select.value = data.models.indexOf(stored) >= 0 ? stored : data.defaultModel;
+            select.title = data.message;
+            select.addEventListener('change', function () {
+                try { localStorage.setItem('imagetemplate.model', select.value); } catch (ignored) {}
+            });
+        }).catch(function () { select.title = '无法读取图片模型，继续使用服务默认配置'; });
+    })();
     var state = {
         activeSource: '',
         activeCategory: '',
@@ -848,6 +869,7 @@
 
     function buildGenerationPayload(variables, imageSize) {
         return {
+            model: document.getElementById('imageModelSelect').value,
             variables: variables,
             extraInstruction: elements.extraInstructionInput.value,
             prompt: elements.renderedPrompt.value,
@@ -860,6 +882,7 @@
 
     function buildMultipartPayload(variables, files, imageSize) {
         var formData = new FormData();
+        formData.append('model', document.getElementById('imageModelSelect').value);
         formData.append('variables', JSON.stringify(variables));
         formData.append('extraInstruction', elements.extraInstructionInput.value);
         formData.append('prompt', elements.renderedPrompt.value);

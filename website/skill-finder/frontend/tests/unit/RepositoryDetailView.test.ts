@@ -106,7 +106,9 @@ describe('RepositoryDetailView', () => {
     const wrapper = await mountDetail()
     expect(wrapper.find('[data-testid="introduction"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="introduction-missing"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain('介绍生成中')
+    expect(wrapper.text()).toContain('暂未生成中文介绍')
+    expect(wrapper.text()).not.toContain('介绍生成中')
+    expect(wrapper.text()).toContain('上方项目描述')
   })
 
   it('renders not-found state on 404', async () => {

@@ -97,6 +97,11 @@ public class ImagePromptTemplateController {
         return imagePromptTemplateService.getMeta();
     }
 
+    @GetMapping("/models")
+    public Map<String, Object> getImageModels() {
+        return openAiImageGenerationService.modelOptions();
+    }
+
     @GetMapping("/{id}")
     public Map<String, Object> getTemplate(@PathVariable("id") String id) {
         Map<String, Object> result = new HashMap<String, Object>();
@@ -128,6 +133,7 @@ public class ImagePromptTemplateController {
                                                                @RequestParam(value = "quality", required = false) String quality,
                                                                @RequestParam(value = "outputFormat", required = false) String outputFormat,
                                                                @RequestParam(value = "background", required = false) String background,
+                                                               @RequestParam(value = "model", required = false) String model,
                                                                @RequestParam(value = "referenceImages", required = false) MultipartFile[] referenceImages) {
         ImageGenerationRequest request = new ImageGenerationRequest();
         request.setVariables(readVariables(variables));
@@ -137,6 +143,7 @@ public class ImagePromptTemplateController {
         request.setQuality(quality);
         request.setOutputFormat(outputFormat);
         request.setBackground(background);
+        request.setModel(model);
         request.setReferenceImages(readReferenceImages(referenceImages));
         return openAiImageGenerationService.generate(id, request, userApiKey);
     }

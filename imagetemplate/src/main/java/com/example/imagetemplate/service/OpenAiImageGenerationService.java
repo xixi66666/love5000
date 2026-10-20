@@ -55,11 +55,19 @@ public class OpenAiImageGenerationService {
 
     private final String imageModel;
 
+    private final java.util.List<String> imageModels;
+
     public OpenAiImageGenerationService(ImagePromptTemplateService imagePromptTemplateService, Environment environment) {
         this.imagePromptTemplateService = imagePromptTemplateService;
         this.apiKey = environment.getProperty("openai.api-key", "");
         this.baseUrl = environment.getProperty("openai.base-url", "https://nimabo.cn/v1");
         this.imageModel = environment.getProperty("openai.image-model", "gpt-image-2.5-sunburst");
+        java.util.Set<String> configuredModels = new java.util.LinkedHashSet<String>();
+        configuredModels.add(imageModel);
+        for (String model : environment.getProperty("openai.image-models", "gpt-image-2.5-sunburst,gpt-image-2.5-flare").split(",")) {
+            if (!model.trim().isEmpty()) configuredModels.add(model.trim());
+        }
+        this.imageModels = java.util.Collections.unmodifiableList(new java.util.ArrayList<String>(configuredModels));
 
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(readInt(environment, "openai.connect-timeout-ms", 300000));
@@ -75,6 +83,7 @@ public class OpenAiImageGenerationService {
     public ImageGenerationResponse generate(String templateId, ImageGenerationRequest request, String userApiKey) {
         String effectiveApiKey = resolveApiKey(userApiKey);
         ImageGenerationRequest generationRequest = request == null ? new ImageGenerationRequest() : request;
+        String selectedModel = resolveModel(generationRequest.getModel());
         String imageSize = normalizeImageSize(generationRequest.getSize());
         String prompt = resolvePrompt(templateId, generationRequest);
         String outputFormat = normalizeOption(generationRequest.getOutputFormat(), "png");
@@ -84,7 +93,7 @@ public class OpenAiImageGenerationService {
         if (!referenceImages.isEmpty()) {
             LOGGER.info("Generating image with references. templateId={}, model={}, endpoint={}, size={}, quality={}, outputFormat={}, background={}, referenceImageCount={}",
                     templateId,
-                    imageModel,
+                    selectedModel,
                     "/images/edits",
                     imageSize,
                     normalizeOption(generationRequest.getQuality(), "low"),
@@ -96,7 +105,7 @@ public class OpenAiImageGenerationService {
 
         LOGGER.info("Generating image. templateId={}, model={}, endpoint={}, size={}, quality={}, outputFormat={}, background={}",
                 templateId,
-                imageModel,
+                selectedModel,
                 "/images/generations",
                 imageSize,
                 normalizeOption(generationRequest.getQuality(), "low"),
@@ -104,7 +113,7 @@ public class OpenAiImageGenerationService {
                 normalizeOption(generationRequest.getBackground(), "auto"));
 
         Map<String, Object> requestBody = new HashMap<String, Object>();
-        requestBody.put("model", imageModel);
+        requestBody.put("model", selectedModel);
         requestBody.put("prompt", prompt);
         requestBody.put("size", imageSize);
         requestBody.put("quality", normalizeOption(generationRequest.getQuality(), "low"));
@@ -121,7 +130,9 @@ public class OpenAiImageGenerationService {
                     HttpMethod.POST,
                     new HttpEntity<Map<String, Object>>(requestBody, headers),
                     Map.class);
-            return toGenerationResponse(templateId, prompt, outputFormat, mimeType, response.getBody());
+            ImageGenerationResponse result = toGenerationResponse(templateId, prompt, outputFormat, mimeType, response.getBody());
+            result.setModel(selectedModel);
+            return result;
         } catch (HttpStatusCodeException exception) {
             logOpenAiHttpError("generation", templateId, "/images/generations", exception);
             throw new ImageGenerationException("OpenAI image generation failed: " + readableResponseBody(exception), exception);
@@ -145,7 +156,8 @@ public class OpenAiImageGenerationService {
                                                                 String imageSize,
                                                                 String effectiveApiKey) {
         MultiValueMap<String, Object> requestBody = new LinkedMultiValueMap<String, Object>();
-        requestBody.add("model", imageModel);
+        String selectedModel = resolveModel(generationRequest.getModel());
+        requestBody.add("model", selectedModel);
         requestBody.add("prompt", prompt);
         requestBody.add("size", imageSize);
         requestBody.add("quality", normalizeOption(generationRequest.getQuality(), "low"));
@@ -165,7 +177,9 @@ public class OpenAiImageGenerationService {
                     HttpMethod.POST,
                     new HttpEntity<MultiValueMap<String, Object>>(requestBody, headers),
                     Map.class);
-            return toGenerationResponse(templateId, prompt, outputFormat, mimeType, response.getBody());
+            ImageGenerationResponse result = toGenerationResponse(templateId, prompt, outputFormat, mimeType, response.getBody());
+            result.setModel(selectedModel);
+            return result;
         } catch (HttpStatusCodeException exception) {
             logOpenAiHttpError("edit", templateId, "/images/edits", exception);
             throw new ImageGenerationException("OpenAI image edit failed: " + readableResponseBody(exception), exception);
@@ -300,6 +314,22 @@ public class OpenAiImageGenerationService {
             response.setUsage((Map<String, Object>) usage);
         }
         return response;
+    }
+
+    public Map<String, Object> modelOptions() {
+        Map<String, Object> result = new java.util.LinkedHashMap<String, Object>();
+        result.put("success", true);
+        result.put("defaultModel", imageModel);
+        result.put("models", imageModels);
+        result.put("verified", false);
+        result.put("message", "以下为服务配置的图片模型，实际可用性取决于提供方和当前密钥。主页文本模型不会覆盖图片任务。");
+        return result;
+    }
+
+    private String resolveModel(String requested) {
+        String model = hasText(requested) ? requested.trim() : imageModel;
+        if (!imageModels.contains(model)) throw new ImageGenerationException("不支持的图片模型，请从模型列表选择。");
+        return model;
     }
 
     private String resolveApiKey(String userApiKey) {

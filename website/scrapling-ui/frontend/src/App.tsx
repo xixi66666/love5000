@@ -514,7 +514,7 @@ function App() {
           )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '11.5px', color: 'var(--text-secondary)', marginLeft: '12px' }}>
+        <div className="scraping-options" style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '11.5px', color: 'var(--text-secondary)', marginLeft: '12px' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', userSelect: 'none' }} title="绕过 Cloudflare Turnstile 和机器人检测。">
             <input 
               type="checkbox" 
@@ -547,7 +547,7 @@ function App() {
           </label>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div className="header-tools" style={{ display: 'flex', gap: '8px' }}>
           <button 
             className="btn btn-secondary" 
             onClick={() => handleScroll(400)} 
@@ -565,6 +565,7 @@ function App() {
             向上滚动
           </button>
           <AISettings onApiKeyChange={setApiKey} />
+          <div className="scrapling-model-picker" data-model-picker data-model-scope="scrapling-ui" data-model-theme="scrapling" />
         </div>
       </header>
 

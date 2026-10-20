@@ -17,6 +17,100 @@ from app.services.introduction_service import (
 GATEWAY = "https://opencode.ai/zen/go/v1/chat/completions"
 
 
+@pytest.fixture(autouse=True)
+def isolate_private_intro_configuration(monkeypatch):
+    from pydantic import SecretStr
+
+    from app.services import introduction_service as module
+    from app.services import model_hub
+
+    async def native_mode():
+        return False
+
+    monkeypatch.setattr(model_hub, "active", native_mode)
+
+    monkeypatch.setattr(module.settings, "intro_api_key_file", "")
+    monkeypatch.setattr(module.settings, "intro_api_key", SecretStr(""))
+    monkeypatch.setattr(module.settings, "intro_api_base", "https://opencode.ai/zen/go/v1")
+
+
+def test_resolves_existing_deepseek_json_without_copying_key(monkeypatch, tmp_path):
+    from app.services import introduction_service as module
+
+    path = tmp_path / "private.json"
+    original = json.dumps({"DEEPSEEK_API_KEY": "test-private-value"})
+    path.write_text(original, encoding="utf-8")
+    monkeypatch.setattr(module.settings, "intro_api_key_file", str(path))
+    assert _resolve_api_key() == "test-private-value"
+    assert path.read_text(encoding="utf-8") == original
+
+
+def test_invalid_key_file_errors_do_not_expose_content_or_path(monkeypatch, tmp_path):
+    from app.services import introduction_service as module
+
+    path = tmp_path / "private.json"
+    path.write_text('{"DEEPSEEK_API_KEY": secret-content', encoding="utf-8")
+    monkeypatch.setattr(module.settings, "intro_api_key_file", str(path))
+    with pytest.raises(IntroductionGenerationError) as caught:
+        _resolve_api_key()
+    assert "secret-content" not in str(caught.value)
+    assert str(path) not in str(caught.value)
+
+
+async def test_expired_key_does_not_retry_models_or_split_batches(monkeypatch, respx_mock):
+    monkeypatch.setattr("app.services.introduction_service.settings.opencode_api_key", "test-key")
+    monkeypatch.setattr("app.services.introduction_service.settings.intro_model", "m1,m2")
+    route = respx_mock.post(GATEWAY).mock(
+        return_value=httpx.Response(401, json={"error": "expired private credential"})
+    )
+    with pytest.raises(IntroductionGenerationError, match="认证失败") as caught:
+        await generate_introductions_resilient([make_brief(str(i)) for i in range(5)])
+    assert route.call_count == 1
+    assert "private credential" not in str(caught.value)
+
+
+async def test_global_model_bypasses_native_credentials_and_provider(monkeypatch):
+    from app.services import model_hub
+
+    calls = []
+
+    async def selected():
+        return True
+
+    async def complete(payload):
+        calls.append(payload)
+        return {"choices": [{"message": {"content": '["统一模型生成的介绍"]'}}]}
+
+    monkeypatch.setattr(model_hub, "active", selected)
+    monkeypatch.setattr(model_hub, "chat", complete)
+    monkeypatch.setattr("app.services.introduction_service._resolve_api_key",
+                        lambda: pytest.fail("统一模型不应读取原提供方密钥"))
+    generated = await generate_introductions([make_brief()])
+    assert json.loads(generated[0])["introduction"] == "统一模型生成的介绍"
+    assert len(calls) == 1
+    assert "model" not in calls[0]
+
+
+async def test_selected_model_failure_stops_without_fallback(monkeypatch):
+    from app.services import model_hub
+
+    calls = []
+
+    async def selected():
+        return True
+
+    async def fail(payload):
+        calls.append(payload)
+        raise RuntimeError("private upstream detail")
+
+    monkeypatch.setattr(model_hub, "active", selected)
+    monkeypatch.setattr(model_hub, "chat", fail)
+    with pytest.raises(IntroductionGenerationError, match="统一模型") as caught:
+        await generate_introductions_resilient([make_brief(), make_brief("second")])
+    assert len(calls) == 1
+    assert "private upstream detail" not in str(caught.value)
+
+
 def make_brief(
     name: str = "demo-skill",
     topics: list[str] | None = None,

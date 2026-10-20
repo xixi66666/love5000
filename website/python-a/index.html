@@ -10,7 +10,8 @@
     <title>A 股自选股 AI 研究台</title>
     <link rel="icon" href="data:," />
     <link rel="stylesheet" href="./styles.css?v=20260608" />
-  </head>
+  <script src="model-picker.js?v=1" defer></script>
+</head>
   <body>
     <div class="app-shell">
       <header class="topbar">
@@ -40,6 +41,7 @@
           <button class="main-tab active" data-view="research" type="button">股票研究</button>
           <button class="main-tab" data-view="trading" type="button">交易复盘</button>
         </nav>
+        <div data-model-picker data-model-scope="python-a" data-model-theme="stock"></div>
       </header>
 
       <main id="researchView" class="workspace view-panel active">

@@ -147,7 +147,7 @@ onUnmounted(() => controller?.abort())
       <section v-else class="detail-section" data-testid="introduction-missing">
         <h2 class="section-title">项目介绍</h2>
         <div class="introduction-card intro-placeholder">
-          <p class="intro-text">介绍生成中：采集任务会自动为项目生成中文介绍，稍后刷新页面试试。</p>
+          <p class="intro-text">暂未生成中文介绍。可先查看上方项目描述，或访问 GitHub 了解详情。</p>
         </div>
       </section>
 

@@ -1,6 +1,8 @@
-import httpx
 import re
-from typing import Optional
+
+import httpx
+
+from services import model_hub
 
 DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
 
@@ -11,7 +13,7 @@ async def heal_selector(
     broken_selector: str,
     action_type: str,
     page,
-) -> Optional[str]:
+) -> str | None:
     page_context = await page.evaluate("""
     () => {
         try {
@@ -37,26 +39,31 @@ async def heal_selector(
         "5. Respond with ONLY the corrected selector"
     )
 
+    payload = {
+        "model": "deepseek-chat",
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": 0.1,
+        "max_tokens": 150,
+    }
+    use_hub = await model_hub.active()
     async with httpx.AsyncClient(timeout=30) as client:
         try:
-            response = await client.post(
-                DEEPSEEK_API_URL,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": "deepseek-chat",
-                    "messages": [
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": prompt},
-                    ],
-                    "temperature": 0.1,
-                    "max_tokens": 150,
-                },
-            )
-            response.raise_for_status()
-            data = response.json()
+            if use_hub:
+                data = await model_hub.chat(payload)
+            else:
+                response = await client.post(
+                    DEEPSEEK_API_URL,
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json=payload,
+                )
+                response.raise_for_status()
+                data = response.json()
             healed = data["choices"][0]["message"]["content"].strip()
             healed = re.sub(r'^```(?:css|xpath)?\s*', '', healed)
             healed = re.sub(r'\s*```$', '', healed)
@@ -64,5 +71,7 @@ async def heal_selector(
             if healed and healed != broken_selector:
                 return healed
         except Exception as e:
-            print(f"[DeepSeek] Healing failed: {e}")
+            if use_hub:
+                raise RuntimeError("已选模型修复失败，请检查统一模型入口") from e
+            print("[AI] 选择器修复失败，请检查模型配置")
     return None

@@ -18,10 +18,15 @@ public class ServiceHealthProperties {
 
     private int connectTimeoutMs = 2000;
     private int readTimeoutMs = 3000;
+    private long checkIntervalMs = 30 * 60 * 1000L;
+    private boolean scheduledEnabled = true;
     private List<ServiceHealthDefinition> services = new ArrayList<>();
 
     @PostConstruct
     public void validate() {
+        if (checkIntervalMs <= 0) {
+            throw new IllegalStateException("website.service-health.check-interval-ms must be positive");
+        }
         if (connectTimeoutMs <= 0) {
             throw new IllegalStateException("website.service-health.connect-timeout-ms must be positive");
         }
@@ -83,6 +88,22 @@ public class ServiceHealthProperties {
 
     public List<ServiceHealthDefinition> getServices() {
         return services;
+    }
+
+    public long getCheckIntervalMs() {
+        return checkIntervalMs;
+    }
+
+    public void setCheckIntervalMs(long checkIntervalMs) {
+        this.checkIntervalMs = checkIntervalMs;
+    }
+
+    public boolean isScheduledEnabled() {
+        return scheduledEnabled;
+    }
+
+    public void setScheduledEnabled(boolean scheduledEnabled) {
+        this.scheduledEnabled = scheduledEnabled;
     }
 
     public void setServices(List<ServiceHealthDefinition> services) {

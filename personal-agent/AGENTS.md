@@ -12,3 +12,10 @@
 - 模型/行情测试用替身，不用真实Key或资产。接口只允许本机，健康接口没有私人字段，其余API独立Session+CSRF。
 - 首页`/`和`/index.html`允许无Origin的GET顶层文档导航跨站进入，兼容localhost:8080跳到127.0.0.1:5178；不能把例外扩大到API、iframe或跨站fetch，修改时保留入口及安全边界回归测试。
 - 每次API/配置/数据/启动变化同步本README、AGENTS和根/website文档。验证 `mvn -pl personal-agent -am test`，前端 `node --check src/main/resources/static/app.js`。
+
+## 统一模型入口（2026-10-20）
+
+主页提供全局文本模型选择，python-a、scrapling-ui、skill-finder、personal-agent 提供“跟随主页 / 服务原配置 / 独立模型”，下一次请求生效。图片、视觉、语音和视频保留专用模型；quant-a 与 lovestory 当前没有文本模型调用。
+website 的 `/api/models` 提供目录核验、选择持久化和文本代理，状态文件为根 `.runtime/model-routing.json`，仅存模型 ID、不存密钥；Java 客户端在 common，Python 公共客户端在 website/model-routing，独立部署使用统一入口时需一并携带。原有认证保留。未选择时保留原逻辑，已选择但网关离线时报错。
+共享选择器源为 website/src/main/resources/static/model-picker/picker.js，修改后执行 `python scripts/sync-model-picker.py`，React/Vue 修改后重新构建 dist。图片工作台新增独立图片模型下拉与 `OPENAI_IMAGE_MODELS` 白名单，支持 JSON/multipart 的 `model` 字段。
+完整盘点、API、边界与验证见 [统一模型入口](../docs/model-routing.md)。跨模块验证 `mvn test`；公共 Python 客户端验证 `python -m unittest discover -s website/model-routing`。

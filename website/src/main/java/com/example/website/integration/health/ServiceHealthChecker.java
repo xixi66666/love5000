@@ -3,6 +3,8 @@ package com.example.website.integration.health;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +18,8 @@ import java.util.concurrent.TimeUnit;
 
 @Component
 public class ServiceHealthChecker {
+
+    private static final Logger log = LoggerFactory.getLogger(ServiceHealthChecker.class);
 
     interface Sleeper {
         void sleep(long millis) throws InterruptedException;
@@ -39,6 +43,16 @@ public class ServiceHealthChecker {
     }
 
     public ServiceHealthResult check(ServiceHealthDefinition definition) {
+        ServiceHealthResult result = probe(definition);
+        // 日志只记录固定检查结果，不输出 URL 中可能包含的凭据。
+        log.info("[健康检查][项目={}] 状态={} HTTP={} 耗时={}ms 说明={}",
+                definition.getName(), result.isHealthy() ? "在线" : "离线",
+                result.getStatusCode() == null ? "-" : result.getStatusCode(),
+                result.getDurationMs(), result.getMessage() == null ? "正常" : result.getMessage());
+        return result;
+    }
+
+    private ServiceHealthResult probe(ServiceHealthDefinition definition) {
         long startedAt = System.nanoTime();
         HttpURLConnection connection = null;
         Integer statusCode = null;

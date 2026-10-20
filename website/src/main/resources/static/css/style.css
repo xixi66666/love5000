@@ -13,6 +13,17 @@
     --service-secondary-rgb: 89, 128, 199;
 }
 
+/* 全局模型入口沿用电影主页玻璃材质，不占用账户顶栏或服务 Dock。 */
+.home-model-control {
+    position: absolute;
+    right: 32px;
+    top: 108px;
+    z-index: 35;
+}
+@media (max-width: 640px) {
+    .home-model-control { right: 20px; top: 96px; }
+}
+
 body[data-scene-theme="1"] {
     --service-primary-rgb: 217, 82, 41;
     --service-secondary-rgb: 102, 140, 56;

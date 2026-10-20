@@ -1101,8 +1101,10 @@ def parse_deepseek_json(content: str) -> Dict[str, str]:
 
 
 def call_deepseek_dimension_analysis(payload: Dict[str, Any]) -> Dict[str, Any]:
+    from services import model_hub
+    use_hub = model_hub.active()
     api_key = read_local_secret("DEEPSEEK_API_KEY")
-    if not api_key:
+    if not use_hub and not api_key:
         raise ValueError("DeepSeek API key is not configured. Set DEEPSEEK_API_KEY or create deepseek.local.json.")
 
     stock = payload.get("stock") or {}
@@ -1128,8 +1130,11 @@ def call_deepseek_dimension_analysis(payload: Dict[str, Any]) -> Dict[str, Any]:
         method="POST",
     )
     try:
-        with urllib.request.urlopen(request, timeout=90) as response:
-            response_payload = json.loads(response.read().decode("utf-8"))
+        if use_hub:
+            response_payload = model_hub.chat(request_payload)
+        else:
+            with urllib.request.urlopen(request, timeout=90) as response:
+                response_payload = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
         raise RuntimeError(f"DeepSeek request failed: HTTP {exc.code} {detail}") from exc
@@ -1137,7 +1142,7 @@ def call_deepseek_dimension_analysis(payload: Dict[str, Any]) -> Dict[str, Any]:
     analysis = parse_deepseek_json(content)
     return {
         "ok": True,
-        "model": request_payload["model"],
+        "model": response_payload.get("model", request_payload["model"]),
         "analysis": analysis,
         "research_snapshot": research_snapshot,
         "generated_at": now_iso(),

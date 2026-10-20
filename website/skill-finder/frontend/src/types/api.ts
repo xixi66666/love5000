@@ -74,6 +74,9 @@ export interface StatsResponse {
   positive_growth_today: number
   last_successful_collection_at: string | null
   last_run_status: string | null
+  last_run_id?: number | null
+  last_run_error?: string | null
+  last_run_warning?: string | null
 }
 
 export interface RepositoryQuery {

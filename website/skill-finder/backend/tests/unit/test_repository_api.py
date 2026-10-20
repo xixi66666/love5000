@@ -216,6 +216,9 @@ def test_stats_contract() -> None:
         "positive_growth_today",
         "last_successful_collection_at",
         "last_run_status",
+        "last_run_id",
+        "last_run_error",
+        "last_run_warning",
     }
 
     langs = client.get("/api/v1/languages")

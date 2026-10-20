@@ -291,6 +291,21 @@ async def test_all_periods_failing_marks_run_failed() -> None:
     assert "TrendingScrapeError" in service.run_store.finished[0]["error_summary"]
 
 
+async def test_running_status_is_committed_before_network_collection() -> None:
+    from unittest.mock import AsyncMock
+
+    scraper = FakeScraper()
+    service = make_service(scraper, FakeGitHubClient())
+
+    async def fetch(period):
+        assert service.session.committed, "RUNNING 必须先提交，其他连接才能查询到任务"
+        return []
+
+    scraper.fetch = AsyncMock(side_effect=fetch)
+    await service.run()
+    assert scraper.fetch.await_count == 3
+
+
 async def test_failed_enrichment_is_counted_and_skipped() -> None:
     scraper = FakeScraper(
         pages={
@@ -422,3 +437,45 @@ async def test_writes_daily_snapshot_for_business_date() -> None:
     assert service.snapshot_store.writes[0][2] == 5000
     assert result.status == "SUCCESS"
     assert result.rate_limit_remaining == 4999
+
+
+async def test_intro_auth_failure_keeps_rankings_and_skips_remaining_batches(monkeypatch):
+    from unittest.mock import AsyncMock
+
+    from app.collector import service as collector_service
+    from app.services import introduction_service
+
+    monkeypatch.setattr(collector_service.settings, "intro_enabled", True)
+    monkeypatch.setattr(collector_service.settings, "intro_batch_size", 5)
+    auth_error = getattr(
+        introduction_service, "IntroductionAuthError", introduction_service.IntroductionGenerationError
+    )
+    generate = AsyncMock(side_effect=auth_error("简介服务认证失败"))
+    monkeypatch.setattr(introduction_service, "generate_introductions", generate)
+    names = [f"acme/agent-{i}" for i in range(7)]
+    scraper = FakeScraper(pages={"daily": [make_trending("acme", f"agent-{i}") for i in range(7)]})
+    service = make_service(scraper, FakeGitHubClient(repo_lookup=default_lookup(*names)))
+    result = await service.run()
+    assert result.status == "PARTIAL"
+    assert "INTRO_AUTH_FAILED" in result.error_summary
+    assert result.updated_count == 7
+    assert service.trending_store.replaced
+    generate.assert_awaited_once()
+
+
+async def test_missing_generated_text_marks_collection_partial(monkeypatch):
+    from unittest.mock import AsyncMock
+
+    from app.collector import service as collector_service
+    from app.services import introduction_service
+
+    monkeypatch.setattr(collector_service.settings, "intro_enabled", True)
+    monkeypatch.setattr(
+        introduction_service, "generate_introductions_resilient", AsyncMock(return_value=[None])
+    )
+    scraper = FakeScraper(pages={"daily": [make_trending("acme", "agent-a")]})
+    service = make_service(scraper, FakeGitHubClient(repo_lookup=default_lookup("acme/agent-a")))
+    result = await service.run()
+    assert result.status == "PARTIAL"
+    assert "INTRO_GENERATION_FAILED" in result.error_summary
+    assert service.trending_store.replaced

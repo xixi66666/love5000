@@ -61,7 +61,9 @@ async def run_collection(lease: CollectionLockLease | None) -> None:
     try:
         async with (
             async_session_factory() as session,
-            GitHubClient(token=settings.github_token.get_secret_value()) as github_client,
+            GitHubClient(
+                token=settings.github_token.get_secret_value(), proxy=settings.trending_proxy
+            ) as github_client,
         ):
             service = CollectionService(
                 scraper=TrendingScraper(proxy=settings.trending_proxy),

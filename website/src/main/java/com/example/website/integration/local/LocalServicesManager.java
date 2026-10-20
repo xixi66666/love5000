@@ -1,6 +1,8 @@
 package com.example.website.integration.local;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
@@ -14,6 +16,7 @@ import java.util.concurrent.TimeUnit;
 
 @Component
 public class LocalServicesManager {
+    private static final Logger log = LoggerFactory.getLogger(LocalServicesManager.class);
     private final LocalServiceProperties properties;
     private final LocalServiceClient client;
     private final LocalServiceProcessRunner runner;
@@ -29,6 +32,7 @@ public class LocalServicesManager {
     public Map<String, Object> status(String service) {
         int port = port(service);
         JsonNode remote = probe(service);
+        log.info("[健康检查][项目={}] 本机服务状态={}", service, remote != null ? "在线" : "离线");
         Map<String, Object> state = new LinkedHashMap<>();
         state.put("success", true);
         state.put("service", service);

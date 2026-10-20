@@ -71,5 +71,5 @@
         });
         refresh(card);
     });
-    window.setInterval(function () { cards.forEach(function (card) { if (!card._busy) refresh(card); }); }, 15000);
+    window.setInterval(function () { cards.forEach(function (card) { if (!card._busy) refresh(card); }); }, 30 * 60 * 1000);
 }());

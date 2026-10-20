@@ -7,6 +7,12 @@ import java.util.Map;
 
 public class ImageGenerationRequest {
 
+    private String model;
+
+    public String getModel() { return model; }
+
+    public void setModel(String model) { this.model = model; }
+
     private Map<String, Object> variables = new LinkedHashMap<String, Object>();
 
     private String extraInstruction;

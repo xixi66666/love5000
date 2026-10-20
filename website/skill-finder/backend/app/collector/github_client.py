@@ -102,13 +102,17 @@ class GitHubClient:
         self,
         token: str,
         retry_delays: tuple[float, ...] = DEFAULT_RETRY_DELAYS,
+        proxy: str = "",
     ) -> None:
         self._token = token.strip()
         self._retry_delays = retry_delays
+        self._proxy = proxy.strip() or None
         self._client: httpx.AsyncClient | None = None
 
     async def __aenter__(self) -> Self:
-        self._client = httpx.AsyncClient(base_url=GITHUB_API_BASE, timeout=30.0)
+        self._client = httpx.AsyncClient(
+            base_url=GITHUB_API_BASE, timeout=30.0, proxy=self._proxy
+        )
         return self
 
     async def __aexit__(self, *_: object) -> None:

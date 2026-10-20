@@ -76,6 +76,8 @@ class CollectionService:
 
     async def run(self) -> CollectionResult:
         run = await self.run_store.create(self.trigger_type)
+        # 先提交任务状态，避免采集期间其他连接始终只能读到上一次任务。
+        await self.session.commit()
         result = CollectionResult(
             run_id=run.id,
             status=STATUS_SUCCESS,
@@ -178,7 +180,11 @@ class CollectionService:
                 continue
             await self.trending_store.replace_period(period, entries, fetched_at)
 
-        await self._generate_introductions(intro_pending)
+        missing_intros, intro_error = await self._generate_introductions(intro_pending)
+        if missing_intros:
+            result.status = STATUS_PARTIAL
+            warning = f"{intro_error}: missing={missing_intros}"
+            result.error_summary = "; ".join(filter(None, (result.error_summary, warning)))
         await self._record_rate_limit(result)
         await self.session.commit()
 
@@ -187,15 +193,17 @@ class CollectionService:
         result.rate_limit_remaining = rate_limit.remaining
         result.rate_limit_reset_at = rate_limit.reset_at
 
-    async def _generate_introductions(self, repos: list[Repository]) -> None:
+    async def _generate_introductions(self, repos: list[Repository]) -> tuple[int, str | None]:
         if not repos:
-            return
+            return 0, None
         from app.services.introduction_service import (
+            IntroductionAuthError,
             brief_from_repository,
             generate_introductions_resilient,
         )
 
         batch_size = settings.intro_batch_size
+        failed = 0
         for start in range(0, len(repos), batch_size):
             batch = repos[start : start + batch_size]
             briefs = []
@@ -206,10 +214,17 @@ class CollectionService:
                     logger.warning("readme fetch failed for %s: %s", repo.full_name, exc)
                     readme = None
                 briefs.append(brief_from_repository(repo, readme=readme))
-            texts = await generate_introductions_resilient(briefs)
+            try:
+                texts = await generate_introductions_resilient(briefs)
+            except IntroductionAuthError as exc:
+                logger.warning("skipping remaining introductions: %s", exc)
+                return failed + len(repos) - start, "INTRO_AUTH_FAILED"
             for repo, text in zip(batch, texts):
                 if text:
                     await self.repository_store.update_introduction(repo.github_id, text)
+                else:
+                    failed += 1
+        return failed, "INTRO_GENERATION_FAILED" if failed else None
 
     def _eligible(self, repo: GitHubRepository) -> bool:
         return not (repo.archived or repo.disabled or repo.fork)

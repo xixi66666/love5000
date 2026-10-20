@@ -18,6 +18,7 @@ openai:
   api-key: ${OPENAI_API_KEY:}
   base-url: ${OPENAI_BASE_URL:https://nimabo.io/v1}
   image-model: ${OPENAI_IMAGE_MODEL:gpt-image-2.5-sunburst}
+  image-models: ${OPENAI_IMAGE_MODELS:gpt-image-2.5-sunburst,gpt-image-2.5-flare}
   connect-timeout-ms: ${OPENAI_CONNECT_TIMEOUT_MS:300000}
   read-timeout-ms: ${OPENAI_READ_TIMEOUT_MS:1800000}
   proxy:

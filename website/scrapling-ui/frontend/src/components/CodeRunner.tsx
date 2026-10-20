@@ -828,6 +828,20 @@ export const CodeRunner: React.FC<CodeRunnerProps> = ({
   const [selectedFramework, setSelectedFramework] = useState<'scrapling_sync' | 'scrapling_async' | 'playwright_python' | 'scrapy_spider'>('scrapling_sync');
   const [healableError, setHealableError] = useState<{ selector: string; actionType: string } | null>(null);
   const [isHealing, setIsHealing] = useState(false);
+  const [hubActive, setHubActive] = useState(false);
+  useEffect(() => {
+    const update = (event: Event) => {
+      const detail = (event as CustomEvent<{ scope: string; active: boolean }>).detail;
+      if (detail?.scope === 'scrapling-ui') setHubActive(detail.active);
+    };
+    window.addEventListener('love530:modelchange', update);
+    // 组件挂载可能晚于共享选择器，主动读取当前状态。
+    const host = window.location.hostname === 'localhost' ? 'localhost' : '127.0.0.1';
+    fetch(`http://${host}:8080/api/models/effective/scrapling-ui`)
+      .then(response => response.ok ? response.json() : null)
+      .then(data => { if (data) setHubActive(Boolean(data.active)); }).catch(() => {});
+    return () => window.removeEventListener('love530:modelchange', update);
+  }, []);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
@@ -892,8 +906,8 @@ export const CodeRunner: React.FC<CodeRunnerProps> = ({
   };
 
   const handleHealSelector = async (brokenSelector: string, actionType: string) => {
-    if (!sessionId || !apiKey) {
-      alert('请先在 AI 设置面板中设置 DeepSeek API Key。');
+    if (!sessionId || (!apiKey && !hubActive)) {
+      alert('请先选择可用的统一模型，或在 AI 设置中配置原服务密钥。');
       return;
     }
     setIsHealing(true);
@@ -971,7 +985,7 @@ export const CodeRunner: React.FC<CodeRunnerProps> = ({
       // Check for healable selector errors
       const errorText = (data.stderr || '') + (data.exit_code !== 0 ? '' : '');
       const parsed = extractSelectorFromError(errorText);
-      if (parsed && apiKey) {
+      if (parsed && (apiKey || hubActive)) {
         setHealableError(parsed);
       }
     } catch (e) {
@@ -979,7 +993,7 @@ export const CodeRunner: React.FC<CodeRunnerProps> = ({
       setConsoleOutput(`❌ 执行失败:\n${errorMsg}`);
       setExitCode(-1);
       const parsed = extractSelectorFromError(errorMsg);
-      if (parsed && apiKey) {
+      if (parsed && (apiKey || hubActive)) {
         setHealableError(parsed);
       }
     } finally {

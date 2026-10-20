@@ -14,6 +14,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Noto+Serif+SC:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css?v=7.9">
+    <script src="model-picker/picker.js?v=1" defer></script>
 </head>
 
 <body>
@@ -52,6 +53,7 @@
         </header>
 
         <main class="hero-content">
+            <div class="home-model-control" data-model-picker data-model-scope="global" data-model-theme="home"></div>
             <div class="hero-copy">
                 <p class="hero-badge liquid-glass">
                     <span class="badge-pulse" aria-hidden="true"></span>
@@ -97,14 +99,14 @@
 
             <nav class="service-grid" aria-label="服务入口">
                 <a class="service-card" href="http://localhost:8081/login.html" target="_blank" rel="noopener"
-                   data-health-url="http://localhost:8081/login.html" data-health-mode="no-cors">
+                   data-health-service="lovestory" data-health-url="http://localhost:8081/login.html" data-health-mode="no-cors">
                     <span class="service-index">01</span>
                     <span class="service-copy"><strong>恋爱相册</strong><small>LOVE STORY · 8081</small></span>
                     <span class="service-status" aria-label="检测中" title="检测中"></span>
                 </a>
                 <a class="service-card" href="http://localhost:8082/index.html" target="_blank" rel="noopener"
                    data-auth-required="true" data-auth-target-name="图片模板"
-                   data-health-url="http://localhost:8082/index.html" data-health-mode="no-cors">
+                   data-health-service="imagetemplate" data-health-url="http://localhost:8082/index.html" data-health-mode="no-cors">
                     <span class="service-index">02</span>
                     <span class="service-copy"><strong>图片模板</strong><small>IMAGE LAB · 8082</small></span>
                     <span class="service-status" aria-label="检测中" title="检测中"></span>
@@ -115,26 +117,26 @@
                     <span class="service-status" aria-label="检测中" title="检测中"></span>
                 </a>
                 <a class="service-card" href="http://127.0.0.1:5174/" target="_blank" rel="noopener"
-                   data-health-url="http://127.0.0.1:5174/api/health" data-health-mode="no-cors">
+                   data-health-service="python-a" data-health-url="http://127.0.0.1:5174/api/health" data-health-mode="no-cors">
                     <span class="service-index">04</span>
                     <span class="service-copy"><strong>A 股研究台</strong><small>AI RESEARCH · 5174</small></span>
                     <span class="service-status" aria-label="检测中" title="检测中"></span>
                 </a>
                 <a class="service-card" href="http://127.0.0.1:5175/" target="_blank" rel="noopener"
-                   data-health-url="http://127.0.0.1:5175/api/health" data-health-mode="no-cors">
+                   data-health-service="quant-a" data-health-url="http://127.0.0.1:5175/api/health" data-health-mode="no-cors">
                     <span class="service-index">05</span>
                     <span class="service-copy"><strong>Quant 研究台</strong><small>QUANT LAB · 5175</small></span>
                     <span class="service-status" aria-label="检测中" title="检测中"></span>
                 </a>
                 <a class="service-card" href="http://127.0.0.1:5176/" target="_blank" rel="noopener"
-                   data-health-url="http://127.0.0.1:5176/api/health" data-health-mode="no-cors"
+                   data-health-service="scrapling-ui" data-health-url="http://127.0.0.1:5176/api/health" data-health-mode="no-cors"
                    data-start-url="/api/services/scrapling-ui/start" data-app-url="http://127.0.0.1:5176/">
                     <span class="service-index">06</span>
                     <span class="service-copy"><strong>Scrapling 抓取工坊</strong><small>SCRAPLING UI · 5176</small></span>
                     <span class="service-status" aria-label="检测中" title="检测中"></span>
                 </a>
                 <a class="service-card" href="http://127.0.0.1:5177/" target="_blank" rel="noopener"
-                   data-health-url="http://127.0.0.1:5177/api/health" data-health-mode="no-cors"
+                   data-health-service="skill-finder" data-health-url="http://127.0.0.1:5177/api/health" data-health-mode="no-cors"
                    data-start-url="/api/services/skill-finder/start" data-app-url="http://127.0.0.1:5177/">
                     <span class="service-index">07</span>
                     <span class="service-copy"><strong>Skill Finder</strong><small>AI 趋势追踪 · 5177</small></span>
@@ -156,7 +158,7 @@
         <section class="service-dock liquid-glass" id="deep-woods-service-dock" aria-label="Deep Woods 服务目录" hidden>
             <nav class="service-grid" aria-label="Deep Woods 服务入口">
                 <a class="service-card" href="http://127.0.0.1:5178/" target="_blank" rel="noopener"
-                   data-health-url="http://127.0.0.1:5178/api/health" data-health-mode="no-cors"
+                   data-health-service="personal-agent" data-health-url="http://127.0.0.1:5178/api/health" data-health-mode="no-cors"
                    data-start-url="/api/services/personal-agent/start" data-app-url="http://127.0.0.1:5178/">
                     <span class="service-index">01</span>
                     <span class="service-copy"><strong>个人 Agent</strong><small>PERSONAL AGENT · 5178</small></span>

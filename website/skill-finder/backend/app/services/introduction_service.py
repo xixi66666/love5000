@@ -27,6 +27,10 @@ class IntroductionGenerationError(Exception):
     """Raised when the model gateway cannot produce an introduction."""
 
 
+class IntroductionAuthError(IntroductionGenerationError):
+    """凭据不可用，换模型或拆分内容都不能修复。"""
+
+
 class _UpstreamError(Exception):
     """Retryable gateway failure (5xx, rate limit, network)."""
 
@@ -163,10 +167,26 @@ def _model_chain(raw: str) -> list[str]:
 
 
 def _resolve_api_key() -> str:
+    if settings.intro_api_key_file.strip():
+        # 引用已有本机私有文件，不在多个项目间复制密钥。
+        try:
+            raw = Path(settings.intro_api_key_file).expanduser().read_text(encoding="utf-8-sig").strip()
+            if raw.startswith("{"):
+                data = json.loads(raw)
+                value = next((data.get(name) for name in (
+                    "INTRO_API_KEY", "DEEPSEEK_API_KEY", "intro_api_key", "deepseek_api_key", "api_key"
+                ) if isinstance(data.get(name), str) and data[name].strip()), "")
+            else:
+                value = raw
+            if not value:
+                raise ValueError("empty key")
+            return value.strip()
+        except (OSError, UnicodeError, ValueError, TypeError, AttributeError):
+            raise IntroductionAuthError("无法从本机私有密钥文件读取简介服务密钥。") from None
     if settings.intro_api_key.get_secret_value().strip():
         return settings.intro_api_key.get_secret_value().strip()
     if not settings.intro_api_base.startswith("https://opencode.ai/"):
-        raise IntroductionGenerationError("请为当前模型服务设置 INTRO_API_KEY。")
+        raise IntroductionAuthError("请为当前模型服务设置 INTRO_API_KEY。")
     if settings.opencode_api_key.strip():
         return settings.opencode_api_key.strip()
     auth_path = Path.home() / ".local" / "share" / "opencode" / "auth.json"
@@ -176,7 +196,7 @@ def _resolve_api_key() -> str:
     except (OSError, json.JSONDecodeError):
         key = ""
     if not key:
-        raise IntroductionGenerationError(
+        raise IntroductionAuthError(
             "未找到模型网关密钥：请设置 OPENCODE_API_KEY，或先在本机 opencode 登录。"
         )
     return key
@@ -195,6 +215,8 @@ async def _call_chat(
         },
         timeout=timeout,
     )
+    if response.status_code == 401:
+        raise IntroductionAuthError("简介服务认证失败或密钥已过期，请更新私有配置中的密钥。")
     if response.status_code in _RETRYABLE_STATUS:
         raise _UpstreamError(f"{api_model}: HTTP {response.status_code}")
     if response.status_code >= 400:
@@ -219,6 +241,18 @@ async def generate_introductions(
     """Generate Chinese introductions via the model gateway, with a fallback chain."""
     if not repos:
         return []
+    from app.services import model_hub
+
+    if await model_hub.active():
+        try:
+            response = await model_hub.chat({
+                "messages": [{"role": "user", "content": _build_prompt(repos)}],
+            })
+            text = (response.get("choices") or [{}])[0].get("message", {}).get("content", "")
+            return _parse_introductions(text, len(repos))
+        except Exception as exc:
+            # 延续认证失败即停止的语义，不拆分、不换模型重试。
+            raise IntroductionAuthError("统一模型请求失败，请检查已选模型后重试。") from exc
     chain = _model_chain(model or settings.intro_model)
     if not chain:
         raise IntroductionGenerationError("INTRO_MODEL 未配置任何可用模型。")
@@ -232,6 +266,8 @@ async def generate_introductions(
                 try:
                     text = await _call_chat(client, api_model, api_key, prompt, seconds)
                     return _parse_introductions(text, len(repos))
+                except IntroductionAuthError:
+                    raise
                 except _ModelRejected as exc:
                     last_error = exc
                     break
@@ -254,6 +290,9 @@ async def generate_introductions_resilient(
         return []
     try:
         return list(await generate_introductions(briefs))
+    except IntroductionAuthError:
+        # 认证错误与仓库内容无关，不拆分重试，不把上游响应正文写入日志。
+        raise
     except IntroductionGenerationError as exc:
         logger.warning("introduction batch (%d) failed: %s", len(briefs), exc)
 
@@ -273,6 +312,8 @@ async def generate_introductions_resilient(
                 brief.name,
             )
             return list(texts)
+        except IntroductionAuthError:
+            raise
         except IntroductionGenerationError as exc:
             logger.warning(
                 "introduction without README failed for %s/%s: %s",
@@ -304,7 +345,7 @@ async def fetch_readmes(repos: list[Repository]) -> list[str | None]:
     token = settings.github_token.get_secret_value()
     readmes: list[str | None] = []
     try:
-        async with GitHubClient(token=token) as client:
+        async with GitHubClient(token=token, proxy=settings.trending_proxy) as client:
             for repo in repos:
                 try:
                     readmes.append(await client.get_readme(repo.full_name))

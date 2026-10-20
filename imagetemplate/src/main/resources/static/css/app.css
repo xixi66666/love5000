@@ -3520,3 +3520,9 @@ select {
         transform: none !important;
     }
 }
+
+/* 图片模型沿用橙黑工作台，保留专用生成能力。 */
+.image-model-picker { display: inline-flex; align-items: center; gap: 8px; color: #d5cec5; font-size: 11px; white-space: nowrap; }
+.image-model-picker select { max-width: 190px; min-height: 36px; padding: 7px 26px 7px 11px; border: 1px solid #e17d414d; border-radius: 8px; background: #191713; color: #ffad78; font: inherit; cursor: pointer; }
+.image-model-picker select:focus-visible { outline: 2px solid #ffad78; outline-offset: 3px; }
+@media(max-width: 700px) { .image-model-picker { font-size: 10px; } .image-model-picker select { max-width: 150px; } }

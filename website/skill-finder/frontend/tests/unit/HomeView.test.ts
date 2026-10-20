@@ -183,16 +183,17 @@ describe('HomeView', () => {
       })
       const wrapper = await mountHome()
       mockTriggerRefresh.mockResolvedValueOnce(undefined)
-      mockFetchStats.mockResolvedValue({
+      const completed = {
         total_repositories: 1,
         positive_growth_today: 1,
         last_successful_collection_at: '2026-08-24T00:00:00Z',
         last_run_status: 'SUCCESS',
-      })
+      }
       const callsBefore = mockFetchRepositories.mock.calls.length
 
       await wrapper.find('[data-testid="refresh-data"]').trigger('click')
       await flushPromises()
+      mockFetchStats.mockResolvedValue(completed)
       await vi.advanceTimersByTimeAsync(5000)
       await flushPromises()
 
@@ -200,6 +201,33 @@ describe('HomeView', () => {
       expect(wrapper.find('[data-testid="refresh-data"]').attributes('disabled')).toBeUndefined()
       expect(mockFetchRepositories.mock.calls.length).toBeGreaterThan(callsBefore)
     } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('reloads rankings and shows a warning when introductions are incomplete', async () => {
+    vi.useFakeTimers()
+    let wrapper: Awaited<ReturnType<typeof mountHome>> | undefined
+    try {
+      mockFetchRepositories.mockResolvedValue(makeResponse())
+      wrapper = await mountHome()
+      mockTriggerRefresh.mockResolvedValueOnce(undefined)
+      await wrapper.find('[data-testid="refresh-data"]').trigger('click')
+      await flushPromises()
+      const callsBefore = mockFetchRepositories.mock.calls.length
+      mockFetchStats.mockResolvedValue({
+        total_repositories: 1, positive_growth_today: 1,
+        last_successful_collection_at: '2026-10-20T07:00:00Z',
+        last_run_status: 'PARTIAL', last_run_id: 5,
+        last_run_warning: '榜单已更新，但部分中文介绍暂不可用。',
+      })
+      await vi.advanceTimersByTimeAsync(5000)
+      await flushPromises()
+      expect(wrapper.find('[data-testid="refresh-data"]').attributes('disabled')).toBeUndefined()
+      expect(wrapper.find('[data-testid="refresh-notice"]').text()).toContain('部分中文介绍暂不可用')
+      expect(mockFetchRepositories.mock.calls.length).toBeGreaterThan(callsBefore)
+    } finally {
+      wrapper?.unmount()
       vi.useRealTimers()
     }
   })
@@ -222,5 +250,73 @@ describe('HomeView', () => {
 
     expect(wrapper.find('[data-testid="refresh-notice"]').text()).toContain('25 分钟')
     expect(wrapper.find('[data-testid="refresh-data"]').attributes('disabled')).toBeUndefined()
+  })
+
+  it('stops waiting when a new run fails before the first poll sees RUNNING', async () => {
+    vi.useFakeTimers()
+    let wrapper: Awaited<ReturnType<typeof mountHome>> | undefined
+    try {
+      mockFetchRepositories.mockResolvedValue(makeResponse())
+      const previous = {
+        total_repositories: 1, positive_growth_today: 1,
+        last_successful_collection_at: '2026-08-10T00:00:00Z',
+        last_run_status: 'FAILED', last_run_id: 3, last_run_error: null,
+      }
+      mockFetchStats.mockResolvedValue(previous)
+      wrapper = await mountHome()
+      mockTriggerRefresh.mockResolvedValueOnce(undefined)
+      await wrapper.find('[data-testid="refresh-data"]').trigger('click')
+      await flushPromises()
+      mockFetchStats.mockResolvedValue({
+        ...previous, last_run_id: 4,
+        last_run_error: '连接 GitHub 超时，请检查网络或代理后重试。',
+      })
+      await vi.advanceTimersByTimeAsync(5000)
+      await flushPromises()
+      expect(wrapper.find('[data-testid="refresh-data"]').attributes('disabled')).toBeUndefined()
+      expect(wrapper.find('[data-testid="refresh-notice"]').text()).toContain('连接 GitHub 超时')
+    } finally {
+      wrapper?.unmount()
+      vi.useRealTimers()
+    }
+  })
+
+  it('ignores a previous failed run while the accepted task has not appeared yet', async () => {
+    vi.useFakeTimers()
+    let wrapper: Awaited<ReturnType<typeof mountHome>> | undefined
+    try {
+      mockFetchRepositories.mockResolvedValue(makeResponse())
+      const previous = {
+        total_repositories: 1, positive_growth_today: 1,
+        last_successful_collection_at: null, last_run_status: 'FAILED', last_run_id: 3,
+      }
+      mockFetchStats.mockResolvedValue(previous)
+      wrapper = await mountHome()
+      mockTriggerRefresh.mockResolvedValueOnce(undefined)
+      await wrapper.find('[data-testid="refresh-data"]').trigger('click')
+      await flushPromises()
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(wrapper.find('[data-testid="refresh-data"]').attributes('disabled')).toBeDefined()
+      mockFetchStats.mockResolvedValue({ ...previous, last_run_id: 4 })
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(wrapper.find('[data-testid="refresh-data"]').attributes('disabled')).toBeUndefined()
+    } finally {
+      wrapper?.unmount()
+      vi.useRealTimers()
+    }
+  })
+
+  it('disables refresh while the trigger request is pending', async () => {
+    mockFetchRepositories.mockResolvedValue(makeResponse())
+    const wrapper = await mountHome()
+    let resolveTrigger!: () => void
+    mockTriggerRefresh.mockReturnValueOnce(new Promise<void>((resolve) => { resolveTrigger = resolve }))
+    await wrapper.find('[data-testid="refresh-data"]').trigger('click')
+    await flushPromises()
+    const disabled = wrapper.find('[data-testid="refresh-data"]').attributes('disabled')
+    resolveTrigger()
+    await flushPromises()
+    wrapper.unmount()
+    expect(disabled).toBeDefined()
   })
 })

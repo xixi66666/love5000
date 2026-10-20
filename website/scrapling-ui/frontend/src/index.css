@@ -95,6 +95,22 @@ code, pre {
   z-index: 10;
 }
 
+/* 模型入口与既有工具同组，窄屏换行后仍可直接操作。 */
+@media (max-width: 1560px) {
+  .app-container { grid-template-rows: auto minmax(0, 1fr) 32px; }
+  .app-header { flex-wrap: wrap; gap: 12px; min-height: 64px; padding: 12px 20px; }
+  .url-bar-container { flex: 1 1 280px; min-width: 180px; max-width: none; margin: 0; }
+  .app-header .scraping-options { flex-wrap: wrap; margin-left: 0 !important; }
+  .header-tools { align-items: center; flex-wrap: wrap; margin-left: auto; }
+}
+@media (max-width: 600px) {
+  .app-header { position: sticky; left: 0; gap: 10px; padding: 12px; }
+  .url-bar-container { flex-basis: 100%; }
+  .url-input { min-width: 0; }
+  .header-tools { width: 100%; margin-left: 0; }
+  .scrapling-model-picker { margin-left: auto; max-width: 220px; }
+}
+
 .logo-section {
   display: flex;
   align-items: center;

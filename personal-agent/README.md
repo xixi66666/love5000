@@ -125,3 +125,10 @@ node --check website/src/main/resources/static/js/script.js
 2026-10-13 验证：新服务34项JUnit通过，website138项测试通过，common回归通过；原生脚本语法与主页动效检查通过。实际浏览器验证了初始化、想法/行动、账户及财富汇总，桌面与390px移动端无横向溢出。正式5178已启动且空间未初始化，测试账户只在独立15178测试目录。
 
 本地 H2 文件不提供网络数据库服务/控制台；DAO + XML Mapper 负责持久化。版本升级涉及存储模式时先备份、增加明确迁移，禁止删库重建。当前仅 schema v1，不含自动跨版本迁移；备份恢复只支持当前存储格式。
+
+## 统一模型入口（2026-10-20）
+
+主页提供全局文本模型选择，python-a、scrapling-ui、skill-finder、personal-agent 提供“跟随主页 / 服务原配置 / 独立模型”，下一次请求生效。图片、视觉、语音和视频保留专用模型；quant-a 与 lovestory 当前没有文本模型调用。
+website 的 `/api/models` 提供目录核验、选择持久化和文本代理，状态文件为根 `.runtime/model-routing.json`，仅存模型 ID、不存密钥；Java 客户端在 common，Python 公共客户端在 website/model-routing，独立部署使用统一入口时需一并携带。原有认证保留。未选择时保留原逻辑，已选择但网关离线时报错。
+共享选择器源为 website/src/main/resources/static/model-picker/picker.js，修改后执行 `python scripts/sync-model-picker.py`，React/Vue 修改后重新构建 dist。图片工作台新增独立图片模型下拉与 `OPENAI_IMAGE_MODELS` 白名单，支持 JSON/multipart 的 `model` 字段。
+完整盘点、API、边界与验证见 [统一模型入口](../docs/model-routing.md)。跨模块验证 `mvn test`；公共 Python 客户端验证 `python -m unittest discover -s website/model-routing`。

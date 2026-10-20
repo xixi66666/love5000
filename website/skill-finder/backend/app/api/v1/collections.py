@@ -24,7 +24,7 @@ async def refresh_collection(
 ) -> dict[str, str]:
     latest = await CollectionRunStore(session).latest()
     cooldown = timedelta(minutes=settings.refresh_cooldown_minutes)
-    if latest is not None and latest.started_at is not None:
+    if latest is not None and latest.status != "FAILED" and latest.started_at is not None:
         started_at = latest.started_at
         if started_at.tzinfo is None:
             started_at = started_at.replace(tzinfo=UTC)

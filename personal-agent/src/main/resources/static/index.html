@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/style.css?v=4">
   <script src="/motion.js?v=4" defer></script>
   <script src="/app.js?v=4" defer></script>
+  <script src="/model-picker.js?v=1" defer></script>
 </head>
 <body>
   <div id="ambient-scene" class="ambient-scene" aria-hidden="true">
@@ -63,6 +64,7 @@
         <a href="#settings" data-page="settings" aria-label="设置与资料"><svg class="icon"><use href="/icons.svg#settings"></use></svg><span>设置</span></a>
       </nav>
       <div class="sidebar-bottom">
+        <div data-model-picker data-model-scope="personal-agent" data-model-theme="forest"></div>
         <div class="sidebar-links"><a href="http://localhost:8080/" aria-label="返回 website 主页"><svg class="icon"><use href="/icons.svg#back"></use></svg><span>主页</span></a><button id="logout-button" class="text-button" type="button">退出</button></div>
       </div>
     </header>

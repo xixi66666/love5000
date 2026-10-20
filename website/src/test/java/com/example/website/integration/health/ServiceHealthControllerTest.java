@@ -26,10 +26,10 @@ class ServiceHealthControllerTest {
                 Arrays.asList(
                         ServiceHealthResult.healthy(imagetemplate, 200, 12),
                         ServiceHealthResult.unhealthy(pythona, null, 7, "Connection failed")));
-        ServiceHealthAggregator aggregator = mock(ServiceHealthAggregator.class);
-        when(aggregator.checkAll()).thenReturn(summary);
+        ServiceHealthMonitor monitor = mock(ServiceHealthMonitor.class);
+        when(monitor.snapshot()).thenReturn(summary);
         MockMvc mockMvc = MockMvcBuilders
-                .standaloneSetup(new ServiceHealthController(aggregator))
+                .standaloneSetup(new ServiceHealthController(monitor))
                 .build();
 
         mockMvc.perform(get("/api/services/health"))

@@ -8,14 +8,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/services")
 public class ServiceHealthController {
 
-    private final ServiceHealthAggregator aggregator;
+    private final ServiceHealthMonitor monitor;
 
-    public ServiceHealthController(ServiceHealthAggregator aggregator) {
-        this.aggregator = aggregator;
+    public ServiceHealthController(ServiceHealthMonitor monitor) {
+        this.monitor = monitor;
     }
 
     @GetMapping("/health")
     public ServiceHealthSummary health() {
-        return aggregator.checkAll();
+        return monitor.snapshot();
     }
 }

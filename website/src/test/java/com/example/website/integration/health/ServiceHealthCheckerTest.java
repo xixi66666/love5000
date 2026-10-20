@@ -16,6 +16,14 @@ class ServiceHealthCheckerTest {
 
     private HttpServer server;
 
+    @Test
+    @org.junit.jupiter.api.extension.ExtendWith(org.springframework.boot.test.system.OutputCaptureExtension.class)
+    void consoleLogsIdentifyTheCheckedProject(org.springframework.boot.test.system.CapturedOutput output) throws Exception {
+        String url = serve(200, "{\"success\":true}");
+        checker().check(new ServiceHealthDefinition("skill-finder", url));
+        assertThat(output.getOut()).contains("[健康检查][项目=skill-finder]", "状态=在线", "HTTP=200");
+    }
+
     @AfterEach
     void stopServer() {
         if (server != null) {

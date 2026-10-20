@@ -15,6 +15,16 @@ from app.collector.github_client import (
 API = "https://api.github.com"
 
 
+async def test_configured_proxy_is_used_for_api_requests() -> None:
+    from unittest.mock import AsyncMock, patch
+
+    with patch("app.collector.github_client.httpx.AsyncClient") as factory:
+        factory.return_value.aclose = AsyncMock()
+        async with GitHubClient(token="", proxy="http://127.0.0.1:7890"):
+            pass
+    assert factory.call_args.kwargs["proxy"] == "http://127.0.0.1:7890"
+
+
 @respx.mock
 async def test_public_repository_without_token_omits_authorization_header() -> None:
     route = respx.get(f"{API}/repos/octocat/agent-hub").mock(

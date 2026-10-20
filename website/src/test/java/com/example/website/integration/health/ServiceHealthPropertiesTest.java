@@ -21,6 +21,8 @@ class ServiceHealthPropertiesTest {
 
         assertThat(properties.getConnectTimeoutMs()).isEqualTo(2000);
         assertThat(properties.getReadTimeoutMs()).isEqualTo(3000);
+        assertThat(properties.getCheckIntervalMs()).isEqualTo(1800000L);
+        assertThat(properties.isScheduledEnabled()).isTrue();
         assertThat(properties.getServices())
                 .extracting(ServiceHealthDefinition::getName)
                 .containsExactly("imagetemplate", "video");
@@ -35,6 +37,13 @@ class ServiceHealthPropertiesTest {
         assertThatThrownBy(properties::validate)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("duplicate service name: imagetemplate");
+    }
+
+    @Test
+    void rejectsNonPositiveCheckInterval() {
+        ServiceHealthProperties properties = new ServiceHealthProperties();
+        properties.setCheckIntervalMs(0);
+        assertThatThrownBy(properties::validate).hasMessageContaining("check-interval-ms");
     }
 
     @Test

@@ -13,3 +13,6 @@ class StatsResponse(BaseModel):
     positive_growth_today: int
     last_successful_collection_at: str | None = None
     last_run_status: str | None = None
+    last_run_id: int | None = None
+    last_run_error: str | None = None
+    last_run_warning: str | None = None

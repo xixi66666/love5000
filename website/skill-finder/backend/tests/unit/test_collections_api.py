@@ -71,3 +71,17 @@ def test_refresh_conflict_when_collection_already_running() -> None:
     assert response.status_code == 409
     payload = response.json()
     assert payload["code"] == "COLLECTION_ALREADY_RUNNING"
+
+
+def test_failed_collection_can_be_retried_without_success_cooldown() -> None:
+    run = _recent_run(1)
+    run.status = "FAILED"
+    with (
+        patch("app.api.v1.collections.CollectionRunStore") as store_cls,
+        patch("app.api.v1.collections.acquire_collection_lock") as lock,
+        patch("app.api.v1.collections.run_collection"),
+    ):
+        store_cls.return_value.latest = AsyncMock(return_value=run)
+        lock.return_value = MagicMock()
+        response = client.post("/api/v1/collections/refresh")
+    assert response.status_code == 202

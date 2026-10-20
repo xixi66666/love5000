@@ -528,12 +528,49 @@ function setupServiceHealth() {
     }
 
     function checkAllServices() {
-        serviceCards.forEach(checkService);
+        var monitoredCards = serviceCards.filter(function (card) {
+            if (card.getAttribute("data-health-service")) {
+                return true;
+            }
+            // website 自身的静态页面入口只检查页面可达性。
+            checkService(card);
+            return false;
+        });
+        if (!monitoredCards.length) {
+            return;
+        }
+        fetch("/api/services/health", { method: "GET", cache: "no-store" })
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error("健康状态读取失败");
+                }
+                return response.json();
+            })
+            .then(function (payload) {
+                if (!payload.success || !Array.isArray(payload.services)) {
+                    throw new Error("健康状态格式错误");
+                }
+                monitoredCards.forEach(function (card) {
+                    if (card.classList.contains("is-starting")) {
+                        return;
+                    }
+                    var name = card.getAttribute("data-health-service");
+                    var result = payload.services.find(function (service) { return service.name === name; });
+                    setServiceState(card, result && result.healthy === true ? "online" : "offline");
+                });
+            })
+            .catch(function () {
+                monitoredCards.forEach(function (card) {
+                    if (!card.classList.contains("is-starting")) {
+                        setServiceState(card, "offline");
+                    }
+                });
+            });
     }
 
     checkAllServices();
     serviceCards.forEach(setupClickStart);
-    window.setInterval(checkAllServices, 30000);
+    window.setInterval(checkAllServices, 30 * 60 * 1000);
 }
 
 function setupServiceFx() {
