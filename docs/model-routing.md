@@ -35,8 +35,10 @@ last30days 的外部 skill/CLI 编排保持原配置，未伪称已经接入统�
 ## 配置与边界
 
 website `integration/models` 提供目录、选择与文本代理，不承接微服务业务。
-Java 客户端在 `common/ai`；Python 标准库客户端在 `website/model-routing/`，薄适配器在各微服务中。
-独立复制部署使用统一入口时，需一并携带该公共 Python 目录。
+Java 客户端和 JSON 传输在 `common/ai`；Python 公共源码在 `website/model-routing/`，
+薄适配器只绑定服务标识与同步/异步方式。Python 部署副本 `_model_routing.py` 随各服务打包，
+Docker 或独立复制服务不再依赖仓库目录；只维护公共源码，运行 `python scripts/sync-model-routing.py` 同步，
+`python scripts/sync-model-routing.py --check` 检查三个副本，公共客户端测试也会检查一致性。
 
 服务端默认网关 `http://127.0.0.1:8080`，`MODEL_HUB_URL` 可指定其他回环端口。
 选择文件默认根 `.runtime/model-routing.json`（gitignored），仅存模型 ID 和覆盖，不存密钥。
@@ -48,6 +50,32 @@ website 从根或 website 目录启动均可定位配置；独立 jar 部署通�
 入口限制回环来源、本机 Host 和已知服务端口 Origin，写请求需 `X-Love530-Model: 1`。
 生成代理只允许服务端调用。未选择统一模型时保留原逻辑；已选择但网关离线时报错，不静默换模型。
 状态原子保存失败时，不更新内存选择，不谎报成功。
+
+### 单次生成与公共传输（2026-10-21）
+
+四个文本服务直接请求 `POST /api/models/complete/{service}`，不再先查询 `effective`。
+网关在一次请求中确定全局/局部选择：统一模型返回 HTTP 200 和 Chat Completions JSON；
+明确使用服务原配置时返回 HTTP 204（空响应），且不会调用任何提供方。
+旧 `/chat/{service}` 保留兼容，原配置仍返回 409；`effective` 只用于页面状态展示。
+
+收到 204 后，原配置的提供方地址、密钥、模型名仍由各业务服务解析，
+HTTP 鉴权、JSON 编解码、禁止重定向、响应大小限制及错误脱敏改用公共传输。
+python-a 使用标准库传输，Scrapling/Skill Finder 复用已有异步连接池；
+Skill Finder 的原生模型重试/降级和个人 Agent 的等待配置任务状态保留。
+原配置凭据不发送给统一网关，统一模型请求也不会读取原配置密钥。
+
+只有连接明确被拒绝且持久化状态没有统一模型（或本服务显式为 `native`）时，允许离线使用原配置。
+读取超时、HTTP 4xx/5xx、重定向、无效响应和损坏状态文件均报错，不自动改用其他模型，
+避免已被上游接受的请求在超时后又产生一次原模型调用。
+
+目录探测使用独立刷新锁，完成后一次性发布不可变快照，不占用选择锁。
+已有目录快照时生成直接使用快照；页面目录请求按 30 分钟有效期刷新，也可手动刷新。
+刷新期间，生效模型查询、已有模型生成和恢复原配置继续执行；首次启动尚无快照时需要等待首次探测。
+选择在请求开始时确定，正在执行的请求不随页面切换而改变。
+
+本次升级先重启已重新打包的 website，再重启 personal-agent、python-a、Scrapling 和 Skill Finder。
+新客户端依赖 `/complete` 协议；旧网关返回 404 时会明确报错，不静默绕过统一选择。
+本次未修改前端资源，无需重新构建 React/Vue；图片、视觉、语音与视频入口保持原配置。
 
 ### MiMo V2.6 文本模型
 
@@ -86,6 +114,7 @@ website 从根或 website 目录启动均可定位配置；独立 jar 部署通�
 | `PUT /api/models/selection/{service}` | JSON `{"modelId":"deepseek:deepseek-flash"}`；空串跟随主页，`native` 使用原配置 |
 | `POST /api/models/local/strata/start` | 复用固定启动器并刷新目录 |
 | `POST /api/models/chat/{service}` | 服务端非流式文本 Chat Completions 代理 |
+| `POST /api/models/complete/{service}` | 单次路由与生成：200 为统一模型结果，204 为服务原配置，其他错误不回退 |
 | `GET :8082/api/image-templates/models` | 图片预设、默认值与未核验说明 |
 
 服务标识：global（仅选择）、python-a、scrapling-ui、skill-finder、personal-agent。
@@ -101,6 +130,9 @@ website 从根或 website 目录启动均可定位配置；独立 jar 部署通�
 重新构建并重启 website、personal-agent、imagetemplate 和修改过的 Python 服务；后续模型切换无需重启。
 Skill Finder 运行前端 lint/typecheck/test/build、后端 pytest/ruff；Scrapling 重建前端并运行后端 unittest。
 公共客户端回归：`python -m unittest discover -s website/model-routing -p 'test_*.py'`。
+公共客户端改动后先运行 `python scripts/sync-model-routing.py`，再运行上述测试与 `--check`。
+调用链收敛回归：`mvn -pl website,personal-agent -am test`、python-a/Scrapling unittest、Skill Finder pytest；
+覆盖单次请求、204 原配置、超时不回退、原配置认证/重试、缺少密钥任务状态及慢目录刷新期间的并发生成。
 
 手动验证全局默认、局部覆盖、恢复跟随、重启持久化、离线失败、桌面/手机、键盘单选、Esc 和搜索错误状态。
 

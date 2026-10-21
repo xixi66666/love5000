@@ -24,10 +24,10 @@ def isolate_private_intro_configuration(monkeypatch):
     from app.services import introduction_service as module
     from app.services import model_hub
 
-    async def native_mode():
-        return False
+    async def native_mode(payload):
+        return None
 
-    monkeypatch.setattr(model_hub, "active", native_mode)
+    monkeypatch.setattr(model_hub, "try_chat", native_mode)
 
     monkeypatch.setattr(module.settings, "intro_api_key_file", "")
     monkeypatch.setattr(module.settings, "intro_api_key", SecretStr(""))
@@ -74,15 +74,11 @@ async def test_global_model_bypasses_native_credentials_and_provider(monkeypatch
 
     calls = []
 
-    async def selected():
-        return True
-
     async def complete(payload):
         calls.append(payload)
         return {"choices": [{"message": {"content": '["统一模型生成的介绍"]'}}]}
 
-    monkeypatch.setattr(model_hub, "active", selected)
-    monkeypatch.setattr(model_hub, "chat", complete)
+    monkeypatch.setattr(model_hub, "try_chat", complete)
     monkeypatch.setattr("app.services.introduction_service._resolve_api_key",
                         lambda: pytest.fail("统一模型不应读取原提供方密钥"))
     generated = await generate_introductions([make_brief()])
@@ -96,15 +92,11 @@ async def test_selected_model_failure_stops_without_fallback(monkeypatch):
 
     calls = []
 
-    async def selected():
-        return True
-
     async def fail(payload):
         calls.append(payload)
         raise RuntimeError("private upstream detail")
 
-    monkeypatch.setattr(model_hub, "active", selected)
-    monkeypatch.setattr(model_hub, "chat", fail)
+    monkeypatch.setattr(model_hub, "try_chat", fail)
     with pytest.raises(IntroductionGenerationError, match="统一模型") as caught:
         await generate_introductions_resilient([make_brief(), make_brief("second")])
     assert len(calls) == 1

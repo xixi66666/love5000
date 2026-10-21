@@ -22,6 +22,13 @@ public class ModelRoutingController {
     @GetMapping("/effective/{scope}") public Map<String,Object> effective(@PathVariable String scope,HttpServletRequest req,HttpServletResponse res){guard(req,res,false);return service.effective(scope);}
     @PutMapping("/selection/{scope}") public Map<String,Object> select(@PathVariable String scope,@RequestBody Map<String,String> body,HttpServletRequest req,HttpServletResponse res){guard(req,res,true);return service.select(scope,body.get("modelId"));}
     @PostMapping("/chat/{scope}") public JsonNode chat(@PathVariable String scope,@RequestBody ObjectNode body,HttpServletRequest req,HttpServletResponse res){guard(req,res,true);if(req.getHeader("Origin")!=null)throw new ResponseStatusException(HttpStatus.FORBIDDEN,"生成接口仅限服务端调用");return service.chat(scope,body);}
+    @PostMapping("/complete/{scope}")
+    public ResponseEntity<JsonNode> complete(@PathVariable String scope,@RequestBody ObjectNode body,HttpServletRequest req,HttpServletResponse res) {
+        guard(req,res,true);
+        if(req.getHeader("Origin")!=null)throw new ResponseStatusException(HttpStatus.FORBIDDEN,"生成接口仅限服务端调用");
+        JsonNode result=service.complete(scope,body);
+        return result==null?ResponseEntity.noContent().build():ResponseEntity.ok(result);
+    }
     @RequestMapping(value={"","/**"},method=RequestMethod.OPTIONS)
     public ResponseEntity<Void> options(HttpServletRequest req,HttpServletResponse res){guard(req,res,false);res.setHeader("Access-Control-Allow-Methods","GET, PUT, POST, OPTIONS");res.setHeader("Access-Control-Allow-Headers","Content-Type, X-Love530-Model");res.setHeader("Access-Control-Max-Age","600");return ResponseEntity.noContent().build();}
     static void guard(HttpServletRequest req,HttpServletResponse res,boolean write) {

@@ -8,6 +8,7 @@ import org.springframework.mock.env.MockEnvironment;
 import org.springframework.web.server.ResponseStatusException;
 import java.nio.file.*;
 import java.util.*;
+import java.util.concurrent.*;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -81,5 +82,41 @@ class ModelRoutingServiceTest {
         Files.write(config.resolve("deepseek.local.json"),"{\"DEEPSEEK_API_KEY\":\"private-test-key\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8));
         ModelSources actual=new ModelSources(new MockEnvironment(),json,dir);
         assertThat(actual.read().get(0).key).isEqualTo("private-test-key");
+    }
+    @Test void completeReturnsNativeWithoutDiscoveryAndKeepsStrictChatContract()throws Exception {
+        ObjectNode payload=json.createObjectNode();
+        assertThat(service.complete("python-a",payload)).isNull();
+        verifyNoInteractions(http);
+        assertThatThrownBy(()->service.chat("python-a",payload)).isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(()->service.complete("global",payload)).isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(()->service.complete("unknown",payload)).isInstanceOf(ResponseStatusException.class);
+        service.select("global","deepseek:flash");
+        payload.putArray("messages").addObject().put("content","hello");
+        assertThat(service.complete("python-a",payload).path("model").asText()).isEqualTo("flash");
+        service.select("python-a","native");
+        assertThat(service.complete("python-a",payload)).isNull();
+    }
+    @Test void slowDirectoryRefreshDoesNotBlockEffectiveSelectionOrGeneration()throws Exception {
+        service.select("global","deepseek:flash");
+        CountDownLatch entered=new CountDownLatch(1),release=new CountDownLatch(1);
+        when(http.request(eq("https://test.example/v1/models"),anyString(),isNull(),anyInt())).thenAnswer(call->{
+            entered.countDown();
+            if(!release.await(5,TimeUnit.SECONDS)) throw new IllegalStateException("test timed out");
+            return json.readTree("{\"data\":[{\"id\":\"flash\"},{\"id\":\"pro\"}]}");
+        });
+        ExecutorService workers=Executors.newFixedThreadPool(2);
+        try {
+            Future<?> refresh=workers.submit(()->service.catalog(true));
+            assertThat(entered.await(2,TimeUnit.SECONDS)).isTrue();
+            workers.submit(()->{
+                assertThat(service.effective("python-a").get("modelId")).isEqualTo("deepseek:flash");
+                ObjectNode payload=json.createObjectNode();payload.putArray("messages").addObject().put("content","hello");
+                assertThat(service.complete("python-a",payload).path("model").asText()).isEqualTo("flash");
+                service.select("python-a","native");
+                assertThat(service.complete("python-a",payload)).isNull();
+            }).get(1,TimeUnit.SECONDS);
+            release.countDown();refresh.get(2,TimeUnit.SECONDS);
+            assertThat(service.effective("python-a").get("active")).isEqualTo(false);
+        } finally { release.countDown();workers.shutdownNow(); }
     }
 }

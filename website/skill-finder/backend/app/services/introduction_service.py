@@ -16,6 +16,7 @@ from app.core.config import settings
 from app.db.models import Repository, TrendingEntry
 from app.db.session import async_session_factory
 from app.repositories.repositories import RepositoryStore
+from app.services import model_hub
 
 logger = logging.getLogger(__name__)
 
@@ -205,27 +206,24 @@ def _resolve_api_key() -> str:
 async def _call_chat(
     client: httpx.AsyncClient, api_model: str, api_key: str, prompt: str, timeout: float
 ) -> str:
-    response = await client.post(
-        f"{settings.intro_api_base}/chat/completions",
-        json={"model": api_model, "messages": [{"role": "user", "content": prompt}]},
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "User-Agent": "skill-finder/1.0",
-            "x-opencode-session": uuid.uuid4().hex,
-        },
-        timeout=timeout,
-    )
-    if response.status_code == 401:
-        raise IntroductionAuthError("简介服务认证失败或密钥已过期，请更新私有配置中的密钥。")
-    if response.status_code in _RETRYABLE_STATUS:
-        raise _UpstreamError(f"{api_model}: HTTP {response.status_code}")
-    if response.status_code >= 400:
-        detail = response.text[:300].replace("\n", " ")
-        raise _ModelRejected(f"{api_model}: HTTP {response.status_code} {detail}")
     try:
-        data = response.json()
-    except ValueError as exc:
-        raise _UpstreamError(f"{api_model}: invalid JSON response") from exc
+        data = await model_hub.native_chat(
+            client,
+            f"{settings.intro_api_base}/chat/completions",
+            api_key,
+            {"model": api_model, "messages": [{"role": "user", "content": prompt}]},
+            headers={
+                "User-Agent": "skill-finder/1.0",
+                "x-opencode-session": uuid.uuid4().hex,
+            },
+            timeout=timeout,
+        )
+    except model_hub.ModelProviderError as exc:
+        if exc.status == 401:
+            raise IntroductionAuthError("简介服务认证失败或密钥已过期，请更新私有配置中的密钥。") from None
+        if exc.status is None or exc.status in _RETRYABLE_STATUS:
+            raise _UpstreamError(f"{api_model}: 模型暂时不可用") from None
+        raise _ModelRejected(f"{api_model}: HTTP {exc.status}") from None
     content = (data.get("choices") or [{}])[0].get("message", {}).get("content", "")
     if not isinstance(content, str) or not content.strip():
         raise _UpstreamError(f"{api_model}: empty content")
@@ -241,23 +239,21 @@ async def generate_introductions(
     """Generate Chinese introductions via the model gateway, with a fallback chain."""
     if not repos:
         return []
-    from app.services import model_hub
-
-    if await model_hub.active():
-        try:
-            response = await model_hub.chat({
-                "messages": [{"role": "user", "content": _build_prompt(repos)}],
-            })
+    prompt = _build_prompt(repos)
+    try:
+        response = await model_hub.try_chat({
+            "messages": [{"role": "user", "content": prompt}],
+        })
+        if response is not None:
             text = (response.get("choices") or [{}])[0].get("message", {}).get("content", "")
             return _parse_introductions(text, len(repos))
-        except Exception as exc:
-            # 延续认证失败即停止的语义，不拆分、不换模型重试。
-            raise IntroductionAuthError("统一模型请求失败，请检查已选模型后重试。") from exc
+    except Exception as exc:
+        # 延续认证失败即停止的语义，不拆分、不换模型重试。
+        raise IntroductionAuthError("统一模型请求失败，请检查已选模型后重试。") from exc
     chain = _model_chain(model or settings.intro_model)
     if not chain:
         raise IntroductionGenerationError("INTRO_MODEL 未配置任何可用模型。")
     api_key = _resolve_api_key()
-    prompt = _build_prompt(repos)
     seconds = timeout or settings.intro_timeout_seconds
     last_error: Exception | None = None
     async with httpx.AsyncClient() as client:

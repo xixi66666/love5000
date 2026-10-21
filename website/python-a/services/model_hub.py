@@ -1,18 +1,6 @@
-"""加载仓库内公共路由；独立部署时保留原服务能力。"""
-import importlib.util
-from pathlib import Path
+"""绑定服务标识；部署副本由 scripts/sync-model-routing.py 生成。"""
+from . import _model_routing as routing
 
-_path = Path(__file__).resolve().parents[2] / "model-routing/model_routing.py"
-_routing = None
-if _path.is_file():
-    _spec = importlib.util.spec_from_file_location("love530_model_routing", _path)
-    _routing = importlib.util.module_from_spec(_spec)
-    _spec.loader.exec_module(_routing)
-
-
-def active():
-    return _routing is not None and _routing.active("python-a")
-
-
-def chat(payload):
-    return _routing.chat("python-a", payload)
+_client = routing.ServiceModelClient("python-a")
+try_chat = _client.try_chat
+native_chat = routing.native_chat

@@ -28,4 +28,20 @@ class ModelRoutingControllerTest {
     @Test void preflightFromServiceAllowsOnlyExpectedHeaders()throws Exception {
         mvc.perform(options("/api/models/selection/python-a").header("Origin","http://127.0.0.1:5174")).andExpect(status().isNoContent()).andExpect(header().string("Access-Control-Allow-Headers","Content-Type, X-Love530-Model"));
     }
+    @Test void completeReturns204OnlyForNativeAndRejectsBrowserGeneration()throws Exception {
+        mvc.perform(post("/api/models/complete/python-a").header("X-Love530-Model","1")
+                .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isNoContent()).andExpect(content().string(""));
+        when(service.complete(eq("python-a"),any())).thenReturn(new com.fasterxml.jackson.databind.ObjectMapper().readTree("{\"model\":\"selected\"}"));
+        mvc.perform(post("/api/models/complete/python-a").header("X-Love530-Model","1")
+                .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.model").value("selected"));
+        clearInvocations(service);
+        mvc.perform(post("/api/models/complete/python-a").header("Origin","http://localhost:5174")
+                .header("X-Love530-Model","1").contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/models/complete/python-a").contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isForbidden());
+        verify(service,never()).complete(anyString(),any());
+    }
 }

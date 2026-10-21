@@ -9,6 +9,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.nio.file.*;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.locks.ReentrantLock;
 
 @Service
 public class ModelRoutingService {
@@ -18,8 +19,16 @@ public class ModelRoutingService {
     private final ModelHttp http;
     private final Path statePath;
     private Map<String,String> selections=new LinkedHashMap<>();
-    private Map<String,Entry> entries=new LinkedHashMap<>();
-    private long checkedAt;
+    private final ReentrantLock discoveryLock = new ReentrantLock();
+    private volatile CatalogSnapshot catalog = new CatalogSnapshot(Collections.emptyMap(), 0);
+    private static class CatalogSnapshot {
+        final Map<String,Entry> entries;
+        final long checkedAt;
+        CatalogSnapshot(Map<String,Entry> entries, long checkedAt) {
+            this.entries = Collections.unmodifiableMap(new LinkedHashMap<>(entries));
+            this.checkedAt = checkedAt;
+        }
+    }
     private static class Entry {
         String id, model, provider, status; boolean available, startable; ModelSources.Source source;
         Map<String,Object> publicView() { Map<String,Object> r=new LinkedHashMap<>();r.put("id",id);r.put("model",model);r.put("provider",provider);r.put("available",available);r.put("startable",startable);r.put("status",status);r.put("capability","text");return r; }
@@ -35,14 +44,23 @@ public class ModelRoutingService {
             for(String service:SERVICES) if(state.path(service).isTextual()) selections.put(service,state.path(service).asText());
         } catch(IOException e) { throw new IllegalStateException("模型选择文件无法读取，请检查文件后重启"); }
     }
-    public synchronized Map<String,Object> catalog(boolean refresh) {
-        if(refresh || checkedAt==0 || System.currentTimeMillis()-checkedAt>1800000) discover();
-        Map<String,Object> result=new LinkedHashMap<>();result.put("success",true);result.put("checkedAt",checkedAt);
-        List<Object> list=new ArrayList<>();for(Entry entry:entries.values()) list.add(entry.publicView());
-        result.put("models",list);result.put("selections",new LinkedHashMap<>(selections));
+    public Map<String,Object> catalog(boolean refresh) {
+        CatalogSnapshot previous = catalog;
+        if(refresh || previous.checkedAt==0 || System.currentTimeMillis()-previous.checkedAt>1800000) {
+            discoveryLock.lock();
+            try {
+                // 并发刷新复用刚完成的探测；网络请求不持有模型选择锁。
+                if (catalog == previous) catalog = new CatalogSnapshot(discover(), System.currentTimeMillis());
+            } finally { discoveryLock.unlock(); }
+        }
+        CatalogSnapshot snapshot = catalog;
+        Map<String,Object> result=new LinkedHashMap<>();result.put("success",true);result.put("checkedAt",snapshot.checkedAt);
+        List<Object> list=new ArrayList<>();for(Entry entry:snapshot.entries.values()) list.add(entry.publicView());
+        result.put("models",list);
+        synchronized(this) { result.put("selections",new LinkedHashMap<>(selections)); }
         result.put("services",SERVICES);return result;
     }
-    private void discover() {
+    private Map<String,Entry> discover() {
         Map<String,Entry> found=new LinkedHashMap<>();
         Set<String> visited=new HashSet<>();
         for(ModelSources.Source source:sources.read()) {
@@ -67,7 +85,7 @@ public class ModelRoutingService {
                 found.put(entry.id,entry);
             }
         }
-        entries=found;checkedAt=System.currentTimeMillis();
+        return found;
     }
     static boolean isChatModel(String id) {
         String m=id.toLowerCase(Locale.ROOT);
@@ -80,33 +98,44 @@ public class ModelRoutingService {
         result.put("modelId",selected);result.put("active",!selected.isEmpty() && !"native".equals(selected));
         result.put("inherited",!"global".equals(service) && override.isEmpty());return result;
     }
-    public synchronized Map<String,Object> select(String service,String modelId) {
+    public Map<String,Object> select(String service,String modelId) {
         validateService(service);
         if(modelId==null || modelId.length()>300) fail(400,"模型选项无效");
         if(!modelId.isEmpty() && !"native".equals(modelId)) {
-            catalog(false);Entry entry=entries.get(modelId);
+            catalog(false);Entry entry=catalog.entries.get(modelId);
             if(entry==null || !entry.available) fail(409,"该模型尚不可用，请刷新模型目录后重试");
         }
-        Map<String,String> next=new LinkedHashMap<>(selections);
-        if(modelId.isEmpty()) next.remove(service); else next.put(service,modelId);
-        // 文件原子替换，失败时不能向浏览器谎报切换成功。
-        try { Files.createDirectories(statePath.toAbsolutePath().getParent());
-            Path temp=Files.createTempFile(statePath.toAbsolutePath().getParent(),"routing-",".tmp");
-            try { json.writeValue(temp.toFile(),next);
-                try { Files.move(temp,statePath,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING); }
-                catch(AtomicMoveNotSupportedException e){ Files.move(temp,statePath,StandardCopyOption.REPLACE_EXISTING); }
-            } finally { Files.deleteIfExists(temp); }
-        } catch(IOException e) { fail(503,"无法保存模型选择，请检查运行目录权限"); }
-        selections=next;return effective(service);
+        synchronized(this) {
+            Map<String,String> next=new LinkedHashMap<>(selections);
+            if(modelId.isEmpty()) next.remove(service); else next.put(service,modelId);
+            // 文件原子替换，失败时不能向浏览器谎报切换成功。
+            try { Files.createDirectories(statePath.toAbsolutePath().getParent());
+                Path temp=Files.createTempFile(statePath.toAbsolutePath().getParent(),"routing-",".tmp");
+                try { json.writeValue(temp.toFile(),next);
+                    try { Files.move(temp,statePath,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING); }
+                    catch(AtomicMoveNotSupportedException e){ Files.move(temp,statePath,StandardCopyOption.REPLACE_EXISTING); }
+                } finally { Files.deleteIfExists(temp); }
+            } catch(IOException e) { fail(503,"无法保存模型选择，请检查运行目录权限"); }
+            selections=next;return effective(service);
+        }
     }
     public JsonNode chat(String service,ObjectNode body) {
+        return generate(service, body, false);
+    }
+    /** 一次请求完成路由；null 表示明确使用服务原配置，尚未调用任何上游。 */
+    public JsonNode complete(String service,ObjectNode body) {
+        return generate(service, body, true);
+    }
+    private JsonNode generate(String service,ObjectNode body,boolean allowNative) {
         if("global".equals(service)) fail(400,"请提供具体服务标识");
-        Entry selected;
-        synchronized(this) {
-            Map<String,Object> current=effective(service);
-            if(!Boolean.TRUE.equals(current.get("active"))) fail(409,"该服务正在使用原配置");
-            catalog(false);selected=entries.get(current.get("modelId"));
+        Map<String,Object> current=effective(service);
+        if(!Boolean.TRUE.equals(current.get("active"))) {
+            if (allowNative) return null;
+            fail(409,"该服务正在使用原配置");
         }
+        // 生成复用已发布的目录快照，手动刷新不会阻塞已有模型请求。
+        if (catalog.checkedAt == 0) catalog(false);
+        Entry selected=catalog.entries.get(current.get("modelId"));
         if(selected==null || !selected.available) fail(503,"已选模型当前不可用，请刷新模型目录；不会自动切换其他模型");
         if(!body.path("messages").isArray() || body.path("messages").size()==0 || body.path("messages").size()>100) fail(400,"messages 参数无效");
         if(body.toString().length()>200000) fail(413,"文本请求过大");

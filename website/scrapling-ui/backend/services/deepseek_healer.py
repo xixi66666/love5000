@@ -48,30 +48,23 @@ async def heal_selector(
         "temperature": 0.1,
         "max_tokens": 150,
     }
-    use_hub = await model_hub.active()
-    async with httpx.AsyncClient(timeout=30) as client:
-        try:
-            if use_hub:
-                data = await model_hub.chat(payload)
-            else:
-                response = await client.post(
-                    DEEPSEEK_API_URL,
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json=payload,
-                )
-                response.raise_for_status()
-                data = response.json()
-            healed = data["choices"][0]["message"]["content"].strip()
-            healed = re.sub(r'^```(?:css|xpath)?\s*', '', healed)
-            healed = re.sub(r'\s*```$', '', healed)
-            healed = healed.strip().strip("'").strip('"')
-            if healed and healed != broken_selector:
-                return healed
-        except Exception as e:
-            if use_hub:
-                raise RuntimeError("已选模型修复失败，请检查统一模型入口") from e
-            print("[AI] 选择器修复失败，请检查模型配置")
+    try:
+        data = await model_hub.try_chat(payload)
+    except Exception as exc:
+        raise RuntimeError("已选模型修复失败，请检查统一模型入口") from exc
+    use_hub = data is not None
+    try:
+        if data is None:
+            async with httpx.AsyncClient(timeout=30) as client:
+                data = await model_hub.native_chat(client, DEEPSEEK_API_URL, api_key, payload, timeout=30)
+        healed = data["choices"][0]["message"]["content"].strip()
+        healed = re.sub(r'^```(?:css|xpath)?\s*', '', healed)
+        healed = re.sub(r'\s*```$', '', healed)
+        healed = healed.strip().strip("'").strip('"')
+        if healed and healed != broken_selector:
+            return healed
+    except Exception as exc:
+        if use_hub:
+            raise RuntimeError("已选模型修复失败，请检查统一模型入口") from exc
+        print("[AI] 选择器修复失败，请检查模型配置")
     return None

@@ -1,19 +1,7 @@
-"""仅文本生成接入全局模型，不影响语音与视频模型。"""
-import asyncio
-import importlib.util
-from pathlib import Path
+"""仅绑定文本模型入口，语音和视频使用专用客户端。"""
+from . import _model_routing as routing
 
-_path = Path(__file__).resolve().parents[4] / "model-routing/model_routing.py"
-_routing = None
-if _path.is_file():
-    _spec = importlib.util.spec_from_file_location("love530_model_routing", _path)
-    _routing = importlib.util.module_from_spec(_spec)
-    _spec.loader.exec_module(_routing)
-
-
-async def active():
-    return _routing is not None and await asyncio.to_thread(_routing.active, "skill-finder")
-
-
-async def chat(payload):
-    return await asyncio.to_thread(_routing.chat, "skill-finder", payload)
+_client = routing.ServiceModelClient("skill-finder")
+try_chat = _client.try_chat_async
+native_chat = routing.native_chat_async
+ModelProviderError = routing.ModelProviderError

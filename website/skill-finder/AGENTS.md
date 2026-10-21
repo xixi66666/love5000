@@ -153,7 +153,7 @@ Remotion 与 MiMo TTS 已接入，默认使用实际音轨转写字幕并要求�
 ## 统一模型入口（2026-10-20）
 
 主页提供全局文本模型选择，python-a、scrapling-ui、skill-finder、personal-agent 提供“跟随主页 / 服务原配置 / 独立模型”，下一次请求生效。图片、视觉、语音和视频保留专用模型；quant-a 与 lovestory 当前没有文本模型调用。
-website 的 `/api/models` 提供目录核验、选择持久化和文本代理，状态文件为根 `.runtime/model-routing.json`，仅存模型 ID、不存密钥；Java 客户端在 common，Python 公共客户端在 website/model-routing，独立部署使用统一入口时需一并携带。原有认证保留。未选择时保留原逻辑，已选择但网关离线时报错。
+website 的 `/api/models` 提供目录核验、选择持久化和文本代理，状态文件为根 `.runtime/model-routing.json`，仅存模型 ID、不存密钥；Java 客户端在 common，Python 公共源码在 website/model-routing，部署副本 _model_routing.py 随各服务打包。原有认证保留。未选择时保留原逻辑，已选择但网关离线时报错。
 共享选择器源为 website/src/main/resources/static/model-picker/picker.js，修改后执行 `python scripts/sync-model-picker.py`，React/Vue 修改后重新构建 dist。图片工作台新增独立图片模型下拉与 `OPENAI_IMAGE_MODELS` 白名单，支持 JSON/multipart 的 `model` 字段。
 完整盘点、API、边界与验证见 [统一模型入口](../../docs/model-routing.md)。跨模块验证 `mvn test`；公共 Python 客户端验证 `python -m unittest discover -s website/model-routing`。
 
@@ -161,3 +161,9 @@ website 的 `/api/models` 提供目录核验、选择持久化和文本代理，
 
 统一模型目录新增 Xiaomi MiMo 的 `mimo-v2.6-pro`、`mimo-v2.6-flash`。website 优先读取环境变量 `MIMO_API_KEY` / `MIMO_API_BASE` / `MIMO_CHAT_MODELS`，缺失时复用 Skill Finder 私有 `.env`；密钥不复制、不回显。默认地址为官方 `https://api.xiaomimimo.com/v1`，模型列表与真实 `/models` 交集校验，过滤 ASR/TTS、旧版和未显式配置的定制型号。
 主页与微服务原有选择器自动展示两个文本模型；原有选择、MiMo TTS 模型与配音保持不变。网关按官方规范将 `max_tokens` 转换为 `max_completion_tokens`，默认关闭深度思考，JSON 模式原样保留；显式开启思考时移除自定义采样参数。回归运行 `mvn -pl website -am test`，详见统一模型入口文档。
+
+## 文本模型调用收敛（2026-10-21）
+
+简介/补全直接通过 model_hub.try_chat 路由；原配置异步 HTTP 复用公共 native_chat，保留模型重试、批次降级及认证失败即停止，语音/视频不变。
+生成使用 `POST /api/models/complete/{service}`：200 返回统一模型结果，204 明确使用服务原配置；`effective` 只用于状态展示，旧 `chat` 保留兼容。超时或 HTTP 错误不回退；只有连接被拒绝且状态确认无统一选择时允许离线原配置。
+Python 公共源码改动后执行 `python scripts/sync-model-routing.py`，再执行 `--check` 与公共 unittest；副本随服务部署，只改公共源码。回归运行 `mvn -pl website,personal-agent -am test`、python-a/Scrapling unittest 及 Skill Finder pytest；详见 [统一模型入口](../../docs/model-routing.md)。

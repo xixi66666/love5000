@@ -1102,11 +1102,6 @@ def parse_deepseek_json(content: str) -> Dict[str, str]:
 
 def call_deepseek_dimension_analysis(payload: Dict[str, Any]) -> Dict[str, Any]:
     from services import model_hub
-    use_hub = model_hub.active()
-    api_key = read_local_secret("DEEPSEEK_API_KEY")
-    if not use_hub and not api_key:
-        raise ValueError("DeepSeek API key is not configured. Set DEEPSEEK_API_KEY or create deepseek.local.json.")
-
     stock = payload.get("stock") or {}
     review = payload.get("review") or {}
     research_snapshot = payload.get("research_snapshot") or {}
@@ -1120,24 +1115,13 @@ def call_deepseek_dimension_analysis(payload: Dict[str, Any]) -> Dict[str, Any]:
         "max_tokens": 3000,
         "response_format": {"type": "json_object"},
     }
-    request = urllib.request.Request(
-        f"{DEEPSEEK_API_BASE}/chat/completions",
-        data=json.dumps(request_payload, ensure_ascii=False).encode("utf-8"),
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
-    )
-    try:
-        if use_hub:
-            response_payload = model_hub.chat(request_payload)
-        else:
-            with urllib.request.urlopen(request, timeout=90) as response:
-                response_payload = json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"DeepSeek request failed: HTTP {exc.code} {detail}") from exc
+    response_payload = model_hub.try_chat(request_payload)
+    if response_payload is None:
+        api_key = read_local_secret("DEEPSEEK_API_KEY")
+        if not api_key:
+            raise ValueError("DeepSeek API key is not configured. Set DEEPSEEK_API_KEY or create deepseek.local.json.")
+        response_payload = model_hub.native_chat(
+            f"{DEEPSEEK_API_BASE}/chat/completions", api_key, request_payload, timeout=90)
     content = response_payload["choices"][0]["message"]["content"]
     analysis = parse_deepseek_json(content)
     return {
