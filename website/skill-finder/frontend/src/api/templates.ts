@@ -1,3 +1,5 @@
+export type TemplateEngine = 'remotion' | 'hyperframes'
+
 export interface TemplateTheme {
   accent: string
   background: string
@@ -12,11 +14,14 @@ export interface TemplateTheme {
   motion: number
 }
 export interface TemplateDocument {
+  engine?: TemplateEngine
+  engine_label?: string
+  current_engine?: string
   revision: string
   theme: TemplateTheme
   defaults: TemplateTheme
   sources: { path: string; code: string; editable: boolean }[]
-  versions: { revision: string; created_at: string }[]
+  versions: { revision: string; created_at: string; engine?: TemplateEngine }[]
   fields: {
     key: keyof TemplateTheme
     label: string
@@ -28,6 +33,7 @@ export interface TemplateDocument {
   }[]
 }
 export interface TemplatePreview {
+  engine?: TemplateEngine
   id: string
   revision: string
   created_at: string

@@ -24,8 +24,8 @@ beforeEach(() => {
   vi.spyOn(dailyApi,'post').mockResolvedValue({data:preview()})
 })
 afterEach(() => {wrappers.forEach(wrapper=>wrapper.unmount());vi.restoreAllMocks();vi.unstubAllGlobals()})
-async function open(key='editor-test-only') {
-  const wrapper=mount(TemplateEditor,{props:{adminKey:key}})
+async function open(key='editor-test-only', engine: 'remotion' | 'hyperframes' = 'remotion') {
+  const wrapper=mount(TemplateEditor,{props:{adminKey:key, engine}})
   wrappers.push(wrapper);await flushPromises();return wrapper
 }
 describe('模板编辑器',()=>{
@@ -78,5 +78,35 @@ describe('模板编辑器',()=>{
     expect(payload.props.theme.accent).toBe('#123456')
     expect(JSON.stringify(payload)).not.toContain('editor-test-only')
     expect(wrapper.get('#theme-captionSize').attributes('max')).toBe('68')
+  })
+  it('edits and saves the exact HyperFrames HTML source with a bound engine',async()=>{
+    const hf={...document(),engine:'hyperframes' as const, engine_label:'HyperFrames', current_engine:'hyperframes',sources:[
+      {path:'src/template.html',code:'<main>original HTML</main>',editable:true},
+      {path:'src/demo.html',code:'<main>demo HTML</main>',editable:true},
+    ]}
+    vi.mocked(dailyApi.get).mockResolvedValueOnce({data:hf})
+    vi.mocked(dailyApi.post).mockResolvedValueOnce({data:{...preview(),engine:'hyperframes'}})
+    const wrapper=await open('editor-test-only','hyperframes')
+    expect(dailyApi.get).toHaveBeenCalledWith('/daily-reports/template',expect.objectContaining({params:{engine:'hyperframes'}}))
+    expect(wrapper.get('iframe').attributes('src')).toContain('/engines/hyperframes/previews/')
+    expect(wrapper.get<HTMLTextAreaElement>('#template-source').element.value).toBe('<main>original HTML</main>')
+    expect(wrapper.get('iframe').attributes('sandbox')).toBe('allow-scripts')
+    await wrapper.get('#template-source').setValue('<main>changed HTML</main>')
+    expect(wrapper.get('#template-engine').attributes('disabled')).toBeDefined()
+    const put=vi.spyOn(dailyApi,'put').mockResolvedValueOnce({data:{...hf,preview:{...preview(),engine:'hyperframes'}}})
+    await wrapper.get('[data-testid="save-template"]').trigger('click');await flushPromises()
+    expect(put.mock.calls[0][1]).toMatchObject({engine:'hyperframes',sources:{'src/template.html':'<main>changed HTML</main>'}})
+    expect((put.mock.calls[0][1] as {sources: Record<string,string>}).sources).not.toHaveProperty('src/video.tsx')
+  })
+  it('binds a version restore to the selected engine',async()=>{
+    const hf={...document(),engine:'hyperframes' as const,versions:[{revision:'d'.repeat(64),created_at:'2026-10-23T12:00:00+08:00'}],
+      sources:[{path:'src/template.html',code:'<main>HTML</main>',editable:true},{path:'src/demo.html',code:'<main>demo</main>',editable:true}]}
+    vi.mocked(dailyApi.get).mockResolvedValueOnce({data:hf})
+    const wrapper=await open('editor-test-only','hyperframes')
+    await wrapper.get('#template-version').setValue('d'.repeat(64))
+    vi.mocked(dailyApi.post).mockResolvedValueOnce({data:hf})
+    const restore=wrapper.findAll('button').find(button=>button.text()==='恢复此版本')!
+    await restore.trigger('click');await flushPromises()
+    expect(dailyApi.post).toHaveBeenCalledWith('/daily-reports/template/restore',expect.objectContaining({engine:'hyperframes',revision:'d'.repeat(64)}),expect.anything())
   })
 })

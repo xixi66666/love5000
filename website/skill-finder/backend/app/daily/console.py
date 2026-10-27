@@ -40,21 +40,38 @@ def asset_status(project: str) -> dict:
 
 
 def runtime() -> list[dict]:
-    remotion = settings.daily_video_renderer == "remotion"
-    mimo = settings.daily_tts_provider == "mimo" and remotion
+    engine = settings.daily_video_renderer
+    modern = engine in {"remotion", "hyperframes"}
+    mimo = settings.daily_tts_provider == "mimo" and modern
+    if engine == "hyperframes":
+        from app.daily.hyperframes import ensure_runtime
+
+        renderer_label = "HyperFrames / HTML + GSAP 编排"
+        try:
+            ensure_runtime()
+            renderer_ready = True
+        except (OSError, RuntimeError):
+            renderer_ready = False
+    elif engine == "remotion":
+        renderer_label = "Remotion / 动态编排"
+        renderer_ready = bool(shutil.which(settings.daily_node_command)) and (
+            RENDERER_DIR / "node_modules/remotion/package.json").is_file()
+    else:
+        renderer_label, renderer_ready = "legacy / 文字卡片", True
     return [
-        {"id": "renderer", "label": "视频引擎", "value": settings.daily_video_renderer,
-         "ready": not remotion or bool(shutil.which(settings.daily_node_command))
-         and (RENDERER_DIR / "node_modules/remotion/package.json").is_file()},
-        {"id": "ffmpeg", "label": "音视频工具", "value": "FFmpeg / ffprobe",
+        {"id": "renderer", "label": "视频引擎", "value": renderer_label, "ready": renderer_ready},
+        {"id": "ffmpeg", "label": "音视频工具", "value": "FFmpeg / 双遍响度与成片检测" if modern else "FFmpeg / ffprobe",
          "ready": bool(shutil.which(settings.daily_ffmpeg_command) and shutil.which(settings.daily_ffprobe_command))},
-        {"id": "tts", "label": "配音服务", "value": settings.daily_tts_provider if remotion else "edge",
+        {"id": "tts", "label": "配音服务", "value": settings.daily_tts_provider if modern else "edge",
          "ready": not mimo or bool(settings.mimo_api_key.get_secret_value())},
         {"id": "captions", "label": "字幕对齐", "value": "Whisper / " + (
             settings.daily_whisper_model if re.fullmatch(r"[A-Za-z0-9_.-]+", settings.daily_whisper_model)
             else "本地模型")
-         if mimo else "供应商时间戳" if remotion else "旧版估算字幕",
+         if mimo else "供应商时间戳" if modern else "旧版估算字幕",
          "ready": not mimo or importlib.util.find_spec("faster_whisper") is not None},
+        {"id": "music", "label": "背景配乐", "value": "本地配乐 / 人声自动避让" if modern and settings.daily_bgm_file
+         else "纯人声", "ready": modern and bool(settings.daily_bgm_source)
+         and bool(settings.daily_bgm_file) and Path(settings.daily_bgm_file).is_file(), "optional": True},
         {"id": "publisher", "label": "抖音账号", "value": "已配置登录态" if Path(settings.douyin_storage_state).is_file()
          else "等待扫码登录", "ready": settings.douyin_publish_enabled
          and Path(settings.douyin_storage_state).is_file(), "optional": True},
@@ -72,12 +89,41 @@ def samples() -> list[dict]:
         try:
             metadata = json.loads(path.read_text(encoding="utf-8"))
             result.append({"id": path.parent.name, "duration_seconds": float(metadata["duration_seconds"]),
+                           "renderer": metadata.get("renderer", "remotion"),
                            "width": int(metadata["width"]), "height": int(metadata["height"]), "fps": int(metadata["fps"])})
         except (OSError, ValueError, KeyError, TypeError):
             continue
         if len(result) >= 10:
             break
     return result
+
+
+def template_metadata() -> dict:
+    """只公开所选引擎的工程说明，不返回私有版本或浏览器路径。"""
+    engine = settings.daily_video_renderer
+    hyperframes = engine == "hyperframes"
+    from app.daily.templates import descriptor
+
+    spec = descriptor(engine) if engine != "legacy" else None
+    files = ([
+        {"path": "src/template.html", "description": "HTML 主模板：布局、字幕与 GSAP 动效"},
+        {"path": "src/demo.html", "description": "HyperFrames 本地能力演示"},
+    ] if hyperframes else [
+        {"path": "src/video.tsx", "description": "主模板：布局、动效、字幕、项目素材和音轨"},
+        {"path": "src/root.tsx", "description": "注册 Composition、分辨率、帧率和动态时长"},
+        {"path": "src/demo.tsx", "description": "Remotion 本地能力演示"},
+        {"path": "src/types.ts", "description": "场景、字幕和素材的数据协议"},
+    ])
+    return {
+        "engine": engine, "current_engine": engine, "engine_label": spec["label"] if spec else "Legacy",
+        "composition": "daily" if hyperframes else "SkillFinderDaily" if engine != "legacy" else "LegacyCards",
+        "width": 720 if engine == "legacy" else 1080,
+        "height": 1280 if engine == "legacy" else 1920, "fps": 15 if engine == "legacy" else 30,
+        "directory": "website/skill-finder/" + ("hyperframes-renderer" if hyperframes else "video-renderer")
+        if engine != "legacy" else "website/skill-finder/backend/app/daily/media.py",
+        "editor_url": "/daily-reports?panel=template", "api": "/api/v1/daily-reports/template",
+        "files": [] if engine == "legacy" else files,
+    }
 
 
 def snapshot(day: str) -> dict:
@@ -150,16 +196,5 @@ def snapshot(day: str) -> dict:
         "date": day, "today": now()[:10], "timezone": settings.business_timezone, "status": status,
         "recorded": recorded, "workflow": workflow, "render_progress": frame_progress,
         "artifacts": artifacts, "assets": [asset_status(item["full_name"]) for item in (report or {}).get("items", [])],
-        "runtime": runtime(), "samples": samples(), "template": {
-            "composition": "SkillFinderDaily", "width": 1080, "height": 1920, "fps": 30,
-            "directory": "website/skill-finder/video-renderer",
-            "editor_url": "/daily-reports?panel=template",
-            "api": "/api/v1/daily-reports/template",
-            "files": [
-                {"path": "src/video.tsx", "description": "主模板：布局、动效、字幕、项目素材和音轨"},
-                {"path": "src/root.tsx", "description": "注册 Composition、分辨率、帧率和动态时长"},
-                {"path": "src/demo.tsx", "description": "Remotion 本地能力演示"},
-                {"path": "src/types.ts", "description": "场景、字幕和素材的数据协议"},
-            ],
-        },
+        "runtime": runtime(), "samples": samples(), "template": template_metadata(),
     }

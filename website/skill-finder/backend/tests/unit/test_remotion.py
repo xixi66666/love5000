@@ -37,6 +37,7 @@ def test_caption_alignment_rejects_unrelated_audio():
 def test_sample_provisions_its_own_remotion_assets(tmp_path, monkeypatch):
     from app.daily import sample
 
+    monkeypatch.setattr(settings, "daily_video_renderer", "remotion")
     monkeypatch.setattr(sample.store, "root", lambda: tmp_path / "reports")
     calls = []
     monkeypatch.setattr(sample, "invoke_renderer", lambda directory, **kwargs: calls.append((directory, kwargs)))
@@ -83,6 +84,7 @@ def test_manifest_frame_rounding_matches_cumulative_subtitle_offsets(tmp_path, m
         return audio, [{"text": text, "start": 0.1, "end": 1.005}]
 
     monkeypatch.setattr("app.daily.remotion.synthesize", voice)
+    monkeypatch.setattr("app.daily.remotion.normalize_voice", lambda *args: {})
     monkeypatch.setattr("app.daily.remotion.run", lambda args: '{"format":{"duration":"1.005"}}')
     monkeypatch.setattr("app.daily.remotion.asset_for", lambda *args: None)
     face = tmp_path / "font.ttf"

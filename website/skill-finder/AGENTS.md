@@ -94,7 +94,7 @@ mvn -pl website -am test
 
 ## Skill Finder 云端日报与视频
 
-日报视频现已接入内部 `video-renderer/`（Remotion 4.0.536 + React/TypeScript + Node.js 22+），默认 1080×1920 / 30 FPS；配音默认 MiMo，`MIMO_API_KEY` 仅在私有环境配置，字幕通过实际音轨转写。新增 `DAILY_VIDEO_RENDERER`、`DAILY_TTS_PROVIDER`、`DAILY_NODE_COMMAND`、`DAILY_WHISPER_MODEL`、`DAILY_ASSETS_DIR` 与素材完整性检查；`legacy` 可显式回退。先安装渲染依赖和 `uv sync --extra captions`，样片用 `python -m app.daily.cli sample`。详细配置、数据目录、测试和 Docker 资源要求见 [docs/remotion-integration.md](docs/remotion-integration.md)。既有 API、端口、Vue 页面与审核发布约定不变。
+日报视频默认使用内部 `hyperframes-renderer/`（HyperFrames + HTML/GSAP + Node.js 22+），`video-renderer/`（Remotion 4.0.536）保留备用；默认 1080×1920 / 30 FPS；配音默认 MiMo，`MIMO_API_KEY` 仅在私有环境配置，字幕通过实际音轨转写。新增 `DAILY_VIDEO_RENDERER`、`DAILY_TTS_PROVIDER`、`DAILY_NODE_COMMAND`、`DAILY_WHISPER_MODEL`、`DAILY_ASSETS_DIR` 与素材完整性检查；`legacy` 可显式回退。先安装渲染依赖和 `uv sync --extra captions`，样片用 `python -m app.daily.cli sample`。详细配置、数据目录、测试和 Docker 资源要求见 [docs/remotion-integration.md](docs/remotion-integration.md)。既有 API、端口、Vue 页面与审核发布约定不变。
 
 视频长期制作要求见 `docs/video-production-standard.md`：用户选择“快节奏工具推荐”，
 短句密集、强调用途和效果，画面需要真实演示或可追溯素材，配音需要自然韵律与重点，
@@ -167,3 +167,11 @@ website 的 `/api/models` 提供目录核验、选择持久化和文本代理，
 简介/补全直接通过 model_hub.try_chat 路由；原配置异步 HTTP 复用公共 native_chat，保留模型重试、批次降级及认证失败即停止，语音/视频不变。
 生成使用 `POST /api/models/complete/{service}`：200 返回统一模型结果，204 明确使用服务原配置；`effective` 只用于状态展示，旧 `chat` 保留兼容。超时或 HTTP 错误不回退；只有连接被拒绝且状态确认无统一选择时允许离线原配置。
 Python 公共源码改动后执行 `python scripts/sync-model-routing.py`，再执行 `--check` 与公共 unittest；副本随服务部署，只改公共源码。回归运行 `mvn -pl website,personal-agent -am test`、python-a/Scrapling unittest 及 Skill Finder pytest；详见 [统一模型入口](../../docs/model-routing.md)。
+
+## Skill Finder 一键视频质量升级（2026-10-23）
+
+保留 Remotion + FFmpeg/ffprobe + MiMo 和一键制作流程。默认模板升级为分阶段镜头、宽幅来源演示与两行字幕，H.264 使用 CRF 18 / medium；口播清理展示语法，完整句控制在 360 字内并保留限制条件。长字幕仅按实际词边界拆分，音频采用实测双遍响度和整片检测。新增可选 `DAILY_BGM_FILE` / `DAILY_BGM_SOURCE`（本地授权配乐与 HTTPS 来源），配乐在付费 TTS 前预检并固化到本期目录，人声出现时自动压低。结果写入私有 `render-result.json` 的 `audio_mastering`；验收失败不进入待审核。历史视频和私有模板版本不被覆盖；已有私有模板需手工合并新默认源码。配置、数据文件、运行与测试见 [视频质量升级](docs/video-quality-upgrade.md)。
+
+## HyperFrames 可切换视频引擎（2026-10-26）
+
+新增内部 `hyperframes-renderer/`（官方 producer/engine/core 0.8.186 + GSAP 3.13.0，Node.js 22+），通过 `DAILY_VIDEO_RENDERER=hyperframes` 选择；默认使用 HyperFrames，Remotion 保留为备用引擎（`DAILY_VIDEO_RENDERER=remotion`），legacy 仍可显式选择，失败不自动换引擎。新增 `HYPERFRAMES_BROWSER_EXECUTABLE` 与 `HYPERFRAMES_CONCURRENCY`（默认 1，范围 1–8），复用原素材、配音、实测字幕、FFmpeg 母带与审核流程。模板编辑 API 增加 engine 标识，HyperFrames 仅编辑 `src/template.html` / `src/demo.html`，版本隔离在日报同级 `video-template/hyperframes/`；原 Remotion 模板保持原位置。临时 `.hyperframes-project-*` 只包含固化媒体与模板，任务结束清理，真实验收后生成正式结果。样片命令按当前引擎生成自身演示，Docker 构建同时包含两套引擎；不新增端口或 Dock。配置、模板 API、数据、测试和部署见 [HyperFrames 接入](docs/hyperframes-integration.md)。

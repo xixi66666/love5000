@@ -170,6 +170,10 @@ def render_legacy(scenes: list[dict], day: str, directory: Path) -> float:
 def render(scenes: list[dict], day: str, directory: Path) -> float:
     if settings.daily_video_renderer == "legacy":
         return render_legacy(scenes, day, directory)
+    if settings.daily_video_renderer == "hyperframes":
+        from app.daily.hyperframes import render as render_hyperframes
+
+        return render_hyperframes(scenes, day, directory)
     from app.daily.remotion import render as render_remotion
 
     return render_remotion(scenes, day, directory)

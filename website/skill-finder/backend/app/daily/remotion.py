@@ -6,10 +6,12 @@ import math
 import os
 import re
 import shutil
+from collections.abc import Callable
 from pathlib import Path
 from urllib.parse import urlsplit
 
 from app.core.config import settings
+from app.daily.audio import ensure_tools, master_video, normalize_voice, prepare_music
 from app.daily.media import run, timestamp
 from app.daily.progress import current
 from app.daily.speech import synthesize
@@ -50,7 +52,8 @@ def asset_for(scene: dict, work: Path, assets_dir: Path | None = None) -> dict |
     return result
 
 
-def prepare(scenes: list[dict], day: str, directory: Path, assets_dir: Path | None = None) -> dict:
+def prepare(scenes: list[dict], day: str, directory: Path, assets_dir: Path | None = None, *,
+            template_selection: Callable[[], tuple[Path, dict, str]] | None = None) -> dict:
     progress = current()
     if settings.daily_require_demo_assets:
         missing = [scene["heading"] for scene in scenes
@@ -65,6 +68,7 @@ def prepare(scenes: list[dict], day: str, directory: Path, assets_dir: Path | No
         work = directory / f"scene-{i:02}"
         work.mkdir(exist_ok=True)
         assets.append(asset_for(scene, work, assets_dir))
+    music = prepare_music(directory)
     if progress:
         progress.finish("assets", f"已检查 {len(scenes)} 个分镜，项目素材已固化。")
         progress.stage("voice")["total"] = len(scenes)
@@ -75,8 +79,7 @@ def prepare(scenes: list[dict], day: str, directory: Path, assets_dir: Path | No
         work.mkdir(exist_ok=True)
         audio, captions = synthesize(scene["narration"], work)
         normalized = work / "voice-normalized.wav"
-        run([settings.daily_ffmpeg_command, "-y", "-v", "error", "-i", str(audio),
-             "-af", "loudnorm=I=-16:TP=-1:LRA=11", "-ar", "48000", "-c:a", "pcm_s16le", str(normalized)])
+        normalization = normalize_voice(audio, normalized)
         audio = normalized
         probe = json.loads(run([settings.daily_ffprobe_command, "-v", "quiet", "-show_format",
                                 "-of", "json", str(audio)]))
@@ -94,15 +97,17 @@ def prepare(scenes: list[dict], day: str, directory: Path, assets_dir: Path | No
         # 与实际帧长保持同一时间轴，避免多段音频累计偏移。
         offset += frames / 30
         item = {**scene, "audio": audio.relative_to(directory).as_posix(),
-                "captions": captions, "durationInFrames": frames}
+                "captions": captions, "durationInFrames": frames, "audio_mastering": normalization}
         asset = assets[i]
         if asset:
             item["asset"] = asset
         prepared.append(item)
     from app.daily.templates import selection
 
-    _, theme, revision = selection()
+    _, theme, revision = (template_selection or (lambda: selection("remotion")))()
     payload = {"day": day, "scenes": prepared, "theme": theme, "template_revision": revision}
+    if music:
+        payload["music"] = music
     from app.daily.media import font
 
     face = font(30)
@@ -129,7 +134,7 @@ def invoke_renderer(directory: Path, *, demo: bool = False, check: bool = False,
     environment["REMOTION_CONCURRENCY"] = str(settings.remotion_concurrency)
     from app.daily.templates import selection
 
-    project = template_project or selection()[0]
+    project = template_project or selection("remotion")[0]
     environment["REMOTION_TEMPLATE_DIR"] = str(project)
     if settings.remotion_browser_executable:
         environment["REMOTION_BROWSER_EXECUTABLE"] = settings.remotion_browser_executable
@@ -149,15 +154,9 @@ def render(scenes: list[dict], day: str, directory: Path, assets_dir: Path | Non
         raise RuntimeError("Remotion requires Node.js 22+; configure DAILY_NODE_COMMAND")
     if not (RENDERER_DIR / "node_modules/remotion/package.json").is_file():
         raise RuntimeError("Remotion dependencies missing: run pnpm install in video-renderer")
-    prepare(scenes, day, directory, assets_dir)
-    progress = current()
-    if progress:
-        progress.begin("render", "正在打包模板、渲染画面并编码音视频。")
-    invoke_renderer(directory)
-    # 固定原有下载协议；音轨输出后才进入待审核状态。
-    run([settings.daily_ffmpeg_command, "-y", "-v", "error", "-i", str(directory / "video.mp4"),
-         "-vn", "-c:a", "copy", str(directory / "audio.m4a")])
-    result = json.loads((directory / "render-result.json").read_text(encoding="utf-8"))
-    if progress:
-        progress.finish("render", f"已生成 {result['duration_seconds']:.1f} 秒视频、音轨与封面。")
-    return float(result["duration_seconds"])
+    ensure_tools()
+    manifest = prepare(scenes, day, directory, assets_dir)
+    from app.daily.rendering import finish_render
+
+    return finish_render(directory, manifest, invoke=invoke_renderer, master=master_video,
+                         engine="remotion")

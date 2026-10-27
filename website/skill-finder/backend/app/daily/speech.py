@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import binascii
+import math
 import re
 from difflib import SequenceMatcher
 from functools import lru_cache
@@ -14,6 +15,42 @@ import httpx
 
 from app.core.config import settings
 from app.daily.progress import current
+
+
+def script_phrases(text: str, matcher: SequenceMatcher, times: list[tuple[float, float]],
+                   max_chars: int = 18) -> list[str]:
+    """长字幕仅在匹配到的真实词边界拆分，不按字数插值时间。"""
+    positions = [index for index, char in enumerate(text) if char.isalnum()]
+    measured_cuts = {index for index in range(1, len(times))
+                     if times[index - 1][1] <= times[index][0] + 0.01}
+    cuts = set()
+    for operation, a0, a1, b0, b1 in matcher.get_opcodes():
+        if operation != "equal":
+            continue
+        for boundary in measured_cuts:
+            if b0 <= boundary <= b1:
+                aligned = a0 + boundary - b0
+                if not 0 < aligned < len(positions):
+                    continue
+                offset = positions[aligned]
+                previous, following = text[offset - 1], text[offset]
+                # 英文词和数字保持完整，例如 React、1080、v2。
+                if previous.isascii() and previous.isalnum() and following.isascii() and following.isalnum():
+                    continue
+                cuts.add(offset)
+    result = []
+    for match in re.finditer(r".+?(?:[，。！？；,!?;]+|(?<!\d)\.(?!\d)|$)", text, flags=re.DOTALL):
+        start, end = match.span()
+        while end - start > max_chars:
+            candidates = sorted(cut for cut in cuts if start < cut < end)
+            fitting = [cut for cut in candidates if cut - start <= max_chars]
+            # 一个词就超过上限时保留它，不能伪造词内的时间戳。
+            cut = max(fitting) if fitting else next(iter(candidates), end)
+            result.append(text[start:cut].strip())
+            start = cut
+        if start < end:
+            result.append(text[start:end].strip())
+    return result
 
 
 def group_boundaries(boundaries: list[dict]) -> list[dict]:
@@ -55,6 +92,14 @@ def align_script(text: str, boundaries: list[dict]) -> list[dict]:
     recognized, times = "", []
     for word in boundaries:
         letters = normalized(word["text"])
+        if not letters:
+            continue
+        if (not math.isfinite(word["start"]) or not math.isfinite(word["end"])
+                or word["start"] < 0 or word["end"] < word["start"]):
+            raise RuntimeError("Invalid measured speech timestamp; review the audio")
+        # ASR 偶尔输出零时长词；不把它当作可信时间锚，原稿由周围实测词校正保留。
+        if word["end"] == word["start"]:
+            continue
         recognized += letters
         times.extend([(word["start"], word["end"])] * len(letters))
     matcher = SequenceMatcher(None, original, recognized, autojunk=False)
@@ -67,7 +112,7 @@ def align_script(text: str, boundaries: list[dict]) -> list[dict]:
     supported_by_context = anchored_chinese >= 3 and anchored_chinese / max(1, chinese) >= 0.5
     if not original or not recognized or (matcher.ratio() < 0.35 and not supported_by_context):
         raise RuntimeError("Narration could not be reliably aligned; review the audio")
-    pieces = re.findall(r"[^，。！？；,.!?;]+[，。！？；,.!?;]?", text)
+    pieces = script_phrases(text, matcher, times)
     result, cursor = [], 0
     for piece in pieces:
         length = len(normalized(piece))

@@ -95,10 +95,12 @@ class Settings(BaseSettings):
     daily_reports_dir: str = "data/daily-reports"
     daily_public_url: str = "http://127.0.0.1:5177"
     daily_tts_voice: str = "zh-CN-YunxiNeural"
-    daily_video_renderer: Literal["remotion", "legacy"] = "remotion"
+    daily_video_renderer: Literal["remotion", "hyperframes", "legacy"] = "hyperframes"
     daily_node_command: str = "node"
     remotion_browser_executable: str = ""
     remotion_concurrency: int = Field(default=2, ge=1, le=8)
+    hyperframes_browser_executable: str = ""
+    hyperframes_concurrency: int = Field(default=1, ge=1, le=8)
     daily_render_timeout_seconds: int = Field(default=1800, ge=60, le=7200)
     daily_tts_provider: Literal["edge", "mimo"] = "mimo"
     mimo_api_key: SecretStr = SecretStr("")
@@ -111,6 +113,8 @@ class Settings(BaseSettings):
     daily_require_demo_assets: bool = True
     daily_ffmpeg_command: str = "ffmpeg"
     daily_ffprobe_command: str = "ffprobe"
+    daily_bgm_file: str = Field(default="", repr=False)
+    daily_bgm_source: str = ""
     daily_font: str = ""
     daily_qq_target: str = ""
     daily_openclaw_command: str = ""

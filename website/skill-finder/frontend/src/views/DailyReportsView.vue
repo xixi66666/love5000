@@ -588,7 +588,7 @@ onUnmounted(() => {
         </aside>
         <section class="work-surface" :aria-labelledby="panel === 'template' ? 'template-editor-title' : 'stage-title'">
           <KeepAlive>
-            <TemplateEditor v-if="panel === 'template'" v-model:admin-key="adminKey" />
+            <TemplateEditor v-if="panel === 'template'" v-model:admin-key="adminKey" :engine="snapshot.template.engine === 'hyperframes' ? 'hyperframes' : 'remotion'" />
           </KeepAlive>
           <template v-if="panel === 'workflow' && stage">
             <header class="surface-heading">
@@ -807,7 +807,9 @@ onUnmounted(() => {
                 <span>{{
                   snapshot.render_progress.phase === 'bundling'
                     ? '正在打包模板'
-                    : '正在渲染画面与编码'
+                    : snapshot.render_progress.phase === 'mastering'
+                      ? '正在混音并检测成片'
+                      : '正在渲染画面与编码'
                 }}</span><strong v-if="snapshot.render_progress.total_frames">{{ snapshot.render_progress.rendered_frames }} /
                   {{ snapshot.render_progress.total_frames }} 帧</strong><progress
                   v-if="snapshot.render_progress.total_frames"

@@ -14,17 +14,21 @@ router = APIRouter(prefix="/daily-reports/template", tags=["template-editor"])
 
 
 class Restore(BaseModel):
+    engine: templates.Engine = "remotion"
     revision: str = Field(pattern=r"^[a-f0-9]{64}$")
     expected_revision: str = Field(pattern=r"^[a-f0-9]{64}$")
 
 
 @router.get("", dependencies=[Depends(require_daily_admin)])
-def get_template() -> dict:
-    return templates.document()
+def get_template(engine: templates.Engine | None = None) -> dict:
+    try:
+        return templates.document(engine)
+    except (OSError, ValueError, KeyError):
+        raise HTTPException(503, "Template files unavailable for the selected engine") from None
 
 
-def editor_lock() -> FileLock:
-    return FileLock(str(templates.root() / ".editor.lock"), timeout=0)
+def editor_lock(engine: templates.Engine) -> FileLock:
+    return FileLock(str(templates.root(engine) / ".editor.lock"), timeout=0)
 
 
 def compile_error(error: templates.CompilationError) -> JSONResponse:
@@ -35,11 +39,13 @@ def compile_error(error: templates.CompilationError) -> JSONResponse:
 @router.post("/preview", dependencies=[Depends(require_daily_admin)])
 def preview_template(body: templates.Draft):
     try:
-        with editor_lock():
+        with editor_lock(body.engine):
             _, metadata = templates.compile_draft(body)
             return metadata
     except Timeout:
         raise HTTPException(409, "Another template compilation is running") from None
+    except FileExistsError:
+        raise HTTPException(409, "Template changed; reload the current version") from None
     except templates.CompilationError as error:
         return compile_error(error)
     except (OSError, RuntimeError, ValueError):
@@ -49,7 +55,7 @@ def preview_template(body: templates.Draft):
 @router.put("", dependencies=[Depends(require_daily_admin)])
 def save_template(body: templates.Draft):
     try:
-        with store.lock(), editor_lock():
+        with store.lock(), editor_lock(body.engine):
             return templates.save(body)
     except Timeout:
         raise HTTPException(409, "A daily task or template compilation is running") from None
@@ -64,8 +70,8 @@ def save_template(body: templates.Draft):
 @router.post("/restore", dependencies=[Depends(require_daily_admin)])
 def restore_template(body: Restore):
     try:
-        with store.lock(), editor_lock():
-            return templates.restore(body.revision, body.expected_revision)
+        with store.lock(), editor_lock(body.engine):
+            return templates.restore(body.revision, body.expected_revision, body.engine)
     except Timeout:
         raise HTTPException(409, "A daily task or template compilation is running") from None
     except FileExistsError:
@@ -75,14 +81,19 @@ def restore_template(body: Restore):
 
 
 @router.get("/previews/{preview_id}/{filename:path}")
-def preview_file(preview_id: str, filename: str, request: Request):
+def legacy_preview_file(preview_id: str, filename: str, request: Request):
+    return preview_file(preview_id, filename, request, "remotion")
+
+
+@router.get("/engines/{engine}/previews/{preview_id}/{filename:path}")
+def preview_file(preview_id: str, filename: str, request: Request, engine: templates.Engine):
     # 随机能力地址仅开放编译结果与已复制媒体；源码、配置和版本数据不在白名单。
     if not re.fullmatch(r"[a-f0-9]{32}", preview_id) or not (
         filename in {"index.html", "app.js"}
         or re.fullmatch(r"media/\d+\.(wav|mp3|mp4|png|jpg|jpeg|ttc|ttf)", filename)
     ):
         raise HTTPException(404, "Preview file not found")
-    project = templates.root() / "previews" / preview_id
+    project = templates.root(engine) / "previews" / preview_id
     target_root = (project / "preview").resolve()
     path = (target_root / filename).resolve()
     if not path.is_relative_to(target_root) or not path.is_file() or not (project / "preview.json").is_file():

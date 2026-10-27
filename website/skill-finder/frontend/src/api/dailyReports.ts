@@ -79,6 +79,7 @@ export interface ConsoleSnapshot {
     fps: number
   }[]
   template: {
+    engine?: 'remotion' | 'hyperframes' | 'legacy'
     composition: string
     width: number
     height: number

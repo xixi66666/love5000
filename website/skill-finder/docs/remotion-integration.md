@@ -1,17 +1,21 @@
 # Remotion 接入与运行
 
+默认使用 HyperFrames HTML/GSAP 引擎，可通过 `DAILY_VIDEO_RENDERER=remotion` 切换备用 Remotion，安装、模板隔离和对比验证见 [HyperFrames 接入](hyperframes-integration.md)。本文保留 Remotion 的运行与回退说明。
+
 全流程可视化入口及模板开发说明见 [制作操作台](production-console.md)。
 React/TSX 源码与可视化样式可在操作台直接编辑、编译预览、保存启用与恢复版本，见 [模板编辑器](template-editor.md)。
+
+2026-10-23：默认模板、短句口播、实测短字幕和双遍音频母带已升级，可选本地配乐与人声自动避让，详见 [视频质量升级](video-quality-upgrade.md)。
 
 ## 已实现的边界
 
 - 内部 `video-renderer/` 为 Node.js 22+、React、TypeScript、Remotion 4.0.536 工程；不加入 Maven，
   不新增服务端口或 Dock 卡片。Vue 页面、现有日报 API、审核哈希和发布流程继续复用。
-- 默认 `DAILY_VIDEO_RENDERER=remotion`，生产目标 1080×1920 / 30 FPS / H.264 + AAC。
+- 备用配置 `DAILY_VIDEO_RENDERER=remotion`，生产目标 1080×1920 / 30 FPS / H.264 + AAC。
 - 默认 `DAILY_TTS_PROVIDER=mimo`，MiMo 配置仅放 `backend/.env` 或环境变量；不在 Git 中保存凭据。
 - 字幕从实际 MiMo 音轨用 faster-whisper 取得时间轴，再对齐原稿修正专有名词与繁简识别错误；
   无法可靠对齐时失败。保留 Edge 的真实词边界适配。
-- 人声响度处理约 -16 LUFS / 真峰值 -1 dBTP；未随代码提供配乐或外部项目演示素材。
+- 人声与整片使用实测双遍响度处理，约 -16 LUFS / 最终真峰值不高于 -1 dBTP；可选本地授权配乐，不随代码提供音乐或外部项目演示素材。
 - 这是渲染接入，不代表所有项目的演示素材、口播编辑和配音风格已经达到用户验收标准。
 
 ## 本机准备
@@ -68,7 +72,8 @@ MiMo 官方协议是 `POST /chat/completions`，以 assistant 消息传合成文
 不能把示意动画或其他项目视频当作被介绍项目的实际演示。
 
 输出仍为原目录中的 `video.mp4`、`audio.m4a`、`poster.png`、`subtitles.srt`、`script.txt`、`report.md`。
-新增私有工作文件 `render-manifest.json`、`render-result.json`、`.remotion-bundle/` 和每段音频、来源素材。
+新增私有工作文件 `render-manifest.json`、`render-raw-result.json`、`render-result.json`、`.remotion-bundle/` 和每段音频、来源素材。
+Node 仅写 raw 结果，后端完成混音和技术验收后才原子生成正式结果，避免样片被提前标记为可用。
 API 不公开新工作文件。报告增加可选 `render` 元数据：renderer、分辨率、帧率、时长、缺素材数、TTS 供应商。
 
 样片使用 `python -m app.daily.cli sample`，不访问数据库、不创建发布任务、不覆盖已审核日报。

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>HyperFrames 本地能力演示</title>
+<style>
+{{THEME_CSS}}
+*{box-sizing:border-box}html,body{margin:0;width:{{WIDTH}}px;height:{{HEIGHT}}px;overflow:hidden;background:var(--background);color:var(--foreground);font-family:sans-serif}#daily{position:relative;width:{{WIDTH}}px;height:{{HEIGHT}}px;background:var(--background);overflow:hidden}.scene{position:absolute;inset:0;background:var(--background);visibility:hidden;padding:46px 60px}header{display:flex;justify-content:space-between;font-size:16px;font-weight:700;border-top:2px solid;padding-top:14px}.brand{color:var(--accent);letter-spacing:2px}.date{opacity:.6}.label{position:absolute;top:118px;left:60px;right:60px;font-size:17px;color:var(--accent);font-weight:800;letter-spacing:3px}.counter{float:right;color:var(--foreground)}h1{position:absolute;top:164px;left:60px;right:310px;font-size:68px;letter-spacing:-3px;line-height:1.16;margin:0;font-weight:900}.summary{position:absolute;top:365px;left:64px;right:330px;font-size:24px;line-height:1.6;margin:0;opacity:.75}.media-window{position:absolute;right:60px;top:182px;width:230px;height:325px;background:var(--foreground);overflow:hidden}.editorial-art{padding:22px;color:var(--background)}.editorial-art>span{display:block;font-size:132px;line-height:1.2;color:var(--accent);font-weight:900;letter-spacing:-7px}.editorial-art>strong{font-size:17px;letter-spacing:1px}.editorial-art>small{position:absolute;bottom:30px;left:23px;font-size:10px;letter-spacing:2px}.art-rule{height:3px;width:50px;background:var(--accent);margin-top:20px}.media-rule{position:absolute;bottom:0;height:7px;width:100%;background:var(--accent)}.source,.captions{display:none}footer{position:absolute;bottom:62px;left:60px;right:60px;display:flex;justify-content:space-between;border-top:2px solid;padding-top:19px;font-size:19px}footer>b{font-size:13px;letter-spacing:2px}.scene-progress{position:absolute;bottom:0;left:0;width:100%;height:9px;background:var(--accent);transform-origin:left}
+{{FONT_CSS}}
+</style><script src="gsap.min.js"></script></head><body>
+<main id="daily" data-composition-id="daily" data-width="{{WIDTH}}" data-height="{{HEIGHT}}" data-duration="{{DURATION}}">{{SCENES}}</main>
+<script>
+const timeline = gsap.timeline({paused:true});
+for (const scene of document.querySelectorAll('.scene')) {
+  const start = Number(scene.dataset.start), duration = Number(scene.dataset.duration);
+  timeline.set(scene,{autoAlpha:1},start);
+  timeline.fromTo(scene.querySelector('h1'),{y:35,opacity:0},{y:0,opacity:1,duration:.5,ease:'power3.out'},start+.04);
+  timeline.fromTo(scene.querySelector('.media-window'),{x:45,rotation:3,opacity:0},{x:0,rotation:0,opacity:1,duration:.65,ease:'power3.out'},start+.12);
+  timeline.fromTo(scene.querySelector('.summary'),{y:20,opacity:0},{y:0,opacity:.75,duration:.45},start+.28);
+  timeline.fromTo(scene.querySelector('.scene-progress'),{scaleX:0},{scaleX:1,duration,ease:'none'},start);
+  timeline.set(scene,{autoAlpha:0},start+duration);
+}
+window.__timelines = {daily:timeline};
+window.__renderReady = true;
+timeline.pause(0);
+</script></body></html>

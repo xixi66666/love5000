@@ -8,6 +8,16 @@ COPY video-renderer/scripts ./scripts
 COPY video-renderer/tsconfig.json ./
 RUN pnpm run typecheck
 
+FROM node:22-bookworm-slim AS hyperframes-renderer
+WORKDIR /hyperframes-renderer
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+COPY hyperframes-renderer/package.json hyperframes-renderer/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY hyperframes-renderer/src ./src
+COPY hyperframes-renderer/scripts ./scripts
+COPY hyperframes-renderer/tests ./tests
+RUN npm run check && npm test
+
 FROM python:3.12-slim-bookworm
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 HOME=/tmp TZ=Asia/Shanghai
 ARG DOWNLOAD_PROXY=
@@ -17,9 +27,10 @@ RUN if [ -n "$DOWNLOAD_PROXY" ]; then export http_proxy="$DOWNLOAD_PROXY" https_
     libnss3 libatk-bridge2.0-0 libgbm1 libasound2 \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app/backend
-ENV REMOTION_BROWSER_EXECUTABLE=/usr/bin/chromium
+ENV DAILY_VIDEO_RENDERER=hyperframes REMOTION_BROWSER_EXECUTABLE=/usr/bin/chromium HYPERFRAMES_BROWSER_EXECUTABLE=/usr/bin/chromium HYPERFRAMES_CONCURRENCY=1
 COPY --from=video-renderer /usr/local/bin/node /usr/local/bin/node
 COPY --from=video-renderer /renderer /app/video-renderer
+COPY --from=hyperframes-renderer /hyperframes-renderer /app/hyperframes-renderer
 COPY backend/pyproject.toml ./
 COPY deploy/requirements.lock /tmp/requirements.lock
 RUN pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple -r /tmp/requirements.lock \

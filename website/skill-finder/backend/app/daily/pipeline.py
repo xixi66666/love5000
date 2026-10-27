@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import html
 import json
 import logging
+import re
 from datetime import UTC, datetime, time
 from zoneinfo import ZoneInfo
 
@@ -14,6 +16,14 @@ from app.db.session import async_session_factory
 from app.repositories.repositories import RepositoryStore
 
 logger = logging.getLogger(__name__)
+
+NARRATION_LIMIT = 360
+SOURCE_NOTICE = "完整说明与使用限制，请查看日报中的项目来源。"
+CAUTION = re.compile(
+    r"注意|限制|风险|不(?:支持|适合|可|能|建议)|尚未|暂不|仅(?:供|支持|适用|限)|"
+    r"需要|仍需|必须|依赖|付费|收费|商用|许可|协议|实验|测试阶段|内测|显存|内存|GPU|CPU",
+    re.IGNORECASE,
+)
 
 
 def now() -> str:
@@ -27,9 +37,73 @@ def summarize(introduction: str | None, description: str | None) -> str:
             text = payload.get("introduction", "") if isinstance(payload, dict) else ""
         except (ValueError, TypeError):
             text = introduction
-        if text:
-            return text[:150].rstrip("，、；") + ("。" if text[-1] not in "。.!！" else "")
-    return (description or "项目尚未提供简介，请通过仓库链接查看说明。")[:180]
+        if isinstance(text, str) and text.strip():
+            # 日报保留完整事实；口播在完整句界单独控制预算，避免截掉名称或尾部限制。
+            return text.strip()
+    return (description or "项目尚未提供简介，请通过仓库链接查看说明。").strip()
+
+
+def spoken_text(text: str) -> str:
+    """仅清理展示语法，不改写项目用途、名称、数值和使用条件。"""
+    value = html.unescape(text)
+    value = re.sub(r"(?m)^\s*\[[^]\n]+\]:\s*https?://\S+.*$", "", value)
+    value = re.sub(r"!?\[([^]\n]*)\]\((?:[^()\n]|\([^()\n]*\))*\)", r"\1", value)
+    value = re.sub(r"\[([^]\n]+)\]\[[^]\n]*\]", r"\1", value)
+    value = re.sub(r"(?m)^[ \t]*```[^\n]*$", "", value)
+    # 删除线表示撤回，不能把标记去掉后重新当作有效事实朗读。
+    value = re.sub(r"~~.*?~~", "", value, flags=re.DOTALL)
+    value = re.sub(r"<(del|s|strike)\b[^>]*>.*?</\1\s*>", "", value,
+                   flags=re.IGNORECASE | re.DOTALL)
+    value = re.sub(r"<(?:https?://|www\.)[^<>\s]+>", "", value, flags=re.IGNORECASE)
+    value = re.sub(r"</?(?:p|br|div|li|h[1-6])\b[^>]*>", " ", value, flags=re.IGNORECASE)
+    # 只识别明确的展示标签；保留 RAM < 16 GB、分数 > 0.5 等比较条件和参数占位符。
+    value = re.sub(r"</?(?:a|abbr|b|strong|em|i|span|code|kbd|samp|small|sub|sup|mark|u|"
+                   r"ins|wbr|img|pre|blockquote|ul|ol|table|tr|td|th|thead|tbody)\b[^>]*>", "",
+                   value, flags=re.IGNORECASE)
+    value = re.sub(
+        r"(?:https?://|www\.)[^\s<>，。！？；、]+",
+        lambda match: re.search(r"[.,;:!?]+$", match[0])[0]
+        if re.search(r"[.,;:!?]+$", match[0]) else "",
+        value,
+    )
+    value = re.sub(r"(?m)^[ \t]{0,3}(?:#{1,6}\s+|>\s*|[-*+]\s+|\d+[.)]\s+)", "", value)
+    value = re.sub(r"(`{1,3}|\*\*)(.*?)\1", r"\2", value, flags=re.DOTALL)
+    value = re.sub(r"(?<![A-Za-z0-9_])\*([^*\n]+)\*(?![A-Za-z0-9_])", r"\1", value)
+    value = re.sub(r"[；;]", "。", value)
+    value = re.sub(r"\s+", " ", value).strip()
+    value = re.sub(r"([。！？!?])。+", r"\1", value).strip(" ，、；;")
+    return value + ("。" if value and value[-1] not in "。.!！?？" else "")
+
+
+def narration_excerpt(text: str, budget: int) -> str:
+    """长简介只选完整句，优先保留明确限制；放不下时提示用户查看完整来源。"""
+    if len(text) <= budget:
+        return text
+    sentences = [piece.strip() for piece in re.findall(r"[^。！？!?]+[。！？!?]*", text)
+                 if piece.strip()]
+    available = max(0, budget - len(SOURCE_NOTICE))
+    required = {index for index, piece in enumerate(sentences) if CAUTION.search(piece)}
+    used = sum(len(sentences[index]) for index in required)
+    if used > available:
+        # 不截断限制条件或凭猜测压缩原文；完整原文仍保留在日报 summary。
+        return SOURCE_NOTICE
+    selected = set(required)
+    for index, piece in enumerate(sentences):
+        if index not in selected and used + len(piece) <= available:
+            selected.add(index)
+            used += len(piece)
+    return "".join(sentences[index] for index in sorted(selected)) + SOURCE_NOTICE
+
+
+def project_narration(item: dict) -> str:
+    name = item["full_name"].rsplit("/", 1)[-1]
+    text = spoken_text(item["summary"])
+    # 原简介已以项目名称开头时不连续重复名称；仓库全名和 Star 仍展示在画面及日报。
+    starts_with_name = text.casefold().startswith(name.casefold()) and (
+        len(text) == len(name) or not re.match(r"[A-Za-z0-9_.-]", text[len(name)])
+    )
+    prefix = f"第 {item['rank']} 名。" if starts_with_name else f"第 {item['rank']} 名，{name}。"
+    return prefix + narration_excerpt(text or SOURCE_NOTICE, NARRATION_LIMIT - len(prefix))
 
 
 async def candidates(day: str) -> list[dict]:
@@ -62,13 +136,10 @@ def compose(items: list[dict], day: str) -> tuple[str, list[dict]]:
         "narration": f"今天这 {count} 个 AI 项目，哪些能帮你解决实际问题？从后往前看。",
     }]
     for item in reversed(items):
-        narration = (
-            f"{item['full_name'].split('/')[-1]}。{item['summary']}"
-            f"今天新增 {item['daily_stars']} 颗星。仓库链接在日报里。"
-        )
         scenes.append({
             "label": f"#{item['rank']:02}", "heading": item["full_name"],
-            "growth": item["daily_stars"], "summary": item["summary"], "narration": narration,
+            "growth": item["daily_stars"], "summary": item["summary"],
+            "narration": project_narration(item),
         })
     scenes.append({
         "label": "NEXT", "heading": "收藏榜单，选一个真正用起来。",

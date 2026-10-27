@@ -13,6 +13,7 @@ from app.main import app
 
 @pytest.fixture
 def workspace(tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "daily_video_renderer", "remotion")
     monkeypatch.setattr(settings, "daily_reports_dir", str(tmp_path / "reports"))
     monkeypatch.setattr(settings, "admin_key", type(settings.admin_key)("template-test-only"))
     def compile_ok(args, **kwargs):
@@ -27,8 +28,20 @@ def workspace(tmp_path, monkeypatch):
     return templates.document()
 
 
+@pytest.fixture
+def hyperframes_workspace(workspace, tmp_path, monkeypatch):
+    renderer = tmp_path / "hyperframes-renderer"
+    (renderer / "src").mkdir(parents=True)
+    for name in ("template.html", "demo.html"):
+        (renderer / "src" / name).write_text('<!doctype html><div>HyperFrames</div>', encoding="utf-8")
+    (renderer / "src/template-defaults.json").write_text(json.dumps(workspace["theme"]), encoding="utf-8")
+    monkeypatch.setattr(templates, "HYPERFRAMES_RENDERER", renderer)
+    return templates.document("hyperframes")
+
+
 def body(document):
-    return {"expected_revision": document["revision"], "theme": document["theme"],
+    return {"engine": document.get("engine", "remotion"),
+            "expected_revision": document["revision"], "theme": document["theme"],
             "sources": {file["path"]: file["code"] for file in document["sources"] if file["editable"]}}
 
 
@@ -121,3 +134,90 @@ def test_preview_serves_only_bundle_and_frozen_media(workspace):
     assert client().get(base + "/src/video.tsx").status_code == 404
     assert client().get(base + "/preview.json").status_code == 404
     assert (project / "src/video.tsx").is_file()
+
+
+def test_hyperframes_has_separate_sources_and_preview_capability(hyperframes_workspace, workspace):
+    response = client().get("/api/v1/daily-reports/template?engine=hyperframes",
+                            headers={"X-Admin-Key": "template-test-only"})
+    assert response.status_code == 200
+    assert response.json()["engine"] == "hyperframes"
+    assert {item["path"] for item in response.json()["sources"]} == {"src/template.html", "src/demo.html"}
+    project, metadata = templates.compile_draft(templates.Draft.model_validate(body(hyperframes_workspace)))
+    assert project.parent.parent == templates.root("hyperframes")
+    base = "/api/v1/daily-reports/template/engines/hyperframes/previews/" + metadata["id"]
+    preview = client().get(base + "/index.html")
+    assert preview.status_code == 200
+    assert "script-src" in preview.headers["content-security-policy"]
+    assert "script-src 'unsafe-inline'" not in preview.headers["content-security-policy"]
+    assert client().get(base + "/app.js").status_code == 200
+    assert client().get(base + "/src/template.html").status_code == 404
+    assert client().get(base.replace("/engines/hyperframes", "") + "/app.js").status_code == 404
+    assert templates.document("remotion")["revision"] == workspace["revision"]
+
+
+def test_drafts_cannot_reuse_files_from_another_engine(hyperframes_workspace, workspace):
+    draft = body(hyperframes_workspace)
+    draft["sources"] = body(workspace)["sources"]
+    with pytest.raises(ValidationError):
+        templates.Draft.model_validate(draft)
+    draft = body(hyperframes_workspace)
+    draft.pop("engine")
+    with pytest.raises(ValidationError):
+        templates.Draft.model_validate(draft)
+    draft = body(hyperframes_workspace)
+    draft["sources"]["package.json"] = '{"scripts":{"build":"bad command"}}'
+    with pytest.raises(ValidationError):
+        templates.Draft.model_validate(draft)
+
+
+def test_legacy_remotion_metadata_remains_readable(workspace):
+    project, theme, revision = templates.selection("remotion")
+    templates.store_version(project, theme, revision)
+    version_path = templates.root("remotion") / "versions" / revision / "version.json"
+    version = json.loads(version_path.read_text(encoding="utf-8"))
+    version.pop("engine")
+    templates.json_write(version_path, version)
+    templates.json_write(templates.root("remotion") / "active.json", {"revision": revision})
+    assert templates.selection("remotion")[2] == workspace["revision"]
+
+
+def test_engine_binding_prevents_cross_engine_restore(hyperframes_workspace, workspace):
+    project, theme, revision = templates.selection("remotion")
+    templates.store_version(project, theme, revision)
+    with pytest.raises(FileNotFoundError):
+        templates.restore(revision, hyperframes_workspace["revision"], "hyperframes")
+    assert not (templates.root("hyperframes") / "active.json").exists()
+
+
+def test_hyperframes_save_checks_the_selected_renderer_and_keeps_remotion_version(
+    hyperframes_workspace, workspace, monkeypatch,
+):
+    check = Mock()
+    remotion_check = Mock(side_effect=AssertionError("Wrong renderer"))
+    monkeypatch.setattr("app.daily.hyperframes.invoke_renderer", check)
+    monkeypatch.setattr("app.daily.remotion.invoke_renderer", remotion_check)
+    draft = body(hyperframes_workspace)
+    draft["sources"]["src/template.html"] += "\n<!-- 自定义 HTML -->"
+    saved = templates.save(templates.Draft.model_validate(draft))
+    assert saved["engine"] == "hyperframes"
+    assert saved["revision"] != hyperframes_workspace["revision"]
+    check.assert_called_once()
+    assert check.call_args.kwargs["check"] is True
+    assert check.call_args.kwargs["template_project"] == check.call_args.args[0]
+    assert not (templates.root("remotion") / "active.json").exists()
+    assert templates.selection("remotion")[2] == workspace["revision"]
+    active = json.loads((templates.root("hyperframes") / "active.json").read_text(encoding="utf-8"))
+    assert active["engine"] == "hyperframes"
+    restored = templates.restore(hyperframes_workspace["revision"], saved["revision"], "hyperframes")
+    assert restored["revision"] == hyperframes_workspace["revision"]
+
+
+def test_stale_preview_revision_is_rejected_before_compilation(hyperframes_workspace, monkeypatch):
+    run = Mock()
+    monkeypatch.setattr(templates, "run", run)
+    draft = body(hyperframes_workspace)
+    draft["expected_revision"] = "0" * 64
+    response = client().post("/api/v1/daily-reports/template/preview", json=draft,
+                             headers={"X-Admin-Key": "template-test-only"})
+    assert response.status_code == 409
+    run.assert_not_called()

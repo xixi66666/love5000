@@ -3,6 +3,8 @@
 React + TypeScript + Remotion 4.0.536，作为 Skill Finder 内部媒体任务使用，不提供新的公网服务。
 Vue 网站继续由原 FastAPI 托管。默认生成 1080×1920、30 FPS、H.264/AAC 视频和封面。
 
+默认模板现提供分阶段镜头、宽幅素材演示和两行字幕，输出使用 CRF 18 / medium；后端补充双遍响度、可选本地配乐自动避让与真实成片检测。配置和验证见 [视频质量升级](../docs/video-quality-upgrade.md)。历史私有模板保持原样，需在编辑器按需合并默认源码。
+
 ## 准备
 
 安装 Node.js 22+、pnpm 11，以及系统 FFmpeg（含 ffprobe）。
@@ -39,7 +41,7 @@ node scripts/render.mjs /absolute/report/directory/render-manifest.json
 媒体路径必须位于同一份日报目录。渲染器仅在随机本机端口暴露明确列入清单的文件，
 使用随机路由令牌，结束后关闭；不会托管报告 JSON、登录态或其他私有目录。
 
-输出 `video.mp4`、`poster.png`、`render-result.json`；后端补充 `audio.m4a`、`subtitles.srt`，
+Node 输出 `video.mp4`、`poster.png`、`render-raw-result.json`；后端完成混音与检测后原子生成正式 `render-result.json`，并补充 `audio.m4a`、`subtitles.srt`，
 继续沿用原日报审核和文件下载 API。
 
 生成无数据库、无发布动作的能力样片：
@@ -61,7 +63,7 @@ uv run python -m app.daily.cli sample
   默认 small，可设成本地模型目录；离线部署提前准备缓存。字幕用原稿校正识别错误，
   保留实测意群边界；无法可靠对齐时失败，发布前仍必须试听核对。
 - `DAILY_TTS_PROVIDER=edge` 显式使用原供应商，直接采集 WordBoundary 时间戳；不按字数估算。
-- 新渲染器对人声做响度处理，目标约 -16 LUFS、真峰值 -1 dBTP；当前未内置商业配乐素材。
+- 后端对人声和整片进行实测双遍响度处理，目标约 -16 LUFS、最终真峰值不高于 -1 dBTP；可选本地授权配乐，不内置商业音乐。
 
 ## 本地演示素材
 

@@ -82,7 +82,7 @@ try {
   console.log(`REMOTION_COMPOSITION_READY ${composition.durationInFrames} frames`);
   saveProgress({phase: 'rendering', rendered_frames: 0, total_frames: composition.durationInFrames}, true);
   if (!check) await renderMedia({...common, composition, codec: 'h264', audioCodec: 'aac', sampleRate: 48000,
-    pixelFormat: 'yuv420p', concurrency, crf: 20, x264Preset: 'fast',
+    pixelFormat: 'yuv420p', colorSpace: 'bt709', concurrency, crf: 18, x264Preset: 'medium',
     outputLocation: path.join(directory, demo ? 'demo.mp4' : 'video.mp4'),
     onProgress: ({progress, renderedFrames, encodedFrames}) => {
       saveProgress({phase: 'rendering', rendered_frames: renderedFrames,
@@ -97,7 +97,8 @@ try {
     scenes: props.scenes.length,
     template_revision: props.template_revision ?? 'base',
     missing_assets: props.scenes.filter(s => s.heading.includes('/') && !s.asset).length};
-  fs.writeFileSync(path.join(directory, 'render-result.json'), JSON.stringify(result, null, 2));
+  // 仅后端完成混音与真实成片验收后，才能写正式 render-result.json。
+  fs.writeFileSync(path.join(directory, 'render-raw-result.json'), JSON.stringify(result, null, 2));
   saveProgress({phase: 'completed', rendered_frames: composition.durationInFrames,
     total_frames: composition.durationInFrames}, true);
   console.log(JSON.stringify(result));

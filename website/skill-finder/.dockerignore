@@ -1,0 +1,14 @@
+.git
+**/node_modules
+**/.venv
+**/.npm-cache
+**/.pnpm-store
+**/.test-tmp
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/*.log
+backend/data
+**/.env
+**/.env.local
+**/.secrets

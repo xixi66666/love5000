@@ -7,11 +7,14 @@ import { dailyApi } from '@/api/dailyReports'
 import type {
   CompileDiagnostic,
   TemplateDocument,
+  TemplateEngine,
   TemplatePreview,
   TemplateTheme,
 } from '@/api/templates'
 
+const props = withDefaults(defineProps<{ engine?: TemplateEngine }>(), { engine: 'hyperframes' })
 const adminKey = defineModel<string>('adminKey', { default: '' })
+const requestedEngine = ref<TemplateEngine>(props.engine)
 const document = ref<TemplateDocument | null>(null)
 const sources = ref<Record<string, string>>({})
 const theme = ref<TemplateTheme | null>(null)
@@ -30,6 +33,9 @@ const restoreRevision = ref('')
 const runtimeFailed = ref(false)
 let disposed = false
 const endpoint = '/daily-reports/template'
+const templateEngine = computed(() => document.value?.engine || requestedEngine.value)
+const engineLabel = computed(() => templateEngine.value === 'hyperframes' ? 'HyperFrames' : 'Remotion')
+const hyperframes = computed(() => templateEngine.value === 'hyperframes')
 const currentFile = computed(() =>
   document.value?.sources.find((file) => file.path === selectedFile.value),
 )
@@ -54,7 +60,7 @@ const previewStale = computed(
 const previewUrl = computed(() =>
   preview.value
     ? new URL(
-        `${dailyApi.defaults.baseURL}${endpoint}/previews/${preview.value.id}/index.html`,
+        `${dailyApi.defaults.baseURL}${endpoint}/engines/${preview.value.engine || templateEngine.value}/previews/${preview.value.id}/index.html`,
         window.location.origin,
       ).href
     : '',
@@ -80,7 +86,11 @@ function authorized() {
   return true
 }
 function applyDocument(value: TemplateDocument) {
-  document.value = value
+  if (document.value?.engine !== (value.engine || requestedEngine.value)) {
+    preview.value = null
+    composition.value = 'SkillFinderDaily'
+  }
+  document.value = { ...value, engine: value.engine || requestedEngine.value }
   theme.value = clone(value.theme)
   sources.value = Object.fromEntries(
     value.sources.map((file) => [file.path, file.code]),
@@ -92,6 +102,7 @@ function applyDocument(value: TemplateDocument) {
 }
 function body() {
   return {
+    engine: templateEngine.value,
     expected_revision: document.value!.revision,
     theme: clone(theme.value),
     sources: Object.fromEntries(
@@ -138,7 +149,7 @@ function setPreview(value: TemplatePreview) {
   runtimeFailed.value = false
 }
 async function compileRequest() {
-  status.value = '正在检查 TypeScript 并编译预览…'
+  status.value = hyperframes.value ? '正在检查 HTML / GSAP 并编译预览…' : '正在检查 TypeScript 并编译预览…'
   const { data } = await dailyApi.post<TemplatePreview>(
     endpoint + '/preview',
     body(),
@@ -150,19 +161,26 @@ async function compileRequest() {
   }
 }
 async function connect() {
-  if (!authorized()) return
+  if (!authorized()) {
+    requestedEngine.value = document.value?.engine || props.engine
+    return
+  }
   busy.value = true
   error.value = ''
   status.value = '正在载入当前模板…'
   try {
     const { data } = await dailyApi.get<TemplateDocument>(endpoint, {
       headers: headers(),
+      params: { engine: requestedEngine.value },
     })
     if (disposed) return
     applyDocument(data)
     await compileRequest()
   } catch (reason) {
-    if (!disposed) failure(reason)
+    if (!disposed) {
+      requestedEngine.value = document.value?.engine || props.engine
+      failure(reason)
+    }
   } finally {
     if (!disposed) busy.value = false
   }
@@ -194,7 +212,7 @@ async function save() {
     applyDocument(data)
     setPreview(data.preview)
     status.value =
-      '新版本已启用，将用于后续生成的视频。已有成片与审核记录保持原样。'
+      `${engineLabel.value} 新版本已启用，将用于该引擎后续生成的视频。已有成片与审核记录保持原样。`
   } catch (reason) {
     if (!disposed) failure(reason)
   } finally {
@@ -210,6 +228,7 @@ async function restore() {
     const { data } = await dailyApi.post<TemplateDocument>(
       endpoint + '/restore',
       {
+        engine: templateEngine.value,
         expected_revision: document.value.revision,
         revision: restoreRevision.value,
       },
@@ -218,7 +237,7 @@ async function restore() {
     if (disposed) return
     applyDocument(data)
     await compileRequest()
-    status.value = '已恢复所选版本，将用于后续视频。'
+    status.value = `已恢复 ${engineLabel.value} 所选版本，将用于该引擎后续视频。`
   } catch (reason) {
     if (!disposed) failure(reason)
   } finally {
@@ -264,7 +283,7 @@ function receive(event: MessageEvent) {
   if (event.data?.kind === 'sf-template-error') {
     runtimeFailed.value = true
     error.value =
-      'React 运行错误：' +
+      `${engineLabel.value} 运行错误：` +
       (typeof event.data.message === 'string'
         ? event.data.message.slice(0, 400)
         : '请检查源码后重新编译。')
@@ -328,15 +347,23 @@ onUnmounted(() => {
   <section class="template-editor" aria-labelledby="template-editor-title">
     <header class="editor-heading">
       <div>
-        <p>Remotion / 模板工作区</p>
+        <p>{{ engineLabel }} / 模板工作区</p>
         <h2 id="template-editor-title">修改源码，直接看效果。</h2>
       </div>
       <Code2 :size="25" aria-hidden="true" />
     </header>
     <p class="editor-intro">
-      在这里编辑 React / TSX、调整样式、预览动画，再保存启用。视频规格沿用 1080
+      在这里编辑{{ hyperframes ? ' HTML / CSS / GSAP' : ' React / TSX' }}、调整样式、预览动画，再保存启用。视频规格沿用 1080
       × 1920 / 30 FPS。
     </p>
+    <div class="engine-choice">
+      <label for="template-engine">模板引擎</label>
+      <select id="template-engine" v-model="requestedEngine" :disabled="busy || dirty" @change="connect">
+        <option value="hyperframes">HyperFrames / HTML + GSAP</option>
+        <option value="remotion">Remotion / 备用 · React + TSX</option>
+      </select>
+      <p class="editor-help">每个引擎单独保存版本；此处切换编辑对象，正式制作沿用操作台的引擎配置。{{ dirty ? '请先保存或放弃草稿，再切换引擎。' : '' }}</p>
+    </div>
     <form v-if="!document" class="editor-connect" @submit.prevent="connect">
       <label for="template-key">管理密钥</label>
       <div>
@@ -351,8 +378,7 @@ onUnmounted(() => {
         </button>
       </div>
       <p>
-        直接编辑 src/video.tsx、src/demo.tsx 和
-        src/types.ts。修改会保存在本服务的模板版本中。
+        {{ hyperframes ? '直接编辑 src/template.html 和 src/demo.html。' : '直接编辑 src/video.tsx、src/demo.tsx 和 src/types.ts。' }}修改会保存在所选引擎的模板版本中。
       </p>
     </form>
     <p v-if="status" class="editor-status" role="status">{{ status }}</p>
@@ -387,7 +413,7 @@ onUnmounted(() => {
               :aria-pressed="mode === 'source'"
               @click="mode = 'source'"
             >
-              React 源码
+              {{ hyperframes ? 'HTML 源码' : 'React 源码' }}
             </button><button
               type="button"
               :aria-pressed="mode === 'style'"
@@ -413,7 +439,7 @@ onUnmounted(() => {
                 ref="sourceArea"
                 v-model="sourceText"
                 :readonly="busy || !currentFile?.editable"
-                aria-label="React 模板源码"
+                :aria-label="`${engineLabel} 模板源码`"
                 spellcheck="false"
                 wrap="off"
                 @keydown="insertTab"
@@ -462,8 +488,7 @@ onUnmounted(() => {
               恢复默认样式
             </button>
             <p class="editor-help">
-              样式修改会立即传入右侧预览。自定义源码通过 props.theme
-              读取这些参数。
+              样式修改会立即传入右侧预览。自定义源码通过{{ hyperframes ? '模板 props.theme' : ' props.theme' }}读取这些参数。
             </p>
           </div>
           <ol
@@ -482,7 +507,7 @@ onUnmounted(() => {
             </li>
           </ol>
         </div>
-        <aside class="template-preview" aria-label="真实 Remotion 预览">
+        <aside class="template-preview" :aria-label="`真实 ${engineLabel} 预览`">
           <label for="preview-composition">预览内容</label><select id="preview-composition" v-model="composition">
             <option value="SkillFinderDaily">主视频模板</option>
             <option value="RenderDemo">演示动画模板</option>
@@ -495,7 +520,7 @@ onUnmounted(() => {
             ref="iframe"
             :key="preview.id"
             :src="previewUrl"
-            title="Remotion 模板实时预览"
+            :title="`${engineLabel} 模板实时预览`"
             sandbox="allow-scripts"
             allow="autoplay"
             referrerpolicy="no-referrer"
@@ -583,6 +608,15 @@ h2 {
   font-size: 14px;
   margin-top: 16px;
   max-width: 75ch;
+}
+.engine-choice {
+  margin-top: 20px;
+  max-width: 620px;
+}
+.engine-choice > label {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 8px;
 }
 .editor-help,
 .editor-connect p {
