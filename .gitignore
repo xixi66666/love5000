@@ -59,9 +59,11 @@ personal-agent/.secrets/
 personal-agent/.runtime/
 
 ### Local dependency cache and generated data ###
+/.pnpm-store/
 /.runtime/
 /.m2/
 /website/video/config.local.json
 /website/skill-finder/backend/data/
+/website/skill-finder/db/
 /website/video/anime_projects/
 /website/python-a/obsidian-vault/**/data/stock-metadata/
