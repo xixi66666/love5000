@@ -12,6 +12,7 @@
 
 `love5000` 是一个 Java 8 + Spring Boot 2.6.13 的 Maven 多模块项目，父工程 artifactId 为 `love530`。当前模块：
 
+- `lottery`：`website/lottery` 独立 Python 服务（5179），双色球/大乐透历史数据操作台与研究报告；01 第 9 个入口，仅点击启动。
 - `personal-agent`：与website同级的Java Maven个人Agent模块（5178），本地H2账本/专属Obsidian、想法行动、阅读记忆、财务及事件复盘；仅03点击启动。
 - `common`：公共能力模块，提供 OSS 自动配置、上传工具，以及通用登录/注册/Session 鉴权能力。
 - `lovestory`：恋爱相册 Web 应用，提供静态页面、照片上传、照片列表、删除接口、留言板功能和吉他视频卡片模块。
@@ -468,7 +469,7 @@ website/skill-finder/
 - 新增任何 Java 模块、Python 微应用或独立微服务时，必须同步更新 `website/src/main/resources/static/index.html` 的主页面入口。
 - 当前主页面采用四场景电影化单视口布局，服务入口位于底部液态玻璃 Dock；新增入口时沿用现有 `service-card` 结构，并验证桌面宽度和移动端横向滚动。
 - 四场景仅展示原风景视频，不添加车窗覆盖图或车窗晃动动画；保留暗角、颗粒、背景降级和原视频切换时序。
-- 四场景按钮通过 `data-scene-title` / `data-scene-statement` / `data-scene-badge` 配置各自文案，通过 `data-scene-dock` 选择服务目录。01 Golden Hour 保留原文案与 8 个入口；02 Still Water、03 Deep Woods、04 Quiet Dawn 分别使用独立的 `still-water-service-dock`、`deep-woods-service-dock`、`quiet-dawn-service-dock`，未添加卡片时隐藏整个 Dock。背景视频、动画和切换时序保持不变。
+- 四场景按钮通过 `data-scene-title` / `data-scene-statement` / `data-scene-badge` 配置各自文案，通过 `data-scene-dock` 选择服务目录。01 Golden Hour 保留原文案与 9 个入口；02 Still Water、03 Deep Woods、04 Quiet Dawn 分别使用独立的 `still-water-service-dock`、`deep-woods-service-dock`、`quiet-dawn-service-dock`，未添加卡片时隐藏整个 Dock。背景视频、动画和切换时序保持不变。
 - 主页面入口需要包含服务名称、端口或访问标识，并配置实时可用性检测地址。
 - 入口样式和状态点维护在 `website/src/main/resources/static/css/style.css`，健康检测逻辑维护在 `website/src/main/resources/static/js/script.js`。
 - 如果新增服务没有专门健康检查接口，优先使用其首页或登录页作为检测地址；跨端口检测可使用前端 `no-cors` 方式，只把网络失败视为不可用。
@@ -486,6 +487,7 @@ website/skill-finder/
 - `scrapling-ui`：`5176`
 - `skill-finder`：`5177`
 - `personal-agent`：`5178`
+- `lottery`：`5179`
 
 ### 数据库
 
@@ -1075,7 +1077,7 @@ Strata以`--lazy`启动服务，第一条生成请求或「加载模型」按钮
 
 ## Personal Agent Java 微服务（03 Deep Woods）
 
-`personal-agent/` 与 `website/`、`lovestory/` 同级，是 Java8 + Spring Boot2.6.13 的 Maven 模块，已加入父 pom。默认仅监听 `127.0.0.1:5178`。原生前端与业务 API 在模块内；website 只提供03服务卡片、健康聚合及点击启动，不改01的8个入口或四个背景动画。
+`personal-agent/` 与 `website/`、`lovestory/` 同级，是 Java8 + Spring Boot2.6.13 的 Maven 模块，已加入父 pom。默认仅监听 `127.0.0.1:5178`。原生前端与业务 API 在模块内；website 只提供03服务卡片、健康聚合及点击启动，不改01的9个入口或四个背景动画。
 
 首次从仓库根目录执行 `mvn -pl personal-agent -am package -DskipTests`。可在IDEA运行 `com.example.personalagent.PersonalAgentApplication`，或执行 `java -jar personal-agent/target/personal-agent-0.0.1-SNAPSHOT.jar`。重启website后点击03个人Agent，启动器运行已构建jar（不自动Maven），验证 `success=true` + `service=personal-agent` 后打开；已在线则复用，陌生端口占用则拒绝。website启动/关闭不自动启停它。
 
@@ -1184,3 +1186,13 @@ Python 公共源码改动后执行 `python scripts/sync-model-routing.py`，再�
 ## HyperFrames 可切换视频引擎（2026-10-26）
 
 新增内部 `hyperframes-renderer/`（官方 producer/engine/core 0.8.186 + GSAP 3.13.0，Node.js 22+），通过 `DAILY_VIDEO_RENDERER=hyperframes` 选择；默认使用 HyperFrames，Remotion 保留为备用引擎（`DAILY_VIDEO_RENDERER=remotion`），legacy 仍可显式选择，失败不自动换引擎。新增 `HYPERFRAMES_BROWSER_EXECUTABLE` 与 `HYPERFRAMES_CONCURRENCY`（默认 1，范围 1–8），复用原素材、配音、实测字幕、FFmpeg 母带与审核流程。模板编辑 API 增加 engine 标识，HyperFrames 仅编辑 `src/template.html` / `src/demo.html`，版本隔离在日报同级 `video-template/hyperframes/`；原 Remotion 模板保持原位置。临时 `.hyperframes-project-*` 只包含固化媒体与模板，任务结束清理，真实验收后生成正式结果。样片命令按当前引擎生成自身演示，Docker 构建同时包含两套引擎；不新增端口或 Dock。配置、模板 API、数据、测试和部署见 [HyperFrames 接入](website/skill-finder/docs/hyperframes-integration.md)。
+
+## 开奖数据操作台（2026-11-05）
+
+首页 01 Golden Hour 由 8 个入口扩为 9 个，新增「开奖数据操作台」（`website/lottery`，5179）。
+该服务是独立 Python 进程：`server.py` 托管操作台页面并提供 `/api/health`、`/api/status`、`/api/update`；
+数据为 6466 期官方开奖，页面支持排序、筛选、走势矩阵、统计与透视，以及一键增量刷新。
+
+website 侧新增 `integration/lottery`（`LotteryProcessManager` + `LotteryController`）、
+`application.yml` 的 `lottery.click-start` 与健康清单末项；首页 Dock 改为 `repeat(9, minmax(0, 1fr))`，
+徽标文案改为“9 个入口”。验证：`mvn -pl website -am test`，以及 `curl http://127.0.0.1:5179/api/health`。

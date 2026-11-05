@@ -1,0 +1,1619 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>开奖数据操作台</title>
+<style>
+:root{
+  --ink:#14213D; --ink2:#3D4657; --muted:#6E7484; --line:#E4DFD3; --line2:#EFEBE1;
+  --paper:#F4F1E9; --card:#FFFFFF; --red:#C1121F; --red-soft:#FBEAEA; --blue:#1D4E89;
+  --blue-soft:#EEF4FB; --gold:#B8860B; --gold-soft:#FBF3DF; --green:#2A6F4E;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:"Microsoft YaHei","PingFang SC","Noto Sans CJK SC",system-ui,-apple-system,sans-serif;
+  font-size:13.5px;line-height:1.6;-webkit-font-smoothing:antialiased;
+}
+button,select,input{font-family:inherit;font-size:inherit;color:inherit}
+button{cursor:pointer}
+.num,.mono{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+/* ---------- 顶栏 ---------- */
+.topbar{
+  position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:18px;
+  padding:10px 20px;background:#fff;border-bottom:1px solid var(--line);
+  box-shadow:0 1px 0 rgba(20,33,61,.03);
+}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.logo{
+  width:30px;height:30px;border-radius:8px;background:var(--ink);color:#fff;
+  display:grid;place-items:center;font-weight:700;font-size:14px;letter-spacing:.5px;flex:none;
+}
+.brand h1{font-size:15px;margin:0;letter-spacing:.2px;white-space:nowrap}
+.brand .sub{font-size:11.5px;color:var(--muted);white-space:nowrap}
+.seg{display:flex;background:#F1EDE4;border-radius:8px;padding:3px;gap:2px;flex:none}
+.seg button{
+  border:0;background:transparent;padding:6px 16px;border-radius:6px;font-size:13px;
+  color:var(--ink2);font-weight:600;transition:background .15s,color .15s;
+}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(20,33,61,.12)}
+.topstats{display:flex;gap:16px;margin-left:auto;flex:none}
+.topstats .s{text-align:right;line-height:1.25}
+.topstats .s b{display:block;font-size:15px;font-variant-numeric:tabular-nums}
+.topstats .s span{font-size:10.5px;color:var(--muted)}
+.top-actions{display:flex;gap:8px;flex:none}
+.btn{
+  border:1px solid var(--line);background:#fff;border-radius:7px;padding:6px 12px;
+  font-size:12.5px;color:var(--ink2);transition:all .15s;white-space:nowrap;
+}
+.btn:hover{border-color:#C9C2B2;background:#FCFAF4;color:var(--ink)}
+.btn.primary{background:var(--ink);border-color:var(--ink);color:#fff}
+.btn.primary:hover{background:#1F3055;color:#fff}
+.btn.ghost{border-color:transparent;background:transparent}
+/* ---------- 页签 ---------- */
+.tabs{display:flex;gap:2px;padding:0 20px;background:#fff;border-bottom:1px solid var(--line)}
+.tabs button{
+  border:0;background:transparent;padding:9px 14px 10px;font-size:13px;color:var(--muted);
+  border-bottom:2px solid transparent;font-weight:600;transition:color .15s,border-color .15s;
+}
+.tabs button:hover{color:var(--ink2)}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--red)}
+.tabs .spacer{flex:1}
+/* ---------- 筛选区 ---------- */
+.filters{background:#fff;border-bottom:1px solid var(--line);padding:12px 20px 12px}
+.frow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:9px}
+.frow:last-child{margin-bottom:0}
+.flabel{font-size:11.5px;color:var(--muted);min-width:52px;letter-spacing:.02em}
+input[type=text],input[type=number],input[type=date],select{
+  border:1px solid var(--line);border-radius:6px;padding:5px 8px;background:#fff;
+  font-size:12.5px;outline:none;transition:border-color .15s;
+}
+input:focus,select:focus{border-color:#9BB0CE;box-shadow:0 0 0 3px rgba(29,78,137,.08)}
+input[type=number]{width:74px}
+input[type=date]{width:136px}
+input[type=text]{width:190px}
+.dash{color:#B9B3A4}
+.quick{display:flex;gap:6px;flex-wrap:wrap}
+.chip{
+  border:1px solid var(--line);background:#fff;border-radius:14px;padding:3px 11px;
+  font-size:12px;color:var(--ink2);transition:all .15s;
+}
+.chip:hover{border-color:#C9C2B2;background:#FCFAF4}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.pad{display:flex;gap:4px;flex-wrap:wrap}
+.pad button{
+  width:27px;height:27px;border-radius:50%;border:1px solid var(--line);background:#fff;
+  font-size:11.5px;font-variant-numeric:tabular-nums;color:var(--ink2);padding:0;
+  transition:all .12s;position:relative;
+}
+.pad button:hover{border-color:#A9A18D;transform:translateY(-1px)}
+.pad button.inc{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:700}
+.pad button.exc{background:#F7ECEC;border-color:#E7C9C9;color:var(--red);text-decoration:line-through}
+.pad.hind button{}
+.legend{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:50%;border:1px solid var(--line)}
+.legend i.inc{background:var(--blue);border-color:var(--blue)}
+.legend i.exc{background:#F7ECEC;border-color:#E7C9C9}
+.activefilters{display:flex;gap:6px;flex-wrap:wrap;min-height:24px;align-items:center}
+.tagf{
+  display:inline-flex;align-items:center;gap:5px;background:var(--blue-soft);color:var(--blue);
+  border-radius:5px;padding:2px 4px 2px 8px;font-size:11.5px;font-weight:600;
+}
+.tagf.bad{background:var(--red-soft);color:var(--red)}
+.tagf b{font-weight:700}
+.tagf button{border:0;background:transparent;color:inherit;opacity:.6;padding:0 4px;font-size:13px;line-height:1}
+.tagf button:hover{opacity:1}
+/* ---------- 主区 ---------- */
+main{padding:14px 20px 24px}
+.view{display:none}
+.view.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.cardhead{
+  display:flex;align-items:center;gap:12px;padding:9px 14px;border-bottom:1px solid var(--line2);
+  font-size:12.5px;color:var(--muted);
+}
+.cardhead .title{color:var(--ink);font-weight:700;font-size:13px}
+.cardhead .spacer{flex:1}
+/* ---------- 表格 ---------- */
+.tablewrap{overflow:auto;max-height:calc(100vh - 340px)}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px}
+thead th{
+  position:sticky;top:0;z-index:5;background:#FAF8F3;text-align:left;white-space:nowrap;
+  padding:8px 10px;border-bottom:1px solid var(--line);font-weight:700;font-size:11.5px;
+  color:var(--ink2);user-select:none;
+}
+thead th.sortable{cursor:pointer}
+thead th.sortable:hover{background:#F3EFE4;color:var(--ink)}
+thead th.on{color:var(--red)}
+thead th .ind{font-size:9.5px;margin-left:2px;opacity:.9}
+thead th .ord{font-size:9px;vertical-align:super;opacity:.65}
+tbody td{padding:6px 10px;border-bottom:1px solid var(--line2);white-space:nowrap}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:#FCFAF3}
+tbody tr.sel td{background:#F4F7FC}
+td.r,th.r{text-align:right}
+.balls{display:inline-flex;gap:3px}
+.ball{
+  display:inline-grid;place-items:center;width:21px;height:21px;border-radius:50%;
+  font-size:10.5px;font-weight:700;font-variant-numeric:tabular-nums;color:#fff;letter-spacing:-.3px;
+}
+.ball.f{background:var(--red)}
+.ball.b{background:var(--blue)}
+.ball:hover{outline:2px solid rgba(20,33,61,.25);outline-offset:1px}
+.ball.s{width:26px;height:26px;font-size:12px}
+.muted{color:var(--muted)}
+.zero{color:#B9B3A4}
+.win{color:var(--gold);font-weight:700}
+.era{
+  display:inline-block;font-size:10px;padding:0 5px;border-radius:3px;background:var(--gold-soft);
+  color:var(--gold);font-weight:700;margin-left:4px;
+}
+/* ---------- 分页 ---------- */
+.pager{display:flex;align-items:center;gap:10px;padding:9px 14px;border-top:1px solid var(--line2);font-size:12px;color:var(--muted)}
+.pager .spacer{flex:1}
+.pager button{min-width:30px}
+.pager button:disabled{opacity:.35;cursor:default}
+/* ---------- 走势矩阵 ---------- */
+.gridwrap{overflow:auto;max-height:calc(100vh - 360px)}
+table.trend{--u:1;border-collapse:collapse;font-size:calc(10px * var(--u));width:auto}
+table.trend th,table.trend td{padding:0;text-align:center;border:1px solid #F0ECE2;height:calc(20px * var(--u));min-width:calc(19px * var(--u))}
+table.trend thead th{position:sticky;top:0;background:#FAF8F3;font-size:calc(9.5px * var(--u));color:var(--muted);z-index:3;padding:calc(2px * var(--u)) 0}
+table.trend tbody td{border-radius:0}
+table.trend .issue{position:sticky;left:0;background:#FAF8F3;z-index:2;font-size:calc(10px * var(--u));padding:0 calc(6px * var(--u));text-align:right;color:var(--muted);white-space:nowrap}
+table.trend thead th.issue{left:0;z-index:4}
+table.trend td.hit{background:#fff}
+table.trend .dot{
+  display:inline-grid;place-items:center;width:calc(16px * var(--u));height:calc(16px * var(--u));border-radius:50%;
+  font-size:calc(9px * var(--u));font-weight:700;color:#fff;
+}
+table.trend .dot.f{background:var(--red)}
+table.trend .dot.b{background:var(--blue)}
+table.trend .sep{border-left:2px solid #D8D2C2}
+table.trend tr:hover td{background:#FBF7EE}
+table.trend tr:hover td.issue{background:#F3EFE4}
+/* ---------- 统计 ---------- */
+.statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(350px,1fr));gap:14px}
+.panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.panel h3{margin:0 0 2px;font-size:13px}
+.panel .hint{font-size:11.5px;color:var(--muted);margin-bottom:12px}
+.bars{display:flex;align-items:flex-end;gap:2px;height:150px;margin-top:6px;position:relative}
+.bars .bar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;position:relative}
+.bars .fill{background:var(--blue);border-radius:2px 2px 0 0;min-height:1px;transition:height .25s}
+.bars .fill.f{background:var(--red)}
+.bars .fill.g{background:var(--gold)}
+.bars .bar:hover .fill{filter:brightness(1.12)}
+.bars .bar:hover::after{
+  content:attr(data-tip);position:absolute;bottom:100%;left:50%;transform:translate(-50%,-4px);
+  background:var(--ink);color:#fff;font-size:10.5px;padding:3px 7px;border-radius:4px;white-space:nowrap;z-index:6;
+}
+.xlabels{position:relative;height:14px;margin-top:4px}
+.xlabels span{position:absolute;transform:translateX(-50%);font-size:9px;color:var(--muted);white-space:nowrap}
+.refline{position:absolute;left:0;right:0;border-top:1px dashed rgba(20,33,61,.45);z-index:3;pointer-events:none}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.kv div{background:#FAF8F3;border-radius:7px;padding:9px 12px}
+.kv b{display:block;font-size:17px;font-variant-numeric:tabular-nums;line-height:1.3}
+.kv span{font-size:11px;color:var(--muted)}
+/* ---------- 抽屉 ---------- */
+#backdrop{position:fixed;inset:0;background:rgba(20,33,61,.28);opacity:0;pointer-events:none;transition:opacity .22s;z-index:60}
+#backdrop.on{opacity:1;pointer-events:auto}
+#drawer{
+  position:fixed;top:0;right:0;bottom:0;width:460px;max-width:92vw;background:#fff;z-index:61;
+  transform:translateX(100%);transition:transform .24s cubic-bezier(.4,0,.2,1);
+  box-shadow:-12px 0 40px rgba(20,33,61,.14);display:flex;flex-direction:column;
+}
+#drawer.on{transform:translateX(0)}
+.dhead{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.dhead .t{font-size:16px;font-weight:700}
+.dhead .d{font-size:12px;color:var(--muted)}
+.dhead .spacer{flex:1}
+.dbody{overflow:auto;padding:16px 18px 28px}
+.dsec{margin-bottom:22px}
+.dsec h4{margin:0 0 8px;font-size:12px;color:var(--muted);letter-spacing:.06em;font-weight:700}
+.dballs{display:flex;gap:7px;margin:2px 0 6px}
+.dmeta{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.dmeta div{background:#FAF8F3;border-radius:6px;padding:7px 10px}
+.dmeta b{display:block;font-size:14px;font-variant-numeric:tabular-nums}
+.dmeta span{font-size:10.5px;color:var(--muted)}
+table.prize{font-size:12px;border-collapse:collapse;width:100%}
+table.prize th{font-size:10.5px;color:var(--muted);font-weight:700;padding:4px 6px;border-bottom:1px solid var(--line);text-align:left;background:none;position:static}
+table.prize td{padding:5px 6px;border-bottom:1px solid var(--line2);white-space:nowrap}
+table.prize td.r{text-align:right;font-variant-numeric:tabular-nums}
+table.prize tr.hi td{background:#FDF8EA}
+.prevdraw{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+/* ---------- 提示 ---------- */
+#toast{
+  position:fixed;left:50%;bottom:26px;transform:translate(-50%,12px);background:var(--ink);color:#fff;
+  padding:8px 16px;border-radius:8px;font-size:12.5px;opacity:0;pointer-events:none;transition:.2s;z-index:80;
+}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+/* ---------- 刷新面板 ---------- */
+#refreshMask{position:fixed;inset:0;background:rgba(20,33,61,.34);display:none;align-items:center;justify-content:center;z-index:90;padding:24px}
+#refreshMask.on{display:flex}
+.rmbox{background:#fff;border-radius:12px;width:660px;max-width:94vw;max-height:82vh;display:flex;flex-direction:column;
+  box-shadow:0 26px 64px rgba(20,33,61,.3);overflow:hidden}
+.rmhead{display:flex;align-items:baseline;gap:12px;padding:15px 20px;border-bottom:1px solid var(--line)}
+.rmhead b{font-size:15px}
+.rmhead span{font-size:12px;color:var(--muted)}
+#refreshLog{margin:0;padding:14px 20px;font-family:Consolas,"Courier New",monospace;font-size:12px;line-height:1.75;
+  color:var(--ink2);background:#FAF8F3;overflow:auto;flex:1;min-height:200px;max-height:46vh;white-space:pre-wrap;word-break:break-all}
+.rmfoot{display:flex;align-items:center;gap:10px;padding:11px 20px;border-top:1px solid var(--line);font-size:12px}
+.rmfoot .spacer{flex:1}
+.spinner{display:inline-block;width:11px;height:11px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;
+  border-radius:50%;animation:spin .8s linear infinite;vertical-align:-1px;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{padding:60px 20px;text-align:center;color:var(--muted);font-size:13px}
+.foot{padding:10px 20px 30px;font-size:11.5px;color:var(--muted);text-align:center}
+kbd{background:#EFEBE1;border:1px solid #E0DACB;border-bottom-width:2px;border-radius:3px;padding:0 4px;font-size:10.5px;font-family:inherit}
+@media (max-width:1100px){
+  .topstats{display:none}
+  .tablewrap{max-height:none}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">彩</div>
+    <div>
+      <h1>开奖数据操作台</h1>
+      <div class="sub" id="brandSub">—</div>
+    </div>
+  </div>
+  <div class="seg" id="gameSwitch">
+    <button data-game="ssq" class="on">双色球</button>
+    <button data-game="dlt">大乐透</button>
+  </div>
+  <div class="topstats" id="topstats"></div>
+  <div class="top-actions">
+    <button class="btn primary" id="btnRefresh" title="从官方接口抓取最新开奖，并重建报告与页面">刷新数据</button>
+    <button class="btn" id="btnCols">列设置</button>
+    <button class="btn" id="btnExport">导出 CSV</button>
+    <button class="btn ghost" id="btnReset">重置</button>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button data-tab="table" class="on">数据表</button>
+  <button data-tab="grid">走势矩阵</button>
+  <button data-tab="stats">统计视图</button>
+  <button data-tab="pivot">分组透视</button>
+  <span class="spacer"></span>
+</nav>
+
+<section class="filters">
+  <div class="frow">
+    <span class="flabel">期号</span>
+    <input type="number" id="issueFrom" placeholder="起">
+    <span class="dash">—</span>
+    <input type="number" id="issueTo" placeholder="止">
+    <span class="flabel" style="margin-left:8px">日期</span>
+    <input type="date" id="dateFrom">
+    <span class="dash">—</span>
+    <input type="date" id="dateTo">
+    <input type="text" id="search" placeholder="搜索期号 / 日期…">
+    <span class="flabel" style="margin-left:8px">快捷</span>
+    <div class="quick" id="quick">
+      <button class="chip on" data-q="all">全部</button>
+      <button class="chip" data-q="recent100">最近 100 期</button>
+      <button class="chip" data-q="recent1y">近一年</button>
+      <button class="chip" data-q="pip0">一等奖空开</button>
+      <button class="chip" data-q="pip5">一等奖 ≥5 注</button>
+    </div>
+  </div>
+  <div class="frow">
+    <span class="flabel">和值</span>
+    <input type="number" id="sumMin" placeholder="min">
+    <span class="dash">—</span>
+    <input type="number" id="sumMax" placeholder="max">
+    <span class="flabel" style="margin-left:8px">奇数</span>
+    <input type="number" id="oddMin" placeholder="min">
+    <span class="dash">—</span>
+    <input type="number" id="oddMax" placeholder="max">
+    <span class="flabel" style="margin-left:8px">连号 ≥</span>
+    <input type="number" id="consecMin" placeholder="0">
+    <button class="btn" id="btnMore" style="margin-left:8px">更多条件</button>
+  </div>
+  <div class="frow" id="padFrontRow">
+    <span class="flabel" id="padFrontLabel">红球</span>
+    <div class="pad" id="padFront"></div>
+    <span class="legend"><i class="inc"></i>必含<i class="exc"></i>排除</span>
+  </div>
+  <div class="frow" id="padBackRow">
+    <span class="flabel" id="padBackLabel">蓝球</span>
+    <div class="pad" id="padBack"></div>
+  </div>
+  <div class="frow">
+    <span class="flabel">已生效</span>
+    <div class="activefilters" id="activeFilters"><span class="muted">无筛选条件</span></div>
+    <button class="btn ghost" id="btnClearFilters" style="font-size:11.5px">清空筛选</button>
+  </div>
+</section>
+
+<main>
+  <section class="view on" id="view-table">
+    <div class="card">
+      <div class="cardhead">
+        <span class="title">历史开奖</span>
+        <span id="tableMeta" class="muted"></span>
+        <span class="spacer"></span>
+        <span class="muted" style="font-size:11.5px">点击行看详情 · 点小球筛选 · <kbd>Shift</kbd>+点小球排除</span>
+      </div>
+      <div class="tablewrap"><table id="dataTable"><thead></thead><tbody></tbody></table></div>
+      <div class="pager" id="pager"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-grid">
+    <div class="card">
+      <div class="cardhead">
+        <span class="title">走势矩阵</span>
+        <span class="muted" id="gridMeta"></span>
+        <span class="spacer"></span>
+        <label class="muted" style="font-size:12px">期数
+          <select id="gridCount">
+            <option>50</option><option selected>100</option><option>200</option><option>300</option><option>500</option>
+          </select>
+        </label>
+        <label class="muted" style="font-size:12px" title="只影响走势矩阵；滚轮可上下滚动，Shift+滚轮可左右滚动">缩放
+          <select id="gridZoom">
+            <option value="0.75">75%</option><option value="0.9">90%</option><option value="1" selected>100%</option>
+            <option value="1.25">125%</option><option value="1.5">150%</option><option value="1.75">175%</option><option value="2">200%</option>
+          </select>
+        </label>
+        <label class="muted" style="font-size:12px">
+          <input type="checkbox" id="gridNewest" checked> 最新在上
+        </label>
+        <label class="muted" style="font-size:12px">
+          <input type="checkbox" id="gridOmission" checked> 显示遗漏
+        </label>
+      </div>
+      <div class="gridwrap"><table class="trend" id="trendTable"></table></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-stats">
+    <div class="statgrid" id="statGrid"></div>
+  </section>
+
+  <section class="view" id="view-pivot">
+    <div class="card">
+      <div class="cardhead">
+        <span class="title">分组透视</span>
+        <span class="muted">按</span>
+        <select id="pivotGroup">
+          <option value="year">年份</option>
+          <option value="month">年月</option>
+          <option value="weekday">星期</option>
+          <option value="sumbucket">和值区间</option>
+          <option value="odd">奇数个数</option>
+          <option value="zone">三区比</option>
+          <option value="consec">连号组数</option>
+          <option value="pip">一等奖注数区间</option>
+        </select>
+        <span class="spacer"></span>
+        <span class="muted" id="pivotMeta"></span>
+      </div>
+      <div class="tablewrap" style="max-height:calc(100vh - 380px)"><table id="pivotTable"><thead></thead><tbody></tbody></table></div>
+    </div>
+  </section>
+</main>
+
+<div class="foot">
+  数据来自福彩/体彩官方接口并与 500.com 交叉校验 · 仅供概率方法研究，不构成购彩建议 ·
+  <kbd>/</kbd> 聚焦搜索 · <kbd>Esc</kbd> 收起面板
+</div>
+
+<div id="backdrop"></div>
+<aside id="drawer">
+  <div class="dhead">
+    <div>
+      <div class="t" id="dTitle">—</div>
+      <div class="d" id="dSub"></div>
+    </div>
+    <span class="spacer"></span>
+    <button class="btn" id="dPrev">← 上期</button>
+    <button class="btn" id="dNext">下期 →</button>
+    <button class="btn ghost" id="dClose" style="font-size:16px;line-height:1">×</button>
+  </div>
+  <div class="dbody" id="dBody"></div>
+</aside>
+
+<div id="refreshMask">
+  <div class="rmbox">
+    <div class="rmhead">
+      <b>更新开奖数据</b>
+      <span id="refreshStatus">准备中…</span>
+    </div>
+    <pre id="refreshLog"></pre>
+    <div class="rmfoot">
+      <span id="refreshHint" class="muted"></span>
+      <span class="spacer"></span>
+      <button class="btn" id="refreshOpen" hidden>打开本地服务</button>
+      <button class="btn" id="refreshRetry" hidden>重试连接</button>
+      <button class="btn" id="refreshClose">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const DATA = __DATA__;
+(function () {
+"use strict";
+
+/* ============================ 基础工具 ============================ */
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const pad2 = n => String(n).padStart(2, "0");
+const fmtDate = d => { const s = String(d); return s.slice(0,4) + "-" + s.slice(4,6) + "-" + s.slice(6,8); };
+const fmtInt = v => (v == null || Number.isNaN(v)) ? "—" : Number(v).toLocaleString("zh-CN");
+const fmtWan = v => (v == null || Number.isNaN(v)) ? "—" : Math.round(v / 1e4).toLocaleString("zh-CN");
+const fmtYi  = v => (v == null || Number.isNaN(v)) ? "—" : (v / 1e8).toFixed(2);
+const fmtMoney = v => (v == null || Number.isNaN(v)) ? "—" : Number(v).toLocaleString("zh-CN");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]));
+const toast = (msg) => {
+  const el = $("#toast"); el.textContent = msg; el.classList.add("on");
+  clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove("on"), 1600);
+};
+const save = () => {
+  try { localStorage.setItem("dsh.console.v1", JSON.stringify({
+    game: state.game, visible: state.visible, pageSize: state.pageSize,
+    dense: state.dense, gridCount: state.gridCount, gridOmission: state.gridOmission,
+    gridZoom: state.gridZoom,
+  })); } catch (e) {}
+};
+
+/* ============================ 列定义 ============================ */
+const COL_META = {
+  issue:  { label: "期号", width: 84 },
+  date:   { label: "日期", width: 96 },
+  front:  { label: "号码", width: 196 },
+  back:   { label: "后区", width: 96 },
+  sum:    { label: "和值", num: true },
+  span:   { label: "跨度", num: true },
+  odd:    { label: "奇", num: true },
+  big:    { label: "大", num: true },
+  zone:   { label: "三区比" },
+  consec: { label: "连号", num: true },
+  maxrun: { label: "最长连", num: true },
+  ac:     { label: "AC", num: true },
+  repeat: { label: "重号", num: true },
+  sales:  { label: "销量(万)", num: true },
+  pool:   { label: "奖池(亿)", num: true },
+  p1c:    { label: "一等奖注数", num: true },
+  p1a:    { label: "一等奖/注", num: true },
+  p2c:    { label: "二等奖注数", num: true },
+  p2a:    { label: "二等奖/注", num: true },
+  p1ac:   { label: "一等追加注数", num: true },
+  p1aa:   { label: "一等追加/注", num: true },
+};
+const VIRTUAL = {
+  p3c: { label: "三等奖注数", num: true,  get: r => pcOf(r)[2] },
+  p3a: { label: "三等奖/注",   num: true,  get: r => paOf(r)[2] },
+  p4c: { label: "四等奖注数", num: true,  get: r => pcOf(r)[3] },
+  p4a: { label: "四等奖/注",   num: true,  get: r => paOf(r)[3] },
+  p5c: { label: "五等奖注数", num: true,  get: r => pcOf(r)[4] },
+  p5a: { label: "五等奖/注",   num: true,  get: r => paOf(r)[4] },
+  p6c: { label: "六等奖注数", num: true,  get: r => pcOf(r)[5] },
+  p6a: { label: "六等奖/注",   num: true,  get: r => paOf(r)[5] },
+};
+function pcOf(r) { const v = r[IDX.pc]; return Array.isArray(v) ? v : []; }
+function paOf(r) { const v = r[IDX.pa]; return Array.isArray(v) ? v : []; }
+
+/* ============================ 状态 ============================ */
+const saved = (() => { try { return JSON.parse(localStorage.getItem("dsh.console.v1") || "{}"); } catch (e) { return {}; } })();
+const DEFAULT_VISIBLE = ["issue","date","front","back","sum","span","odd","zone","consec","ac","repeat","sales","pool","p1c","p1a","p2c","p2a"];
+const ORDER = ["issue","date","front","back","sum","span","odd","big","zone","consec","maxrun","ac","repeat",
+               "sales","pool","p1c","p1a","p2c","p2a","p3c","p3a","p4c","p4a","p5c","p5a","p6c","p6a","p1ac","p1aa"];
+const state = {
+  game: saved.game === "dlt" ? "dlt" : "ssq",
+  tab: "table",
+  sort: [],
+  include: new Set(), exclude: new Set(),
+  includeBack: new Set(), excludeBack: new Set(),
+  issueFrom: null, issueTo: null, dateFrom: null, dateTo: null,
+  sumMin: null, sumMax: null, oddMin: null, oddMax: null, consecMin: null,
+  q: "", quick: "all",
+  page: 0, pageSize: saved.pageSize || 100,
+  dense: !!saved.dense,
+  visible: saved.visible || null,
+  gridCount: saved.gridCount || 100,
+  gridZoom: Number(saved.gridZoom) >= 0.5 && Number(saved.gridZoom) <= 2 ? Number(saved.gridZoom) : 1,
+  gridNewest: true, gridOmission: saved.gridOmission !== false,
+  pivotGroup: "year",
+  selected: null,
+};
+let IDX = {};
+
+const g = () => DATA[state.game];
+const allRows = () => g().rows;
+const isDLT = () => state.game === "dlt";
+const labelFront = () => isDLT() ? "前区" : "红球";
+const labelBack  = () => isDLT() ? "后区" : "蓝球";
+
+function rebuildIdx() {
+  IDX = {};
+  g().cols.forEach((c, i) => { IDX[c] = i; });
+}
+
+function colMeta(key) { return COL_META[key] || VIRTUAL[key] || { label: key }; }
+function cellValue(row, key) {
+  if (VIRTUAL[key] && VIRTUAL[key].get) return VIRTUAL[key].get(row);
+  return row[IDX[key]];
+}
+function availableCols() {
+  const base = g().cols.filter(c => c !== "pc" && c !== "pa");
+  const virtual = (g().tiers || 0) >= 6 ? ["p3c","p3a","p4c","p4a","p5c","p5a","p6c","p6a"] : [];
+  const all = base.concat(virtual, isDLT() ? ["p1ac","p1aa"] : []);
+  return ORDER.filter(k => all.indexOf(k) >= 0).concat(all.filter(k => ORDER.indexOf(k) < 0));
+}
+function visibleCols() {
+  if (!state.visible) return DEFAULT_VISIBLE.filter(k => availableCols().indexOf(k) >= 0);
+  const av = availableCols();
+  const v = state.visible.filter(k => av.indexOf(k) >= 0);
+  return v.length ? v : DEFAULT_VISIBLE;
+}
+
+/* ============================ 筛选 ============================ */
+let RECENT_SET = null;
+function recentIssues(n) {
+  const rows = allRows().slice().sort((a, b) => b[IDX.date] - a[IDX.date]);
+  return new Set(rows.slice(0, n).map(r => r[IDX.issue]));
+}
+
+function filtered() {
+  const rows = allRows();
+  const iIss = IDX.issue, iDate = IDX.date, iFront = IDX.front, iBack = IDX.back;
+  const iSum = IDX.sum, iOdd = IDX.odd, iCon = IDX.consec, iSeg = IDX.consec, iSales = IDX.sales;
+  const inc = state.include, exc = state.exclude, incB = state.includeBack, excB = state.excludeBack;
+  const q = state.q.trim().toLowerCase();
+  let recent = null;
+  if (state.quick === "recent100") recent = recentIssues(100);
+  if (state.quick === "recent1y") {
+    const last = rows.reduce((m, r) => Math.max(m, r[iDate]), 0);
+    const y = Math.floor(last / 10000) - 1, m = last % 10000;
+    const edge = y * 10000 + m;
+    recent = new Set(rows.filter(r => r[iDate] >= edge).map(r => r[iIss]));
+  }
+  const out = [];
+  for (let k = 0; k < rows.length; k++) {
+    const r = rows[k];
+    const iss = r[iIss], d = r[iDate];
+    if (state.issueFrom != null && iss < state.issueFrom) continue;
+    if (state.issueTo != null && iss > state.issueTo) continue;
+    if (state.dateFrom != null && d < state.dateFrom) continue;
+    if (state.dateTo != null && d > state.dateTo) continue;
+    if (state.sumMin != null && r[iSum] < state.sumMin) continue;
+    if (state.sumMax != null && r[iSum] > state.sumMax) continue;
+    if (state.oddMin != null && r[iOdd] < state.oddMin) continue;
+    if (state.oddMax != null && r[iOdd] > state.oddMax) continue;
+    if (state.consecMin != null && r[iCon] < state.consecMin) continue;
+    if (recent && !recent.has(iss)) continue;
+    if (state.quick === "pip0" && r[IDX.p1c] !== 0) continue;
+    if (state.quick === "pip5" && !(r[IDX.p1c] >= 5)) continue;
+    if (inc.size || exc.size) {
+      const f = r[iFront];
+      let ok = true;
+      for (const n of inc) if (f.indexOf(n) < 0) { ok = false; break; }
+      if (ok) for (const n of exc) if (f.indexOf(n) >= 0) { ok = false; break; }
+      if (!ok) continue;
+    }
+    if (incB.size || excB.size) {
+      const b = r[iBack];
+      let ok = true;
+      for (const n of incB) if (b.indexOf(n) < 0) { ok = false; break; }
+      if (ok) for (const n of excB) if (b.indexOf(n) >= 0) { ok = false; break; }
+      if (!ok) continue;
+    }
+    if (q) {
+      const s = String(iss) + " " + fmtDate(d);
+      if (s.indexOf(q) < 0) continue;
+    }
+    out.push(r);
+  }
+  return out;
+}
+
+function cmpRows(a, b) {
+  for (let i = 0; i < state.sort.length; i++) {
+    const s = state.sort[i];
+    let av = cellValue(a, s.key), bv = cellValue(b, s.key);
+    if (Array.isArray(av)) { av = av.join(","); bv = bv.join(","); }
+    if (av == null && bv == null) continue;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    if (typeof av === "number" && typeof bv === "number") {
+      if (av !== bv) return s.dir * (av - bv);
+    } else {
+      const x = String(av), y = String(bv);
+      if (x !== y) return s.dir * (x < y ? -1 : 1);
+    }
+  }
+  return b[IDX.date] - a[IDX.date];
+}
+
+function sortedFiltered() {
+  const rows = filtered();
+  if (!state.sort.length) return rows.slice().sort((a, b) => b[IDX.date] - a[IDX.date]);
+  return rows.slice().sort(cmpRows);
+}
+
+/* ============================ 渲染：头部 ============================ */
+function renderTop() {
+  const d = g();
+  $("#brandSub").textContent = d.name + " · " + d.rows.length.toLocaleString() + " 期 · " +
+    fmtDate(d.rows[0][IDX.date]) + " 至 " + fmtDate(d.rows[d.rows.length - 1][IDX.date]);
+  $("#padFrontLabel").textContent = labelFront();
+  $("#padBackLabel").textContent = labelBack();
+  $$("#gameSwitch button").forEach(b => b.classList.toggle("on", b.dataset.game === state.game));
+  const rows = allRows();
+  const last = rows[rows.length - 1];
+  $("#topstats").innerHTML =
+    `<div class="s"><b>${rows.length.toLocaleString()}</b><span>总期数</span></div>` +
+    `<div class="s"><b>${last[IDX.p1c] == null ? "—" : last[IDX.p1c]}</b><span>上期一等奖注数</span></div>` +
+    `<div class="s"><b>${fmtYi(last[IDX.pool])}</b><span>当前奖池(亿)</span></div>`;
+}
+
+/* ============================ 渲染：号码球 ============================ */
+function ballsHTML(nums, cls, big) {
+  const k = big ? " s" : "";
+  return '<span class="balls">' + nums.map(n =>
+    `<span class="ball ${cls}${k}" data-n="${n}" title="点击：必含 ${n} · Shift+点击：排除 ${n}">${pad2(n)}</span>`
+  ).join("") + "</span>";
+}
+
+function zoneText(v) { return v ? String(v).replace(/\|/g, "-") : "—"; }
+
+function cellHTML(row, key) {
+  const v = cellValue(row, key);
+  switch (key) {
+    case "issue": {
+      const txt = isDLT() ? String(v).padStart(5, "0") : String(v);
+      const era = isDLT() && v === 26014 ? '<span class="era">新规起</span>' : "";
+      return txt + era;
+    }
+    case "date": return fmtDate(v);
+    case "front": return ballsHTML(row[IDX.front], "f");
+    case "back":  return ballsHTML(row[IDX.back], "b");
+    case "zone":  return esc(zoneText(v));
+    case "sales": return v == null ? '<span class="zero">—</span>' : fmtWan(v);
+    case "pool":  return v == null ? '<span class="zero">—</span>' : fmtYi(v);
+    case "p1a": case "p2a": case "p1aa":
+      return v == null ? '<span class="zero">—</span>' : fmtMoney(v);
+    case "p1c":
+      if (v == null) return '<span class="zero">—</span>';
+      return v === 0 ? '<span class="muted">0</span>' : `<b class="win">${v}</b>`;
+    default:
+      if (v == null) return '<span class="zero">—</span>';
+      if (Array.isArray(v)) return esc(v.join(" "));
+      if (typeof v === "number") return Number.isInteger(v) ? String(v) : String(v);
+      return esc(v);
+  }
+}
+
+/* ============================ 渲染：表格 ============================ */
+function renderTable() {
+  const cols = visibleCols();
+  const thead = $("#dataTable thead");
+  const tbody = $("#dataTable tbody");
+
+  thead.innerHTML = "<tr>" + cols.map(key => {
+    const m = colMeta(key);
+    const si = state.sort.findIndex(s => s.key === key);
+    const cls = ["sortable", si >= 0 ? "on" : "", m.num ? "r" : ""].filter(Boolean).join(" ");
+    const ind = si >= 0
+      ? `<span class="ind">${state.sort[si].dir > 0 ? "▲" : "▼"}</span>${state.sort.length > 1 ? `<span class="ord">${si + 1}</span>` : ""}`
+      : "";
+    const w = m.width ? ` style="width:${m.width}px"` : "";
+    return `<th class="${cls}" data-key="${key}"${w} title="点击排序 · Shift+点击多列排序 · 拖拽列头可调整顺序">${m.label}${ind}</th>`;
+  }).join("") + "</tr>";
+
+  const rows = sortedFiltered();
+  const total = rows.length;
+  const size = state.pageSize === 0 ? total : state.pageSize;
+  const pages = Math.max(1, Math.ceil(total / (size || 1)));
+  if (state.page >= pages) state.page = pages - 1;
+  const start = state.page * (size || 0);
+  const view = state.pageSize === 0 ? rows : rows.slice(start, start + size);
+
+  if (!total) {
+    tbody.innerHTML = `<tr><td colspan="${cols.length}"><div class="empty">没有符合条件的期次，试试放宽筛选。</div></td></tr>`;
+  } else {
+    tbody.innerHTML = view.map(r => {
+      const sel = state.selected === r[IDX.issue] ? " sel" : "";
+      return `<tr class="${sel}" data-issue="${r[IDX.issue]}">` +
+        cols.map(key => {
+          const m = colMeta(key);
+          return `<td class="${m.num ? "r" : ""}">${cellHTML(r, key)}</td>`;
+        }).join("") + "</tr>";
+    }).join("");
+  }
+
+  $("#tableMeta").textContent = `${total.toLocaleString()} 期 · 平均和值 ${avg(rows, "sum")}` +
+    (state.sort.length ? ` · 已排序 ${state.sort.length} 列` : "");
+  renderPager(total, size, pages, start, view.length);
+  renderActiveFilters();
+}
+
+function avg(rows, key) {
+  if (!rows.length) return "—";
+  let s = 0, n = 0;
+  for (const r of rows) { const v = r[IDX[key]]; if (typeof v === "number") { s += v; n++; } }
+  return n ? (s / n).toFixed(1) : "—";
+}
+
+function renderPager(total, size, pages, start, count) {
+  const el = $("#pager");
+  if (!total) { el.innerHTML = ""; return; }
+  const from = size === 0 ? (total ? 1 : 0) : start + 1;
+  const to = size === 0 ? total : Math.min(start + size, total);
+  el.innerHTML =
+    `<button class="btn" data-p="first" ${state.page === 0 ? "disabled" : ""}>«</button>` +
+    `<button class="btn" data-p="prev" ${state.page === 0 ? "disabled" : ""}>‹</button>` +
+    `<span>第 <b>${state.page + 1}</b> / ${pages} 页 · 显示 ${from}–${to}，共 <b>${total.toLocaleString()}</b> 期</span>` +
+    `<button class="btn" data-p="next" ${state.page >= pages - 1 ? "disabled" : ""}>›</button>` +
+    `<button class="btn" data-p="last" ${state.page >= pages - 1 ? "disabled" : ""}>»</button>` +
+    `<span class="spacer"></span>` +
+    `<label>每页 <select id="pageSize">` +
+      [50,100,250,500,0].map(n => `<option value="${n}" ${state.pageSize === n ? "selected" : ""}>${n === 0 ? "全部" : n}</option>`).join("") +
+    `</select></label>`;
+  $$("#pager [data-p]").forEach(b => b.onclick = () => {
+    const p = b.dataset.p;
+    if (p === "first") state.page = 0;
+    if (p === "prev") state.page = Math.max(0, state.page - 1);
+    if (p === "next") state.page = Math.min(pages - 1, state.page + 1);
+    if (p === "last") state.page = pages - 1;
+    renderTable();
+  });
+  const ps = $("#pageSize");
+  if (ps) ps.onchange = () => { state.pageSize = Number(ps.value); state.page = 0; save(); renderTable(); };
+}
+
+function renderActiveFilters() {
+  const el = $("#activeFilters");
+  const chips = [];
+  const push = (label, cls) => chips.push(`<span class="tagf ${cls || ""}">${label}</span>`);
+  if (state.issueFrom != null || state.issueTo != null)
+    push(`期号 ${state.issueFrom ?? ""}–${state.issueTo ?? ""}`, "");
+  if (state.dateFrom != null || state.dateTo != null)
+    push(`日期 ${fmtDate(state.dateFrom ?? 0)}–${fmtDate(state.dateTo ?? 99991231)}`);
+  if (state.sumMin != null || state.sumMax != null) push(`和值 ${state.sumMin ?? ""}–${state.sumMax ?? ""}`);
+  if (state.oddMin != null || state.oddMax != null) push(`奇数 ${state.oddMin ?? ""}–${state.oddMax ?? ""}`);
+  if (state.consecMin != null) push(`连号 ≥${state.consecMin}`, "bad");
+  if (state.q) push(`搜索「${esc(state.q)}」`);
+  if (state.quick !== "all") {
+    const label = { recent100: "最近 100 期", recent1y: "近一年", pip0: "一等奖空开", pip5: "一等奖 ≥5 注" }[state.quick];
+    push(label, "bad");
+  }
+  if (state.include.size) push(`${labelFront()}必含 ${[...state.include].map(pad2).join(" ")}`);
+  if (state.exclude.size) push(`排除 ${[...state.exclude].map(pad2).join(" ")}`, "bad");
+  if (state.includeBack.size) push(`${labelBack()}必含 ${[...state.includeBack].map(pad2).join(" ")}`);
+  if (state.excludeBack.size) push(`后区排除 ${[...state.excludeBack].map(pad2).join(" ")}`, "bad");
+  el.innerHTML = chips.length ? chips.join("") : '<span class="muted">无筛选条件</span>';
+}
+
+/* ============================ 渲染：号码盘 ============================ */
+function renderPads() {
+  const d = g();
+  const mk = (n, setInc, setExc, target) => {
+    target.innerHTML = Array.from({ length: n }, (_, i) => i + 1).map(x => {
+      const cls = setInc.has(x) ? "inc" : setExc.has(x) ? "exc" : "";
+      return `<button class="${cls}" data-n="${x}" title="${x}：点击=${setInc.has(x) ? "取消" : "必含"}，Shift+点击=排除">${pad2(x)}</button>`;
+    }).join("");
+  };
+  mk(d.frontPool, state.include, state.exclude, $("#padFront"));
+  mk(d.backPool, state.includeBack, state.excludeBack, $("#padBack"));
+}
+
+/* ============================ 渲染：走势矩阵 ============================ */
+let OM = {};
+function omissionData() {
+  if (OM[state.game]) return OM[state.game];
+  const d = g(), n = d.rows.length, p = d.frontPool, q = d.backPool;
+  const front = new Uint16Array(n * p), back = new Uint16Array(n * q);
+  let cf = new Uint16Array(p), cb = new Uint16Array(q);
+  for (let t = 0; t < n; t++) {
+    const f = d.rows[t][IDX.front], b = d.rows[t][IDX.back];
+    for (let j = 0; j < p; j++) { cf[j] = f.indexOf(j + 1) >= 0 ? 0 : cf[j] + 1; front[t * p + j] = cf[j]; }
+    for (let j = 0; j < q; j++) { cb[j] = b.indexOf(j + 1) >= 0 ? 0 : cb[j] + 1; back[t * q + j] = cb[j]; }
+  }
+  OM[state.game] = { front, back, n };
+  return OM[state.game];
+}
+
+function applyGridZoom() {
+  const t = $("#trendTable");
+  if (t) t.style.setProperty("--u", String(state.gridZoom));
+}
+
+function renderGrid() {
+  const d = g(), om = omissionData();
+  applyGridZoom();
+  let rows = sortedFiltered();
+  rows.sort((a, b) => a[IDX.date] - b[IDX.date]);
+  const take = state.gridCount === 0 ? rows.length : state.gridCount;
+  rows = rows.slice(-take);
+  if (state.gridNewest) rows = rows.slice().reverse();
+
+  // 行号索引：按 issue 找到全量索引，用于遗漏
+  const issueIndex = new Map();
+  d.rows.forEach((r, i) => issueIndex.set(r[IDX.issue], i));
+
+  const fp = d.frontPool, bp = d.backPool;
+  let head = `<thead><tr><th class="issue">期号</th>`;
+  for (let j = 1; j <= fp; j++) head += `<th>${pad2(j)}</th>`;
+  head += `<th class="sep">${labelBack()}</th>`;
+  for (let j = 1; j <= bp; j++) head += `<th class="${j === 1 ? "sep" : ""}">${pad2(j)}</th>`;
+  head += `</tr></thead>`;
+
+  let body = "<tbody>";
+  for (const r of rows) {
+    const t = issueIndex.get(r[IDX.issue]);
+    const f = r[IDX.front], b = r[IDX.back];
+    body += `<tr><td class="issue">${isDLT() ? String(r[IDX.issue]).padStart(5, "0") : r[IDX.issue]}</td>`;
+    for (let j = 1; j <= fp; j++) {
+      if (f.indexOf(j) >= 0) body += `<td class="hit"><span class="dot f">${pad2(j)}</span></td>`;
+      else if (state.gridOmission) {
+        const v = om.front[t * fp + j - 1];
+        const alpha = Math.min(0.10 + v / 40, 0.42);
+        body += `<td style="background:rgba(193,18,31,${alpha.toFixed(3)});color:#7a3b3f">${v}</td>`;
+      } else body += "<td></td>";
+    }
+    body += `<td class="sep"></td>`;
+    for (let j = 1; j <= bp; j++) {
+      if (b.indexOf(j) >= 0) body += `<td class="hit"><span class="dot b">${pad2(j)}</span></td>`;
+      else if (state.gridOmission) {
+        const v = om.back[t * bp + j - 1];
+        const alpha = Math.min(0.10 + v / 40, 0.42);
+        body += `<td class="${j === 1 ? "sep" : ""}" style="background:rgba(29,78,137,${alpha.toFixed(3)});color:#3b5370">${v}</td>`;
+      } else body += `<td class="${j === 1 ? "sep" : ""}"></td>`;
+    }
+    body += "</tr>";
+  }
+  body += "</tbody>";
+  $("#trendTable").innerHTML = head + body;
+  $("#gridMeta").textContent = `${rows.length} 期 · 号码 = 命中，数字 = 当时的遗漏期数（颜色越深遗漏越长）`;
+}
+
+/* ============================ 渲染：统计 ============================ */
+function renderStats() {
+  const d = g(), rows = sortedFiltered(), fp = d.frontPool, bp = d.backPool;
+  const fcount = new Array(fp).fill(0), bcount = new Array(bp).fill(0);
+  omReset();
+  const om = omissionData();
+  const lastIdx = rows.length ? rows[rows.length - 1][IDX.issue] : null;
+  const issueIndex = new Map(); d.rows.forEach((r, i) => issueIndex.set(r[IDX.issue], i));
+
+  const sums = [];
+  rows.forEach(r => {
+    r[IDX.front].forEach(n => fcount[n - 1]++);
+    r[IDX.back].forEach(n => bcount[n - 1]++);
+    sums.push(r[IDX.sum]);
+  });
+  const totalDraws = rows.length;
+  const expectF = totalDraws * d.frontPick / fp;
+  const expectB = totalDraws * d.backPick / bp;
+
+  const curOm = new Array(fp).fill(0), curOmB = new Array(bp).fill(0);
+  if (lastIdx != null) {
+    const t = issueIndex.get(lastIdx);
+    for (let j = 0; j < fp; j++) curOm[j] = om.front[t * fp + j];
+    for (let j = 0; j < bp; j++) curOmB[j] = om.back[t * bp + j];
+  }
+
+  const freqPct = fcount.map(c => totalDraws ? c / totalDraws * 100 : 0);
+  const meanFreq = freqPct.reduce((a, b) => a + b, 0) / (fp || 1);
+  const sumMean = sums.length ? sums.reduce((a, b) => a + b, 0) / sums.length : 0;
+  const sumSd = sums.length ? Math.sqrt(sums.reduce((a, b) => a + (b - sumMean) ** 2, 0) / sums.length) : 0;
+  const pip = rows.map(r => r[IDX.p1c]).filter(v => typeof v === "number");
+  const pipSum = pip.reduce((a, b) => a + b, 0);
+  const salesSum = rows.reduce((a, b) => a + (b[IDX.sales] || 0), 0);
+
+  const hist = {};
+  sums.forEach(s => { const b = Math.floor(s / 10) * 10; hist[b] = (hist[b] || 0) + 1; });
+  const histKeys = Object.keys(hist).map(Number).sort((a, b) => a - b);
+
+  const oddCount = {}, repCount = {};
+  rows.forEach(r => {
+    oddCount[r[IDX.odd]] = (oddCount[r[IDX.odd]] || 0) + 1;
+    if (r[IDX.repeat] != null) repCount[r[IDX.repeat]] = (repCount[r[IDX.repeat]] || 0) + 1;
+  });
+  const oddHist = Array.from({ length: d.frontPick + 1 }, (_, k) => ({ k, n: oddCount[k] || 0 }));
+  const repHist = Array.from({ length: d.frontPick + 1 }, (_, k) => ({ k, n: repCount[k] || 0 }));
+
+  $("#statGrid").innerHTML = `
+    <div class="panel" style="grid-column:1/-1">
+      <h3>当前筛选概览</h3>
+      <div class="hint">所有统计都基于上方筛选后的 ${totalDraws.toLocaleString()} 期</div>
+      <div class="kv">
+        <div><b>${totalDraws.toLocaleString()}</b><span>期数</span></div>
+        <div><b>${sumMean.toFixed(1)}</b><span>平均和值</span></div>
+        <div><b>${sumSd.toFixed(1)}</b><span>和值标准差</span></div>
+        <div><b>${pip.length ? (pipSum / pip.length).toFixed(2) : "—"}</b><span>平均一等奖注数</span></div>
+        <div><b>${pipSum.toLocaleString()}</b><span>一等奖总注数</span></div>
+        <div><b>${salesSum ? (salesSum / 1e8).toFixed(1) : "—"}</b><span>累计销量(亿)</span></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>${labelFront()}出现频次</h3>
+      <div class="hint">每期出现 ${d.frontPick} 个；理论期望 ${expectF.toFixed(0)} 次（虚线位置）</div>
+      ${barsHTML(fcount.map((c, i) => ({
+        label: pad2(i + 1), value: c, tip: `${pad2(i + 1)} 号：${c} 次（${(freqPct[i]).toFixed(2)}%）`
+      })), "f", expectF)}
+    </div>
+    <div class="panel">
+      <h3>${labelBack()}出现频次</h3>
+      <div class="hint">每期出现 ${d.backPick} 个；理论期望 ${expectB.toFixed(0)} 次</div>
+      ${barsHTML(bcount.map((c, i) => ({
+        label: pad2(i + 1), value: c, tip: `${pad2(i + 1)} 号：${c} 次`
+      })), "", expectB)}
+    </div>
+    <div class="panel">
+      <h3>当前遗漏</h3>
+      <div class="hint">截至筛选范围内最后一起，各号码已有多少期未出现</div>
+      ${barsHTML(curOm.map((v, i) => ({ label: pad2(i + 1), value: v, tip: `${pad2(i + 1)} 号：遗漏 ${v} 期` })), "g", null)}
+    </div>
+    <div class="panel">
+      <h3>和值分布</h3>
+      <div class="hint">按 10 分箱；理论均值 ${(d.frontPick * (d.frontPool + 1) / 2).toFixed(1)}</div>
+      ${barsHTML(histKeys.map(k => ({
+        label: k, value: hist[k], tip: `${k}–${k + 9}：${hist[k]} 期（${(hist[k] / totalDraws * 100).toFixed(1)}%）`
+      })), "f", null)}
+    </div>
+    <div class="panel">
+      <h3>奇数个数分布</h3>
+      <div class="hint">${labelFront()}中奇数号码的个数</div>
+      ${barsHTML(oddHist.map(dd => ({
+        label: dd.k + " 个", value: dd.n,
+        tip: `${dd.k} 个奇数：${dd.n} 期（${(dd.n / (totalDraws || 1) * 100).toFixed(1)}%）`
+      })), "", null)}
+    </div>
+    <div class="panel">
+      <h3>相邻两期重号分布</h3>
+      <div class="hint">与上一期相同的${labelFront()}号码个数；独立随机下的期望为 ${(d.frontPick * d.frontPick / d.frontPool).toFixed(2)} 个</div>
+      ${barsHTML(repHist.map(dd => ({
+        label: dd.k + " 个", value: dd.n,
+        tip: `${dd.k} 个重号：${dd.n} 期（${(dd.n / (totalDraws || 1) * 100).toFixed(1)}%）`
+      })), "g", null)}
+    </div>
+  `;
+}
+function omReset() { OM = {}; }
+
+function barsHTML(items, cls, marker) {
+  const max = Math.max(1, ...items.map(i => i.value));
+  const n = items.length || 1;
+  const step = Math.max(1, Math.ceil(n / 12));
+  const bars = items.map(it => {
+    const h = Math.max(1, it.value / max * 100);
+    return `<div class="bar" data-tip="${esc(it.tip)}"><div class="fill ${cls}" style="height:${h}%"></div></div>`;
+  }).join("");
+  const labels = items.map((it, i) => (i % step === 0)
+    ? `<span style="left:${((i + 0.5) / n * 100).toFixed(2)}%">${esc(it.label)}</span>`
+    : "").join("");
+  const refline = (marker != null && marker > 0)
+    ? `<div class="refline" style="bottom:${Math.min(99, marker / max * 100).toFixed(1)}%"></div>`
+    : "";
+  return `<div class="bars">${refline}${bars}</div><div class="xlabels">${labels}</div>`;
+}
+
+/* ============================ 渲染：透视 ============================ */
+function renderPivot() {
+  const d = g(), rows = sortedFiltered();
+  const key = state.pivotGroup;
+  const groups = new Map();
+  const wd = ["日","一","二","三","四","五","六"];
+  const keyOf = r => {
+    switch (key) {
+      case "year": return String(Math.floor(r[IDX.date] / 10000));
+      case "month": { const s = String(r[IDX.date]); return s.slice(0, 4) + "-" + s.slice(4, 6); }
+      case "weekday": { const s = String(r[IDX.date]); const dt = new Date(+s.slice(0,4), +s.slice(4,6) - 1, +s.slice(6,8)); return "周" + wd[dt.getDay()]; }
+      case "sumbucket": { const b = Math.floor(r[IDX.sum] / 20) * 20; return `${b}–${b + 19}`; }
+      case "odd": return `${r[IDX.odd]} 个`;
+      case "zone": return zoneText(r[IDX.zone]);
+      case "consec": return r[IDX.consec] === 0 ? "无连号" : `${r[IDX.consec]} 组`;
+      case "pip": { const v = r[IDX.p1c]; return v == null ? "—" : v === 0 ? "0 注" : v <= 2 ? "1–2 注" : v <= 5 ? "3–5 注" : "6+ 注"; }
+    }
+    return "—";
+  };
+  rows.forEach(r => {
+    const k = keyOf(r);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(r);
+  });
+  const arr = [...groups.entries()].map(([k, rs]) => {
+    const n = rs.length;
+    const sumMean = rs.reduce((a, b) => a + b[IDX.sum], 0) / n;
+    const salesMean = rs.reduce((a, b) => a + (b[IDX.sales] || 0), 0) / n;
+    const poolMean = rs.reduce((a, b) => a + (b[IDX.pool] || 0), 0) / n;
+    const pips = rs.reduce((a, b) => a + (b[IDX.p1c] || 0), 0);
+    const p1zero = rs.filter(b => b[IDX.p1c] === 0).length;
+    return { k, n, sumMean, salesMean, poolMean, pips, p1zero };
+  });
+  arr.sort((a, b) => {
+    if (key === "weekday") return ["日","一","二","三","四","五","六"].indexOf(a.k.slice(1)) - ["日","一","二","三","四","五","六"].indexOf(b.k.slice(1));
+    if (key === "sumbucket" || key === "odd" || key === "consec" || key === "pip") {
+      return parseInt(a.k, 10) - parseInt(b.k, 10);
+    }
+    return a.k < b.k ? -1 : 1;
+  });
+  const total = rows.length;
+  const head = `<tr><th>${$("#pivotGroup").selectedOptions[0].text}</th><th class="r">期数</th><th class="r">占比</th>` +
+    `<th class="r">平均和值</th><th class="r">平均销量(万)</th><th class="r">平均奖池(亿)</th>` +
+    `<th class="r">一等奖总注数</th><th class="r">平均每期</th><th class="r">空开期数</th></tr>`;
+  const body = arr.map(gp => `<tr>
+      <td><b>${esc(gp.k)}</b></td>
+      <td class="r">${gp.n.toLocaleString()}</td>
+      <td class="r">${(gp.n / total * 100).toFixed(1)}%</td>
+      <td class="r">${gp.sumMean.toFixed(1)}</td>
+      <td class="r">${fmtWan(gp.salesMean)}</td>
+      <td class="r">${fmtYi(gp.poolMean)}</td>
+      <td class="r">${gp.pips.toLocaleString()}</td>
+      <td class="r">${(gp.pips / gp.n).toFixed(2)}</td>
+      <td class="r">${gp.p1zero}</td>
+    </tr>`).join("");
+  $("#pivotTable").innerHTML = `<thead>${head}</thead><tbody>${body}</tbody>`;
+  $("#pivotMeta").textContent = `${arr.length} 个分组 · 共 ${total.toLocaleString()} 期`;
+}
+
+/* ============================ 抽屉 ============================ */
+function openDrawer(issue) {
+  const d = g();
+  const idx = d.rows.findIndex(r => r[IDX.issue] === issue);
+  if (idx < 0) return;
+  const r = d.rows[idx], prev = idx > 0 ? d.rows[idx - 1] : null;
+  state.selected = issue;
+  $("#dTitle").textContent = (isDLT() ? String(issue).padStart(5, "0") : issue) + " 期";
+  $("#dSub").textContent = fmtDate(r[IDX.date]) + " · " + d.name;
+  const pc = pcOf(r), pa = paOf(r);
+  const levels = (d.levels[pc.length] || []);
+  const front = r[IDX.front], back = r[IDX.back];
+  const prize = pc.map((c, i) => ({ tier: i + 1, count: c, amount: pa[i] || 0 }))
+    .filter(x => x.tier <= Math.max(1, pc.length));
+  const totalPrize = prize.reduce((a, b) => a + b.count * b.amount, 0);
+  const prevBalls = prev ? prev[IDX.front] : [];
+  const shared = front.filter(n => prevBalls.indexOf(n) >= 0);
+
+  $("#dBody").innerHTML = `
+    <div class="dsec">
+      <h4>${labelFront()}</h4>
+      <div class="dballs">${ballsHTML(front, "f", true)}</div>
+      <h4 style="margin-top:14px">${labelBack()}</h4>
+      <div class="dballs">${ballsHTML(back, "b", true)}</div>
+    </div>
+    <div class="dsec">
+      <h4>形态</h4>
+      <div class="dmeta">
+        <div><b>${r[IDX.sum]}</b><span>和值</span></div>
+        <div><b>${r[IDX.span]}</b><span>跨度</span></div>
+        <div><b>${r[IDX.odd]} : ${d.frontPick - r[IDX.odd]}</b><span>奇偶</span></div>
+        <div><b>${r[IDX.big]} : ${d.frontPick - r[IDX.big]}</b><span>大小</span></div>
+        <div><b>${zoneText(r[IDX.zone])}</b><span>三区比</span></div>
+        <div><b>${r[IDX.consec]}</b><span>连号组数</span></div>
+        <div><b>${r[IDX.ac]}</b><span>AC 值</span></div>
+        <div><b>${r[IDX.repeat] == null ? "—" : r[IDX.repeat]}</b><span>与上期重号</span></div>
+        <div><b>${fmtWan(r[IDX.sales])}</b><span>销量(万)</span></div>
+      </div>
+      ${shared.length ? `<div style="margin-top:10px;font-size:12px;color:var(--muted)">与上期重号：${shared.map(n => `<b class="ball f" style="display:inline-grid;width:20px;height:20px;font-size:10px;vertical-align:middle">${pad2(n)}</b>`).join(" ")}</div>` : ""}
+    </div>
+    <div class="dsec">
+      <h4>奖级明细（${pc.length} 个奖级）</h4>
+      <table class="prize">
+        <thead><tr><th>奖级</th><th>条件</th><th class="r">注数</th><th class="r">单注奖金</th><th class="r">派奖</th></tr></thead>
+        <tbody>
+        ${prize.map((p, i) => {
+          const lv = levels[i] || {};
+          const hi = p.tier === 1 ? ' class="hi"' : "";
+          return `<tr${hi}>
+            <td>${lv.name || (p.tier + "等奖")}</td>
+            <td class="muted">${lv.cond || "—"}</td>
+            <td class="r">${fmtInt(p.count)}</td>
+            <td class="r">${fmtMoney(p.amount)}</td>
+            <td class="r">${fmtWan(p.count * p.amount)} 万</td>
+          </tr>`;
+        }).join("")}
+        </tbody>
+      </table>
+      <div style="margin-top:8px;font-size:11.5px;color:var(--muted)">
+        合计派奖约 ${(totalPrize / 1e8).toFixed(2)} 亿元 · 奖池 ${fmtYi(r[IDX.pool])} 亿元
+        ${isDLT() && issue >= 26014 ? ' · <span class="era">2026 新规：7 个奖级</span>' : ""}
+      </div>
+    </div>
+    ${prev ? `<div class="dsec"><h4>上一期</h4><div class="prevdraw">
+      <b>${isDLT() ? String(prev[IDX.issue]).padStart(5, "0") : prev[IDX.issue]}</b>
+      ${ballsHTML(prev[IDX.front], "f")}${ballsHTML(prev[IDX.back], "b")}
+    </div></div>` : ""}
+  `;
+  $("#drawer").classList.add("on");
+  $("#backdrop").classList.add("on");
+  renderTable();
+}
+function closeDrawer() {
+  $("#drawer").classList.remove("on");
+  $("#backdrop").classList.remove("on");
+  state.selected = null;
+  renderTable();
+}
+function stepDrawer(dir) {
+  const d = g();
+  const i = d.rows.findIndex(r => r[IDX.issue] === state.selected);
+  const j = i + dir;
+  if (i >= 0 && j >= 0 && j < d.rows.length) openDrawer(d.rows[j][IDX.issue]);
+  else toast(dir < 0 ? "已经是第一期了" : "已经是最新一期了");
+}
+
+/* ============================ 列设置面板 ============================ */
+let panel = null;
+function toggleColsPanel(anchor) {
+  if (panel) { panel.remove(); panel = null; return; }
+  const av = availableCols();
+  const vis = visibleCols();
+  panel = document.createElement("div");
+  panel.style.cssText = "position:absolute;z-index:50;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 32px rgba(20,33,61,.16);padding:12px;width:320px;max-height:70vh;overflow:auto";
+  panel.innerHTML = `<div style="font-size:12px;font-weight:700;margin-bottom:8px">显示列（↑↓ 调整顺序）</div>` +
+    av.map((k, i) => {
+      const on = vis.indexOf(k) >= 0;
+      return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0">
+        <input type="checkbox" data-col="${k}" ${on ? "checked" : ""}>
+        <span style="flex:1;font-size:12.5px">${colMeta(k).label}</span>
+        <button class="btn ghost" data-up="${k}" style="padding:0 5px;font-size:11px">↑</button>
+        <button class="btn ghost" data-down="${k}" style="padding:0 5px;font-size:11px">↓</button>
+      </div>`;
+    }).join("") +
+    `<div style="display:flex;gap:8px;margin-top:10px;border-top:1px solid var(--line2);padding-top:10px">
+      <button class="btn" id="colReset">恢复默认</button>
+      <button class="btn" id="colAll">全部显示</button>
+    </div>`;
+  const rect = anchor.getBoundingClientRect();
+  panel.style.top = (window.scrollY + rect.bottom + 6) + "px";
+  panel.style.left = Math.max(10, window.scrollX + rect.right - 320) + "px";
+  document.body.appendChild(panel);
+
+  $$("input[data-col]", panel).forEach(cb => cb.onchange = () => {
+    let v = visibleCols().slice();
+    const k = cb.dataset.col;
+    if (cb.checked) { if (v.indexOf(k) < 0) v.push(k); }
+    else v = v.filter(x => x !== k);
+    state.visible = ORDER.filter(x => v.indexOf(x) >= 0);
+    save(); renderTable();
+  });
+  $$("[data-up]", panel).forEach(b => b.onclick = () => moveCol(b.dataset.up, -1));
+  $$("[data-down]", panel).forEach(b => b.onclick = () => moveCol(b.dataset.down, 1));
+  $("#colReset").onclick = () => { state.visible = null; save(); renderTable(); panel.remove(); panel = null; };
+  $("#colAll").onclick = () => { state.visible = availableCols(); save(); renderTable(); panel.remove(); panel = null; };
+}
+function moveCol(k, dir) {
+  const v = visibleCols().slice();
+  const i = v.indexOf(k);
+  if (i < 0) return;
+  const j = i + dir;
+  if (j < 0 || j >= v.length) return;
+  v[i] = v[j]; v[j] = k;
+  state.visible = v;
+  save(); renderTable(); panel.remove(); panel = null;
+  toggleColsPanel($("#btnCols"));
+}
+
+/* ============================ CSV ============================ */
+function exportCSV() {
+  const cols = visibleCols();
+  const rows = sortedFiltered();
+  const head = cols.map(k => colMeta(k).label).join(",");
+  const lines = [head];
+  for (const r of rows) {
+    lines.push(cols.map(k => {
+      let v = cellValue(r, k);
+      if (k === "date") v = fmtDate(v);
+      if (Array.isArray(v)) v = v.map(pad2).join(" ");
+      if (v == null) return "";
+      return '"' + String(v).replace(/"/g, '""') + '"';
+    }).join(","));
+  }
+  const blob = new Blob(["\ufeff" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${state.game}_${fmtDate(allRows()[0][IDX.date]).replace(/-/g, "")}_${fmtDate(allRows()[allRows().length - 1][IDX.date]).replace(/-/g, "")}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast(`已导出 ${rows.length} 行`);
+}
+
+/* ============================ 交互绑定 ============================ */
+function bind() {
+  // 游戏切换
+  $$("#gameSwitch button").forEach(b => b.onclick = () => {
+    if (b.dataset.game === state.game) return;
+    state.game = b.dataset.game;
+    state.visible = saved.visible && saved.visible[state.game] ? saved.visible[state.game] : null;
+    state.sort = []; state.page = 0; state.selected = null;
+    state.include.clear(); state.exclude.clear();
+    state.includeBack.clear(); state.excludeBack.clear();
+    state.quick = "all";
+    $$("#quick .chip").forEach(c => c.classList.toggle("on", c.dataset.q === "all"));
+    rebuildIdx(); OM = {}; renderAll();
+    save();
+  });
+
+  // 页签
+  $$(".tabs button").forEach(b => b.onclick = () => { switchTab(b.dataset.tab); });
+
+  // 排序
+  $("#dataTable thead").addEventListener("click", e => {
+    const th = e.target.closest("th");
+    if (!th || !th.dataset.key) return;
+    const key = th.dataset.key;
+    const i = state.sort.findIndex(s => s.key === key);
+    if (e.shiftKey) {
+      if (i < 0) state.sort.push({ key, dir: -1 });
+      else if (state.sort[i].dir === -1) state.sort[i].dir = 1;
+      else state.sort.splice(i, 1);
+    } else {
+      if (i >= 0 && state.sort.length === 1) state.sort[i].dir *= -1;
+      else state.sort = [{ key, dir: -1 }];
+    }
+    state.page = 0;
+    renderTable();
+  });
+
+  // 行点击 / 小球点击
+  $("#dataTable tbody").addEventListener("click", e => {
+    const ball = e.target.closest(".ball");
+    if (ball) {
+      e.stopPropagation();
+      const n = Number(ball.dataset.n);
+      const isBack = ball.classList.contains("b");
+      const inc = isBack ? state.includeBack : state.include;
+      const exc = isBack ? state.excludeBack : state.exclude;
+      if (e.shiftKey) {
+        inc.delete(n); exc.has(n) ? exc.delete(n) : exc.add(n);
+        toast(exc.has(n) ? `排除 ${labelBack() || ""}${pad2(n)}` : `取消排除 ${pad2(n)}`);
+      } else {
+        exc.delete(n); inc.has(n) ? inc.delete(n) : inc.add(n);
+        toast(inc.has(n) ? `${isBack ? labelBack() : labelFront()}必含 ${pad2(n)}` : `取消必含 ${pad2(n)}`);
+      }
+      state.page = 0;
+      renderPads(); renderAll();
+      return;
+    }
+    const tr = e.target.closest("tr[data-issue]");
+    if (tr) openDrawer(Number(tr.dataset.issue));
+  });
+
+  // 号码盘
+  $("#padFront").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    cycleNum(Number(b.dataset.n), state.include, state.exclude, e.shiftKey);
+    renderPads(); state.page = 0; renderAll();
+  });
+  $("#padBack").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    cycleNum(Number(b.dataset.n), state.includeBack, state.excludeBack, e.shiftKey);
+    renderPads(); state.page = 0; renderAll();
+  });
+
+  // 筛选输入
+  const bindNum = (id, key) => {
+    const el = $("#" + id);
+    el.oninput = () => {
+      const v = el.value.trim();
+      state[key] = v === "" ? null : Number(v);
+      state.page = 0; renderAll();
+    };
+  };
+  bindNum("issueFrom", "issueFrom"); bindNum("issueTo", "issueTo");
+  bindNum("sumMin", "sumMin"); bindNum("sumMax", "sumMax");
+  bindNum("oddMin", "oddMin"); bindNum("oddMax", "oddMax");
+  bindNum("consecMin", "consecMin");
+  $("#dateFrom").onchange = e => { const v = e.target.value; state.dateFrom = v ? Number(v.replace(/-/g, "")) : null; state.page = 0; renderAll(); };
+  $("#dateTo").onchange = e => { const v = e.target.value; state.dateTo = v ? Number(v.replace(/-/g, "")) : null; state.page = 0; renderAll(); };
+  $("#search").oninput = e => { state.q = e.target.value; state.page = 0; renderAll(); };
+
+  // 快捷
+  $$("#quick .chip").forEach(c => c.onclick = () => {
+    state.quick = c.dataset.q;
+    $$("#quick .chip").forEach(x => x.classList.toggle("on", x === c));
+    state.page = 0; renderAll();
+  });
+
+  // 清空
+  $("#btnClearFilters").onclick = () => resetFilters();
+  $("#btnReset").onclick = () => { resetFilters(); state.sort = []; state.visible = null; state.pageSize = 100; state.page = 0; save(); renderAll(); toast("已重置"); };
+
+  // 列设置
+  $("#btnCols").onclick = e => { e.stopPropagation(); toggleColsPanel(e.currentTarget); };
+  document.addEventListener("click", e => {
+    if (panel && !panel.contains(e.target) && e.target.id !== "btnCols") { panel.remove(); panel = null; }
+  });
+
+  $("#btnExport").onclick = exportCSV;
+
+  // 刷新数据
+  $("#btnRefresh").onclick = refreshData;
+  $("#refreshClose").onclick = () => $("#refreshMask").classList.remove("on");
+  $("#refreshRetry").onclick = refreshData;
+  $("#refreshOpen").onclick = () => window.open("http://127.0.0.1:" + CONSOLE_CONFIG.port + "/", "_blank");
+  $("#refreshMask").addEventListener("click", e => {
+    if (e.target.id === "refreshMask") $("#refreshMask").classList.remove("on");
+  });
+
+  // 走势控件
+  $("#gridCount").onchange = e => { state.gridCount = Number(e.target.value); save(); renderGrid(); };
+  $("#gridNewest").onchange = e => { state.gridNewest = e.target.checked; renderGrid(); };
+  $("#gridOmission").onchange = e => { state.gridOmission = e.target.checked; save(); renderGrid(); };
+  $("#gridZoom").onchange = e => { state.gridZoom = Number(e.target.value); applyGridZoom(); save(); };
+
+  // 透视
+  $("#pivotGroup").onchange = e => { state.pivotGroup = e.target.value; renderPivot(); };
+
+  // 抽屉
+  $("#dClose").onclick = closeDrawer;
+  $("#backdrop").onclick = closeDrawer;
+  $("#dPrev").onclick = () => stepDrawer(-1);
+  $("#dNext").onclick = () => stepDrawer(1);
+
+  // 键盘
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") { closeDrawer(); if (panel) { panel.remove(); panel = null; } }
+    if (e.key === "/" && document.activeElement.tagName !== "INPUT") { e.preventDefault(); $("#search").focus(); }
+    if (e.key === "ArrowLeft" && state.selected != null && document.activeElement.tagName !== "INPUT") stepDrawer(-1);
+    if (e.key === "ArrowRight" && state.selected != null && document.activeElement.tagName !== "INPUT") stepDrawer(1);
+  });
+}
+
+/* ============================ 刷新数据 ============================ */
+// 同源（由本地服务打开）直接用相对路径；本地文件则连服务端口
+const CONSOLE_CONFIG = __CONFIG__;
+const API_BASE = (location.protocol === "http:" || location.protocol === "https:")
+  ? "" : "http://127.0.0.1:" + CONSOLE_CONFIG.port;
+
+function refreshUI(state_, status, hint, showRetry) {
+  const st = $("#refreshStatus"), tip = $("#refreshHint"), retry = $("#refreshRetry");
+  if (state_ != null) st.textContent = state_;
+  if (status != null) tip.textContent = status;
+  retry.hidden = !showRetry;
+}
+
+async function refreshData() {
+  const btn = $("#btnRefresh"), mask = $("#refreshMask"), log = $("#refreshLog");
+  if (btn.dataset.busy === "1") return;
+  btn.dataset.busy = "1";
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>刷新中';
+  mask.classList.add("on");
+  log.textContent = "";
+  $("#refreshOpen").hidden = true;
+
+  // 本地文件无法跨协议请求 http，直接给出两种可行方式
+  if (location.protocol === "file:") {
+    refreshUI("需要本地服务", CONSOLE_CONFIG.tip || "请通过本地服务打开本页", false);
+    $("#refreshOpen").hidden = false;
+    log.textContent =
+      "浏览器不允许 file:// 页面访问官方开奖接口，也不允许它请求本地 http 服务。\n\n" +
+      (CONSOLE_CONFIG.note ? CONSOLE_CONFIG.note + "\n\n" : "") +
+      "也可以点下方「打开本地服务」，或直接访问 http://127.0.0.1:" + CONSOLE_CONFIG.port + "/ 。\n";
+    btn.disabled = false;
+    btn.dataset.busy = "";
+    btn.textContent = "刷新数据";
+    return;
+  }
+
+  try {
+    try {
+      const res = await fetch(API_BASE + "/api/status", { cache: "no-store" });
+      if (res.ok) {
+        const d = await res.json();
+        const parts = [];
+        if (d.ssq && d.ssq.count) parts.push(`双色球 ${d.ssq.count.toLocaleString()} 期（至 ${d.ssq.date}）`);
+        if (d.dlt && d.dlt.count) parts.push(`大乐透 ${d.dlt.count.toLocaleString()} 期（至 ${d.dlt.date}）`);
+        if (parts.length) log.textContent += "当前：" + parts.join("｜") + "\n\n";
+      }
+    } catch (e) { /* 状态接口不可用不影响主流程 */ }
+
+    const res = await fetch(API_BASE + "/api/update", {
+      method: "POST",
+      headers: { "X-Console": "1" },
+    });
+    if (!res.ok) {
+      throw new Error(res.status === 429 ? "已有更新任务在进行，请稍候" : "服务返回 HTTP " + res.status);
+    }
+    refreshUI("正在抓取与重建…", "", false);
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let buffer = "", payload = null;
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let index;
+      while ((index = buffer.indexOf("\n")) >= 0) {
+        const line = buffer.slice(0, index);
+        buffer = buffer.slice(index + 1);
+        if (line.startsWith("__DONE__")) {
+          try { payload = JSON.parse(line.slice(8)); } catch (e) { /* 忽略 */ }
+        } else if (line.trim()) {
+          log.textContent += line + "\n";
+          log.scrollTop = log.scrollHeight;
+        }
+      }
+    }
+
+    if (!payload) throw new Error("更新进程没有返回结果");
+    if (payload.code !== 0) {
+      refreshUI("更新失败", "数据未被改动，可直接重试。", true);
+    } else if (payload.changed) {
+      const after = payload.status || {};
+      const bits = [];
+      if (after.ssq && after.ssq.issue) bits.push(`双色球 ${after.ssq.issue}`);
+      if (after.dlt && after.dlt.issue) bits.push(`大乐透 ${after.dlt.issue}`);
+      refreshUI("更新完成", "最新：" + bits.join("｜") + "，正在刷新页面…", false);
+      setTimeout(() => location.reload(), 1400);
+    } else {
+      refreshUI("已是最新", "没有新的开奖数据，无需刷新页面。", false);
+    }
+  } catch (err) {
+    refreshUI("无法连接本地更新服务", "按钮需要本地服务，见下方说明", true);
+    log.textContent +=
+      "浏览器不允许本地文件直接访问官方开奖接口（跨域限制），刷新按钮需要一个本地小服务。\n\n" +
+      "任选一种：\n" +
+      "  1. 双击项目根目录的「启动操作台.bat」——它会打开 http://127.0.0.1:8777 ，按钮即可使用；\n" +
+      "  2. 双击「刷新数据.bat」直接更新数据，完成后重新打开本页。\n\n" +
+      "错误：" + (err && err.message ? err.message : err) + "\n";
+  } finally {
+    btn.disabled = false;
+    btn.dataset.busy = "";
+    btn.textContent = "刷新数据";
+  }
+}
+
+function cycleNum(n, inc, exc, shift) {  if (shift) {
+    inc.delete(n);
+    exc.has(n) ? exc.delete(n) : exc.add(n);
+  } else {
+    exc.delete(n);
+    inc.has(n) ? inc.delete(n) : inc.add(n);
+  }
+}
+
+function resetFilters() {
+  Object.assign(state, {
+    issueFrom: null, issueTo: null, dateFrom: null, dateTo: null,
+    sumMin: null, sumMax: null, oddMin: null, oddMax: null, consecMin: null,
+    q: "", quick: "all", page: 0,
+  });
+  state.include.clear(); state.exclude.clear();
+  state.includeBack.clear(); state.excludeBack.clear();
+  ["issueFrom","issueTo","sumMin","sumMax","oddMin","oddMax","consecMin","search","dateFrom","dateTo"].forEach(id => {
+    const el = $("#" + id); if (el) el.value = "";
+  });
+  $$("#quick .chip").forEach(c => c.classList.toggle("on", c.dataset.q === "all"));
+  renderPads(); renderAll();
+}
+
+/* ============================ 视图切换 ============================ */
+function switchTab(tab) {
+  state.tab = tab;
+  $$(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === tab));
+  $$(".view").forEach(v => v.classList.toggle("on", v.id === "view-" + tab));
+  if (tab === "grid") renderGrid();
+  if (tab === "stats") renderStats();
+  if (tab === "pivot") renderPivot();
+}
+
+function renderAll() {
+  renderTop();
+  if (state.tab === "table") renderTable();
+  else if (state.tab === "grid") renderGrid();
+  else if (state.tab === "stats") renderStats();
+  else if (state.tab === "pivot") renderPivot();
+}
+
+/* ============================ 启动 ============================ */
+function boot() {
+  rebuildIdx();
+  const params = new URLSearchParams(location.search);
+  if (params.get("game")) state.game = params.get("game") === "dlt" ? "dlt" : "ssq";
+  rebuildIdx();
+  if (saved.visible && saved.visible[state.game]) state.visible = saved.visible[state.game];
+  $("#gridCount").value = String(state.gridCount);
+  $("#gridOmission").checked = state.gridOmission;
+  $("#gridZoom").value = String(state.gridZoom);
+  applyGridZoom();
+  renderPads();
+  bind();
+  renderAll();
+  const tab = params.get("tab");
+  if (tab) switchTab(tab);
+  if (params.get("issue")) openDrawer(Number(params.get("issue")));
+}
+boot();
+
+/* ---------- 自检（仅在 ?selftest=1 时运行，用于自动化验证） ---------- */
+function selfTest() {
+  const errs = [];
+  const step = (name, fn) => { try { fn(); } catch (e) { errs.push(name + ": " + e.message); } };
+  step("tab-grid", () => { switchTab("grid"); if (!$("#trendTable tbody").children.length) throw new Error("grid empty"); });
+  step("tab-stats", () => { switchTab("stats"); if (!$("#statGrid .panel")) throw new Error("stats empty"); });
+  step("tab-pivot", () => { switchTab("pivot"); if (!$("#pivotTable tbody").children.length) throw new Error("pivot empty"); });
+  step("pivot-month", () => { state.pivotGroup = "month"; $("#pivotGroup").value = "month"; renderPivot(); });
+  step("pivot-pip", () => { state.pivotGroup = "pip"; renderPivot(); });
+  step("tab-table", () => { switchTab("table"); if (!$("#dataTable tbody").children.length) throw new Error("table empty"); });
+  step("sort", () => {
+    state.sort = [{ key: "sum", dir: -1 }]; renderTable();
+    const rows = sortedFiltered();
+    if (rows[0][IDX.sum] < rows[rows.length - 1][IDX.sum]) throw new Error("desc order wrong");
+    state.sort = [{ key: "sum", dir: 1 }]; renderTable();
+    const rows2 = sortedFiltered();
+    if (rows2[0][IDX.sum] > rows2[rows2.length - 1][IDX.sum]) throw new Error("asc order wrong");
+    state.sort = [];
+  });
+  step("filter-include", () => {
+    state.include.add(1); state.include.add(9); renderAll();
+    const rows = filtered();
+    if (!rows.length) throw new Error("no rows");
+    if (!rows.every(r => r[IDX.front].indexOf(1) >= 0 && r[IDX.front].indexOf(9) >= 0)) throw new Error("include wrong");
+    state.include.clear(); renderAll();
+  });
+  step("filter-exclude", () => {
+    state.exclude.add(1); renderAll();
+    if (filtered().some(r => r[IDX.front].indexOf(1) >= 0)) throw new Error("exclude wrong");
+    state.exclude.clear(); renderAll();
+  });
+  step("filter-sum", () => {
+    state.sumMin = 100; state.sumMax = 110; renderAll();
+    if (filtered().some(r => r[IDX.sum] < 100 || r[IDX.sum] > 110)) throw new Error("sum range wrong");
+    state.sumMin = null; state.sumMax = null; renderAll();
+  });
+  step("quick-pip0", () => {
+    state.quick = "pip0"; renderAll();
+    if (filtered().some(r => r[IDX.p1c] !== 0)) throw new Error("pip0 wrong");
+    state.quick = "all"; renderAll();
+  });
+  step("drawer", () => {
+    const rows = allRows();
+    openDrawer(rows[rows.length - 1][IDX.issue]);
+    if (!$("#drawer").classList.contains("on")) throw new Error("drawer not open");
+    if (!$("#dBody").textContent) throw new Error("drawer empty");
+    stepDrawer(-1); stepDrawer(1);
+    closeDrawer();
+  });
+  step("swap-dlt", () => {
+    state.game = "dlt"; rebuildIdx(); OM = {}; state.sort = []; renderAll();
+    switchTab("grid"); if (!$("#trendTable tbody").children.length) throw new Error("dlt grid empty");
+    switchTab("table");
+    const rows = allRows();
+    openDrawer(rows[rows.length - 1][IDX.issue]);
+    if (!$("#dBody").textContent) throw new Error("dlt drawer empty");
+    closeDrawer();
+  });
+  step("swap-back", () => { state.game = "ssq"; rebuildIdx(); OM = {}; renderAll(); });
+  step("csv-build", () => { if (!visibleCols().length) throw new Error("no cols"); if (!sortedFiltered().length) throw new Error("no rows"); });
+  return errs;
+}
+const selfParams = new URLSearchParams(location.search);
+if (selfParams.get("selftest") === "refresh") {
+  refreshData().then(() => {
+    const pre = document.createElement("pre");
+    pre.id = "selftest";
+    pre.textContent = "REFRESH: " + $("#refreshStatus").textContent + " | " + $("#refreshHint").textContent;
+    document.body.appendChild(pre);
+  });
+} else if (selfParams.get("selftest")) {
+  const errs = selfTest();
+  const pre = document.createElement("pre");
+  pre.id = "selftest";
+  pre.textContent = errs.length ? "SELFTEST FAIL\n" + errs.join("\n") : "SELFTEST PASS";
+  document.body.appendChild(pre);
+}
+
+// 暴露少量接口便于调试
+window.__console = { state, filtered, sortedFiltered, DATA };
+})();
+</script>
+</body>
+</html>

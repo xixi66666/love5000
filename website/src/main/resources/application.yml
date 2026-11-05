@@ -74,6 +74,16 @@ personal-agent:
     startup-timeout-seconds: 90
     log-to-console: true
 
+lottery:
+  click-start:
+    enabled: true
+    work-dir: website/lottery
+    command: ${LOTTERY_COMMAND:python}
+    port: 5179
+    health-path: /api/health
+    startup-timeout-seconds: 60
+    log-to-console: true
+
 website:
   local-services:
     strata-dir: ${STRATA_HOME:F:/model/Strata}
@@ -109,3 +119,5 @@ website:
         url: http://127.0.0.1:8080/api/services/local/h3/health
       - name: personal-agent
         url: http://127.0.0.1:5178/api/health
+      - name: lottery
+        url: http://127.0.0.1:5179/api/health

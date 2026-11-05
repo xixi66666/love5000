@@ -53,6 +53,14 @@ website/python-a/deepseek.local.json
 website/python-a/server.out.log
 website/python-a/server.err.log
 
+### 开奖数据操作台本地产物（数据 CSV 提交，产物在首次启动时生成） ###
+/website/lottery/output/
+/website/lottery/cache/
+/website/lottery/logs/
+/website/lottery/data/backup/
+/website/lottery/server.out.log
+/website/lottery/server.err.log
+
 ### Personal Agent private runtime ###
 personal-agent/data/
 personal-agent/.secrets/

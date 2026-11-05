@@ -4,10 +4,10 @@
 
 `integration/health` 维护 `ServiceHealthChecker`、配置化服务清单、并行聚合器和
 `GET /api/services/health`。清单依次包含 `lovestory:8081`、`imagetemplate:8082`、
-`python-a:5174`、`quant-a:5175`、`scrapling-ui:5176`、`skill-finder:5177`，再加Strata:9999、AIMedia:8190、H3引擎:8189的本机健康适配。远程响应只有在
+`python-a:5174`、`quant-a:5175`、`scrapling-ui:5176`、`skill-finder:5177`、`lottery:5179`，再加Strata:9999、AIMedia:8190、H3引擎:8189的本机健康适配。远程响应只有在
 HTTP 2xx 且顶层布尔值 `success=true` 时才健康；连接/读取超时默认 2000/3000ms。
 `website` 启动时仍只自动启动 `python-a`、`quant-a` 两个 Python 服务；
-`scrapling-ui` 和 `skill-finder` 只通过首页按钮点击启动
+`scrapling-ui`、`skill-finder` 和 `lottery` 只通过首页按钮点击启动
 （`integration/scrapling`、`integration/skillfinder`）。
 
 ## 项目概述
@@ -21,8 +21,8 @@ C:/Code/Java_Code/love5000/website
 核心功能：
 
 - 提供个人主页静态站点。
-- 个人主页采用单视口电影化布局，包含四场景视频切换、只提供登录/注册的液态玻璃账户顶栏和 8 个带实时状态的服务入口。
-- 统一承载 `python-a`、`quant-a`、`scrapling-ui`、`skill-finder` 四个独立 Python 子服务的代码目录、首页入口、健康检测；前两者启动时自动拉起，`scrapling-ui` 和 `skill-finder` 由首页按钮点击启动。
+- 个人主页采用单视口电影化布局，包含四场景视频切换、只提供登录/注册的液态玻璃账户顶栏和 9 个带实时状态的服务入口。
+- 统一承载 `python-a`、`quant-a`、`scrapling-ui`、`skill-finder`、`lottery` 五个独立 Python 子服务的代码目录、首页入口、健康检测；前两者启动时自动拉起，`scrapling-ui`、`skill-finder`、`lottery` 由首页按钮点击启动。
 - 提供提示词控制台和静态提示词库页面，并在首页提供 Prompt Console 入口。
 - 提供基础 Spring MVC Web Demo。
 - 保留 OSS Demo 和 Nacos Discovery 示例代码。
@@ -200,6 +200,13 @@ website/
 │   │   ├── src/
 │   │   └── dist/          # npm run build 产物，gitignored
 │   └── docs/
+├── lottery/
+│   ├── server.py          # 本地服务：静态托管 + /api/health + /api/update
+│   ├── main.py            # --console-only 只重建操作台
+│   ├── src/lottery/       # 数据加载、组合分布、检验、回测、操作台与报告生成
+│   ├── scripts/           # update_daily.py 增量更新、fetch_*.py 全量回填
+│   ├── data/              # 双色球/大乐透官方开奖 CSV
+│   └── output/            # console.html 等产物（gitignored，首次启动自动构建）
 └── src/
     ├── main/
     │   ├── java/com/example/website/
@@ -260,6 +267,10 @@ website/
 - `quant-a/`：A 股量化研究台，独立 FastAPI 服务，默认端口 `5175`。
 - `scrapling-ui/`：可视化爬虫工作台（汉化版 Scrapling UI），独立 FastAPI + React 服务，默认端口 `5176`，前端 dist 由后端托管，首页按钮点击启动。
 - `skill-finder/`：AI 项目趋势追踪站（GitHub Trending 采集 + 排行展示），独立 FastAPI + Vue 3 服务，默认端口 `5177`，前端 dist 由后端托管，首页按钮点击启动；数据库与 `website` 共用腾讯云 MySQL 的 `xixi` 库，默认直接读取 `src/main/resources/application.yml` 的 `spring.datasource` 并解析 `WEBSITE_DB_*`，可用 `DATABASE_URL` 环境变量或自身 `backend/.env` 覆盖。原 `skill_finder` 的五张业务表数据已复制到 `xixi`，源库保留。`uv sync` 安装的 `cryptography` 用于 MySQL SHA-2 认证；首次接入仅补建缺失业务表，集成测试使用独立测试库。
+- `integration/lottery`：`LotteryProcessManager` 负责按需启动/复用 `website/lottery`
+  （执行 `python server.py --port 5179`，等待健康默认 60s），`LotteryController` 暴露
+  `POST /api/services/lottery/start` 与 `GET /api/services/lottery/status`；只由首页按钮点击触发，
+  不做启动时自动拉起，也不在 `website` 关闭时强杀。
 
 ## 配置约定
 
@@ -276,6 +287,7 @@ python-a: 5174
 quant-a: 5175
 scrapling-ui: 5176
 skill-finder: 5177
+lottery: 5179
 ```
 
 静态资源路径：
@@ -383,6 +395,27 @@ skill-finder:
   `uv run python -m uvicorn app.main:app`）；启动前要求 `frontend/dist/index.html` 已构建。
 - `website.service-health.services` 聚合清单必须包含 `skill-finder`
   （`http://127.0.0.1:5177/api/health`），但聚合探测不触发启动。
+`lottery` 点击启动约定：
+
+```yaml
+lottery:
+  click-start:
+    enabled: true
+    work-dir: website/lottery
+    command: ${LOTTERY_COMMAND:python}
+    port: 5179
+    health-path: /api/health
+    startup-timeout-seconds: 60
+    log-to-console: true
+```
+
+- 不使用 `ApplicationRunner` 自动启动，只在首页卡片点击时调用启动接口。
+- 启动命令为 `python server.py --port 5179`，工作目录 `website/lottery`；启动器注入
+  `PYTHONUTF8=1`、`PYTHONIOENCODING=utf-8`、`PYTHONUNBUFFERED=1`、`LOTTERY_PORT`。
+- 依赖 numpy / pandas / requests；首次启动若 `output/console.html` 不存在，会先执行
+  `python main.py --console-only --port 5179` 构建（约 3 秒），再监听端口。
+- `website.service-health.services` 聚合清单必须包含 `lottery`
+  （`http://127.0.0.1:5179/api/health`），但聚合探测不触发启动。
 
 ## 代码规范
 
@@ -411,9 +444,9 @@ Spring 约定：
 - 图片放在 `src/main/resources/static/img`。
 - 提示词控制台放在 `src/main/resources/static/prompt-console`。
 - 页面引用资源时使用相对路径，不使用本机绝对路径。
-- 首页各场景的文案配置在 `index.html` 对应按钮的 `data-scene-title` / `data-scene-statement` / `data-scene-badge`；`data-scene-dock` 指向该场景的服务目录，`setupSceneContent` 监听现有 `xixiscenechange` 事件切换内容。01 Golden Hour 保持原诗句、布局和 8 个入口；02 Still Water、03 Deep Woods、04 Quiet Dawn 分别使用独立的 `still-water-service-dock`、`deep-woods-service-dock`、`quiet-dawn-service-dock`，空目录隐藏，新增服务沿用 `service-card`。不要修改四场景的背景动画。
+- 首页各场景的文案配置在 `index.html` 对应按钮的 `data-scene-title` / `data-scene-statement` / `data-scene-badge`；`data-scene-dock` 指向该场景的服务目录，`setupSceneContent` 监听现有 `xixiscenechange` 事件切换内容。01 Golden Hour 保持原诗句、布局和 9 个入口；02 Still Water、03 Deep Woods、04 Quiet Dawn 分别使用独立的 `still-water-service-dock`、`deep-woods-service-dock`、`quiet-dawn-service-dock`，空目录隐藏，新增服务沿用 `service-card`。不要修改四场景的背景动画。
 - 首页四段远程场景视频保持原样，仅展示风景，不添加车窗图片覆盖或车窗晃动动画；保留文字可读的暗角、颗粒和黑色/渐变降级背景，外部媒体失败不得影响服务入口、鉴权或健康检测。
-- 首页保持单个 `100svh` 视口且不产生页面级滚动；服务 Dock 桌面端为单行 8 列且 8 个入口一屏全部可见（列宽用 `repeat(8, minmax(0, 1fr))` 随容器自适应收缩，不产生横向滚动），1180px 及以下才切换为定宽列并只允许服务 Dock 自身横向滚动，任何宽度都不允许换行成两排。
+- 首页保持单个 `100svh` 视口且不产生页面级滚动；服务 Dock 桌面端为单行 9 列且 9 个入口一屏全部可见（列宽用 `repeat(9, minmax(0, 1fr))` 随容器自适应收缩，不产生横向滚动），1180px 及以下才切换为定宽列并只允许服务 Dock 自身横向滚动，任何宽度都不允许换行成两排。
 - `script.js` 的点击启动不得再打开“正在启动”中间页面：启动进度只在服务卡片内展示（“启动中…”→ 就绪后自动打开或提示“已启动 · 点击打开”）。
 
 ## 测试策略
@@ -439,6 +472,8 @@ src/test/java/com/example/website/integration/scrapling/ScraplingUiProcessManage
 src/test/java/com/example/website/integration/scrapling/ScraplingUiControllerTest.java
 src/test/java/com/example/website/integration/skillfinder/SkillFinderProcessManagerTest.java
 src/test/java/com/example/website/integration/skillfinder/SkillFinderControllerTest.java
+src/test/java/com/example/website/integration/lottery/LotteryProcessManagerTest.java
+src/test/java/com/example/website/integration/lottery/LotteryControllerTest.java
 src/test/java/com/example/website/integration/health/*.java
 ```
 
@@ -480,7 +515,7 @@ mvn -pl website -am spring-boot:run
 - **关键**：不要把正式业务代码继续放进 `demos` 包。
 - **关键**：新增或修改数据库 CRUD 时同步更新 DAO、Mapper XML、模型和测试。
 - **关键**：静态资源路径必须能从 `classpath:/static/` 加载。
-- **关键**：四个 Python 子服务必须保留在 `website/python-a`、`website/quant-a`、`website/scrapling-ui`、`website/skill-finder` 下，但不要加入 Maven modules；`scrapling-ui` 和 `skill-finder` 只由首页按钮点击启动。
+- **关键**：五个 Python 子服务必须保留在 `website/python-a`、`website/quant-a`、`website/scrapling-ui`、`website/skill-finder`、`website/lottery` 下，但不要加入 Maven modules；`scrapling-ui`、`skill-finder` 和 `lottery` 只由首页按钮点击启动。
 - **关键**：`scrapling-ui` 的 `.venv/`、`node_modules/`、`frontend/dist/`、`backend/jobs.db`、`*.log` 不提交；前端 dist 由 `npm run build` 生成。
 - **关键**：`skill-finder` 的 `.venv/`、`node_modules/`、`frontend/dist/`、`backend/.env`、`backend/.secrets/`、`*.log` 不提交；前端 dist 由 `npm run build` 生成。
 - **关键**：数据库密码和 Nacos 密码使用环境变量。
@@ -511,7 +546,7 @@ Strata以`--lazy`启动服务，第一条生成请求或「加载模型」按钮
 
 ## Personal Agent Java 微服务（03 Deep Woods）
 
-`personal-agent/` 与 `website/`、`lovestory/` 同级，是 Java8 + Spring Boot2.6.13 的 Maven 模块，已加入父 pom。默认仅监听 `127.0.0.1:5178`。原生前端与业务 API 在模块内；website 只提供03服务卡片、健康聚合及点击启动，不改01的8个入口或四个背景动画。
+`personal-agent/` 与 `website/`、`lovestory/` 同级，是 Java8 + Spring Boot2.6.13 的 Maven 模块，已加入父 pom。默认仅监听 `127.0.0.1:5178`。原生前端与业务 API 在模块内；website 只提供03服务卡片、健康聚合及点击启动，不改01的9个入口或四个背景动画。
 
 首次从仓库根目录执行 `mvn -pl personal-agent -am package -DskipTests`。可在IDEA运行 `com.example.personalagent.PersonalAgentApplication`，或执行 `java -jar personal-agent/target/personal-agent-0.0.1-SNAPSHOT.jar`。重启website后点击03个人Agent，启动器运行已构建jar（不自动Maven），验证 `success=true` + `service=personal-agent` 后打开；已在线则复用，陌生端口占用则拒绝。website启动/关闭不自动启停它。
 
@@ -618,3 +653,22 @@ Python 公共源码改动后执行 `python scripts/sync-model-routing.py`，再�
 ## HyperFrames 可切换视频引擎（2026-10-26）
 
 新增内部 `hyperframes-renderer/`（官方 producer/engine/core 0.8.186 + GSAP 3.13.0，Node.js 22+），通过 `DAILY_VIDEO_RENDERER=hyperframes` 选择；默认使用 HyperFrames，Remotion 保留为备用引擎（`DAILY_VIDEO_RENDERER=remotion`），legacy 仍可显式选择，失败不自动换引擎。新增 `HYPERFRAMES_BROWSER_EXECUTABLE` 与 `HYPERFRAMES_CONCURRENCY`（默认 1，范围 1–8），复用原素材、配音、实测字幕、FFmpeg 母带与审核流程。模板编辑 API 增加 engine 标识，HyperFrames 仅编辑 `src/template.html` / `src/demo.html`，版本隔离在日报同级 `video-template/hyperframes/`；原 Remotion 模板保持原位置。临时 `.hyperframes-project-*` 只包含固化媒体与模板，任务结束清理，真实验收后生成正式结果。样片命令按当前引擎生成自身演示，Docker 构建同时包含两套引擎；不新增端口或 Dock。配置、模板 API、数据、测试和部署见 [HyperFrames 接入](skill-finder/docs/hyperframes-integration.md)。
+
+## 开奖数据操作台（01 第 9 个入口，5179）
+
+`website/lottery` 是独立 Python 服务，提供双色球/大乐透历史数据操作台与研究报告：
+6466 期官方开奖（双色球 3523 期、大乐透 2944 期）、精确组合分布、假设检验与多重比较校正、
+8 种选号策略的时间外回测、期望值与蒙特卡洛，以及可任意排序/筛选/走势/透视的前端。
+
+`GET /api/health` 返回 `success=true` 与当前数据截止期次；`POST /api/update` 增量抓取官方最新一页，
+校验后追加、备份并只重建操作台，日志以纯文本流回页面；同源页面（`http://127.0.0.1:5179/`）的
+「刷新数据」按钮直接调用该接口，`file://` 打开时按钮只提示通过服务访问。更新走
+`scripts/update_daily.py`（`--build-target console --console-port 5179`），异常时不动现有数据；
+每次写入前备份到 `data/backup/<时间戳>/`。
+
+首页 01 Golden Hour 由 8 个入口扩为 9 个（第 09 张卡片 `data-health-service="lottery"`），
+Dock 列宽改为 `repeat(9, minmax(0, 1fr))`，徽标文案同步为“9 个入口”。新增或调整入口后需
+同步 `HomepageStaticAssetsTest` 中的卡片数与健康清单末尾断言。
+
+验证：`mvn -pl website -am test -Dtest=HomepageStaticAssetsTest,LotteryProcessManagerTest,LotteryControllerTest -Dsurefire.failIfNoSpecifiedTests=false`；
+服务本身可用 `cd website/lottery && python server.py` 单独启动，访问 `http://127.0.0.1:5179/api/health`。

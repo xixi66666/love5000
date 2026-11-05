@@ -14,7 +14,7 @@ HTTP 200 表示聚合成功，`healthy` 表示是否全部在线。Java 探测�
 mvn -pl website,lovestory,imagetemplate -am test
 ```
 
-`love5000` 是一个 Java 8 + Spring Boot 2.6.13 的 Maven 多模块项目，父工程 artifactId 为 `love530`。仓库同时托管四个独立 Python 微应用，用于 A 股研究、量化研究、可视化爬虫和 AI 项目趋势追踪。
+`love5000` 是一个 Java 8 + Spring Boot 2.6.13 的 Maven 多模块项目，父工程 artifactId 为 `love530`。仓库同时托管五个独立 Python 微应用，用于 A 股研究、量化研究、可视化爬虫、AI 项目趋势追踪和双色球/大乐透数据分析。
 
 ## 模块
 
@@ -22,7 +22,7 @@ Maven 聚合模块：
 
 - `common`：公共 OSS 工具、自动配置和通用 Session 认证能力。
 - `lovestory`：恋爱相册、照片上传、留言板和吉他视频卡片 Web 应用。
-- `website`：电影化个人主页/展示站点、提示词控制台，以及 8 个服务入口、实时健康状态和 Python 子服务自动启动；首页提供四场景视频切换与响应式液态玻璃服务 Dock。
+- `website`：电影化个人主页/展示站点、提示词控制台，以及 9 个服务入口、实时健康状态和 Python 子服务自动启动；首页提供四场景视频切换与响应式液态玻璃服务 Dock。
 - `imagetemplate`：聚合 47 条精选图片模板和 Prompt Console 的 4409 条公开提示词，总计 4456 条，并按 15 个一级功能与二级场景检索；提供按需详情和 OpenAI Images API 生成服务（默认模型 `gpt-image-2.5-sunburst`），前端采用虎主题编辑式黑色工作台、橙色高对比操作、dense 模板展廊和本地 GSAP 滚动动效，模板 JSON 与变量剧本均可手工编辑。
 
 独立 Python 微应用：
@@ -53,7 +53,7 @@ mvn -pl website -am spring-boot:run
 
 首页是无需前端构建的单视口原生页面，集中展示恋爱相册、图片模板、Prompt Console、A 股研究台、Quant 研究台、Scrapling 抓取工坊和 Skill Finder。每个入口保留端口标识和实时状态；顶部只保留登录、注册账户操作，登录后切换为退出，移动端继续使用横向可滑动服务 Dock。
 
-四个场景分别支持独立文案与服务目录：01 Golden Hour 保留原诗句和 8 个服务入口；02 Still Water、03 Deep Woods、04 Quiet Dawn 各自使用暂定文案，服务区留空并隐藏，切回 01 恢复原目录。四场景已去除车窗图片覆盖及其晃动动画，仅展示原风景视频，保留视频动画与切换时序；文案在首页各按钮的 `data-scene-title`、`data-scene-statement`、`data-scene-badge` 中配置，新服务沿用 `service-card` 放入各自的 `still-water-service-dock`、`deep-woods-service-dock`、`quiet-dawn-service-dock`。
+四个场景分别支持独立文案与服务目录：01 Golden Hour 保留原诗句和 9 个服务入口；02 Still Water、03 Deep Woods、04 Quiet Dawn 各自使用暂定文案，服务区留空并隐藏，切回 01 恢复原目录。四场景已去除车窗图片覆盖及其晃动动画，仅展示原风景视频，保留视频动画与切换时序；文案在首页各按钮的 `data-scene-title`、`data-scene-statement`、`data-scene-badge` 中配置，新服务沿用 `service-card` 放入各自的 `still-water-service-dock`、`deep-woods-service-dock`、`quiet-dawn-service-dock`。
 
 `imagetemplate` 首页同样无需前端构建，按“灵感大厅 → 模板解构 → Prompt 编导台 → 图片生成舱”组织为编辑式黑色 AI 创作工作台。页面使用本地虎主题背景、宽幅分屏首屏、内嵌图像标题、创作理念轮播、橙色高对比操作和三段横向交互面板；灵感大厅默认每页 48 条，顶部常驻搜索、仅图片开关、结果计数和清除筛选，桌面端左侧集中展示“一级功能 + 二级场景”及高级筛选，右侧使用 dense 密排结果网格。页面支持 300ms 搜索防抖、加载更多和详情按需读取；模板解构中的 JSON 可直接编辑并校验，进入 Prompt 编导台时同步到可继续修改的变量剧本。GSAP 3.13.0 与 ScrollTrigger 从模块本地静态资源加载，并对脚本缺失及 `prefers-reduced-motion` 提供静态降级；窄屏流程恢复为底部横向排列，切换场景保留已选模板、Prompt、生成参数和结果。
 
@@ -196,7 +196,7 @@ Strata以`--lazy`启动服务，第一条生成请求或「加载模型」按钮
 
 ## Personal Agent Java 微服务（03 Deep Woods）
 
-`personal-agent/` 与 `website/`、`lovestory/` 同级，是 Java8 + Spring Boot2.6.13 的 Maven 模块，已加入父 pom。默认仅监听 `127.0.0.1:5178`。原生前端与业务 API 在模块内；website 只提供03服务卡片、健康聚合及点击启动，不改01的8个入口或四个背景动画。
+`personal-agent/` 与 `website/`、`lovestory/` 同级，是 Java8 + Spring Boot2.6.13 的 Maven 模块，已加入父 pom。默认仅监听 `127.0.0.1:5178`。原生前端与业务 API 在模块内；website 只提供03服务卡片、健康聚合及点击启动，不改01的9个入口或四个背景动画。
 
 首次从仓库根目录执行 `mvn -pl personal-agent -am package -DskipTests`。可在IDEA运行 `com.example.personalagent.PersonalAgentApplication`，或执行 `java -jar personal-agent/target/personal-agent-0.0.1-SNAPSHOT.jar`。重启website后点击03个人Agent，启动器运行已构建jar（不自动Maven），验证 `success=true` + `service=personal-agent` 后打开；已在线则复用，陌生端口占用则拒绝。website启动/关闭不自动启停它。
 
@@ -305,3 +305,12 @@ Python 公共源码改动后执行 `python scripts/sync-model-routing.py`，再�
 ## HyperFrames 可切换视频引擎（2026-10-26）
 
 新增内部 `hyperframes-renderer/`（官方 producer/engine/core 0.8.186 + GSAP 3.13.0，Node.js 22+），通过 `DAILY_VIDEO_RENDERER=hyperframes` 选择；默认使用 HyperFrames，Remotion 保留为备用引擎（`DAILY_VIDEO_RENDERER=remotion`），legacy 仍可显式选择，失败不自动换引擎。新增 `HYPERFRAMES_BROWSER_EXECUTABLE` 与 `HYPERFRAMES_CONCURRENCY`（默认 1，范围 1–8），复用原素材、配音、实测字幕、FFmpeg 母带与审核流程。模板编辑 API 增加 engine 标识，HyperFrames 仅编辑 `src/template.html` / `src/demo.html`，版本隔离在日报同级 `video-template/hyperframes/`；原 Remotion 模板保持原位置。临时 `.hyperframes-project-*` 只包含固化媒体与模板，任务结束清理，真实验收后生成正式结果。样片命令按当前引擎生成自身演示，Docker 构建同时包含两套引擎；不新增端口或 Dock。配置、模板 API、数据、测试和部署见 [HyperFrames 接入](website/skill-finder/docs/hyperframes-integration.md)。
+
+## 开奖数据操作台（01 第 9 个入口）
+
+`website/lottery` 是双色球/大乐透数据分析服务，默认端口 `5179`，由首页 01 Golden Hour 第 09 张卡片
+按需启动。提供 6466 期官方开奖的可交互操作台（排序、号码筛选、走势矩阵、分组透视、CSV 导出、
+逐期奖级明细）与完整研究报告，页面内「刷新数据」按钮可增量抓取最新开奖并重建页面。
+
+技术：Python 标准库 `http.server` + numpy / pandas / requests，无前端构建；数据为官方接口
+（与 500.com 交叉校验）导出的 CSV。

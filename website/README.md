@@ -20,7 +20,7 @@ mvn -pl website -am '-Dtest=ServiceHealthCheckerTest,ServiceHealthAggregatorTest
 - 个人主页静态站点。
 - 单视口电影化服务主页：四段背景视频可切换，支持仅包含登录/注册账户操作的液态玻璃顶栏和 Deep Woods 场景配色。
 - 提示词控制台和静态提示词库页面（深色影院式设计，本地 GSAP + ScrollTrigger 动效，`prefers-reduced-motion` 可降级）。
-- 恋爱相册、图片模板、Prompt Console、`python-a`、`quant-a`、`scrapling-ui`、`skill-finder`、模型与视频共 8 个入口及实时健康状态。
+- 恋爱相册、图片模板、Prompt Console、`python-a`、`quant-a`、`scrapling-ui`、`skill-finder`、模型与视频共 9 个入口及实时健康状态。
 - `scrapling-ui` 卡片是“点击启动”按钮：离线时点击拉起服务并在卡片内显示“启动中…”，就绪后自动打开工作台；若浏览器拦截新窗口则提示“已启动 · 点击打开”。在线时点击直接打开。
 - `skill-finder` 卡片同样是“点击启动”按钮：离线时点击拉起服务并在卡片内显示“启动中…”，就绪后自动打开趋势站；若浏览器拦截新窗口则提示“已启动 · 点击打开”。在线时点击直接打开。
 - Web、OSS、Nacos Discovery 示例代码。
@@ -116,7 +116,7 @@ scrapling-ui/
 skill-finder/
 ```
 
-首页保持原生 HTML / CSS / JavaScript 架构，不需要额外前端构建。四段远程视频在 1000ms 内交叉淡入淡出；背景资源不可用时自动显示黑色渐变降级背景。顶部只显示登录、注册，登录后切换为退出；不提供额外导航按钮或移动端汉堡菜单。服务 Dock 在桌面以单行 8 列展示且 8 个入口一屏全部可见（列宽自适应收缩，不产生横向滚动），1180px 及以下才切换为可滑动的定宽列，并继续每 30 分钟读取缓存并刷新一次服务状态。图片模板入口仍要求先通过站点 Session 登录。GSAP 动效库本地化在 `static/js/vendor/gsap.min.js`，用于首页入场动画与场景切换文案交叉淡化，`prefers-reduced-motion` 或加载失败时自动降级。首页 8 个服务卡片由 `script.js` 的 `setupServiceFx` 注入 WebGL canvas 渲染 GLSL 环境流光（SDF 圆角矩形柔化边框流光带 + 卡片内部宽幅流光与环境反光 + hover 指针光泽），并用弹簧物理驱动克制的卡片反馈（idle 呼吸波浪、hover 轻抬、点击压缩、健康状态 online 上跳脉冲）；四个视频场景分别映射暮霞、山湖、雪林、晨光草甸中等偏高饱和度色板，切换时 WebGL 颜色平滑插值，`prefers-reduced-motion`、WebGL 不可用或初始化失败时降级为随场景换色的 CSS hover。`scrapling-ui` 和 `skill-finder` 卡片离线时点击会进入“启动中”状态（橙色脉冲状态点 + 卡片内文案，不打开中间页面），就绪后自动打开对应工作台；若浏览器拦截新窗口，卡片显示“已启动 · 点击打开”。
+首页保持原生 HTML / CSS / JavaScript 架构，不需要额外前端构建。四段远程视频在 1000ms 内交叉淡入淡出；背景资源不可用时自动显示黑色渐变降级背景。顶部只显示登录、注册，登录后切换为退出；不提供额外导航按钮或移动端汉堡菜单。服务 Dock 在桌面以单行 9 列展示且 9 个入口一屏全部可见（列宽自适应收缩，不产生横向滚动），1180px 及以下才切换为可滑动的定宽列，并继续每 30 分钟读取缓存并刷新一次服务状态。图片模板入口仍要求先通过站点 Session 登录。GSAP 动效库本地化在 `static/js/vendor/gsap.min.js`，用于首页入场动画与场景切换文案交叉淡化，`prefers-reduced-motion` 或加载失败时自动降级。首页 9 个服务卡片由 `script.js` 的 `setupServiceFx` 注入 WebGL canvas 渲染 GLSL 环境流光（SDF 圆角矩形柔化边框流光带 + 卡片内部宽幅流光与环境反光 + hover 指针光泽），并用弹簧物理驱动克制的卡片反馈（idle 呼吸波浪、hover 轻抬、点击压缩、健康状态 online 上跳脉冲）；四个视频场景分别映射暮霞、山湖、雪林、晨光草甸中等偏高饱和度色板，切换时 WebGL 颜色平滑插值，`prefers-reduced-motion`、WebGL 不可用或初始化失败时降级为随场景换色的 CSS hover。`scrapling-ui` 和 `skill-finder` 卡片离线时点击会进入“启动中”状态（橙色脉冲状态点 + 卡片内文案，不打开中间页面），就绪后自动打开对应工作台；若浏览器拦截新窗口，卡片显示“已启动 · 点击打开”。
 
 全局 Python 模式：支持 Python 3.12+。在 `scrapling-ui/backend` 目录执行
 `uv pip install --python <python完整路径> -r pyproject.toml` 和
@@ -124,7 +124,7 @@ skill-finder/
 该解释器完整路径，重启 `website` 所在终端或 IDE。显式 Python 配置直接执行
 `<python> -m uvicorn`，不使用 `.venv`；未设置时仍保留 uv 模式。
 
-首页场景内容在 `index.html` 的四个场景按钮上分别配置：`data-scene-title` 为主句、`data-scene-statement` 为副句、`data-scene-badge` 为上方提示，`data-scene-dock` 指定服务目录。01 Golden Hour 保持原诗句和八个入口；02 Still Water、03 Deep Woods、04 Quiet Dawn 各自使用暂定文案和独立的 `still-water-service-dock`、`deep-woods-service-dock`、`quiet-dawn-service-dock`，目录为空时不显示 Dock，也不显示指向隐藏目录的跳转链接；切回 01 恢复原服务。暂定主句分别为“让心事慢慢沉静”“把故事写进林间”“等晨光轻轻落下”，可独立替换为个人文案。新入口直接放入各自的 `service-grid` 并沿用 `service-card` 结构、健康检测和按需启动属性；四场景移除独立车窗覆盖图及其晃动动画，仅展示原风景视频，保留暗角、颗粒、四段视频动画和 1000ms 切换时序。
+首页场景内容在 `index.html` 的四个场景按钮上分别配置：`data-scene-title` 为主句、`data-scene-statement` 为副句、`data-scene-badge` 为上方提示，`data-scene-dock` 指定服务目录。01 Golden Hour 保持原诗句和九个入口；02 Still Water、03 Deep Woods、04 Quiet Dawn 各自使用暂定文案和独立的 `still-water-service-dock`、`deep-woods-service-dock`、`quiet-dawn-service-dock`，目录为空时不显示 Dock，也不显示指向隐藏目录的跳转链接；切回 01 恢复原服务。暂定主句分别为“让心事慢慢沉静”“把故事写进林间”“等晨光轻轻落下”，可独立替换为个人文案。新入口直接放入各自的 `service-grid` 并沿用 `service-card` 结构、健康检测和按需启动属性；四场景移除独立车窗覆盖图及其晃动动画，仅展示原风景视频，保留暗角、颗粒、四段视频动画和 1000ms 切换时序。
 
 ## 测试
 
@@ -166,7 +166,7 @@ Strata以`--lazy`启动服务，第一条生成请求或「加载模型」按钮
 
 ## Personal Agent Java 微服务（03 Deep Woods）
 
-`personal-agent/` 与 `website/`、`lovestory/` 同级，是 Java8 + Spring Boot2.6.13 的 Maven 模块，已加入父 pom。默认仅监听 `127.0.0.1:5178`。原生前端与业务 API 在模块内；website 只提供03服务卡片、健康聚合及点击启动，不改01的8个入口或四个背景动画。
+`personal-agent/` 与 `website/`、`lovestory/` 同级，是 Java8 + Spring Boot2.6.13 的 Maven 模块，已加入父 pom。默认仅监听 `127.0.0.1:5178`。原生前端与业务 API 在模块内；website 只提供03服务卡片、健康聚合及点击启动，不改01的9个入口或四个背景动画。
 
 首次从仓库根目录执行 `mvn -pl personal-agent -am package -DskipTests`。可在IDEA运行 `com.example.personalagent.PersonalAgentApplication`，或执行 `java -jar personal-agent/target/personal-agent-0.0.1-SNAPSHOT.jar`。重启website后点击03个人Agent，启动器运行已构建jar（不自动Maven），验证 `success=true` + `service=personal-agent` 后打开；已在线则复用，陌生端口占用则拒绝。website启动/关闭不自动启停它。
 
@@ -273,3 +273,17 @@ Python 公共源码改动后执行 `python scripts/sync-model-routing.py`，再�
 ## HyperFrames 可切换视频引擎（2026-10-26）
 
 新增内部 `hyperframes-renderer/`（官方 producer/engine/core 0.8.186 + GSAP 3.13.0，Node.js 22+），通过 `DAILY_VIDEO_RENDERER=hyperframes` 选择；默认使用 HyperFrames，Remotion 保留为备用引擎（`DAILY_VIDEO_RENDERER=remotion`），legacy 仍可显式选择，失败不自动换引擎。新增 `HYPERFRAMES_BROWSER_EXECUTABLE` 与 `HYPERFRAMES_CONCURRENCY`（默认 1，范围 1–8），复用原素材、配音、实测字幕、FFmpeg 母带与审核流程。模板编辑 API 增加 engine 标识，HyperFrames 仅编辑 `src/template.html` / `src/demo.html`，版本隔离在日报同级 `video-template/hyperframes/`；原 Remotion 模板保持原位置。临时 `.hyperframes-project-*` 只包含固化媒体与模板，任务结束清理，真实验收后生成正式结果。样片命令按当前引擎生成自身演示，Docker 构建同时包含两套引擎；不新增端口或 Dock。配置、模板 API、数据、测试和部署见 [HyperFrames 接入](skill-finder/docs/hyperframes-integration.md)。
+
+## 开奖数据操作台（01 第 9 个入口，5179）
+
+首页 01 Golden Hour 新增「开奖数据操作台」卡片（第 09 个入口，Dock 同步改为 9 列）。点击后由
+`integration/lottery` 启动 `website/lottery`：`python server.py --port 5179`，健康检查
+`GET /api/health`，页面为该目录下 `output/console.html`。
+
+服务内容：双色球 3523 期 + 大乐透 2944 期官方开奖；四种视图（数据表、走势矩阵、统计、分组透视），
+支持任意列排序、号码必含/排除、区间筛选、CSV 导出与逐期奖级明细。页面顶部「刷新数据」按钮调用
+`POST /api/update` 增量抓取官方接口，有新期次时备份、追加并重建操作台，完成后自动刷新页面。
+
+首次启动会自动构建 `output/console.html`（约 3 秒）；日常更新只需点按钮，也可在
+`website/lottery` 下执行 `python scripts/update_daily.py`。数据与产物：`data/` 提交，
+`output/`、`cache/`、`logs/`、`data/backup/` 为本地生成。

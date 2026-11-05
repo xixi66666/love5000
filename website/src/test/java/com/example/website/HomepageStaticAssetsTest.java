@@ -36,7 +36,10 @@ class HomepageStaticAssetsTest {
         assertTrue(html.contains("data-health-url=\"http://127.0.0.1:5176/api/health\""));
         assertTrue(html.contains("data-health-url=\"http://127.0.0.1:5177/api/health\""));
         assertTrue(html.contains("data-health-url=\"http://127.0.0.1:5178/api/health\""));
+        assertTrue(html.contains("data-health-url=\"http://127.0.0.1:5179/api/health\""));
         assertTrue(html.contains("data-start-url=\"/api/services/personal-agent/start\""));
+        assertTrue(html.contains("data-start-url=\"/api/services/lottery/start\""));
+        assertTrue(html.contains("data-app-url=\"http://127.0.0.1:5179/\""));
         assertTrue(html.contains("data-health-url=\"/local-services/index.html\""));
         assertEquals(1, html.split("href=\"local-services/index.html", -1).length - 1);
         assertTrue(html.contains("data-auth-required=\"true\""));
@@ -64,18 +67,20 @@ class HomepageStaticAssetsTest {
         assertEquals(services.size() - GROUPED_LOCAL_SERVICES + LOCAL_ONLY_ENTRIES, homepageCards,
                 "首页 Dock 卡片数 = service-health 清单 - 合并的本机服务 + 本地页面入口");
 
-        assertEquals("personal-agent", ((Map<?, ?>) services.get(services.size() - 1)).get("name"),
+        assertEquals("lottery", ((Map<?, ?>) services.get(services.size() - 1)).get("name"),
                 "新服务追加在健康清单末尾，不改变原服务顺序");
     }
 
     @Test
-    void personalAgentOnlyAppearsInDeepWoodsAndGoldenHourKeepsEightEntries() throws IOException {
+    void personalAgentStaysInDeepWoodsAndGoldenHourKeepsNineEntries() throws IOException {
         String html = readResource("/static/index.html");
         String goldenHour = dock(html, "service-dock");
         String deepWoods = dock(html, "deep-woods-service-dock");
 
-        assertEquals(8, countCards(goldenHour));
+        assertEquals(9, countCards(goldenHour));
         assertFalse(goldenHour.contains("personal-agent"));
+        assertTrue(goldenHour.contains("data-health-service=\"lottery\""));
+        assertTrue(goldenHour.contains("LOTTERY DESK · 5179"));
         assertEquals(1, countCards(deepWoods));
         assertTrue(deepWoods.contains("data-app-url=\"http://127.0.0.1:5178/\""));
         assertTrue(deepWoods.contains("PERSONAL AGENT · 5178"));
@@ -83,6 +88,7 @@ class HomepageStaticAssetsTest {
         assertEquals(0, countCards(dock(html, "quiet-dawn-service-dock")));
         assertFalse(deepWoods.contains("5174"));
         assertFalse(deepWoods.contains("5177"));
+        assertFalse(deepWoods.contains("5179"));
     }
 
     @Test
