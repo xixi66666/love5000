@@ -51,6 +51,19 @@ def _read(path: Path) -> pd.DataFrame:
     return pd.read_csv(path, encoding="utf-8-sig")
 
 
+def _write(path: Path, frame: pd.DataFrame) -> None:
+    """写回 CSV：整数值的浮点列转成可空整数，避免 123.0 这种无意义变更。"""
+    for column in frame.columns:
+        series = frame[column]
+        if series.dtype.kind != "f":
+            continue
+        values = series.dropna()
+        if values.empty or not (values % 1 == 0).all():
+            continue
+        frame[column] = series.astype("Int64")
+    frame.to_csv(path, index=False, encoding="utf-8-sig", na_rep="")
+
+
 # ---------------------------------------------------------------------------
 # 抓取
 # ---------------------------------------------------------------------------
@@ -244,7 +257,7 @@ def merge(main_path: Path, prize_path: Path, rows: list[dict], prizes: list[dict
         main = pd.concat([main, new], ignore_index=True)
     main = main.drop_duplicates(subset=["issue"], keep="last")
     main = main.sort_values(["date", "issue"], kind="mergesort").reset_index(drop=True)
-    main.to_csv(main_path, index=False, encoding="utf-8-sig", na_rep="")
+    _write(main_path, main)
 
     prize = _read(prize_path)
     if prizes:
@@ -255,7 +268,7 @@ def merge(main_path: Path, prize_path: Path, rows: list[dict], prizes: list[dict
     prize = prize.drop_duplicates(subset=subset, keep="last")
     prize = prize.sort_values(["issue", "sort"] if "sort" in prize.columns else ["issue", "level"],
                               kind="mergesort").reset_index(drop=True)
-    prize.to_csv(prize_path, index=False, encoding="utf-8-sig", na_rep="")
+    _write(prize_path, prize)
 
 
 # ---------------------------------------------------------------------------
