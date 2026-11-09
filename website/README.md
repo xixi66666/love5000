@@ -276,6 +276,11 @@ Python 公共源码改动后执行 `python scripts/sync-model-routing.py`，再�
 
 ## 开奖数据操作台（01 第 9 个入口，5179）
 
+操作台导航提供 `/selection` 选号工具及 `GET /api/selection`，按历史统计或随机方式生成候选号码；说明和测试方式见 `lottery/README.md`。
+
+在仓库根目录执行 `python -X utf8 website/lottery/scripts/selection_backtest.py`
+可只读回测选号方法；方法、参数和限制见 `lottery/README.md`。
+
 首页 01 Golden Hour 新增「开奖数据操作台」卡片（第 09 个入口，Dock 同步改为 9 列）。点击后由
 `integration/lottery` 启动 `website/lottery`：`python server.py --port 5179`，健康检查
 `GET /api/health`，页面为该目录下 `output/console.html`。

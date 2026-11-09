@@ -54,13 +54,16 @@ button{cursor:pointer}
 .btn.primary:hover{background:#1F3055;color:#fff}
 .btn.ghost{border-color:transparent;background:transparent}
 /* ---------- 页签 ---------- */
-.tabs{display:flex;gap:2px;padding:0 20px;background:#fff;border-bottom:1px solid var(--line)}
+.tabs{display:flex;gap:2px;padding:0 20px;background:#fff;border-bottom:1px solid var(--line);overflow-x:auto}
 .tabs button{
   border:0;background:transparent;padding:9px 14px 10px;font-size:13px;color:var(--muted);
-  border-bottom:2px solid transparent;font-weight:600;transition:color .15s,border-color .15s;
+  border-bottom:2px solid transparent;font-weight:600;transition:color .15s,border-color .15s;white-space:nowrap;flex:none;
 }
 .tabs button:hover{color:var(--ink2)}
 .tabs button.on{color:var(--ink);border-bottom-color:var(--red)}
+.selection-link{align-self:center;margin-left:10px;padding:5px 10px;color:var(--blue);font-weight:700;text-decoration:none;border-radius:6px;white-space:nowrap}
+.selection-link:hover{background:var(--blue-soft)}
+.selection-link:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .tabs .spacer{flex:1}
 /* ---------- 筛选区 ---------- */
 .filters{background:#fff;border-bottom:1px solid var(--line);padding:12px 20px 12px}
@@ -281,6 +284,7 @@ kbd{background:#EFEBE1;border:1px solid #E0DACB;border-bottom-width:2px;border-r
   <button data-tab="grid">走势矩阵</button>
   <button data-tab="stats">统计视图</button>
   <button data-tab="pivot">分组透视</button>
+  <a class="selection-link" href="/selection" onclick="if(location.protocol==='file:'){event.preventDefault();alert('选号工具需要本地服务，请先启动开奖数据操作台，再从浏览器打开。')}">选号工具 <span aria-hidden="true">↗</span></a>
   <span class="spacer"></span>
 </nav>
 

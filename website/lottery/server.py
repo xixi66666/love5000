@@ -2,9 +2,11 @@
 """开奖数据操作台 · love5000 本地服务。
 
 托管 `output/` 下的数据操作台页面，并提供「刷新数据」所需的接口：
-    GET  /api/health   健康检查（love5000 首页 Dock 使用，返回 success=true）
-    GET  /api/status   当前数据截止期次
-    POST /api/update   增量抓取官方开奖并重建操作台，日志实时流回页面
+    GET  /api/health    健康检查（love5000 首页 Dock 使用，返回 success=true）
+    GET  /api/status    当前数据截止期次
+    GET  /api/recent    最近若干期开奖及形态（和值/跨度/奇偶/三区/连号/AC/重号）
+    GET  /api/selection 生成候选号码，附带每注形态与最近 20 期数据
+    POST /api/update    增量抓取官方开奖并重建操作台，日志实时流回页面
 
 只监听 127.0.0.1，默认端口 5179；由 love5000 首页「开奖数据操作台」卡片点击启动。
 """
@@ -22,9 +24,12 @@ import webbrowser
 from datetime import datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 import pandas as pd
+
+from selection import METHODS, GAMES, generate
+from selection_stats import recent_draws
 
 ROOT = Path(__file__).resolve().parent
 OUTPUT = ROOT / "output"
@@ -66,8 +71,11 @@ def data_status() -> dict:
 
 
 def ensure_console(port: int) -> None:
-    """首次启动或产物缺失时构建操作台（约 3 秒）。"""
-    if (OUTPUT / "console.html").exists():
+    """首次启动、产物缺失或页面模板更新时构建操作台。"""
+    console = OUTPUT / "console.html"
+    template = ROOT / "src" / "lottery" / "console_template.html"
+    if (console.exists() and console.stat().st_mtime >= template.stat().st_mtime
+            and b'href="/selection"' in console.read_bytes()):
         return
     OUTPUT.mkdir(parents=True, exist_ok=True)
     env = {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1"}
@@ -128,7 +136,71 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):  # noqa: N802
-        path = urlparse(self.path).path
+        parsed = urlparse(self.path)
+        path = parsed.path
+        if path in ("/selection", "/selection.html"):
+            try:
+                body = (ROOT / "src" / "lottery" / "selection.html").read_bytes()
+            except OSError:
+                self.send_error(404, "selection page unavailable")
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if path == "/api/recent":
+            params = parse_qs(parsed.query, keep_blank_values=True)
+            if "game" not in params or len(params["game"]) != 1 or set(params) - {"game", "count"}:
+                self._json({"success": False, "message": "请提供有效的彩种"}, 400)
+                return
+            try:
+                count = int(params.get("count", ["20"])[0])
+                if params["game"][0] not in GAMES or not 1 <= count <= 50:
+                    raise ValueError("请求参数无效")
+            except ValueError:
+                self._json({"success": False, "message": "彩种或期数不合法"}, 400)
+                return
+            try:
+                rows = recent_draws(params["game"][0], count)
+            except (OSError, KeyError, IndexError, ValueError) as exc:
+                sys.stderr.write(f"最近开奖读取失败: {exc}\n")
+                self._json({"success": False, "message": "开奖数据读取失败，请检查本地数据"}, 500)
+                return
+            self._json({"success": True, "game": params["game"][0], "count": count, "draws": rows})
+            return
+        if path == "/api/selection":
+            params = parse_qs(parsed.query, keep_blank_values=True)
+            if set(params) != {"game", "method", "count"} or any(len(v) != 1 for v in params.values()):
+                self._json({"success": False, "message": "请提供有效的彩种、选号方法和注数"}, 400)
+                return
+            try:
+                count = int(params["count"][0])
+                if params["game"][0] not in GAMES or params["method"][0] not in METHODS or not 1 <= count <= 10:
+                    raise ValueError("请求参数无效")
+            except ValueError:
+                self._json({"success": False, "message": "彩种、选号方法或注数不合法"}, 400)
+                return
+            if not UPDATE_LOCK.acquire(blocking=False):
+                self._json({"success": False, "message": "数据正在更新，请稍后再试"}, 409)
+                return
+            try:
+                try:
+                    result = generate(params["game"][0], params["method"][0], count)
+                except (OSError, KeyError, IndexError, ValueError) as exc:
+                    sys.stderr.write(f"选号数据读取失败: {exc}\n")
+                    self._json({"success": False, "message": "开奖数据读取失败，请检查本地数据"}, 500)
+                    return
+                try:
+                    result["recent"] = recent_draws(params["game"][0], 20)
+                except (OSError, KeyError, IndexError, ValueError) as exc:
+                    sys.stderr.write(f"最近开奖读取失败: {exc}\n")
+                    result["recent"] = []
+            finally:
+                UPDATE_LOCK.release()
+            self._json(result)
+            return
         if path == "/api/health":
             self._json({"success": True, "service": SERVICE_NAME, "status": "ok",
                         "data": data_status(), "updated": datetime.now().isoformat(timespec="seconds")})
@@ -156,9 +228,9 @@ class Handler(SimpleHTTPRequestHandler):
         finally:
             UPDATE_LOCK.release()
 
-    def _json(self, payload: dict) -> None:
+    def _json(self, payload: dict, status: int = 200) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-        self.send_response(200)
+        self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(body)))

@@ -308,6 +308,12 @@ Python 公共源码改动后执行 `python scripts/sync-model-routing.py`，再�
 
 ## 开奖数据操作台（01 第 9 个入口）
 
+操作台导航提供 `/selection` 选号工具，支持随机、冷热频次、遗漏和时间衰减频率；历史统计不代表中奖优势，详见 `website/lottery/README.md`。
+
+选号方法的逐期历史回测可在仓库根目录运行
+`python -X utf8 website/lottery/scripts/selection_backtest.py`；具体方法和限制见
+`website/lottery/README.md`。
+
 `website/lottery` 是双色球/大乐透数据分析服务，默认端口 `5179`，由首页 01 Golden Hour 第 09 张卡片
 按需启动。提供 6466 期官方开奖的可交互操作台（排序、号码筛选、走势矩阵、分组透视、CSV 导出、
 逐期奖级明细）与完整研究报告，页面内「刷新数据」按钮可增量抓取最新开奖并重建页面。

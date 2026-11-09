@@ -1189,6 +1189,12 @@ Python 公共源码改动后执行 `python scripts/sync-model-routing.py`，再�
 
 ## 开奖数据操作台（2026-11-05）
 
+`lottery` 通过 `/selection` 和 `GET /api/selection` 提供随机、冷热频次、遗漏和时间衰减频率选号；接口只读本地数据、限制 1–10 注，更新中返回 409。方法、参数和测试方式见 `website/lottery/README.md`。
+
+选号方法回测使用 `python -X utf8 website/lottery/scripts/selection_backtest.py`：
+只读本地 CSV，按时间逐期比较近 100 期热号、冷号、最大遗漏与随机基准，
+输出各区命中数及多重检验，不计算中奖率或收益。参数和限制见 `website/lottery/README.md`。
+
 首页 01 Golden Hour 由 8 个入口扩为 9 个，新增「开奖数据操作台」（`website/lottery`，5179）。
 该服务是独立 Python 进程：`server.py` 托管操作台页面并提供 `/api/health`、`/api/status`、`/api/update`；
 数据为 6466 期官方开奖，页面支持排序、筛选、走势矩阵、统计与透视，以及一键增量刷新。

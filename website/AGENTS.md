@@ -656,6 +656,11 @@ Python 公共源码改动后执行 `python scripts/sync-model-routing.py`，再�
 
 ## 开奖数据操作台（01 第 9 个入口，5179）
 
+`lottery` 的 `/selection` 选号工具调用 `GET /api/selection`；它只读历史 CSV，支持随机、冷热、遗漏和时间衰减方法。接口和测试见 `lottery/README.md`。
+
+从仓库根目录运行 `python -X utf8 website/lottery/scripts/selection_backtest.py`
+可只读回测选号方法；方法、参数和限制见 `lottery/README.md`。
+
 `website/lottery` 是独立 Python 服务，提供双色球/大乐透历史数据操作台与研究报告：
 6466 期官方开奖（双色球 3523 期、大乐透 2944 期）、精确组合分布、假设检验与多重比较校正、
 8 种选号策略的时间外回测、期望值与蒙特卡洛，以及可任意排序/筛选/走势/透视的前端。
