@@ -1,0 +1,6 @@
+@use "./base.scss";
+:root { --headerFont: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif; --bodyFont: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif; }
+body { font-size:16px; }
+article { line-height:1.9; }
+.page-title { font-size:1.55rem; }
+footer { a { font-weight:600; } }

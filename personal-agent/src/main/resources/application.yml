@@ -21,15 +21,12 @@ spring:
     multipart:
       max-file-size: 20MB
       max-request-size: 20MB
-mybatis:
-  mapper-locations: classpath*:mapper/**/*.xml
-  configuration:
-    map-underscore-to-camel-case: true
 agent:
   data-dir: ${PERSONAL_AGENT_DATA_DIR:}
+  # 留空使用默认仓库：Windows 为 D:/个人资料/Obsidian Vault；其他系统在服务数据目录下。
+  vault-dir: ${PERSONAL_AGENT_VAULT_DIR:}
+  quartz-dir: ${PERSONAL_AGENT_QUARTZ_DIR:}
+  node-command: ${PERSONAL_AGENT_NODE_COMMAND:node}
   api-base: ${PERSONAL_AGENT_API_BASE:https://api.deepseek.com}
   model: ${PERSONAL_AGENT_MODEL:deepseek-flash}
   api-key: ${PERSONAL_AGENT_API_KEY:}
-  skill-roots: ${PERSONAL_AGENT_SKILL_ROOTS:}
-  book-roots: ${PERSONAL_AGENT_BOOK_ROOTS:}
-  background: ${PERSONAL_AGENT_BACKGROUND:true}

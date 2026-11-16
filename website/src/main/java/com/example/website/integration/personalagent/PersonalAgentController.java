@@ -27,7 +27,7 @@ public class PersonalAgentController {
     @PostMapping("/start")
     public ResponseEntity<Map<String, Object>> start(HttpServletRequest request) {
         if (!isLocal(request, true)) {
-            return error(403, "请在本机浏览器中通过 love530 首页启动个人 Agent");
+            return error(403, "请在本机浏览器中通过 love530 首页启动个人资料库");
         }
         try {
             PersonalAgentStartResult result = processManager.start();
@@ -44,7 +44,7 @@ public class PersonalAgentController {
     @GetMapping("/status")
     public ResponseEntity<Map<String, Object>> status(HttpServletRequest request) {
         if (!isLocal(request, false)) {
-            return error(403, "请在本机浏览器中查看个人 Agent 状态");
+            return error(403, "请在本机浏览器中查看个人资料库 状态");
         }
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("success", true);

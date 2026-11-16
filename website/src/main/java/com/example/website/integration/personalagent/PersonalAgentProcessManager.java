@@ -58,17 +58,17 @@ public class PersonalAgentProcessManager {
         try {
             workDir = resolveWorkDir();
         } catch (IOException exception) {
-            throw new PersonalAgentStartException("个人 Agent 工作目录解析失败，请检查 personal-agent.click-start.work-dir");
+            throw new PersonalAgentStartException("个人资料库 工作目录解析失败，请检查 personal-agent.click-start.work-dir");
         }
         if (!jarFile(workDir).isFile()) {
-            throw new PersonalAgentStartException("个人 Agent 尚未构建，请先在仓库根目录执行 "
+            throw new PersonalAgentStartException("个人资料库 尚未构建，请先在仓库根目录执行 "
                     + "mvn -pl personal-agent -am package -DskipTests");
         }
 
         try {
             process = launch(createProcessBuilder(workDir));
         } catch (IOException exception) {
-            throw new PersonalAgentStartException("个人 Agent 启动失败，请检查 Java 运行环境或 "
+            throw new PersonalAgentStartException("个人资料库 启动失败，请检查 Java 运行环境或 "
                     + "PERSONAL_AGENT_COMMAND 指定的 Java 可执行文件，以及 Maven 构建产物");
         }
         if (!waitUntilHealthy()) {
@@ -224,12 +224,12 @@ public class PersonalAgentProcessManager {
     }
 
     private PersonalAgentStartException occupiedPort() {
-        return new PersonalAgentStartException("个人 Agent 端口 " + properties.getPort()
+        return new PersonalAgentStartException("个人资料库 端口 " + properties.getPort()
                 + " 已被占用或已有实例尚未就绪，请检查该端口；未启动或停止其他应用");
     }
 
     private PersonalAgentStartException notReady() {
-        return new PersonalAgentStartException("个人 Agent 在 " + properties.getStartupTimeoutSeconds()
+        return new PersonalAgentStartException("个人资料库 在 " + properties.getStartupTimeoutSeconds()
                 + " 秒内未就绪，请检查服务日志；再次点击会复用仍在启动的进程");
     }
 }

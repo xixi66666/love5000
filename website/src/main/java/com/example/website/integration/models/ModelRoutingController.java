@@ -12,6 +12,15 @@ import com.example.website.integration.local.LocalServicesManager;
 
 @RestController
 @RequestMapping("/api/models")
+// 真实浏览器预检在进入控制器方法前由 Spring MVC 处理，必须声明同一份受限本机来源。
+@CrossOrigin(origins={
+        "http://127.0.0.1:8080","http://localhost:8080","http://[::1]:8080",
+        "http://127.0.0.1:5174","http://localhost:5174","http://[::1]:5174",
+        "http://127.0.0.1:5176","http://localhost:5176","http://[::1]:5176",
+        "http://127.0.0.1:5177","http://localhost:5177","http://[::1]:5177",
+        "http://127.0.0.1:5178","http://localhost:5178","http://[::1]:5178"
+},methods={RequestMethod.GET,RequestMethod.PUT,RequestMethod.POST,RequestMethod.OPTIONS},
+        allowedHeaders={"Content-Type","X-Love530-Model"},allowCredentials="false",maxAge=600)
 public class ModelRoutingController {
     private final ModelRoutingService service;
     private final LocalServicesManager local;

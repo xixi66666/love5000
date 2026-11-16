@@ -1,0 +1,8 @@
+node_modules/
+.quartz-cache/
+.quartz/
+public/
+content/
+*.log
+quartz/static/vendor/
+quartz/.quartz-cache/

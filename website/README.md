@@ -164,20 +164,19 @@ Strata以`--lazy`启动服务，第一条生成请求或「加载模型」按钮
 
 验证：`mvn -pl website -am test -Dtest=LocalServicesManagerTest,LocalServicesControllerTest,ServiceHealthPropertiesTest,ServiceHealthAggregatorTest,ServiceHealthCheckerTest,ServiceHealthControllerTest,HomepageStaticAssetsTest,WebsiteApplicationTests -Dsurefire.failIfNoSpecifiedTests=false`；`node --check website/src/main/resources/static/local-services/app.js`；`node website/src/test/js/homepage-motion.test.js`。单元测试不加载真实模型、不生成视频、不连接真实数据库。
 
-## Personal Agent Java 微服务（03 Deep Woods）
+## 个人长期资料库（Obsidian + Quartz，03 Deep Woods，5178）
 
-`personal-agent/` 与 `website/`、`lovestory/` 同级，是 Java8 + Spring Boot2.6.13 的 Maven 模块，已加入父 pom。默认仅监听 `127.0.0.1:5178`。原生前端与业务 API 在模块内；website 只提供03服务卡片、健康聚合及点击启动，不改01的9个入口或四个背景动画。
+`personal-agent/` 是 Java 8 + Spring Boot 2.6.13 Maven 模块，服务标识仍为 `personal-agent`，监听 `127.0.0.1:5178`。内容已替换为真实 Obsidian Vault 的个人长期资料库，覆盖财务、健康、工作、生活等领域；网页提供资料记录、关键词搜索、版本校验编辑，以及用户确认来源后发起的 AI 分析。Quartz 5.1.0 的真实源码位于 `personal-agent/quartz/`，负责阅读、全文搜索、双链图、反向链接与原生 `.base` 视图。
 
-首次从仓库根目录执行 `mvn -pl personal-agent -am package -DskipTests`。可在IDEA运行 `com.example.personalagent.PersonalAgentApplication`，或执行 `java -jar personal-agent/target/personal-agent-0.0.1-SNAPSHOT.jar`。重启website后点击03个人Agent，启动器运行已构建jar（不自动Maven），验证 `success=true` + `service=personal-agent` 后打开；已在线则复用，陌生端口占用则拒绝。website启动/关闭不自动启停它。
+首次执行 `cd personal-agent/quartz && npm ci`（Node.js 22+），再从根目录执行 `mvn -pl personal-agent -am package`。运行主类 `com.example.personalagent.PersonalAgentApplication` 或已构建 jar。03 Dock“个人资料库”点击启动方式、`POST /api/services/personal-agent/start`、`GET /api/services/personal-agent/status` 和健康聚合顺序保持不变；website 不自动启停它。
 
-入口支持从 `http://localhost:8080/` 跳转到 `http://127.0.0.1:5178/`：仅允许无Origin的首页（`/`、`/index.html`）顶层GET文档导航跨站进入，API及嵌入页面仍拒绝跨站请求，登录和CSRF校验保持。更新此校验后需重启个人Agent；通过首页启动jar时应先重新构建。
+Windows 默认主资料源为 `D:/个人资料/Obsidian Vault/`，个人记录、AI 报告、Bases、模板与附件统一保存在此。服务状态目录仍为 `%LOCALAPPDATA%/Love530/PersonalAgent/`：`knowledge-state.json` 只保存登录哈希、仓库选择和分析状态，`note-backups/` 保存网页编辑前副本，`quartz-builds/` 保存私有浏览快照与构建日志。非 Windows 默认 Vault 为服务状态目录下的 `knowledge-vault/`。旧 `agent.mv.db`、旧 `vault/` 和备份保留，不自动导入或删除。新空间首次需要设置密码。可用 `PERSONAL_AGENT_DATA_DIR`、`PERSONAL_AGENT_VAULT_DIR`、`PERSONAL_AGENT_QUARTZ_DIR`、`PERSONAL_AGENT_NODE_COMMAND` 覆盖路径或命令；Windows 的 DATA_DIR 不改变默认 Vault。网页已保存的仓库选择优先，修改默认路径不自动搬移旧文件，已有资料需先完整复制再在设置中连接。测试必须显式指定临时 Vault，不能读写 D 盘真实资料。
 
-website接口：`POST /api/services/personal-agent/start`（返回 `{success,status,url}`）、`GET /api/services/personal-agent/status`；配置 `personal-agent.click-start.{enabled,work-dir,command,port,health-path,startup-timeout-seconds,log-to-console}`，默认目录 `personal-agent`，从仓库根或website启动都能定位；`PERSONAL_AGENT_COMMAND`可指定Java程序路径，默认java.home/bin/java。统一健康清单末尾追加个人Agent，保留已有顺序。
+健康接口仍为 `GET /api/health`，仅返回 `success=true, service=personal-agent`。其余业务 API 为 `/api/vault`、`/api/vault/{connect,initialize}`、`/api/notes`、`/api/note?path=...`、`/api/analyses/preview`、`/api/analyses`、`/api/quartz`、`/api/quartz/build`。API 与 `/library/**`（含搜索索引和附件）均受本机 Session 保护；写请求校验 CSRF。跨本机主机名的首页顶层导航例外保留。资料变化后旧 Quartz 快照停止提供，需点击生成/更新。
 
-私人数据默认 `%LOCALAPPDATA%/Love530/PersonalAgent/`，可用 `PERSONAL_AGENT_DATA_DIR`覆盖；本地H2账本经MyBatis DAO+XML持久化，金额BigDecimal，不使用远程MySQL。`vault/`可用Obsidian直接打开；历史按录入年月存放，按事件时间/录入时间/UUID查看，手工修改受哈希保护。默认DeepSeek，可通过环境变量配置Key/模型/HTTPS地址，密钥不回显或进入Git。
+AI 沿用统一文本模型入口和 `PERSONAL_AGENT_API_*` 等原配置；先预览并选择最多8份资料，再明确确认发送片段。保留资料日期、来源、版本哈希，排除 AI 报告、草稿、归档、模板及 `ai_exclude: true`。报告写入 `80-AI分析/` 并标记为待核对草稿，不覆盖事实。无后台自动上传。详细 API、属性约定、限制与部署方式见 personal-agent/README.md。
 
-功能包括对话、书籍与生活记录、长期记忆、想法行动、完整财务、事件触发复盘与网页未读提醒；接口及验证范围见 [personal-agent README](../personal-agent/README.md)。验证：`mvn -pl personal-agent -am test`、`mvn -pl website -am test`、`node --check personal-agent/src/main/resources/static/app.js`。不要在测试使用真实财富或模型密钥。
-
+验证：`mvn -pl personal-agent -am test`；website 入口回归 `mvn -pl website -am test -Dtest=HomepageStaticAssetsTest,PersonalAgentControllerTest,PersonalAgentProcessManagerTest -Dsurefire.failIfNoSpecifiedTests=false`；`node --check personal-agent/src/main/resources/static/app.js`。测试使用构造 Vault 与模型替身，不读取私人内容或调用真实模型。
 ## Skill Finder 云端日报与视频
 
 日报视频现已接入内部 `video-renderer/`（Remotion 4.0.536 + React/TypeScript + Node.js 22+），默认 1080×1920 / 30 FPS；配音默认 MiMo，`MIMO_API_KEY` 仅在私有环境配置，字幕通过实际音轨转写。新增 `DAILY_VIDEO_RENDERER`、`DAILY_TTS_PROVIDER`、`DAILY_NODE_COMMAND`、`DAILY_WHISPER_MODEL`、`DAILY_ASSETS_DIR` 与素材完整性检查；`legacy` 可显式回退。先安装渲染依赖和 `uv sync --extra captions`，样片用 `python -m app.daily.cli sample`。详细配置、数据目录、测试和 Docker 资源要求见 [skill-finder/docs/remotion-integration.md](skill-finder/docs/remotion-integration.md)。既有 API、端口、Vue 页面与审核发布约定不变。
@@ -292,3 +291,11 @@ Python 公共源码改动后执行 `python scripts/sync-model-routing.py`，再�
 首次启动会自动构建 `output/console.html`（约 3 秒）；日常更新只需点按钮，也可在
 `website/lottery` 下执行 `python scripts/update_daily.py`。数据与产物：`data/` 提交，
 `output/`、`cache/`、`logs/`、`data/backup/` 为本地生成。
+
+## 统一模型的浏览器跨域预检（2026-11-16）
+
+个人资料库（5178）沿用主页统一模型路由；未单独指定模型时跟随 global，无需复制模型密钥。需要先在8080主页选择一个具体的全局文本模型；如果 global 为空，继承状态为 true 但统一模型未启用，各服务按原配置处理。
+
+`ModelRoutingController` 为 `/api/models/**` 声明受限本机 CORS 来源（8080、5174、5176、5177、5178；localhost/127.0.0.1/IPv6回环），允许 Content-Type 与 X-Love530-Model。真实 OPTIONS 预检由 Spring MVC 在控制器之前处理，不能仅依赖控制器手写响应头。写请求自定义头、本机限制与“浏览器不能直接调用生成接口”的边界继续保留。
+
+验证使用真实 MVC 配置：`mvn -pl website -am test "-Dtest=ModelRoutingControllerTest,ModelRoutingCorsIntegrationTest,ModelRoutingServiceTest,MimoModelRoutingTest" "-Dsurefire.failIfNoSpecifiedTests=false"`。CORS 声明修改后重启 website，再从5178验证 OPTIONS 与模型目录读取。

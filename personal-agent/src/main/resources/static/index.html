@@ -1,86 +1,21 @@
 <!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
-  <meta name="theme-color" content="#0a1210">
-  <title>个人 Agent · Deep Woods</title>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/style.css?v=4">
-  <script src="/motion.js?v=4" defer></script>
-  <script src="/app.js?v=4" defer></script>
-  <script src="/model-picker.js?v=1" defer></script>
-</head>
-<body>
-  <div id="ambient-scene" class="ambient-scene" aria-hidden="true">
-    <video id="ambient-video" muted loop playsinline preload="none" data-src="/media/motion-background.mp4?v=4" poster="/media/motion-background.jpg?v=4"></video>
-    <div id="ambient-tint" class="ambient-tint"></div>
-    <div class="ambient-vignette"></div>
-  </div>
-  <a class="skip-link" href="#main">跳到主要内容</a>
-  <button id="motion-toggle" class="motion-toggle" type="button" aria-label="暂停背景动画" aria-pressed="false"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"></path></svg><span data-motion-label>暂停背景</span></button>
-  <div id="auth-screen" class="auth-screen" hidden>
-    <a class="wordmark auth-brand" href="http://localhost:8080/"><span class="brand-symbol" aria-hidden="true"><svg><use href="/icons.svg#mark"></use></svg></span><span>Personal Agent<span class="brand-caption">DEEP WOODS</span></span></a>
-    <section class="auth-visual" aria-label="个人空间介绍">
-      <div class="auth-story">
-        <p class="eyebrow"><span class="status-dot"></span> A SPACE THAT GROWS WITH YOU</p>
-        <h2>认识自己。<br><span>走向未来。</span></h2>
-        <p>让阅读成为判断，让想法走向行动。<br>值得记住的事，都留在这里。</p>
-      </div>
-    </section>
-    <section class="auth-card">
-      <div class="auth-card-top"><span class="section-index">YOUR PRIVATE SPACE</span><a href="http://localhost:8080/">返回主页 <svg class="icon"><use href="/icons.svg#arrow"></use></svg></a></div>
-      <div class="auth-form-body">
-        <p class="eyebrow">PERSONAL INTELLIGENCE</p>
-        <h1 id="auth-title">回到自己的空间</h1>
-        <p id="auth-description" class="muted">记下今天，理解过去，慢慢走向你想要的未来。</p>
-        <form id="auth-form" class="stack">
-          <label for="auth-password">个人空间密码</label>
-          <div class="password-field"><input id="auth-password" name="password" type="password" autocomplete="current-password" required minlength="8" maxlength="128"><button id="toggle-password" type="button" aria-label="显示密码" aria-pressed="false"><svg class="icon"><use href="/icons.svg#eye"></use></svg></button></div>
-          <p class="hint" id="auth-hint">密码至少 8 个字符。</p>
-          <label id="auth-confirm-label" for="auth-confirm" hidden>再输入一次密码</label>
-          <input id="auth-confirm" type="password" autocomplete="new-password" hidden maxlength="128">
-          <p class="form-error" id="auth-error" role="alert" hidden></p>
-          <button class="primary" id="auth-submit" type="submit">进入空间</button>
-        </form>
-        <p class="auth-privacy"><svg class="icon"><use href="/icons.svg#shield"></use></svg>私人记录，留在你自己的电脑。</p>
-      </div>
-      <p class="auth-card-footer">把值得记住的事，留给未来的自己。</p>
-    </section>
-    <div class="auth-visual-footer"><span>记忆 · 行动 · 财富</span><span>YOUR STORY, STILL UNFOLDING.</span></div>
-  </div>
-  <div id="app-shell" class="app-shell" hidden>
-    <header class="sidebar app-nav">
-      <a class="wordmark" href="#workspace"><span class="brand-symbol" aria-hidden="true"><svg><use href="/icons.svg#mark"></use></svg></span><span>Personal Agent<span class="brand-caption">DEEP WOODS</span></span></a>
-      <button id="nav-toggle" class="nav-toggle" type="button" aria-label="展开导航" aria-expanded="false" aria-controls="navigation"><svg class="icon"><use href="/icons.svg#menu"></use></svg></button>
-      <nav id="navigation" aria-label="主要导航">
-        <a href="#workspace" data-page="workspace" aria-label="个人工作台与对话"><svg class="icon"><use href="/icons.svg#spark"></use></svg><span>对话</span></a>
-        <a href="#ideas" data-page="ideas" aria-label="想法与行动"><svg class="icon"><use href="/icons.svg#idea"></use></svg><span>想法</span></a>
-        <a href="#reading" data-page="reading" aria-label="阅读与生活"><svg class="icon"><use href="/icons.svg#book"></use></svg><span>阅读</span></a>
-        <a href="#finance" data-page="finance" aria-label="我的财富"><svg class="icon"><use href="/icons.svg#wallet"></use></svg><span>财富</span></a>
-        <a href="#memories" data-page="memories" aria-label="长期记忆"><svg class="icon"><use href="/icons.svg#memory"></use></svg><span>记忆</span></a>
-        <a href="#history" data-page="history" aria-label="历史与复盘"><svg class="icon"><use href="/icons.svg#history"></use></svg><span>复盘</span><span id="unread-badge" class="count" hidden>0</span></a>
-        <a href="#settings" data-page="settings" aria-label="设置与资料"><svg class="icon"><use href="/icons.svg#settings"></use></svg><span>设置</span></a>
-      </nav>
-      <div class="sidebar-bottom">
-        <div data-model-picker data-model-scope="personal-agent" data-model-theme="forest"></div>
-        <div class="sidebar-links"><a href="http://localhost:8080/" aria-label="返回 website 主页"><svg class="icon"><use href="/icons.svg#back"></use></svg><span>主页</span></a><button id="logout-button" class="text-button" type="button">退出</button></div>
-      </div>
-    </header>
-    <main id="main" tabindex="-1">
-      <header class="page-header">
-        <div><p class="eyebrow" id="page-eyebrow">YOUR PERSONAL SPACE</p><h1 id="page-title">个人工作台</h1><p id="page-description" class="muted">留住值得记住的事，看清值得迈出的下一步。</p></div>
-        <div class="header-meta"><time id="today"></time><span id="model-status" class="pill">正在连接</span></div>
-      </header>
-      <div id="notice" class="notice" role="status" hidden></div>
-      <div id="page-content" aria-live="polite"></div>
-      <footer class="page-footer"><span>每一次记录，都是更了解自己的开始。</span><span>PERSONAL AGENT / DEEP WOODS</span></footer>
-    </main>
-  </div>
-  <div id="initial-loading" class="initial-loading"><span class="brand-symbol" aria-hidden="true"><svg><use href="/icons.svg#mark"></use></svg></span><p>正在打开你的空间…</p></div>
-  <dialog id="editor-dialog" aria-labelledby="dialog-title">
-    <form id="editor-form" class="stack"><div class="section-heading"><h2 id="dialog-title">编辑记录</h2><button type="button" data-close-dialog class="text-button">关闭</button></div><div id="editor-fields"></div><p id="editor-error" class="form-error" role="alert" hidden></p><div class="button-row"><button type="submit" class="primary">保存修改</button><button type="button" data-close-dialog>取消</button></div></form>
-  </dialog>
-</body>
-</html>
+<!-- 真实 Vault 驱动；Quartz 阅读型三栏；先记录事实，检查来源，再进行分析。 -->
+<html lang="zh-CN" data-theme="light">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><title>个人资料库 · Obsidian + Quartz</title><link rel="stylesheet" href="/knowledge.css?v=knowledge-1"><script src="/app.js?v=knowledge-1" defer></script><script src="/model-picker.js" defer></script></head>
+<body><a href="#main" class="skip">跳到主要内容</a>
+<section id="auth" class="auth" hidden>
+<div class="auth-brand">◈ 个人资料库 <span>OBSIDIAN / QUARTZ</span></div>
+<div class="auth-copy"><h1>把生活的线索，<br>连成自己的知识。</h1><p>财务、健康、工作与每一次重要变化。<br>资料留在你的 Vault，分析回到你的证据。</p></div>
+<form id="auth-form"><h2 id="auth-title">打开个人空间</h2><p id="auth-hint" class="muted"></p><label for="password">空间密码</label><input id="password" type="password" required minlength="8" maxlength="128" autocomplete="current-password"><button class="primary" type="submit" id="auth-submit">进入资料库</button><p id="auth-error" class="error" role="alert"></p></form>
+</section>
+<div id="app" class="shell" hidden>
+<aside class="sidebar"><a href="#notes" class="brand"><span class="brand-mark">◈</span>个人资料库</a><p class="brand-sub">Obsidian 是你的资料原本</p>
+<nav aria-label="工作区"><a href="#notes" data-tab="notes">资料目录 <span>↗</span></a><a href="#analysis" data-tab="analysis">AI 分析 <span>✧</span></a><a href="#settings" data-tab="settings">仓库与设置 <span>⚙</span></a></nav>
+<div class="domain-head">资料领域</div><div id="domains" class="domains"></div>
+<div class="sidebar-foot"><button id="theme" class="quiet">切换深浅主题</button><a href="http://127.0.0.1:8080/">返回主页 ↗</a><button id="logout" class="quiet">锁定空间</button></div></aside>
+<main id="main" tabindex="-1"><header class="topbar"><span id="breadcrumb">资料目录</span><div><button id="refresh" class="quiet">↻ 刷新资料</button><button id="new-note" class="primary">＋ 记录资料</button></div></header>
+<p id="notice" class="notice" role="status" hidden></p><section id="view"></section></main>
+<aside class="context"><div class="context-label">当前仓库</div><h2 id="vault-name">正在连接…</h2><p id="vault-path" class="path"></p><a id="open-vault" class="button" href="#">在 Obsidian 中打开 ↗</a><p class="hint">首次使用，请在 Obsidian 中选择“打开文件夹作为仓库”，打开上方路径。</p>
+<div class="context-block"><div class="context-label">Quartz 浏览页</div><p id="build-state">正在读取状态…</p><button id="build" class="button">生成 / 更新浏览页</button><a id="library" class="button primary" href="/library/" target="_blank" rel="noopener" hidden>打开 Quartz 资料库 ↗</a><p class="hint">支持全文搜索、双链图谱和反向链接。资料变化后重新生成。</p></div>
+<div class="context-block"><div class="context-label">记录约定</div><p>写清发生时间与资料来源。历史快照、当前事实和个人判断分别标注。</p><p>AI 报告保留为草稿，由你核对后使用。</p></div></aside>
+</div></body></html>

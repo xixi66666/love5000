@@ -24,7 +24,7 @@
 ## 接入范围
 
 python-a 的研究分析、Scrapling 的选择器修复、Skill Finder 的中文介绍与补全、
-个人 Agent 的对话/记忆/复盘接入统一文本路由。原有 Session、CSRF、采集和失败降级保持。
+个人资料库（服务标识 personal-agent）的引用式 AI 分析接入统一文本路由；旧对话、记忆与复盘业务已移除。原有 Session、CSRF、采集和失败降级保持。
 Scrapling 使用统一模型时不需要填写旧页面 Key。
 
 图片、截图、语音、视频有不同能力要求，保持专用模型；图片工作台提供独立下拉，
@@ -142,3 +142,12 @@ TTS/ASR/旧型号过滤、全局/局部路由、令牌字段转换、思考模�
 2026-10-20 验证结果：website/common 共166项测试通过，website jar 已重新打包。
 隔离网关使用真实私有凭据验证 Pro 的 JSON 输出与 Flash 的普通文本输出均成功；
 两次请求只包含公开测试文本，未切换实际业务服务的全局/局部选择，也未修改 TTS 配置。
+
+
+## 统一模型的浏览器跨域预检（2026-11-16）
+
+5178个人资料库默认跟随主页 global 选择并复用主服务密钥，无需重复配置。需要在8080主页先指定具体的全局文本模型；global为空时，inherited=true但active=false。
+
+ModelRoutingController显式声明受限本机CORS来源（8080、5174、5176、5177、5178），允许Content-Type和X-Love530-Model，不允许携带跨域凭据。真实浏览器预检在控制器之前由Spring MVC处理，不能仅依赖手写OPTIONS响应头；本机与生成接口的原有保护保留。
+
+回归采用ModelRoutingCorsIntegrationTest的真实MVC配置，检查5178的GET/PUT预检成功，未知来源与Authorization请求头被拒绝。模型相关19项测试通过；重启原IDEA运行配置后，浏览器5178到8080的实际读取与预检均返回200。没有调用真实模型或改变全局模型选择。

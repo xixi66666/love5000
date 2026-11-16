@@ -83,7 +83,7 @@ class HomepageStaticAssetsTest {
         assertTrue(goldenHour.contains("LOTTERY DESK · 5179"));
         assertEquals(1, countCards(deepWoods));
         assertTrue(deepWoods.contains("data-app-url=\"http://127.0.0.1:5178/\""));
-        assertTrue(deepWoods.contains("PERSONAL AGENT · 5178"));
+        assertTrue(deepWoods.contains("OBSIDIAN + QUARTZ · 5178"));
         assertEquals(0, countCards(dock(html, "still-water-service-dock")));
         assertEquals(0, countCards(dock(html, "quiet-dawn-service-dock")));
         assertFalse(deepWoods.contains("5174"));
