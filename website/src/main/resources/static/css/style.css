@@ -121,6 +121,7 @@ button {
 
 .scene-background,
 .scene-video,
+.scene-video--loop,
 .scene-shade,
 .scene-grain {
     position: absolute;
@@ -179,6 +180,37 @@ body.video-ready .scene-video.is-active {
 }
 
 .scene-video.is-active {
+    opacity: 1;
+}
+
+/*
+ * 循环补层：与原视频同源的第二份画面，只用来在 10 秒硬切前做 1 秒交叉淡化。
+ * 原片首尾不是同一个镜头，原生 loop 会瞬间跳回第一帧；补层先接管画面，
+ * 原视频在自己已经不可见的时候才回到开头，于是既没有停帧也没有跳切。
+ *
+ * 关键：只有补层（在上层）改变不透明度，下层原视频始终保持不透明。
+ * 两层是上下叠放，若同时半透明，合成覆盖率 = 上层 + 下层 × (1 − 上层)，
+ * 中点只有 75%，会透出深色背景，观感就是“突然黑一下”。
+ * 透明度过渡必须与 script.js 的 loopFadeMs 保持一致。
+ */
+.scene-video--loop {
+    z-index: 0;
+    display: block;
+    object-fit: cover;
+    opacity: 0;
+    pointer-events: none;
+    filter: saturate(0.88) contrast(1.02) brightness(0.92);
+    transform: scale(1);
+    transform-origin: 50% 46%;
+    transition: opacity 1000ms ease-in-out;
+    will-change: opacity;
+}
+
+body.video-ready .scene-video--loop {
+    animation: ken-burns 36s ease-in-out infinite alternate;
+}
+
+.scene-video--loop.is-loop-visible {
     opacity: 1;
 }
 
@@ -1203,7 +1235,8 @@ body.service-fx-on .service-card:focus-visible {
         scroll-behavior: auto;
     }
 
-    .scene-video.is-active {
+    .scene-video.is-active,
+    .scene-video--loop {
         animation: none;
     }
 
@@ -1216,6 +1249,7 @@ body.service-fx-on .service-card:focus-visible {
     }
 
     .scene-video,
+    .scene-video--loop,
     .hero-content,
     .hero-badge,
     .hero-primary-action,

@@ -99,6 +99,7 @@ class HomepageStaticAssetsTest {
         assertTrue(css.contains(".liquid-glass::before"));
         assertTrue(css.contains("@keyframes ken-burns"));
         assertTrue(css.contains(".scene-deep-woods"));
+        assertTrue(css.contains(".scene-video--loop"));
         assertTrue(css.contains("@media (prefers-reduced-motion: reduce)"));
 
         assertTrue(javascript.contains("function setupVideoSwitcher()"));
@@ -106,6 +107,9 @@ class HomepageStaticAssetsTest {
         assertTrue(javascript.contains("function setupAuth()"));
         assertTrue(javascript.contains("function setupServiceHealth()"));
         assertTrue(javascript.contains("transitionLocked"));
+        // 场景视频循环必须走交叉淡化补层，不能退回原生 loop 的硬切
+        assertTrue(javascript.contains("createLoopLayer"));
+        assertTrue(javascript.contains("handoffLoop"));
     }
 
     @Test

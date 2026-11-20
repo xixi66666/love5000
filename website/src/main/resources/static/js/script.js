@@ -81,6 +81,16 @@ function setupVideoSwitcher() {
     var transitionLocked = false;
     var transitionDuration = 1000;
 
+    // 四段场景视频各 10.04 秒，首尾不是同一个镜头，原生 loop 会停帧再跳到第一帧。
+    // 这里用第二份同为 10 秒的画面提前 1 秒交叉淡化，让切换发生在原视频已经不可见的时候。
+    var loopFadeMs = 1000;   // 必须与 .scene-video--loop 的 opacity 过渡时长一致
+    var loopTickMs = 100;
+    var loopGuard = 0.15;
+    var sceneRevealTimeoutMs = 2000;
+    var loopLayers = [];
+    var loopTimer = 0;
+    var loop = null;
+
     if (!videos.length || !buttons.length) {
         return;
     }
@@ -94,10 +104,205 @@ function setupVideoSwitcher() {
         }
     }
 
-    function setActiveState(nextIndex) {
-        videos.forEach(function (video, index) {
-            video.classList.toggle("is-active", index === nextIndex);
-        });
+    function rewind(video) {
+        try {
+            video.currentTime = 0;
+        } catch (error) {
+            // 元数据未就绪时浏览器会拒绝写入 currentTime，交给 play() 自己从头开始。
+        }
+    }
+
+    function createLoopLayer(index) {
+        if (loopLayers[index]) {
+            return loopLayers[index];
+        }
+
+        var host = document.querySelector(".scene-background");
+        var source = videos[index] ? videos[index].querySelector("source") : null;
+        if (!host || !source) {
+            return null;
+        }
+
+        var layer = document.createElement("video");
+        layer.className = "scene-video--loop";
+        layer.muted = true;
+        layer.defaultMuted = true;
+        layer.loop = true;
+        layer.setAttribute("muted", "");
+        layer.setAttribute("loop", "");
+        layer.setAttribute("playsinline", "");
+        layer.setAttribute("preload", "none");
+        layer.setAttribute("aria-hidden", "true");
+        layer.setAttribute("tabindex", "-1");
+        layer.src = source.getAttribute("src");
+
+        // 放在全部场景视频之上、暗角和颗粒之下，交叉淡化时完整盖住原视频。
+        host.insertBefore(layer, host.querySelector(".scene-shade"));
+        loopLayers[index] = layer;
+        return layer;
+    }
+
+    function kenBurnsAnimation(element) {
+        if (!element || typeof element.getAnimations !== "function") {
+            return null;
+        }
+        var animations = element.getAnimations();
+        for (var index = 0; index < animations.length; index++) {
+            if (animations[index].animationName === "ken-burns") {
+                return animations[index];
+            }
+        }
+        return null;
+    }
+
+    // 两层各自启动，缓推镜头进度会错位，淡化时看起来像轻微缩放抖动。
+    function syncKenBurns(from, to) {
+        var source = kenBurnsAnimation(from);
+        var target = kenBurnsAnimation(to);
+        if (!source || !target || source.currentTime === null) {
+            return;
+        }
+        try {
+            target.currentTime = source.currentTime;
+        } catch (error) {
+            // 动画对象不可写时保留各自进度，不影响淡化本身。
+        }
+    }
+
+    // 只切换补层的可见性，原视频始终保持不透明。
+    // 两层是上下叠放而不是并排：如果两层同时半透明，合成覆盖率会掉到 75%，
+    // 中间就会透出深色背景，看起来像“突然黑一下”。所以永远只让上层的补层淡入淡出。
+    function setLoopLayerVisible(visible) {
+        if (!loop) {
+            return;
+        }
+        loop.layer.classList.toggle("is-loop-visible", visible);
+    }
+
+    function stopLoop() {
+        if (loopTimer) {
+            window.clearInterval(loopTimer);
+            loopTimer = 0;
+        }
+        if (!loop) {
+            return;
+        }
+
+        var running = loop;
+        loop = null;
+        // 只收掉可见状态，不重置进度：正在淡出的补层要停在最后一帧，避免切换时闪回第一帧。
+        running.layer.classList.remove("is-loop-visible");
+        running.layer.pause();
+    }
+
+    function startLoop(index) {
+        stopLoop();
+
+        var primary = videos[index];
+        if (!primary) {
+            return;
+        }
+        var layer = createLoopLayer(index);
+        if (!layer) {
+            return;
+        }
+
+        layer.classList.remove("is-loop-visible");
+        layer.pause();
+        rewind(layer);
+
+        loop = {
+            index: index,
+            primary: primary,
+            layer: layer,
+            front: primary,
+            back: layer
+        };
+        loopTimer = window.setInterval(tickLoop, loopTickMs);
+    }
+
+    function tickLoop() {
+        if (!loop) {
+            return;
+        }
+
+        var front = loop.front;
+        var duration = front.duration;
+        var fadeSeconds = loopFadeMs / 1000;
+        if (!isFinite(duration) || duration <= fadeSeconds * 2.5) {
+            return;
+        }
+        if (front.paused || front.ended) {
+            return;
+        }
+        if (front.currentTime < duration - fadeSeconds - loopGuard) {
+            return;
+        }
+
+        handoffLoop();
+    }
+
+    function handoffLoop() {
+        if (!loop) {
+            return;
+        }
+
+        var front = loop.front;
+        var back = loop.back;
+        var started = false;
+
+        function beginFade() {
+            if (started || !loop || loop.front !== front) {
+                return;
+            }
+            started = true;
+            // 补层在上一层：淡入即盖住原视频，淡出即露出原视频，两种方向覆盖率都是 100%。
+            setLoopLayerVisible(back === loop.layer);
+            loop.front = back;
+            loop.back = front;
+
+            // 淡出结束后暂停旧层，避免两个 1080p 视频长期同时解码。
+            window.setTimeout(function () {
+                if (!loop || loop.back !== front) {
+                    return;
+                }
+                front.pause();
+                rewind(front);
+            }, loopFadeMs + 400);
+        }
+
+        syncKenBurns(front, back);
+        try {
+            back.pause();
+            back.currentTime = 0;
+        } catch (error) {
+            // 补层还没拿到元数据时会拒绝写入，play() 仍然会从开头起播。
+        }
+
+        var playResult = back.play();
+        if (playResult && typeof playResult.then === "function") {
+            playResult.then(beginFade, function () {
+                // 补层起播被拒绝时留在原视频上，继续用原生 loop 兜底。
+            });
+        } else {
+            beginFade();
+        }
+
+        // play() 迟迟不 resolve 时最多等 150ms，且必须有可显示的画面才接管。
+        window.setTimeout(function () {
+            if (started || !loop || loop.front !== front) {
+                return;
+            }
+            if (back.readyState >= 2) {
+                beginFade();
+                return;
+            }
+            back.pause();
+            rewind(back);
+        }, 150);
+    }
+
+    function setActiveChrome(nextIndex) {
         buttons.forEach(function (button, index) {
             var isActive = index === nextIndex;
             button.classList.toggle("is-active", isActive);
@@ -111,29 +316,62 @@ function setupVideoSwitcher() {
         }));
     }
 
+    function showVideo(nextIndex) {
+        videos.forEach(function (video, index) {
+            video.classList.toggle("is-active", index === nextIndex);
+        });
+    }
+
     function switchScene(nextIndex) {
         if (nextIndex === activeVideo || transitionLocked || !videos[nextIndex]) {
             return;
         }
 
         transitionLocked = true;
-        videos[nextIndex].load();
-        safePlay(videos[nextIndex]);
-        setActiveState(nextIndex);
-        activeVideo = nextIndex;
+
+        var incoming = videos[nextIndex];
+        incoming.load();
+        safePlay(incoming);
+
+        // 文案、按钮和主题立刻响应点击，画面等新视频真的有一帧了再交叉。
+        // 否则旧画面已经淡出、新视频还没出帧，中间只剩深色背景，就是“黑一下”。
+        setActiveChrome(nextIndex);
 
         if (typeof window.__xixiSceneCrossfade === "function") {
             window.__xixiSceneCrossfade();
         }
 
-        window.setTimeout(function () {
-            videos.forEach(function (video, index) {
-                if (index !== activeVideo) {
-                    video.pause();
-                }
-            });
-            transitionLocked = false;
-        }, transitionDuration);
+        var revealed = false;
+        function reveal() {
+            if (revealed) {
+                return;
+            }
+            revealed = true;
+
+            stopLoop();
+            showVideo(nextIndex);
+            activeVideo = nextIndex;
+
+            window.setTimeout(function () {
+                videos.forEach(function (video, index) {
+                    if (index !== activeVideo) {
+                        video.pause();
+                    }
+                });
+                transitionLocked = false;
+                startLoop(activeVideo);
+            }, transitionDuration);
+        }
+
+        if (incoming.readyState >= 2) {
+            reveal();
+            return;
+        }
+
+        incoming.addEventListener("loadeddata", reveal);
+        incoming.addEventListener("canplay", reveal);
+        // 网络再慢也不能让场景切换卡死；超时后照常淡化，原生背景作为降级。
+        window.setTimeout(reveal, sceneRevealTimeoutMs);
     }
 
     buttons.forEach(function (button) {
@@ -147,13 +385,15 @@ function setupVideoSwitcher() {
             video.pause();
         }
     });
-    setActiveState(activeVideo);
+    setActiveChrome(activeVideo);
+    showVideo(activeVideo);
 
     var deferFirstPlay = window.requestIdleCallback || function (fn) {
         window.setTimeout(fn, 350);
     };
     deferFirstPlay(function () {
         safePlay(videos[activeVideo]);
+        startLoop(activeVideo);
     });
 }
 
