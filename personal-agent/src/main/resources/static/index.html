@@ -1,7 +1,7 @@
 <!doctype html>
 <!-- 真实 Vault 驱动；Quartz 阅读型三栏；先记录事实，检查来源，再进行分析。 -->
-<html lang="zh-CN" data-theme="light">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><title>个人资料库 · Obsidian + Quartz</title><link rel="stylesheet" href="/knowledge.css?v=knowledge-1"><script src="/app.js?v=knowledge-1" defer></script><script src="/model-picker.js" defer></script></head>
+<html lang="zh-CN" data-theme="dark">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><title>个人资料库 · Obsidian + Quartz</title><link rel="stylesheet" href="/knowledge.css?v=knowledge-2"><link rel="stylesheet" href="/health.css?v=1"><link rel="stylesheet" href="/areas.css?v=1"><link rel="stylesheet" href="/workspace.css?v=workspace-2"><link rel="stylesheet" href="/insights.css?v=1"><script src="/health.js?v=atlas-1" defer></script><script src="/areas.js?v=2" defer></script><script src="/workspace.js?v=atlas-1" defer></script><script src="/import.js?v=2" defer></script><script src="/insights.js?v=1" defer></script><script src="/app.js?v=atlas-1" defer></script><script src="/model-picker.js?v=knowledge-2" defer></script></head>
 <body><a href="#main" class="skip">跳到主要内容</a>
 <section id="auth" class="auth" hidden>
 <div class="auth-brand">◈ 个人资料库 <span>OBSIDIAN / QUARTZ</span></div>
@@ -9,13 +9,12 @@
 <form id="auth-form"><h2 id="auth-title">打开个人空间</h2><p id="auth-hint" class="muted"></p><label for="password">空间密码</label><input id="password" type="password" required minlength="8" maxlength="128" autocomplete="current-password"><button class="primary" type="submit" id="auth-submit">进入资料库</button><p id="auth-error" class="error" role="alert"></p></form>
 </section>
 <div id="app" class="shell" hidden>
-<aside class="sidebar"><a href="#notes" class="brand"><span class="brand-mark">◈</span>个人资料库</a><p class="brand-sub">Obsidian 是你的资料原本</p>
-<nav aria-label="工作区"><a href="#notes" data-tab="notes">资料目录 <span>↗</span></a><a href="#analysis" data-tab="analysis">AI 分析 <span>✧</span></a><a href="#settings" data-tab="settings">仓库与设置 <span>⚙</span></a></nav>
+<aside class="sidebar"><a href="#overview" class="brand"><span class="brand-mark" aria-hidden="true">◈</span><span>个人资料库<small>本机工作台</small></span></a>
+<nav aria-label="工作区"><a href="#overview" data-tab="overview">资料总览</a><a href="#notes" data-tab="notes">资料目录</a><a href="#health" data-tab="health">健康档案</a><a href="#analysis" data-tab="analysis">AI 分析</a><a href="#settings" data-tab="settings">仓库与设置</a></nav>
 <div class="domain-head">资料领域</div><div id="domains" class="domains"></div>
 <div class="sidebar-foot"><button id="theme" class="quiet">切换深浅主题</button><a href="http://127.0.0.1:8080/">返回主页 ↗</a><button id="logout" class="quiet">锁定空间</button></div></aside>
-<main id="main" tabindex="-1"><header class="topbar"><span id="breadcrumb">资料目录</span><div><button id="refresh" class="quiet">↻ 刷新资料</button><button id="new-note" class="primary">＋ 记录资料</button></div></header>
+<main id="main" tabindex="-1"><header class="topbar"><span id="breadcrumb">资料总览</span><div><button id="refresh" class="quiet">↻ 刷新资料</button><button id="new-note" class="primary">＋ 记录资料</button></div></header>
 <p id="notice" class="notice" role="status" hidden></p><section id="view"></section></main>
-<aside class="context"><div class="context-label">当前仓库</div><h2 id="vault-name">正在连接…</h2><p id="vault-path" class="path"></p><a id="open-vault" class="button" href="#">在 Obsidian 中打开 ↗</a><p class="hint">首次使用，请在 Obsidian 中选择“打开文件夹作为仓库”，打开上方路径。</p>
-<div class="context-block"><div class="context-label">Quartz 浏览页</div><p id="build-state">正在读取状态…</p><button id="build" class="button">生成 / 更新浏览页</button><a id="library" class="button primary" href="/library/" target="_blank" rel="noopener" hidden>打开 Quartz 资料库 ↗</a><p class="hint">支持全文搜索、双链图谱和反向链接。资料变化后重新生成。</p></div>
-<div class="context-block"><div class="context-label">记录约定</div><p>写清发生时间与资料来源。历史快照、当前事实和个人判断分别标注。</p><p>AI 报告保留为草稿，由你核对后使用。</p></div></aside>
+<aside id="vault-context" class="context" aria-label="仓库与 Quartz" hidden><div class="vault-context"><div class="context-label">当前仓库</div><h2 id="vault-name">正在连接…</h2><p id="vault-path" class="path"></p><a id="open-vault" class="button" href="#">在 Obsidian 中打开 ↗</a>
+<div class="context-block" id="quartz-panel"><div class="context-label">Quartz 浏览页</div><p id="build-state">正在读取状态…</p><button id="build" class="button">生成 / 更新浏览页</button><a id="library" class="button primary" href="/library/" target="_blank" rel="noopener" hidden>打开 Quartz 资料库 ↗</a><p class="hint">完整图谱、嵌入、全文搜索与 Bases 视图。</p></div></div></aside>
 </div></body></html>

@@ -6,6 +6,8 @@ import org.springframework.http.*;
 import java.util.*;
 @RestControllerAdvice
 public class ErrorAdvice {
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class) public ResponseEntity<?> oversized(Exception e){return ResponseEntity.status(413).body(Api.map("success",false,"message","文件太大，请选择不超过 12 MB 的文件"));}
+    @ExceptionHandler({org.springframework.web.multipart.support.MissingServletRequestPartException.class,org.springframework.web.bind.MissingServletRequestParameterException.class}) public ResponseEntity<?> missing(Exception e){return ResponseEntity.badRequest().body(Api.map("success",false,"message","缺少文件或必填字段，请核对后重试"));}
     @ExceptionHandler(ResponseStatusException.class) public ResponseEntity<?> expected(ResponseStatusException e){return ResponseEntity.status(e.getStatus()).body(Api.map("success",false,"message",e.getReason()));}
     @ExceptionHandler({IllegalArgumentException.class,org.springframework.http.converter.HttpMessageNotReadableException.class}) public ResponseEntity<?> invalid(Exception e){return ResponseEntity.badRequest().body(Api.map("success",false,"message","输入格式无效，请检查字段"));}
     @ExceptionHandler(Exception.class) public ResponseEntity<?> unexpected(Exception e){return ResponseEntity.status(500).body(Api.map("success",false,"message","操作未完成，请检查本地数据目录与服务状态"));}

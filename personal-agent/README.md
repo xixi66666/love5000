@@ -1,5 +1,54 @@
 # 个人长期资料库 · Obsidian + Quartz + AI
 
+## 资料总览与通用导入
+
+打开裸地址、首次设置密码或重新登录后进入资料总览（`/#overview`）。已有会话可通过带片段的地址直达笔记或子页面。每个方向提供能收录的材料、当前笔记数和可直接带入分析页的问题。除个人档案、财务、健康、工作、生活、目标与复盘外，新增学习与技能（`45-学习与技能/`）、家庭与关系（`55-家庭与关系/`）、居住与物品（`65-居住与物品/`）、证件与合同（`70-证件与合同/`）。资料目录仍在 `/#notes`，总览末尾可发起跨领域复盘。
+
+总览按文件编辑时间展示最近五篇，并以最近编辑的最多 48 篇非模板笔记绘制双链图。鼠标或键盘聚焦节点可查看标题，点击进入笔记阅读。阅读页支持常见 Markdown 与表格、可点击的 `[[双链]]`、标题目录、反向链接、属性、Markdown 全文切换和 Obsidian 原笔记入口。完整 Vault 图谱、附件嵌入及 Bases 在生成后的 Quartz 浏览页查看。工作台默认深色，可切换浅色。
+
+`GET /api/vault/overview` 返回 `recent/nodes/edges/edits/total`，可传 `domain` 查看该领域。各领域目录显示局部双链图、最近笔记及近六个月按最后编辑月份统计的笔记数。健康图谱额外包含体检解读草稿，连线来自实际 Obsidian 双链。`GET /api/note` 保留原有字段并附带 `reading_html/reading_truncated/incoming/outgoing/modified_at`。阅读预览最多 120,000 字符，转义笔记里的 HTML，嵌入图片留给 Quartz 或 Obsidian 查看。两个接口均需本机会话并禁止缓存。
+
+打开「导入资料」选择领域和文件，点击「同意发送原件并分析」后，服务将完整原件发给 DeepSeek 官方 `/files`，再以 `file_id` 调用 `deepseek-flash` 生成 Markdown 草稿。项目根 `model.properties` 的 `deepseek.api-key` 必须是官方密钥。附件分析固定使用官方接口，普通笔记分析继续使用模型选择器。上传时设置一小时过期，模型调用结束后尝试删除远端临时文件。发送前可自行遮盖文件里的敏感内容。
+
+支持 PDF、PNG/JPEG/GIF/WebP、TXT/Markdown、Word、PowerPoint、Excel 和 CSV，单份不超过 12 MB。也可选择「仅归档」，此时只写入 Vault。原件在 `99-附件/导入资料/`，Markdown 在选定领域。原件通过登录后的下载接口获取，Quartz 构建跳过该目录。自动生成的笔记标记为待核对草稿，排除在普通 AI 来源之外。
+
+| 方法与路径 | 输入与用途 |
+|---|---|
+| `POST /api/documents` | multipart `file/workspace/domain/title/mode`，可选 `date` → Markdown `path`。`mode=analyze` 另须 `consent=true`，`mode=archive` 仅归档。 |
+| `GET /api/documents/original?path=...` | 按导入笔记路径下载经校验的原件 |
+| `POST /api/analyses/preview` | JSON `question/domain`；可选 `source_path` 指定只预览一份来源 |
+
+写请求使用原有 Session 和 `X-CSRF-Token`。构建及测试使用 `mvn -pl personal-agent -am package`，前端可用 `node --check` 检查 `areas.js`、`import.js` 和 `app.js`。
+
+## 健康档案：从体检原件到可回查的解读
+
+登录后打开 **健康档案**（`/#health`）→ **导入报告**。选文件、填写检查日期后可直接发送给 DeepSeek 生成体检解读或仅归档。解析失败时原件已保存，可打开该次记录重试。
+
+健康页按报告日期展示结果，可展开 AI 提取的原件摘录和位置，下载报告核对。可并列上次有解读且同名同单位的结果。AI 解读是待核对草稿，来源笔记改变后需要重新生成。旧报告、原件、核对正文与草稿继续可读。
+
+人体示意图把所选报告中可识别的指标按名称分到部位或系统。点击热点可查看数值并展开原件摘录。橙色表示报告有显式标记，浅蓝表示有记录，灰色表示未见相关记录。未归类指标可在「其他与待归类」查看。
+
+| Vault 中的文件 | 用途 |
+|---|---|
+| `99-附件/体检/<id>.<ext>` | 原件保留在本地；Markdown 原件以 `.txt` 保存。下载校验 SHA-256；Quartz 不复制该目录。 |
+| `30-健康/体检/<id>.md` | 历史记录，包含检查日期、原件双链和哈希。 |
+| `80-AI分析/体检/<id>-<来源版本>.md` | 带依据的 AI 草稿，`ai_exclude: true`；同一来源版本重复请求不重复调用模型。 |
+
+接口均为本机登录 Session，写入需要 `X-CSRF-Token`。JSON 成功为 `{success:true,data:...}`，失败为 `{success:false,message:...}`。
+
+| 方法及路径 | 输入 → 结果 |
+|---|---|
+| `GET /api/exams` | 当前 `workspace` 和按检查日期倒序的 `reports`（`id/date/title/ready`） |
+| `POST /api/exams` | multipart `file/date/workspace/mode` → `id/revision/path`。分析模式须传 `consent=true`。原件已归档但分析失败时返回 `warning`。 |
+| `GET /api/exams/{id}` | 来源、版本及当前版本的 `findings` 和草稿路径，兼容旧版核对正文。 |
+| `POST /api/exams/{id}/analysis` | JSON `{workspace,revision,consent:true}` → 同详情；409 需刷新，502 可重试，503 需配置官方密钥。 |
+| `GET /api/exams/{id}/original` | 以下载附件返回原件，禁止缓存 |
+
+验证使用 `mvn -pl personal-agent -am clean package` 和 `node --check personal-agent/src/main/resources/static/health.js`。集成测试使用临时 Vault 和官方接口替身。更新 jar 后重启已有的 5178 进程。
+
+> 模型配置已统一：模型目录、密钥和各服务原配置只从项目根目录 `model.properties` 读取（模板 `model.properties.example`）。本文中出现的模型环境变量、`deepseek.local.json`、`INTRO_*` / `MIMO_*` 示例仅作历史说明，不再生效。
+
+
 `personal-agent` 已从原来的个人 Agent 重构为个人长期资料库。以真实 Obsidian Vault 为资料原本，Quartz 5.1.0 提供阅读、全文搜索、双链图、反向链接和 Bases 多视图；Java 服务提供本机认证、资料记录、编辑版本保护与主动式 AI 分析。默认访问 `http://127.0.0.1:5178/`。
 
 ## 启动与首次使用
@@ -102,11 +151,8 @@ tags: [财务, 快照]
 | `PERSONAL_AGENT_VAULT_DIR` | 覆盖初始 Vault 路径；Windows 默认 `D:/个人资料/Obsidian Vault/`；网页已保存的连接选择优先 |
 | `PERSONAL_AGENT_QUARTZ_DIR` | Quartz 源码目录；默认从当前/上级目录定位 `personal-agent/quartz` |
 | `PERSONAL_AGENT_NODE_COMMAND` | node；可指定解释器完整路径 |
-| `PERSONAL_AGENT_API_BASE` | 服务原配置 HTTPS 模型地址 |
-| `PERSONAL_AGENT_MODEL` | 服务原配置模型，默认沿用 deepseek-flash |
-| `PERSONAL_AGENT_API_KEY` | 模型密钥，仅环境读取 |
-| `DEEPSEEK_API_KEY` | 仅原配置为官方 DeepSeek 地址时可回退 |
-| `MODEL_HUB_URL` / `MODEL_ROUTING_STATE` | 沿用公共模型路由规则 |
+| `PERSONAL_AGENT_API_BASE` / `PERSONAL_AGENT_MODEL` / `PERSONAL_AGENT_API_KEY` | 已移除；服务原配置改由根目录 `model.properties` 的 `service.personal-agent` 提供 |
+| `DEEPSEEK_API_KEY` / `MODEL_HUB_URL` / `MODEL_ROUTING_STATE` | 已移除；模型只读 `model.properties`，网关与选择状态路径固定 |
 
 旧 `PERSONAL_AGENT_BOOK_ROOTS`、`PERSONAL_AGENT_SKILL_ROOTS`、`PERSONAL_AGENT_BACKGROUND` 已不再使用。
 

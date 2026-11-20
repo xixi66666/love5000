@@ -28,7 +28,16 @@ public class AnalysisService {
     public synchronized List<Map<String,Object>> history(){List<Map<String,Object>> values=state.get("analyses");return values==null?new ArrayList<>():values;}
     private synchronized void save(Map<String,Object> job){List<Map<String,Object>> values=history();values.removeIf(j->j.get("id").equals(job.get("id")));values.add(0,new LinkedHashMap<>(job));state.put("analyses",values);}
     public Map<String,Object> preview(String question,String domain)throws Exception {
+        return preview(question, domain, "");
+    }
+    public Map<String,Object> preview(String question,String domain,String sourcePath)throws Exception {
         require(question!=null&&!question.trim().isEmpty()&&question.length()<=3000,"问题应为1到3000字");
+        if (!sourcePath.isEmpty()) {
+            VaultNote note = vault.read(sourcePath);
+            require(note.eligibleForAi() && (domain.isEmpty() || note.domain.equals(domain)), "这条资料不在选定范围内，或已排除 AI 分析");
+            return map("sources", Collections.singletonList(source(note,1)), "eligible_total", 1,
+                "method", "仅预览当前选中的资料", "max_sources", 8);
+        }
         List<VaultNote> all=vault.notes().stream().filter(VaultNote::eligibleForAi).filter(n->domain==null||domain.isEmpty()||domain.equals(n.domain)).collect(Collectors.toList());
         List<String> tokens=Arrays.stream(question.toLowerCase(Locale.ROOT).split("[\\s，。？！、：,.?!:]+"))
             .filter(s->!s.isEmpty()).collect(Collectors.toList());
@@ -41,8 +50,9 @@ public class AnalysisService {
     }
     private int score(VaultNote n,List<String> tokens){int score=0;String text=(n.title+" "+n.body).toLowerCase(Locale.ROOT);for(String token:tokens)if(text.contains(token))score+=n.title.contains(token)?5:1;return score;}
     private Map<String,Object> source(VaultNote n,int number){
+        String body = "imported_document".equals(n.properties.get("record_type")) ? LocalDocuments.reviewedText(n) : n.body;
         return map("ref","S"+number,"path",n.path,"title",n.title,"domain",n.domain,"revision",n.revision,
-            "properties",n.properties,"modified_at",n.modifiedAt,"excerpt",n.body.substring(0,Math.min(2800,n.body.length())),"truncated",n.body.length()>2800);
+            "properties",n.properties,"modified_at",n.modifiedAt,"excerpt",body.substring(0,Math.min(2800,body.length())),"truncated",body.length()>2800);
     }
     @SuppressWarnings("unchecked") public synchronized Map<String,Object> start(Map<String,Object> input)throws Exception {
         String question=text(input,"question");require(!question.trim().isEmpty()&&question.length()<=3000,"问题应为1到3000字");

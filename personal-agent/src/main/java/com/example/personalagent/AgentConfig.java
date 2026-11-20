@@ -7,7 +7,7 @@ import java.nio.file.*;
 @Configuration
 @ConfigurationProperties(prefix="agent")
 public class AgentConfig {
-    private String dataDir="",apiBase="https://api.deepseek.com",model="deepseek-flash",apiKey="";
+    private String dataDir="";
     private String vaultDir="",quartzDir="",nodeCommand="node";
     public Path dataPath() {
         String local=System.getenv("LOCALAPPDATA");
@@ -27,9 +27,6 @@ public class AgentConfig {
         return Paths.get("personal-agent/quartz").toAbsolutePath();
     }
     public String getDataDir(){return dataDir;} public void setDataDir(String v){dataDir=v;}
-    public String getApiBase(){return apiBase;} public void setApiBase(String v){apiBase=v;}
-    public String getModel(){return model;} public void setModel(String v){model=v;}
-    public String getApiKey(){return apiKey;} public void setApiKey(String v){apiKey=v;}
     public String getVaultDir(){return vaultDir;} public void setVaultDir(String v){vaultDir=v;}
     public String getQuartzDir(){return quartzDir;} public void setQuartzDir(String v){quartzDir=v;}
     public String getNodeCommand(){return nodeCommand;} public void setNodeCommand(String v){nodeCommand=v;}

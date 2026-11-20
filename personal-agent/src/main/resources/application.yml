@@ -27,6 +27,3 @@ agent:
   vault-dir: ${PERSONAL_AGENT_VAULT_DIR:}
   quartz-dir: ${PERSONAL_AGENT_QUARTZ_DIR:}
   node-command: ${PERSONAL_AGENT_NODE_COMMAND:node}
-  api-base: ${PERSONAL_AGENT_API_BASE:https://api.deepseek.com}
-  model: ${PERSONAL_AGENT_MODEL:deepseek-flash}
-  api-key: ${PERSONAL_AGENT_API_KEY:}

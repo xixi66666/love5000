@@ -11,7 +11,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.*;
 import java.util.*;
-import java.util.regex.*;
 import java.net.URLEncoder;
 import java.io.IOException;
 import static com.example.personalagent.Api.*;
@@ -21,7 +20,9 @@ import static com.example.personalagent.Api.*;
 public class VaultService {
     public static final Map<String,String> DOMAINS=new LinkedHashMap<>();
     static{DOMAINS.put("profile","10-个人档案");DOMAINS.put("finance","20-财务");DOMAINS.put("health","30-健康");
-        DOMAINS.put("work","40-工作");DOMAINS.put("life","50-生活");DOMAINS.put("goals","60-目标与复盘");DOMAINS.put("analysis","80-AI分析");}
+        DOMAINS.put("work","40-工作");DOMAINS.put("learning","45-学习与技能");DOMAINS.put("life","50-生活");
+        DOMAINS.put("relationships","55-家庭与关系");DOMAINS.put("goals","60-目标与复盘");DOMAINS.put("home","65-居住与物品");
+        DOMAINS.put("documents","70-证件与合同");DOMAINS.put("analysis","80-AI分析");}
     private final AgentConfig config;
     private final WorkspaceState state;
     public VaultService(AgentConfig config,WorkspaceState state)throws Exception {
@@ -60,8 +61,11 @@ public class VaultService {
             }
             @Override public FileVisitResult visitFile(Path file,BasicFileAttributes attrs)throws IOException {
                 String name=file.getFileName().toString().toLowerCase(Locale.ROOT);
+                String relative = base.relativize(file).toString().replace('\\','/');
+                boolean archived = relative.startsWith(HealthArchive.ORIGINALS) || relative.startsWith(LocalDocuments.ORIGINALS);
                 if(attrs.isRegularFile()&&!Files.isSymbolicLink(file)&&!name.startsWith(".")
-                    &&name.matches(".*\\.(md|base|canvas|png|jpe?g|webp|gif|pdf|mp3|mp4|wav)$")){
+                    &&(name.matches(".*\\.(md|base|canvas|png|jpe?g|webp|gif|pdf|mp3|mp4|wav)$")
+                    || (archived && name.matches(".*\\.(" + LocalDocuments.TYPES + ")")))){
                     bytes[0]+=attrs.size();
                     if(result.size()>=20000||bytes[0]>500L*1024*1024)throw new IOException("Vault 超过 20000 文件或 500MB 的扫描上限，请连接一个较小的专属仓库");
                     result.add(file);
@@ -99,16 +103,15 @@ public class VaultService {
         }
         n.title=String.valueOf(n.properties.getOrDefault("title",Paths.get(path).getFileName().toString().replaceFirst("(?i)\\.md$","")));
         n.domain=String.valueOf(n.properties.getOrDefault("domain",inferDomain(path)));
-        Matcher links=Pattern.compile("\\[\\[([^\\]|#]+)(?:[^\\]]*)\\]\\]").matcher(n.body);
-        while(links.find())if(!n.links.contains(links.group(1)))n.links.add(links.group(1));
+        n.links = NoteReading.targets(n.body);
         return n;
     }
     private String inferDomain(String path){
+        for(Map.Entry<String,String> e:DOMAINS.entrySet())if(path.startsWith(e.getValue()+"/"))return e.getKey();
         if(path.contains("财")||path.contains("finance"))return "finance";
         if(path.contains("健康")||path.contains("身体"))return "health";
         if(path.contains("工作")||path.contains("项目"))return "work";
         if(path.contains("AI分析"))return "analysis";
-        for(Map.Entry<String,String> e:DOMAINS.entrySet())if(path.startsWith(e.getValue()+"/"))return e.getKey();
         return "life";
     }
     public synchronized Map<String,Object> summary()throws Exception {
@@ -129,11 +132,70 @@ public class VaultService {
         return hex(digest.digest());
     }
     public synchronized Map<String,Object> detail(String path)throws Exception {
-        VaultNote n=read(path);List<String> backlinks=new ArrayList<>();
-        String basename=Paths.get(path).getFileName().toString().replaceFirst("(?i)\\.md$","");
-        for(VaultNote other:notes())if(other.links.contains(basename)||other.links.contains(path.replaceFirst("(?i)\\.md$","")))backlinks.add(other.path);
+        VaultNote n = read(path);
+        List<VaultNote> all = notes();
+        NoteLinks resolver = new NoteLinks(all);
+        List<Map<String,Object>> incoming = new ArrayList<>();
+        List<String> backlinks = new ArrayList<>();
+        for (VaultNote other : all) {
+            if (!other.path.equals(n.path) && resolvedLinks(other, resolver).containsKey(n.path)) {
+                incoming.add(noteLabel(other));
+                backlinks.add(other.path);
+            }
+        }
         return map("path",n.path,"title",n.title,"domain",n.domain,"revision",n.revision,"content",n.content,"body",n.body,
-            "properties",n.properties,"links",n.links,"backlinks",backlinks,"obsidian_url",obsidian(path));
+            "properties",n.properties,"links",n.links,"backlinks",backlinks,"obsidian_url",obsidian(path),"ai_eligible",n.eligibleForAi(),
+            "reading_html",NoteReading.render(n, resolver),"reading_truncated",NoteReading.truncated(n),"modified_at",n.modifiedAt,
+            "incoming",incoming,"outgoing",new ArrayList<>(resolvedLinks(n, resolver).values()));
+    }
+
+    public synchronized Map<String,Object> overview(String domain) throws Exception {
+        require(domain.isEmpty() || DOMAINS.containsKey(domain), "资料领域无效");
+        List<VaultNote> all = notes();
+        all.sort(Comparator.comparing((VaultNote note) -> note.modifiedAt).reversed().thenComparing(note -> note.path));
+        NoteLinks resolver = new NoteLinks(all);
+        Set<String> paths = new HashSet<>();
+        List<Map<String,Object>> recent = new ArrayList<>(), nodes = new ArrayList<>(), edges = new ArrayList<>();
+        Map<String,Long> edits = new LinkedHashMap<>();
+        YearMonth month = YearMonth.now(ZoneId.of("Asia/Shanghai"));
+        for (int age = 5; age >= 0; age--) edits.put(month.minusMonths(age).toString(), 0L);
+        long count = 0;
+        for (VaultNote note : all) {
+            if (note.path.startsWith("90-模板/")) continue;
+            boolean inDomain = domain.isEmpty() || domain.equals(note.domain);
+            boolean healthDraft = "health".equals(domain) && "exam_analysis".equals(note.properties.get("record_type"));
+            if (!inDomain && !healthDraft) continue;
+            if (inDomain) {
+                count++;
+                String updated = YearMonth.from(Instant.parse(note.modifiedAt).atZone(ZoneId.of("Asia/Shanghai"))).toString();
+                edits.computeIfPresent(updated, (key, value) -> value + 1);
+            }
+            if (recent.size() < 5) recent.add(noteLabel(note));
+            if (nodes.size() < 48) {
+                paths.add(note.path);
+                nodes.add(noteLabel(note));
+            }
+        }
+        for (VaultNote note : all) {
+            if (!paths.contains(note.path)) continue;
+            for (String target : resolvedLinks(note, resolver).keySet()) {
+                if (paths.contains(target)) edges.add(map("from", note.path, "to", target));
+            }
+        }
+        return map("recent", recent, "nodes", nodes, "edges", edges, "edits", edits, "total", count);
+    }
+
+    private static Map<String,Map<String,Object>> resolvedLinks(VaultNote note, NoteLinks resolver) {
+        Map<String,Map<String,Object>> targets = new LinkedHashMap<>();
+        for (String link : note.links) {
+            VaultNote target = resolver.resolve(note, link);
+            if (target != null && !note.path.equals(target.path)) targets.putIfAbsent(target.path, noteLabel(target));
+        }
+        return targets;
+    }
+
+    private static Map<String,Object> noteLabel(VaultNote note) {
+        return map("path",note.path,"title",note.title,"domain",note.domain,"modified_at",note.modifiedAt);
     }
     public synchronized VaultNote save(Map<String,Object> input)throws Exception {
         String path=text(input,"path"),content=text(input,"content"),expected=text(input,"expected_revision");

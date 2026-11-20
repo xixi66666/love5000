@@ -37,9 +37,12 @@ public class QuartzService {
             synchronized(vault){
                 revision=vault.fingerprint();obsidianUrl=vault.obsidian("");Path root=vault.root();
                 for(Path original:vault.files()){
-                    Path relative=root.relativize(original),target=source.resolve(relative);Files.createDirectories(target.getParent());
+                    Path relative=root.relativize(original),target=source.resolve(relative);
+                    String relativePath = relative.toString().replace('\\','/');
+                    if(relativePath.startsWith(HealthArchive.ORIGINALS) || relativePath.startsWith(LocalDocuments.ORIGINALS))continue;
+                    Files.createDirectories(target.getParent());
                     // 只复制经过根目录/链接检查的允许文件，不包含 .obsidian 与服务配置。
-                    Files.copy(vault.safe(relative.toString().replace('\\','/')),target,StandardCopyOption.COPY_ATTRIBUTES);
+                    Files.copy(vault.safe(relativePath),target,StandardCopyOption.COPY_ATTRIBUTES);
                 }
                 if(!revision.equals(vault.fingerprint()))throw new IllegalStateException("复制期间资料已变化，请重试");
             }
