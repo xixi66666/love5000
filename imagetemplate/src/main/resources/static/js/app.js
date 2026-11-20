@@ -79,8 +79,6 @@
         referenceImageInput: document.getElementById('referenceImageInput'),
         referenceImagePreview: document.getElementById('referenceImagePreview'),
         clearReferenceImagesButton: document.getElementById('clearReferenceImagesButton'),
-        openAiApiKeyInput: document.getElementById('openAiApiKeyInput'),
-        rememberApiKeyCheckbox: document.getElementById('rememberApiKeyCheckbox'),
         generateImageButton: document.getElementById('generateImageButton'),
         imageResult: document.getElementById('imageResult'),
         emptyImageState: document.getElementById('emptyImageState'),
@@ -103,7 +101,6 @@
         render: '图片生成舱'
     };
     var activeScene = 'discover';
-    var SESSION_API_KEY_STORAGE = 'imagetemplate.openaiApiKey';
     var MAX_REFERENCE_IMAGE_COUNT = 16;
     var MAX_REFERENCE_IMAGE_SIZE = 50 * 1024 * 1024;
     var SUPPORTED_REFERENCE_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
@@ -979,12 +976,7 @@
         }
         setGenerating(true);
         elements.imageStatusLine.textContent = imageSizeValidation.message || '';
-        persistSessionApiKey();
         var headers = {};
-        var userApiKey = readUserApiKey();
-        if (userApiKey) {
-            headers['X-OpenAI-Api-Key'] = userApiKey;
-        }
         var requestBody;
         if (referenceFiles.length) {
             requestBody = buildMultipartPayload(variables, referenceFiles, imageSizeValidation.size);
@@ -1003,38 +995,6 @@
             elements.imageStatusLine.textContent = error.message || '图片生成失败。';
         }).finally(function () {
             setGenerating(false);
-        });
-    }
-
-    function readUserApiKey() {
-        return elements.openAiApiKeyInput ? elements.openAiApiKeyInput.value.trim() : '';
-    }
-
-    function persistSessionApiKey() {
-        if (!elements.rememberApiKeyCheckbox || !elements.openAiApiKeyInput || !window.sessionStorage) {
-            return;
-        }
-        if (elements.rememberApiKeyCheckbox.checked) {
-            sessionStorage.setItem(SESSION_API_KEY_STORAGE, elements.openAiApiKeyInput.value);
-        } else {
-            sessionStorage.removeItem(SESSION_API_KEY_STORAGE);
-        }
-    }
-
-    function loadSessionApiKey() {
-        if (!elements.rememberApiKeyCheckbox || !elements.openAiApiKeyInput || !window.sessionStorage) {
-            return;
-        }
-        var savedApiKey = sessionStorage.getItem(SESSION_API_KEY_STORAGE);
-        if (savedApiKey) {
-            elements.openAiApiKeyInput.value = savedApiKey;
-            elements.rememberApiKeyCheckbox.checked = true;
-        }
-        elements.rememberApiKeyCheckbox.addEventListener('change', persistSessionApiKey);
-        elements.openAiApiKeyInput.addEventListener('input', function () {
-            if (elements.rememberApiKeyCheckbox.checked) {
-                persistSessionApiKey();
-            }
         });
     }
 
@@ -1221,7 +1181,6 @@
     elements.clearReferenceImagesButton.addEventListener('click', clearReferenceImages);
     renderReferenceImagePreview();
     updateImageSizeUi();
-    loadSessionApiKey();
     setActiveScene('discover', false);
     showDirectionSlide(0);
     initEditorialMotion();

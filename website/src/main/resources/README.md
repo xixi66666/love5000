@@ -1,4 +1,4 @@
-﻿# website resources
+# website resources
 
 本目录是 `website` 模块的 Spring Boot 资源目录，不再是独立 HomePage 模板项目。
 
@@ -9,7 +9,7 @@
 - `db/`：数据库建表或示例 SQL。
 - `static/index.html`：主页入口。
 - `static/prompt-console/`：提示词控制台前端和静态提示词库，动效依赖本地 `static/js/vendor/gsap.min.js` 与 `ScrollTrigger.min.js`（均 3.12.5）。
-- `static/css/`、`static/js/`、`static/img/`：主页资源；场景视频和覆盖图当前由首页显式引用外部 URL，并保留黑色渐变降级背景。
+- `static/css/`、`static/js/`、`static/img/`：主页资源；场景视频由首页显式引用外部 URL，并保留黑色渐变降级背景。四段片首尾不是同一镜头，`script.js` 会为当前场景动态创建 `.scene-video--loop` 补层，用 1000ms 交叉淡化盖住原生 `loop` 的硬切（不新增本地视频文件，也不改写 `index.html` 里的四个 URL）。
 
 ## 约定
 

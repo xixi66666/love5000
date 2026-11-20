@@ -1,4 +1,7 @@
-﻿# imagetemplate
+# imagetemplate
+
+> 模型配置已统一：模型目录、密钥和各服务原配置只从项目根目录 `model.properties` 读取（模板 `model.properties.example`）。本文中出现的模型环境变量、`deepseek.local.json`、`INTRO_*` / `MIMO_*` 示例仅作历史说明，不再生效。
+
 
 健康检查：`GET /api/health`，返回顶层 `success=true` 和
 `service="imagetemplate"`；该接口只检查 HTTP 进程存活，不调用 OpenAI。

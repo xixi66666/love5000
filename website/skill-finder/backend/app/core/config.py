@@ -79,11 +79,6 @@ class Settings(BaseSettings):
     refresh_cooldown_minutes: int = 30
     cors_origins: str = "http://localhost:10002"
     intro_enabled: bool = False
-    intro_model: str = "opencode-go/ox-alpha-free,opencode-go/deepseek-v4-flash"
-    intro_api_base: str = "https://opencode.ai/zen/go/v1"
-    intro_api_key: SecretStr = SecretStr("")
-    intro_api_key_file: str = Field(default="", repr=False)
-    opencode_api_key: str = ""
     intro_concurrency: int = 8
     intro_batch_size: int = 5
     intro_timeout_seconds: int = 300
@@ -103,11 +98,6 @@ class Settings(BaseSettings):
     hyperframes_concurrency: int = Field(default=1, ge=1, le=8)
     daily_render_timeout_seconds: int = Field(default=1800, ge=60, le=7200)
     daily_tts_provider: Literal["edge", "mimo"] = "mimo"
-    mimo_api_key: SecretStr = SecretStr("")
-    mimo_api_base: str = "https://api.xiaomimimo.com/v1"
-    mimo_tts_model: str = "mimo-v2.5-tts"
-    mimo_tts_voice: str = "苏打"
-    mimo_tts_style: str = "自然的中文科技工具推荐，语速明快但不赶，短句清楚，重点词有重音，保留自然停顿，不夸张播报。"
     daily_whisper_model: str = "small"
     daily_assets_dir: str = "data/video-assets"
     daily_require_demo_assets: bool = True

@@ -3,6 +3,7 @@ import json
 import httpx
 import pytest
 
+from app.services import _model_properties as model_properties
 from app.services.introduction_service import (
     IntroductionGenerationError,
     RepositoryBrief,
@@ -19,47 +20,46 @@ GATEWAY = "https://opencode.ai/zen/go/v1/chat/completions"
 
 @pytest.fixture(autouse=True)
 def isolate_private_intro_configuration(monkeypatch):
-    from pydantic import SecretStr
-
     from app.services import introduction_service as module
     from app.services import model_hub
 
     async def native_mode(payload):
         return None
 
+    def _models(override=""):
+        return [part.split("/")[-1].strip() for part in override.split(",") if part.strip()]
+
     monkeypatch.setattr(model_hub, "try_chat", native_mode)
-
-    monkeypatch.setattr(module.settings, "intro_api_key_file", "")
-    monkeypatch.setattr(module.settings, "intro_api_key", SecretStr(""))
-    monkeypatch.setattr(module.settings, "intro_api_base", "https://opencode.ai/zen/go/v1")
-
-
-def test_resolves_existing_deepseek_json_without_copying_key(monkeypatch, tmp_path):
-    from app.services import introduction_service as module
-
-    path = tmp_path / "private.json"
-    original = json.dumps({"DEEPSEEK_API_KEY": "test-private-value"})
-    path.write_text(original, encoding="utf-8")
-    monkeypatch.setattr(module.settings, "intro_api_key_file", str(path))
-    assert _resolve_api_key() == "test-private-value"
-    assert path.read_text(encoding="utf-8") == original
+    monkeypatch.setattr(module.model_settings, "intro_api_key", lambda: "")
+    monkeypatch.setattr(module.model_settings, "intro_base_url", lambda: "https://opencode.ai/zen/go/v1")
+    monkeypatch.setattr(module.model_settings, "intro_models", _models)
 
 
-def test_invalid_key_file_errors_do_not_expose_content_or_path(monkeypatch, tmp_path):
-    from app.services import introduction_service as module
+def test_reads_intro_key_from_model_properties(tmp_path):
+    path = tmp_path / "model.properties"
+    path.write_text(
+        "intro.base-url=https://example.invalid/v1\n"
+        "intro.api-key=test-private-value\n"
+        "intro.models=test-model\n"
+        "service.skill-finder=intro:test-model\n",
+        encoding="utf-8",
+    )
+    settings = model_properties.ModelProperties.load(path)
+    assert settings.provider("intro").api_key == "test-private-value"
+    assert settings.provider("intro").base_url == "https://example.invalid/v1"
+    assert settings.route("skill-finder").model_id == "test-model"
 
-    path = tmp_path / "private.json"
-    path.write_text('{"DEEPSEEK_API_KEY": secret-content', encoding="utf-8")
-    monkeypatch.setattr(module.settings, "intro_api_key_file", str(path))
+
+def test_missing_intro_key_raises_without_exposing_configuration(monkeypatch):
     with pytest.raises(IntroductionGenerationError) as caught:
         _resolve_api_key()
-    assert "secret-content" not in str(caught.value)
-    assert str(path) not in str(caught.value)
+    assert "model.properties" in str(caught.value)
 
 
 async def test_expired_key_does_not_retry_models_or_split_batches(monkeypatch, respx_mock):
-    monkeypatch.setattr("app.services.introduction_service.settings.opencode_api_key", "test-key")
-    monkeypatch.setattr("app.services.introduction_service.settings.intro_model", "m1,m2")
+    monkeypatch.setattr("app.services.introduction_service.model_settings.intro_api_key", lambda: "test-key")
+    monkeypatch.setattr("app.services.introduction_service.model_settings.intro_models",
+                        lambda override="": ["m1", "m2"])
     route = respx_mock.post(GATEWAY).mock(
         return_value=httpx.Response(401, json={"error": "expired private credential"})
     )
@@ -79,7 +79,7 @@ async def test_global_model_bypasses_native_credentials_and_provider(monkeypatch
         return {"choices": [{"message": {"content": '["统一模型生成的介绍"]'}}]}
 
     monkeypatch.setattr(model_hub, "try_chat", complete)
-    monkeypatch.setattr("app.services.introduction_service._resolve_api_key",
+    monkeypatch.setattr("app.services.introduction_service.model_settings.intro_api_key",
                         lambda: pytest.fail("统一模型不应读取原提供方密钥"))
     generated = await generate_introductions([make_brief()])
     assert json.loads(generated[0])["introduction"] == "统一模型生成的介绍"
@@ -228,22 +228,14 @@ def test_model_chain_strips_provider_prefix_and_dedupes() -> None:
     assert _model_chain("") == []
 
 
-def test_resolve_api_key_prefers_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_resolve_api_key_reads_model_properties(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "app.services.introduction_service.settings.opencode_api_key", "sk-test"
+        "app.services.introduction_service.model_settings.intro_api_key", lambda: "sk-test"
     )
     assert _resolve_api_key() == "sk-test"
 
 
-def test_resolve_api_key_raises_when_missing(
-    monkeypatch: pytest.MonkeyPatch, tmp_path
-) -> None:
-    monkeypatch.setattr(
-        "app.services.introduction_service.settings.opencode_api_key", ""
-    )
-    monkeypatch.setattr(
-        "app.services.introduction_service.Path.home", lambda: tmp_path
-    )
+def test_resolve_api_key_raises_when_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(IntroductionGenerationError):
         _resolve_api_key()
 
@@ -253,7 +245,7 @@ async def test_generate_uses_first_model_and_sends_auth(
     monkeypatch: pytest.MonkeyPatch, respx_mock
 ) -> None:
     monkeypatch.setattr(
-        "app.services.introduction_service.settings.opencode_api_key", "sk-test"
+        "app.services.introduction_service.model_settings.intro_api_key", lambda: "sk-test"
     )
     route = respx_mock.post(GATEWAY).mock(
         return_value=httpx.Response(
@@ -283,7 +275,7 @@ async def test_generate_falls_back_after_upstream_errors(
     monkeypatch: pytest.MonkeyPatch, respx_mock
 ) -> None:
     monkeypatch.setattr(
-        "app.services.introduction_service.settings.opencode_api_key", "sk-test"
+        "app.services.introduction_service.model_settings.intro_api_key", lambda: "sk-test"
     )
     monkeypatch.setattr("asyncio.sleep", _noop_sleep)
 
@@ -318,7 +310,7 @@ async def test_generate_raises_when_all_models_fail(
     monkeypatch: pytest.MonkeyPatch, respx_mock
 ) -> None:
     monkeypatch.setattr(
-        "app.services.introduction_service.settings.opencode_api_key", "sk-test"
+        "app.services.introduction_service.model_settings.intro_api_key", lambda: "sk-test"
     )
 
     async def _sleep(seconds: float) -> None:

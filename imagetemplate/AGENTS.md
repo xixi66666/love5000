@@ -1,4 +1,4 @@
-﻿# AGENTS.md
+# AGENTS.md
 
 ## 健康检查
 
@@ -39,11 +39,11 @@ C:/Code/Java_Code/love5000/imagetemplate
 配置文件：
 
 - `pom.xml`：Maven 模块依赖、Java 8 编译配置、Spring Boot 打包配置。
-- `src/main/resources/application.yml`：端口、静态资源路径、OpenAI API、超时和代理配置。
+- `src/main/resources/application.yml`：端口与静态资源路径；模型配置已移至根目录 `model.properties`。
 - `src/main/resources/templates/image-prompt-templates.json`：47 条精选图片模板数据源。
 - `../website/src/main/resources/static/prompt-console/data/prompt-library.json`：4409 条大库唯一源码，Maven 构建时复制到模块 classpath。
 
-**关键**：该模块没有数据库，不依赖 MySQL、MyBatis、OSS 或 `common` 模块。运行时从两份 classpath JSON 聚合模板，打包后的 jar 不依赖 website 服务；图片生成通过 OpenAI API 完成。
+**关键**：该模块没有数据库，不依赖 MySQL、MyBatis 或 OSS；为读取统一模型配置引入 `common` 的 `ModelProperties`。运行时从两份 classpath JSON 聚合模板，打包后的 jar 不依赖 website 服务；图片生成通过 OpenAI API 完成。
 
 **文档同步约定**：每次修改 `imagetemplate` 的模板数量、模板字段、API、图片生成参数、尺寸规则、OpenAI 配置、前端控件或测试方式时，必须同步更新本文件、`imagetemplate/README.md`，以及根目录 `AGENTS.md` / `README.md` 中相关内容。
 
@@ -116,19 +116,20 @@ cd C:/Code/Java_Code/love5000/imagetemplate
 mvn spring-boot:run
 ```
 
-带 OpenAI Key 启动：
+启动前在项目根目录配置 `model.properties`，图片模型、密钥、超时和代理都写在 `image.*`：
 
-```bash
-set OPENAI_API_KEY=sk-your-key
-mvn -pl imagetemplate -am spring-boot:run
+```properties
+image.base-url=https://nimabo.io/v1
+image.api-key=sk-your-key
+image.image-model=gpt-image-2.5-sunburst
+image.proxy-type=HTTP
+image.proxy-host=127.0.0.1
+image.proxy-port=7890
 ```
 
-带代理启动：
+然后启动：
 
 ```bash
-set OPENAI_API_KEY=sk-your-key
-set OPENAI_PROXY_HOST=127.0.0.1
-set OPENAI_PROXY_PORT=7890
 mvn -pl imagetemplate -am spring-boot:run
 ```
 
@@ -204,24 +205,24 @@ spring:
         - classpath:/static/
 ```
 
-OpenAI 配置：
+图片生成配置来自项目根目录 `model.properties` 的 `image.*`（由 `common` 的 `ModelProperties` 读取）：
 
-```yaml
-openai:
-  api-key: ${OPENAI_API_KEY:}
-  base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
-  image-model: ${OPENAI_IMAGE_MODEL:gpt-image-2.5-sunburst}
-  connect-timeout-ms: ${OPENAI_CONNECT_TIMEOUT_MS:30000}
-  read-timeout-ms: ${OPENAI_READ_TIMEOUT_MS:180000}
-  proxy:
-    type: ${OPENAI_PROXY_TYPE:HTTP}
-    host: ${OPENAI_PROXY_HOST:}
-    port: ${OPENAI_PROXY_PORT:0}
+```properties
+image.base-url=https://nimabo.io/v1
+image.api-key=
+image.capability=image
+image.image-model=gpt-image-2.5-sunburst
+image.image-models=gpt-image-2.5-sunburst,gpt-image-2.5-flare
+image.connect-timeout-ms=300000
+image.read-timeout-ms=1800000
+image.proxy-type=HTTP
+image.proxy-host=
+image.proxy-port=0
 ```
 
-默认模型为 OpenAI `gpt-image-2.5-sunburst`（GPT Image 2.5 质量优先模型）；需要更快生成时可把 `OPENAI_IMAGE_MODEL` 设为 `gpt-image-2.5-flare`。模型可用性取决于 `OPENAI_BASE_URL` 指向的服务，使用第三方代理时需确认其已支持该模型 ID。
+默认模型为 OpenAI `gpt-image-2.5-sunburst`（GPT Image 2.5 质量优先模型）；需要更快生成时把 `image.image-model` 设为 `gpt-image-2.5-flare`。模型可用性取决于 `image.base-url` 指向的服务，使用第三方代理时需确认其已支持该模型 ID。
 
-⚠️ **严重警告**：不要把真实 OpenAI API Key 写入 `application.yml`、前端 JS、测试文件或提交记录。服务端优先读取 `OPENAI_API_KEY`，页面也支持通过 `X-OpenAI-Api-Key` 临时传入用户 Key。
+⚠️ **严重警告**：不要提交真实图片 API Key。页面不再接收或保存密钥，也不支持 `X-OpenAI-Api-Key` 请求头；密钥只从 `model.properties` 读取。
 
 ## API 约定
 
@@ -289,12 +290,6 @@ keyword
 - 总像素必须在 `655360` 到 `8294400` 之间。
 - `2560x1440` 及以上属于 2K/4K 实验尺寸，前端需要提示生成可能更慢或稳定性略低。
 - 前端和后端必须保持同一套尺寸校验；非法尺寸要在真实调用 OpenAI 前拦截。
-
-图片生成可选请求头：
-
-```text
-X-OpenAI-Api-Key: sk-your-key
-```
 
 响应结构必须包含明确的成功状态：
 
@@ -390,7 +385,7 @@ Spring 约定：
 - API 路径保持相对路径；前端先请求 `/api/image-templates/meta`，再分页请求 `/api/image-templates`，点击卡片后请求详情。
 - 禁止一次请求或渲染全部 4456 条；默认 48 条、加载更多追加下一页，搜索防抖固定为 300ms。
 - 大库状态为 `DEGRADED` 时必须显示聚合告警，不能只显示 47 条而不解释。
-- 前端保存 API Key 时只允许使用会话级或用户明确选择的浏览器存储，不写入源码。
+- 页面不再接收或保存 API Key；密钥统一来自根目录 `model.properties` 的 `image.api-key`。
 - 四个场景固定为 `discover`、`deconstruct`、`direct`、`render`；场景导航只管理可见性、焦点、Dock 进度和无障碍状态。
 - 桌面端保持单视口，移动端允许场景内容自然滚动；CSS 必须保留 `prefers-reduced-motion` 降级。
 

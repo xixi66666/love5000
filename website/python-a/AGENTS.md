@@ -1,4 +1,4 @@
-﻿# AGENTS.md
+# AGENTS.md
 
 ## 健康检查协议
 
@@ -36,9 +36,9 @@ GET http://127.0.0.1:5174/api/health
 
 ## 配置
 
-- DeepSeek Key 优先使用环境变量 `DEEPSEEK_API_KEY`。
-- 本地私有配置只能写入 `deepseek.local.json`，禁止提交。
-- 截图解析相关 Key 使用环境变量，不写入源码、README 或测试。
+- DeepSeek 与视觉模型的地址、密钥、模型只从项目根目录 `model.properties` 读取（`service.python-a=deepseek:<模型>`、`deepseek.*`、`vision.*`）。
+- 不再读取 `DEEPSEEK_API_KEY`、`VISION_*` 或 `deepseek.local.json`；旧文件保留在磁盘上但代码不再引用。
+- 截图解析相关密钥写入 `model.properties` 的 `vision.api-key`，不写入源码、README 或测试。
 
 ## 文档同步
 

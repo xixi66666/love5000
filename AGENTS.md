@@ -8,6 +8,22 @@
 `GET /api/services/health` 并行返回配置顺序一致的聚合结果；HTTP 200 表示聚合执行成功，
 顶层 `healthy` 表示是否所有服务均在线。连接/读取超时默认分别为 2000/3000ms。
 
+## 统一模型配置（model.properties）
+
+所有服务的模型目录、密钥和各服务原配置**只**来自项目根目录的 `model.properties`（本地私有，已 gitignore）。
+提交模板是 `model.properties.example`。结构：`<provider>.label / base-url / api-key / capability / models`
+以及 `service.<服务标识>=<provider>:<模型>`；图片、视觉、TTS 的模型名和密钥也放在同一文件的对应 provider 下。
+
+- 读取入口：Java 为 `common` 的 `ModelProperties`，Python 为 `website/model-routing/model_properties.py`
+  （部署副本 `_model_properties.py` 由 `python scripts/sync-model-routing.py` 同步）。
+- 文件路径：只按当前目录与代码目录向上查找，不读取环境变量；云端部署必须挂载该文件。
+- 模型网关固定为 `http://127.0.0.1:8080`，选择状态固定为根 `.runtime/model-routing.json`；
+  不再读取 `MODEL_HUB_URL` / `MODEL_ROUTING_STATE` / `MODEL_PROPERTIES`。
+- 不再读取 `DEEPSEEK_API_KEY`、`OPENAI_API_KEY`、`PERSONAL_AGENT_API_*`、`INTRO_*`、`MIMO_*`
+  等模型环境变量，也不再读取 `website/python-a/deepseek.local.json`、`skill-finder/backend/.env`
+  中的模型键；`website` 的 `.runtime/model-routing.json` 仍只保存选择结果（模型 ID）。
+- 修改模型后可在模型选择器点 ↻（`POST /api/models/refresh`）重新探测；密钥不得出现在网页、日志或响应中。
+
 ## 项目概述
 
 `love5000` 是一个 Java 8 + Spring Boot 2.6.13 的 Maven 多模块项目，父工程 artifactId 为 `love530`。当前模块：
@@ -469,6 +485,7 @@ website/skill-finder/
 - 新增任何 Java 模块、Python 微应用或独立微服务时，必须同步更新 `website/src/main/resources/static/index.html` 的主页面入口。
 - 当前主页面采用四场景电影化单视口布局，服务入口位于底部液态玻璃 Dock；新增入口时沿用现有 `service-card` 结构，并验证桌面宽度和移动端横向滚动。
 - 四场景仅展示原风景视频，不添加车窗覆盖图或车窗晃动动画；保留暗角、颗粒、背景降级和原视频切换时序。
+- 四段场景片各 10.04 秒且首尾不是同一镜头，原生 `loop` 会先停帧再跳回第一帧。循环走 `setupVideoSwitcher` 的交叉淡化补层：`.scene-video--loop` 按当前场景由脚本动态创建（不写进 `index.html`，四段原视频与 URL 不变），在原视频最后 1 秒从第一帧起播并接管，原视频在自己不可见时才回到片头。**关键**：两层上下叠放，只能让上层补层改变 `opacity`，下层原视频必须始终保持不透明——两层同时半透明时合成覆盖率只有 `上层 + 下层 × (1 − 上层)`（中点仅 75%），会透出深色背景，观感就是“突然黑一下”。`loopFadeMs` 必须与 `.scene-video--loop` 的 `opacity` 过渡一致；`play()` 被拒绝或片段过短时退回原生 `loop`；切换场景必须等新视频 `readyState ≥ 2` 再淡入。验证：`node website/src/test/js/homepage-video-loop.test.js`。
 - 四场景按钮通过 `data-scene-title` / `data-scene-statement` / `data-scene-badge` 配置各自文案，通过 `data-scene-dock` 选择服务目录。01 Golden Hour 保留原文案与 9 个入口；02 Still Water、03 Deep Woods、04 Quiet Dawn 分别使用独立的 `still-water-service-dock`、`deep-woods-service-dock`、`quiet-dawn-service-dock`，未添加卡片时隐藏整个 Dock。背景视频、动画和切换时序保持不变。
 - 主页面入口需要包含服务名称、端口或访问标识，并配置实时可用性检测地址。
 - 入口样式和状态点维护在 `website/src/main/resources/static/css/style.css`，健康检测逻辑维护在 `website/src/main/resources/static/js/script.js`。
@@ -516,20 +533,23 @@ mybatis:
 
 数据库 CRUD 使用 DAO + XML Mapper。不要新增 `JdbcTemplate`、JPA Repository 或 Java 内联 SQL。
 
-### OpenAI
+### 图片生成
 
-`imagetemplate` 使用以下配置：
+`imagetemplate` 的图片模型、密钥、超时和代理来自根目录 `model.properties` 的 `image.*`：
 
-```yaml
-openai:
-  api-key: ${OPENAI_API_KEY:}
-  base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
-  image-model: ${OPENAI_IMAGE_MODEL:gpt-image-2.5-sunburst}
-  connect-timeout-ms: ${OPENAI_CONNECT_TIMEOUT_MS:30000}
-  read-timeout-ms: ${OPENAI_READ_TIMEOUT_MS:180000}
+```properties
+image.base-url=https://nimabo.io/v1
+image.api-key=
+image.image-model=gpt-image-2.5-sunburst
+image.image-models=gpt-image-2.5-sunburst,gpt-image-2.5-flare
+image.connect-timeout-ms=300000
+image.read-timeout-ms=1800000
+image.proxy-type=HTTP
+image.proxy-host=
+image.proxy-port=0
 ```
 
-`imagetemplate` 默认使用 OpenAI `gpt-image-2.5-sunburst`（GPT Image 2.5 质量优先模型；另有快速模型 `gpt-image-2.5-flare`，可用 `OPENAI_IMAGE_MODEL` 切换），图片尺寸支持自定义合法尺寸，前后端必须使用同一套校验规则：
+`imagetemplate` 默认使用 OpenAI `gpt-image-2.5-sunburst`（GPT Image 2.5 质量优先模型；另有快速模型 `gpt-image-2.5-flare`，可改 `image.image-model`），页面不再接收或保存 API Key。图片尺寸支持自定义合法尺寸，前后端必须使用同一套校验规则：
 
 - `size` 使用 `宽x高` 格式，例如 `1024x1024`、`3840x2160`、`2160x3840`。
 - 宽高必须是正整数，且都必须是 16 的倍数。
@@ -538,16 +558,6 @@ openai:
 - 总像素必须在 `655360` 到 `8294400` 之间。
 - `2560x1440` 及以上属于 2K/4K 实验尺寸，前端需要提示生成可能更慢或稳定性略低。
 - 非法尺寸必须在真实调用 OpenAI 前被后端拦截，前端也要提前阻止提交。
-
-代理配置：
-
-```yaml
-openai:
-  proxy:
-    type: ${OPENAI_PROXY_TYPE:HTTP}
-    host: ${OPENAI_PROXY_HOST:}
-    port: ${OPENAI_PROXY_PORT:0}
-```
 
 ## API 约定
 
@@ -759,8 +769,8 @@ Spring 约定：
 Python 约定：
 
 - `python-a` 优先保持轻量，不引入 Django、Flask、FastAPI，除非有明确功能收益。
-- DeepSeek Key 优先使用环境变量 `DEEPSEEK_API_KEY`；本地私有配置文件只能使用 `deepseek.local.json`，禁止提交真实 Key。
-- `PORT`、`DEEPSEEK_API_BASE`、`DEEPSEEK_MODEL` 等运行配置优先使用环境变量。
+- DeepSeek / 视觉模型的地址、密钥与模型只从根目录 `model.properties` 读取（`deepseek.*`、`vision.*`），不再读取 `DEEPSEEK_API_KEY`、`VISION_*` 或 `deepseek.local.json`。
+- `PORT` 等非模型运行配置仍可使用环境变量。
 - `website` 自动启动 `python-a` 的配置位于 `website/src/main/resources/application.yml` 的 `python-a.auto-start`。单元测试必须关闭该开关，避免测试启动外部进程。
 - `website` 自动启动 `quant-a` 的配置位于 `website/src/main/resources/application.yml` 的 `quant-a.auto-start`。单元测试必须关闭该开关，避免测试启动外部进程。
 - 两个 Python 子服务的 `*.auto-start.log-to-console` 默认值为 `true`，会把子进程日志直接输出到 `website` 控制台；如需恢复文件日志，可设为 `false`，日志会写入各自目录下的 `server.out.log` 和 `server.err.log`。
@@ -1076,6 +1086,12 @@ Strata以`--lazy`启动服务，第一条生成请求或「加载模型」按钮
 验证：`mvn -pl website -am test -Dtest=LocalServicesManagerTest,LocalServicesControllerTest,ServiceHealthPropertiesTest,ServiceHealthAggregatorTest,ServiceHealthCheckerTest,ServiceHealthControllerTest,HomepageStaticAssetsTest,WebsiteApplicationTests -Dsurefire.failIfNoSpecifiedTests=false`；`node --check website/src/main/resources/static/local-services/app.js`；`node website/src/test/js/homepage-motion.test.js`。单元测试不加载真实模型、不生成视频、不连接真实数据库。
 
 ## 个人长期资料库（Obsidian + Quartz，03 Deep Woods，5178）
+
+健康档案提供人体热点和健康文档双链图。各资料领域显示自己的双链与近六个月最后编辑统计，复用 `GET /api/vault/overview?domain=...`。
+
+个人资料库总览展示真实 Vault 的最近笔记和至多 48 个节点的双链图（`GET /api/vault/overview`）。`GET /api/note` 同时提供安全 Markdown 阅读预览与反向链接，完整图谱、嵌入和 Bases 仍通过私有 Quartz 浏览页查看。
+
+个人资料总览的通用导入（`/api/documents`）和健康档案（`/api/exams`）支持仅归档或经确认后把原件发给 DeepSeek 官方 Files API，使用 `deepseek-flash` 生成 Markdown 草稿。官方密钥读取根目录 `model.properties` 的 `deepseek.api-key`。体检解读保留指标摘录和历史对照。具体路径和验证见 `personal-agent/README.md`。
 
 `personal-agent/` 是 Java 8 + Spring Boot 2.6.13 Maven 模块，服务标识仍为 `personal-agent`，监听 `127.0.0.1:5178`。内容已替换为真实 Obsidian Vault 的个人长期资料库，覆盖财务、健康、工作、生活等领域；网页提供资料记录、关键词搜索、版本校验编辑，以及用户确认来源后发起的 AI 分析。Quartz 5.1.0 的真实源码位于 `personal-agent/quartz/`，负责阅读、全文搜索、双链图、反向链接与原生 `.base` 视图。
 

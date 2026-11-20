@@ -15,6 +15,7 @@ import httpx
 
 from app.core.config import settings
 from app.daily.progress import current
+from app.services import model_settings
 
 
 def script_phrases(text: str, matcher: SequenceMatcher, times: list[tuple[float, float]],
@@ -158,24 +159,28 @@ async def edge_speech(text: str, target: Path) -> list[dict]:
 
 
 async def mimo_speech(text: str, target: Path) -> None:
-    key = settings.mimo_api_key.get_secret_value()
+    provider = model_settings.mimo()
+    key = provider.api_key if provider else ""
     if not key:
-        raise RuntimeError("MiMo TTS requires MIMO_API_KEY in backend/.env or environment")
-    base = settings.mimo_api_base.rstrip("/")
+        raise RuntimeError("MiMo TTS 未配置：请在项目根目录 model.properties 填写 mimo.api-key。")
+    base = provider.base_url.rstrip("/")
+    model = provider.option("tts-model", "mimo-v2.5-tts")
+    voice = provider.option("tts-voice", "苏打")
+    style = provider.option("tts-style", "自然的中文科技工具推荐，语速明快但不赶，短句清楚，重点词有重音，保留自然停顿，不夸张播报。")
     url = urlsplit(base)
     if url.username or url.password or url.query or url.fragment or (
         url.scheme != "https" and not (url.scheme == "http" and url.hostname in {"127.0.0.1", "localhost"})
     ):
-        raise ValueError("MIMO_API_BASE must use HTTPS or local HTTP without credentials")
+        raise ValueError("mimo.base-url 必须是 HTTPS 或本机 HTTP 地址")
     try:
         async with httpx.AsyncClient(timeout=180) as client:
             response = await client.post(base + "/chat/completions", headers={"api-key": key}, json={
-                "model": settings.mimo_tts_model, "stream": False,
+                "model": model, "stream": False,
                 "messages": [
-                    {"role": "user", "content": settings.mimo_tts_style},
+                    {"role": "user", "content": style},
                     {"role": "assistant", "content": text},
                 ],
-                "audio": {"format": "wav", "voice": settings.mimo_tts_voice},
+                "audio": {"format": "wav", "voice": voice},
             })
             response.raise_for_status()
             audio = base64.b64decode(response.json()["choices"][0]["message"]["audio"]["data"], validate=True)

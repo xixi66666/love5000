@@ -3,13 +3,11 @@ import re
 import httpx
 
 from services import model_hub
-
-DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
+from services import _model_properties as model_properties
 
 SYSTEM_PROMPT = "You are a CSS/XPath selector repair expert. Given a broken selector, the action type, and page HTML context, suggest a corrected selector. Respond with ONLY the corrected selector — no explanation, no markdown."
 
 async def heal_selector(
-    api_key: str,
     broken_selector: str,
     action_type: str,
     page,
@@ -39,8 +37,11 @@ async def heal_selector(
         "5. Respond with ONLY the corrected selector"
     )
 
+    route = model_properties.ModelProperties.load().route("scrapling-ui")
+    if route is None or not route.provider.api_key:
+        raise RuntimeError("模型未配置：请在项目根目录 model.properties 填写 service.scrapling-ui 与对应 api-key。")
     payload = {
-        "model": "deepseek-chat",
+        "model": route.model_id,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": prompt},
@@ -56,7 +57,9 @@ async def heal_selector(
     try:
         if data is None:
             async with httpx.AsyncClient(timeout=30) as client:
-                data = await model_hub.native_chat(client, DEEPSEEK_API_URL, api_key, payload, timeout=30)
+                data = await model_hub.native_chat(
+                    client, f"{route.provider.base_url}/chat/completions",
+                    route.provider.api_key, payload, timeout=30)
         healed = data["choices"][0]["message"]["content"].strip()
         healed = re.sub(r'^```(?:css|xpath)?\s*', '', healed)
         healed = re.sub(r'\s*```$', '', healed)

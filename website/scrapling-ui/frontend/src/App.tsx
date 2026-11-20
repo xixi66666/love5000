@@ -8,7 +8,6 @@ import { CodeRunner } from './components/CodeRunner';
 import { SelectorInspector } from './components/SelectorInspector';
 import { RoadmapPanel } from './components/RoadmapPanel';
 import { SchedulerConsole } from './components/SchedulerConsole';
-import { AISettings } from './components/AISettings';
 import type { DOMNode, NetworkLog, WorkflowStep } from './types';
 
 function App() {
@@ -22,7 +21,6 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedNode, setSelectedNode] = useState<DOMNode | null>(null);
   const [scrapedData, setScrapedData] = useState<any[]>([]);
-  const [apiKey, setApiKey] = useState('');
   
   // Custom selector tester state
   const [customSelector, setCustomSelector] = useState('');
@@ -564,7 +562,6 @@ function App() {
           >
             向上滚动
           </button>
-          <AISettings onApiKeyChange={setApiKey} />
           <div className="scrapling-model-picker" data-model-picker data-model-scope="scrapling-ui" data-model-theme="scrapling" />
         </div>
       </header>
@@ -658,7 +655,6 @@ function App() {
               onStateUpdate={handleStateUpdate}
               scrapedData={scrapedData}
               history={history}
-              apiKey={apiKey}
             />
           </div>
         </div>

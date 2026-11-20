@@ -99,16 +99,26 @@ def test_manifest_frame_rounding_matches_cumulative_subtitle_offsets(tmp_path, m
 
 @pytest.mark.asyncio
 async def test_mimo_does_not_send_keys_to_non_https_remote_service(tmp_path, monkeypatch):
-    monkeypatch.setattr(settings, "mimo_api_key", type(settings.mimo_api_key)("test-only"))
-    monkeypatch.setattr(settings, "mimo_api_base", "http://remote.example/v1")
+    from types import SimpleNamespace
+
+    from app.services import model_settings
+
+    monkeypatch.setattr(model_settings, "mimo", lambda: SimpleNamespace(
+        api_key="test-only", base_url="http://remote.example/v1",
+        option=lambda name, default="": default))
     with pytest.raises(ValueError, match="HTTPS"):
         await mimo_speech("测试", tmp_path / "voice.wav")
 
 
 @pytest.mark.asyncio
 async def test_mimo_errors_are_sanitized(tmp_path, monkeypatch):
-    monkeypatch.setattr(settings, "mimo_api_key", type(settings.mimo_api_key)("test-only"))
-    monkeypatch.setattr(settings, "mimo_api_base", "https://api.xiaomimimo.com/v1")
+    from types import SimpleNamespace
+
+    from app.services import model_settings
+
+    monkeypatch.setattr(model_settings, "mimo", lambda: SimpleNamespace(
+        api_key="test-only", base_url="https://api.xiaomimimo.com/v1",
+        option=lambda name, default="": default))
     request = httpx.Request("POST", "https://api.xiaomimimo.com/v1/chat/completions")
     post = AsyncMock(side_effect=httpx.RequestError("secret-provider-response", request=request))
     monkeypatch.setattr(httpx.AsyncClient, "post", post)

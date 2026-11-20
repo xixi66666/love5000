@@ -5,23 +5,22 @@ import java.net.*;
 import java.io.*;
 import java.nio.file.*;
 
-/** 无自动配置的轻量客户端，独立启动服务时保留原有模型配置。 */
+/** 无自动配置的轻量客户端；模型网关与选择状态路径固定，不读取环境变量。 */
 public class ModelRoutingClient {
+    static final String HUB = "http://127.0.0.1:8080";
     private final ObjectMapper json;
     private final String hub;
     private final Path state;
     private final ModelHttp http;
     public ModelRoutingClient(ObjectMapper json) {
-        this(json,System.getenv().getOrDefault("MODEL_HUB_URL","http://127.0.0.1:8080"),
-                System.getenv("MODEL_ROUTING_STATE")==null?null:Paths.get(System.getenv("MODEL_ROUTING_STATE")),
-                new ModelHttp(json,1500,8*1024*1024));
+        this(json,HUB,null,new ModelHttp(json,1500,8*1024*1024));
     }
     ModelRoutingClient(ObjectMapper json,String hub,Path state,ModelHttp http) {
         this.json=json;this.hub=hub.replaceAll("/+$","");this.state=state;this.http=http;
         URI uri=URI.create(this.hub);
         if(!"http".equals(uri.getScheme()) || !"127.0.0.1".equals(uri.getHost()) || uri.getUserInfo()!=null
                 || !uri.getPath().isEmpty() || uri.getQuery()!=null || uri.getFragment()!=null)
-            throw new IllegalArgumentException("MODEL_HUB_URL 必须是本机回环 HTTP 地址");
+            throw new IllegalArgumentException("模型网关必须是本机回环 HTTP 地址");
     }
     /** 仅供状态页面查询，生成任务直接调用 tryChat。 */
     public boolean active(String service) throws IOException {

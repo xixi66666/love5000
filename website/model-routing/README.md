@@ -5,8 +5,8 @@
 改动公共源码后执行 `python scripts/sync-model-routing.py`，部署副本禁止手工编辑。
 运行 `python scripts/sync-model-routing.py --check` 和公共 unittest 检查副本一致性。
 
-默认网关 `http://127.0.0.1:8080`，`MODEL_HUB_URL` 可以指定其他本机端口。
-`MODEL_ROUTING_STATE` 可以指定 website 选择状态文件，只保存模型 ID 和服务覆盖，不保存凭据。
+网关固定为 `http://127.0.0.1:8080`，选择状态固定读取项目根 `.runtime/model-routing.json`
+（只保存模型 ID 和服务覆盖，不保存凭据）；两者都不再读取环境变量。
 生成直接调用 `try_chat(service, payload)`：一次 POST `/api/models/complete/{service}`，
 返回统一模型结果，或在 HTTP 204 时返回 `None` 让服务使用原配置。
 原配置的同步 HTTP 使用 `native_chat`，异步 HTTP 使用 `native_chat_async` 并传入已有连接池；

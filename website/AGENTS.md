@@ -446,6 +446,7 @@ Spring 约定：
 - 页面引用资源时使用相对路径，不使用本机绝对路径。
 - 首页各场景的文案配置在 `index.html` 对应按钮的 `data-scene-title` / `data-scene-statement` / `data-scene-badge`；`data-scene-dock` 指向该场景的服务目录，`setupSceneContent` 监听现有 `xixiscenechange` 事件切换内容。01 Golden Hour 保持原诗句、布局和 9 个入口；02 Still Water、03 Deep Woods、04 Quiet Dawn 分别使用独立的 `still-water-service-dock`、`deep-woods-service-dock`、`quiet-dawn-service-dock`，空目录隐藏，新增服务沿用 `service-card`。不要修改四场景的背景动画。
 - 首页四段远程场景视频保持原样，仅展示风景，不添加车窗图片覆盖或车窗晃动动画；保留文字可读的暗角、颗粒和黑色/渐变降级背景，外部媒体失败不得影响服务入口、鉴权或健康检测。
+- 四段场景片各 10.04 秒且首尾不是同一镜头，原生 `loop` 会先停帧再跳回第一帧。循环必须继续走 `setupVideoSwitcher` 的交叉淡化补层：`.scene-video--loop` 由脚本动态创建（不写进 `index.html`，保持四段原视频与 URL 不变）、默认 `paused` + `preload="none"` + `aria-hidden`，在最后 1 秒从第一帧起播并接管，`loopFadeMs = 1000` 必须与 `.scene-video--loop` 的 `opacity` 过渡一致；`video.play()` 被拒绝、`readyState` 不足或片段短于 2.5 个淡化区间时退回原生 `loop`。**关键**：补层排在全部场景视频之上、`.scene-shade` 之下，两层是上下叠放，只允许上层补层改变不透明度，下层 `.scene-video.is-active` 必须始终保持 `opacity: 1`——两层同时半透明时合成覆盖率只有 `上层 + 下层 × (1 − 上层)`（中点 75%），会透出深色背景，观感就是“突然黑一下”；不要重新引入 `is-loop-hidden` 之类的原视频淡出。切换场景必须在 `reveal()` 里等新视频 `readyState ≥ 2`（最多 `sceneRevealTimeoutMs = 2000`）再执行 `showVideo()`，否则会把旧画面淡出到只剩背景；接管时用 `getAnimations()` 同步 `ken-burns` 相位。改动该逻辑后运行 `node website/src/test/js/homepage-video-loop.test.js`。
 - 首页保持单个 `100svh` 视口且不产生页面级滚动；服务 Dock 桌面端为单行 9 列且 9 个入口一屏全部可见（列宽用 `repeat(9, minmax(0, 1fr))` 随容器自适应收缩，不产生横向滚动），1180px 及以下才切换为定宽列并只允许服务 Dock 自身横向滚动，任何宽度都不允许换行成两排。
 - `script.js` 的点击启动不得再打开“正在启动”中间页面：启动进度只在服务卡片内展示（“启动中…”→ 就绪后自动打开或提示“已启动 · 点击打开”）。
 
@@ -546,6 +547,12 @@ Strata以`--lazy`启动服务，第一条生成请求或「加载模型」按钮
 
 ## 个人长期资料库（Obsidian + Quartz，03 Deep Woods，5178）
 
+健康档案提供人体热点和健康文档双链图。各资料领域显示自己的双链与近六个月最后编辑统计，复用 `GET /api/vault/overview?domain=...`。
+
+个人资料库总览展示真实 Vault 的最近笔记和至多 48 个节点的双链图（`GET /api/vault/overview`）。`GET /api/note` 同时提供安全 Markdown 阅读预览与反向链接，完整图谱、嵌入和 Bases 仍通过私有 Quartz 浏览页查看。
+
+个人资料总览的通用导入（`/api/documents`）和健康档案（`/api/exams`）支持仅归档或经确认后把原件发给 DeepSeek 官方 Files API，使用 `deepseek-flash` 生成 Markdown 草稿。官方密钥读取根目录 `model.properties` 的 `deepseek.api-key`。体检解读保留指标摘录和历史对照。具体路径和验证见 `personal-agent/README.md`。
+
 `personal-agent/` 是 Java 8 + Spring Boot 2.6.13 Maven 模块，服务标识仍为 `personal-agent`，监听 `127.0.0.1:5178`。内容已替换为真实 Obsidian Vault 的个人长期资料库，覆盖财务、健康、工作、生活等领域；网页提供资料记录、关键词搜索、版本校验编辑，以及用户确认来源后发起的 AI 分析。Quartz 5.1.0 的真实源码位于 `personal-agent/quartz/`，负责阅读、全文搜索、双链图、反向链接与原生 `.base` 视图。
 
 首次执行 `cd personal-agent/quartz && npm ci`（Node.js 22+），再从根目录执行 `mvn -pl personal-agent -am package`。运行主类 `com.example.personalagent.PersonalAgentApplication` 或已构建 jar。03 Dock“个人资料库”点击启动方式、`POST /api/services/personal-agent/start`、`GET /api/services/personal-agent/status` 和健康聚合顺序保持不变；website 不自动启停它。
@@ -554,7 +561,7 @@ Windows 默认主资料源为 `D:/个人资料/Obsidian Vault/`，个人记录�
 
 健康接口仍为 `GET /api/health`，仅返回 `success=true, service=personal-agent`。其余业务 API 为 `/api/vault`、`/api/vault/{connect,initialize}`、`/api/notes`、`/api/note?path=...`、`/api/analyses/preview`、`/api/analyses`、`/api/quartz`、`/api/quartz/build`。API 与 `/library/**`（含搜索索引和附件）均受本机 Session 保护；写请求校验 CSRF。跨本机主机名的首页顶层导航例外保留。资料变化后旧 Quartz 快照停止提供，需点击生成/更新。
 
-AI 沿用统一文本模型入口和 `PERSONAL_AGENT_API_*` 等原配置；先预览并选择最多8份资料，再明确确认发送片段。保留资料日期、来源、版本哈希，排除 AI 报告、草稿、归档、模板及 `ai_exclude: true`。报告写入 `80-AI分析/` 并标记为待核对草稿，不覆盖事实。无后台自动上传。详细 API、属性约定、限制与部署方式见 personal-agent/README.md。
+AI 沿用统一文本模型入口；服务原配置由根目录 `model.properties` 的 `service.personal-agent` 提供。先预览并选择最多8份资料，再明确确认发送片段。保留资料日期、来源、版本哈希，排除 AI 报告、草稿、归档、模板及 `ai_exclude: true`。报告写入 `80-AI分析/` 并标记为待核对草稿，不覆盖事实。无后台自动上传。详细 API、属性约定、限制与部署方式见 personal-agent/README.md。
 
 验证：`mvn -pl personal-agent -am test`；website 入口回归 `mvn -pl website -am test -Dtest=HomepageStaticAssetsTest,PersonalAgentControllerTest,PersonalAgentProcessManagerTest -Dsurefire.failIfNoSpecifiedTests=false`；`node --check personal-agent/src/main/resources/static/app.js`。测试使用构造 Vault 与模型替身，不读取私人内容或调用真实模型。
 ## Skill Finder 云端日报与视频

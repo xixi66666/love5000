@@ -26,14 +26,10 @@ class ModelRoutingTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             state = Path(folder) / "state.json"
             state.write_text(json.dumps({"global": "deepseek:pro", "skill-finder": "native"}))
-            with patch.dict(routing.os.environ, {"MODEL_ROUTING_STATE": str(state)}), patch.object(routing, "_call", side_effect=URLError(ConnectionRefusedError())):
+            with patch.object(routing, "_state_path", lambda: state), patch.object(routing, "_call", side_effect=URLError(ConnectionRefusedError())):
                 with self.assertRaisesRegex(routing.ModelRoutingError, "离线"):
                     routing.active("python-a")
                 self.assertFalse(routing.active("skill-finder"))
-
-    def test_unknown_remote_hub_is_rejected(self):
-        with patch.dict(routing.os.environ, {"MODEL_HUB_URL": "https://evil.example"}), self.assertRaises(routing.ModelRoutingError):
-            routing._hub()
 
     def test_complete_uses_one_post_and_accepts_only_explicit_native_response(self):
         response = MagicMock()
@@ -55,7 +51,7 @@ class ModelRoutingTests(unittest.TestCase):
             state.write_text('{"global":"native"}')
             for failure in (TimeoutError(), URLError(TimeoutError()),
                             HTTPError("http://127.0.0.1", 502, "private detail", {}, None)):
-                with self.subTest(failure=type(failure)), patch.dict(routing.os.environ, {"MODEL_ROUTING_STATE": str(state)}), patch.object(routing, "_open", side_effect=failure), self.assertRaises(routing.ModelRoutingError):
+                with self.subTest(failure=type(failure)), patch.object(routing, "_state_path", lambda: state), patch.object(routing, "_open", side_effect=failure), self.assertRaises(routing.ModelRoutingError):
                     routing.try_chat("python-a", {})
             response = MagicMock()
             response.__enter__.return_value.status = 200
@@ -66,7 +62,7 @@ class ModelRoutingTests(unittest.TestCase):
     def test_connection_refused_respects_persisted_global_override_and_corrupt_state(self):
         with tempfile.TemporaryDirectory() as folder:
             state = Path(folder) / "state.json"
-            with patch.dict(routing.os.environ, {"MODEL_ROUTING_STATE": str(state)}), patch.object(routing, "_open", side_effect=URLError(ConnectionRefusedError())):
+            with patch.object(routing, "_state_path", lambda: state), patch.object(routing, "_open", side_effect=URLError(ConnectionRefusedError())):
                 state.write_text('{"global":"mimo:pro","skill-finder":"native"}')
                 with self.assertRaises(routing.ModelRoutingError):
                     routing.try_chat("python-a", {})
@@ -123,7 +119,7 @@ class ModelRoutingTests(unittest.TestCase):
             standalone_spec = importlib.util.spec_from_file_location("standalone_routing", copy)
             standalone = importlib.util.module_from_spec(standalone_spec)
             standalone_spec.loader.exec_module(standalone)
-            with patch.dict(standalone.os.environ, {"MODEL_ROUTING_STATE": str(Path(folder) / "missing.json")}), patch.object(standalone, "_open", side_effect=URLError(ConnectionRefusedError())):
+            with patch.object(standalone, "_state_path", lambda: Path(folder) / "missing.json"), patch.object(standalone, "_open", side_effect=URLError(ConnectionRefusedError())):
                 self.assertIsNone(standalone.try_chat("skill-finder", {}))
 
 

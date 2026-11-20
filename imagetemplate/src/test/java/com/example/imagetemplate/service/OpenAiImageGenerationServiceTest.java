@@ -1,27 +1,31 @@
 package com.example.imagetemplate.service;
 
+import com.example.common.ai.ModelProperties;
 import com.example.imagetemplate.dto.ImageGenerationRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.core.env.MapPropertySource;
-import org.springframework.core.env.StandardEnvironment;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.HashMap;
-import java.util.Map;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class OpenAiImageGenerationServiceTest {
 
+    @TempDir
+    Path dir;
+
     private OpenAiImageGenerationService openAiImageGenerationService;
 
     @BeforeEach
     void setUp() {
-        openAiImageGenerationService = new OpenAiImageGenerationService(null, new StandardEnvironment());
+        openAiImageGenerationService = new OpenAiImageGenerationService(null, (ModelProperties.Provider) null);
     }
 
     @Test
@@ -119,7 +123,7 @@ class OpenAiImageGenerationServiceTest {
         assertThatThrownBy(new org.assertj.core.api.ThrowableAssert.ThrowingCallable() {
             @Override
             public void call() {
-                openAiImageGenerationService.generate("direct-prompt", request, "sk-test");
+                openAiImageGenerationService.generate("direct-prompt", request);
             }
         }).isInstanceOf(ImageGenerationException.class)
                 .hasMessageContaining("16");
@@ -132,12 +136,15 @@ class OpenAiImageGenerationServiceTest {
 
     @Test
     void readsImageModelFromConfiguration() throws Exception {
-        StandardEnvironment environment = new StandardEnvironment();
-        Map<String, Object> properties = new HashMap<String, Object>();
-        properties.put("openai.image-model", "gpt-image-2.5-flare");
-        environment.getPropertySources().addFirst(new MapPropertySource("test", properties));
+        Path config = dir.resolve("model.properties");
+        Files.write(config, ("image.base-url=https://images.example/v1\n"
+                + "image.api-key=test-only\n"
+                + "image.image-model=gpt-image-2.5-flare\n"
+                + "image.image-models=gpt-image-2.5-flare,gpt-image-2.5-sunburst\n")
+                .getBytes(StandardCharsets.UTF_8));
 
-        OpenAiImageGenerationService service = new OpenAiImageGenerationService(null, environment);
+        OpenAiImageGenerationService service = new OpenAiImageGenerationService(
+                null, ModelProperties.load(config).provider("image"));
 
         assertThat(readImageModel(service)).isEqualTo("gpt-image-2.5-flare");
     }

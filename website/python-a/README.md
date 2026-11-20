@@ -1,4 +1,7 @@
-﻿# A 股自选股 AI 研究台
+# A 股自选股 AI 研究台
+
+> 模型配置已统一：模型目录、密钥和各服务原配置只从项目根目录 `model.properties` 读取（模板 `model.properties.example`）。本文中出现的模型环境变量、`deepseek.local.json`、`INTRO_*` / `MIMO_*` 示例仅作历史说明，不再生效。
+
 
 健康检查 `GET /api/health` 顶层返回 `success=true` 和 `service="python-a"`；
 `website` 使用统一 `ServiceHealthChecker` 探测，并将结果纳入

@@ -1,5 +1,8 @@
 # Skill Finder — AI 项目趋势追踪站
 
+> 模型配置已统一：模型目录、密钥和各服务原配置只从项目根目录 `model.properties` 读取（模板 `model.properties.example`）。本文中出现的模型环境变量、`deepseek.local.json`、`INTRO_*` / `MIMO_*` 示例仅作历史说明，不再生效。
+
+
 一个公开网站，每天抓取 GitHub Trending 日/周/月榜单，过滤出 AI Agent、Skill、MCP、插件等 AI 相关项目，每期取 Star 增长 Top 10，展示真实的 1 日、7 日、30 日 Star 增长排行与 30 天趋势。
 
 - **后端**：Python 3.11+、FastAPI、SQLAlchemy 2（异步）、asyncmy、MySQL、APScheduler、HTTPX、Scrapling

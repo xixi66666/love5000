@@ -35,8 +35,8 @@ public class ModelRoutingService {
     }
     @org.springframework.beans.factory.annotation.Autowired
     public ModelRoutingService(ObjectMapper json, Environment env) {
-        this(json,new ModelSources(env,json,ModelSources.projectRoot()),new ModelHttp(json),
-                Paths.get(env.getProperty("MODEL_ROUTING_STATE",ModelSources.projectRoot().resolve(".runtime/model-routing.json").toString())));
+        this(json,new ModelSources(env,ModelSources.projectRoot()),new ModelHttp(json),
+                ModelSources.projectRoot().resolve(".runtime/model-routing.json"));
     }
     ModelRoutingService(ObjectMapper json,ModelSources sources,ModelHttp http,Path statePath) {
         this.json=json;this.sources=sources;this.http=http;this.statePath=statePath;
@@ -66,20 +66,28 @@ public class ModelRoutingService {
         for(ModelSources.Source source:sources.read()) {
             String identity=source.base.replaceAll("/v1$", "")+"\n"+source.key;
             if(!source.key.isEmpty() && !visited.add(identity)) continue;
-            Set<String> models=new LinkedHashSet<>(); boolean verified=false;
+            Set<String> models=new LinkedHashSet<>(); Set<String> discovered=new LinkedHashSet<>();
+            boolean verified=false;
             boolean configured=!source.key.isEmpty() || "strata".equals(source.id);
             if(configured) try { JsonNode data=http.request(source.base+"/models",source.key,null,6000);
                 if(data.path("data").isArray()) { verified=true; for(JsonNode model:data.path("data")) {
                     String id=model.path("id").asText();
-                    if(isChatModel(id) && source.acceptsModel(id)) models.add(id);
+                    if(isChatModel(id)) discovered.add(id);
                 }}
             } catch(Exception ignored) { }
-            if(!verified) for(String name:source.configured) if(!name.trim().isEmpty()) models.add(name.trim());
+            // model.properties 里的模型目录优先；留空时才展示提供方实际返回的聊天模型。
+            if(!source.configured.isEmpty()) models.addAll(source.configured);
+            else for(String id:discovered) if(source.acceptsModel(id)) models.add(id);
             if(models.isEmpty() && "strata".equals(source.id)) models.add("Qwen3.8-Flash-Next");
             if(models.isEmpty() && !configured) models.add("尚未配置文本模型");
             for(String model:models) {
                 Entry entry=new Entry();entry.id=source.id+":"+model;entry.model=model;entry.provider=source.label;
-                entry.source=source;entry.available=verified;entry.status=verified?"模型目录已验证":configured?"连接失败，待验证":"未配置密钥";
+                entry.source=source;
+                entry.available=verified && discovered.contains(model);
+                if(entry.available) entry.status="模型目录已验证";
+                else if(!configured) entry.status="未配置密钥";
+                else if(!verified) entry.status="连接失败，待验证";
+                else entry.status="目录未列出该模型";
                 entry.startable="strata".equals(source.id) && Files.isRegularFile(sources.strataHome().resolve("serve/server.py"));
                 if(entry.startable && !verified) entry.status="本机服务未启动，可启动后选择";
                 found.put(entry.id,entry);

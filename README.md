@@ -1,5 +1,8 @@
 # love5000 / love530
 
+> 模型配置已统一：模型目录、密钥和各服务原配置只从项目根目录 `model.properties` 读取（模板 `model.properties.example`）。本文中出现的模型环境变量、`deepseek.local.json`、`INTRO_*` / `MIMO_*` 示例仅作历史说明，不再生效。
+
+
 ## 统一健康检查
 
 `lovestory`、`imagetemplate`、`python-a`、`quant-a`、`scrapling-ui` 和 `skill-finder`
@@ -54,6 +57,8 @@ mvn -pl website -am spring-boot:run
 首页是无需前端构建的单视口原生页面，集中展示恋爱相册、图片模板、Prompt Console、A 股研究台、Quant 研究台、Scrapling 抓取工坊和 Skill Finder。每个入口保留端口标识和实时状态；顶部只保留登录、注册账户操作，登录后切换为退出，移动端继续使用横向可滑动服务 Dock。
 
 四个场景分别支持独立文案与服务目录：01 Golden Hour 保留原诗句和 9 个服务入口；02 Still Water、03 Deep Woods、04 Quiet Dawn 各自使用暂定文案，服务区留空并隐藏，切回 01 恢复原目录。四场景已去除车窗图片覆盖及其晃动动画，仅展示原风景视频，保留视频动画与切换时序；文案在首页各按钮的 `data-scene-title`、`data-scene-statement`、`data-scene-badge` 中配置，新服务沿用 `service-card` 放入各自的 `still-water-service-dock`、`deep-woods-service-dock`、`quiet-dawn-service-dock`。
+
+四段场景片都是 10.04 秒，首帧和末帧不是同一个镜头，浏览器原生 `loop` 会在片尾停帧再瞬间跳回片头，看起来就是“突然顿住 + 硬切”。首页因此在原视频进入最后 1 秒时，用一层同源的 `scene-video--loop` 从第一帧起播并接管画面，两层用 1000ms 交叉淡化完成循环；原视频在自己已经不可见之后才回到片头。**只能让上层补层改变不透明度，下层原视频必须始终不透明**：两层是上下叠放，同时半透明时合成覆盖率只有 `上层 + 下层 × (1 − 上层)`（中点 75%），会透出深色背景，看起来像“突然黑一下”。补层由脚本动态创建、默认暂停且不进入无障碍树，`play()` 被拒绝或片段过短时自动退回原生 `loop`，`prefers-reduced-motion` 下按 1ms 切换，缓推镜头的相位在接管时同步；切换场景会等新视频 `readyState ≥ 2` 再淡入，避免把画面淡成背景。回归命令：`node website/src/test/js/homepage-video-loop.test.js`。
 
 `imagetemplate` 首页同样无需前端构建，按“灵感大厅 → 模板解构 → Prompt 编导台 → 图片生成舱”组织为编辑式黑色 AI 创作工作台。页面使用本地虎主题背景、宽幅分屏首屏、内嵌图像标题、创作理念轮播、橙色高对比操作和三段横向交互面板；灵感大厅默认每页 48 条，顶部常驻搜索、仅图片开关、结果计数和清除筛选，桌面端左侧集中展示“一级功能 + 二级场景”及高级筛选，右侧使用 dense 密排结果网格。页面支持 300ms 搜索防抖、加载更多和详情按需读取；模板解构中的 JSON 可直接编辑并校验，进入 Prompt 编导台时同步到可继续修改的变量剧本。GSAP 3.13.0 与 ScrollTrigger 从模块本地静态资源加载，并对脚本缺失及 `prefers-reduced-motion` 提供静态降级；窄屏流程恢复为底部横向排列，切换场景保留已选模板、Prompt、生成参数和结果。
 
@@ -195,6 +200,12 @@ Strata以`--lazy`启动服务，第一条生成请求或「加载模型」按钮
 验证：`mvn -pl website -am test -Dtest=LocalServicesManagerTest,LocalServicesControllerTest,ServiceHealthPropertiesTest,ServiceHealthAggregatorTest,ServiceHealthCheckerTest,ServiceHealthControllerTest,HomepageStaticAssetsTest,WebsiteApplicationTests -Dsurefire.failIfNoSpecifiedTests=false`；`node --check website/src/main/resources/static/local-services/app.js`；`node website/src/test/js/homepage-motion.test.js`。单元测试不加载真实模型、不生成视频、不连接真实数据库。
 
 ## 个人长期资料库（Obsidian + Quartz，03 Deep Woods，5178）
+
+健康档案提供人体热点和健康文档双链图。各资料领域显示自己的双链与近六个月最后编辑统计，复用 `GET /api/vault/overview?domain=...`。
+
+个人资料库总览展示真实 Vault 的最近笔记和至多 48 个节点的双链图（`GET /api/vault/overview`）。`GET /api/note` 同时提供安全 Markdown 阅读预览与反向链接，完整图谱、嵌入和 Bases 仍通过私有 Quartz 浏览页查看。
+
+个人资料总览的通用导入（`/api/documents`）和健康档案（`/api/exams`）支持仅归档或经确认后把原件发给 DeepSeek 官方 Files API，使用 `deepseek-flash` 生成 Markdown 草稿。官方密钥读取根目录 `model.properties` 的 `deepseek.api-key`。体检解读保留指标摘录和历史对照。具体路径和验证见 `personal-agent/README.md`。
 
 `personal-agent/` 是 Java 8 + Spring Boot 2.6.13 Maven 模块，服务标识仍为 `personal-agent`，监听 `127.0.0.1:5178`。内容已替换为真实 Obsidian Vault 的个人长期资料库，覆盖财务、健康、工作、生活等领域；网页提供资料记录、关键词搜索、版本校验编辑，以及用户确认来源后发起的 AI 分析。Quartz 5.1.0 的真实源码位于 `personal-agent/quartz/`，负责阅读、全文搜索、双链图、反向链接与原生 `.base` 视图。
 

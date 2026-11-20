@@ -310,17 +310,8 @@
                         </div>
 
                         <div class="api-key-box">
-                            <label for="openAiApiKeyInput">
-                                <span>OpenAI API Key</span>
-                                <input id="openAiApiKeyInput" type="password" autocomplete="off"
-                                       placeholder="留空则使用服务端 OPENAI_API_KEY">
-                            </label>
-                            <label class="remember-key-row">
-                                <input id="rememberApiKeyCheckbox" type="checkbox">
-                                <span>本会话记住</span>
-                            </label>
+                            <p class="api-key-note">图片模型、密钥与代理统一在项目根目录 <code>model.properties</code> 的 <code>image.*</code> 中配置，页面不再保存密钥。</p>
                         </div>
-                        <p class="api-key-note">API Key 只用于本次图片生成；勾选后仅保存到当前浏览器会话。</p>
 
                         <div class="reference-upload">
                             <div class="reference-upload-head">

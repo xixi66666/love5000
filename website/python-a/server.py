@@ -32,6 +32,7 @@ from services.storage_service import JsonStore
 from services.tencent_quote_provider import TencentQuoteProvider
 from services.trade_service import TradeService
 from services.vision_parse_service import VisionParseService
+from services import _model_properties as model_properties
 
 
 ROOT = Path(__file__).resolve().parent
@@ -43,11 +44,6 @@ FETCH_WORKERS = 6
 
 WATCHLIST = [
 ]
-
-DEEPSEEK_API_BASE = os.environ.get("DEEPSEEK_API_BASE", "https://api.deepseek.com").rstrip("/")
-DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-pro")
-VISION_API_BASE = os.environ.get("VISION_API_BASE", DEEPSEEK_API_BASE).rstrip("/")
-VISION_MODEL = os.environ.get("VISION_MODEL", os.environ.get("DEEPSEEK_VISION_MODEL", "gpt-4o-mini"))
 
 HTTP_HEADERS = {
     "User-Agent": (
@@ -83,22 +79,25 @@ def now_iso() -> str:
     return datetime.now().astimezone().isoformat(timespec="seconds")
 
 
-def read_local_secret(name: str) -> str:
-    value = os.environ.get(name)
-    if value:
-        return value.strip()
-    config_path = ROOT / "deepseek.local.json"
-    if config_path.exists():
-        try:
-            data = json.loads(config_path.read_text(encoding="utf-8-sig"))
-            return str(data.get(name) or data.get(name.lower()) or "").strip()
-        except Exception:
-            return ""
-    return ""
+def text_route(scope: str = "python-a"):
+    """读取 model.properties 中该服务的原配置。"""
+    return model_properties.ModelProperties.load().route(scope)
+
+
+def vision_config() -> Dict[str, str]:
+    provider = model_properties.ModelProperties.load().provider("vision")
+    if provider is None:
+        return {"api_key": "", "api_base": "", "model": "gpt-4o-mini"}
+    return {
+        "api_key": provider.api_key,
+        "api_base": provider.base_url,
+        "model": provider.option("model", "gpt-4o-mini"),
+    }
 
 
 def trading_services() -> Dict[str, Any]:
     store = JsonStore(DATA_ROOT)
+    vision = vision_config()
     return {
         "account": AccountService(store),
         "trade": TradeService(store),
@@ -107,9 +106,9 @@ def trading_services() -> Dict[str, Any]:
         "metadata": StockMetadataService(DATA_ROOT),
         "knowledge_graph": ObsidianKnowledgeGraphService(OBSIDIAN_ROOT),
         "vision": VisionParseService(
-            api_key=read_local_secret("VISION_API_KEY"),
-            api_base=VISION_API_BASE,
-            model=VISION_MODEL,
+            api_key=vision["api_key"],
+            api_base=vision["api_base"],
+            model=vision["model"],
         ),
     }
 
@@ -1108,8 +1107,9 @@ def call_deepseek_dimension_analysis(payload: Dict[str, Any]) -> Dict[str, Any]:
     stock_code = str(stock.get("code") or payload.get("stock_code") or "").strip()
     if not research_snapshot and re.fullmatch(r"\d{6}", stock_code):
         research_snapshot = STOCK_RESEARCH_SERVICE.build_snapshot(stock_code, load_missing=True)
+    route = text_route("python-a")
     request_payload = {
-        "model": os.environ.get("DEEPSEEK_MODEL", DEEPSEEK_MODEL),
+        "model": route.model_id if route else "",
         "messages": deepseek_dimension_prompt(stock, review, research_snapshot),
         "temperature": 0.25,
         "max_tokens": 3000,
@@ -1117,11 +1117,10 @@ def call_deepseek_dimension_analysis(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
     response_payload = model_hub.try_chat(request_payload)
     if response_payload is None:
-        api_key = read_local_secret("DEEPSEEK_API_KEY")
-        if not api_key:
-            raise ValueError("DeepSeek API key is not configured. Set DEEPSEEK_API_KEY or create deepseek.local.json.")
+        if route is None or not route.provider.api_key:
+            raise ValueError("模型未配置：请在项目根目录 model.properties 填写 service.python-a 与对应 api-key。")
         response_payload = model_hub.native_chat(
-            f"{DEEPSEEK_API_BASE}/chat/completions", api_key, request_payload, timeout=90)
+            f"{route.provider.base_url}/chat/completions", route.provider.api_key, request_payload, timeout=90)
     content = response_payload["choices"][0]["message"]["content"]
     analysis = parse_deepseek_json(content)
     return {

@@ -1,21 +1,32 @@
 package com.example.imagetemplate.service;
 
+import com.example.common.ai.ModelProperties;
 import com.example.imagetemplate.dto.*;
 import org.junit.jupiter.api.Test;
-import org.springframework.mock.env.MockEnvironment;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.MediaType;
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import static org.assertj.core.api.Assertions.*;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.*;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.*;
 
 class ImageModelSelectionTest {
+    @TempDir Path dir;
+
     @Test void selectedModelIsSentAndReturnedWithoutChangingDefault()throws Exception {
-        OpenAiImageGenerationService service=new OpenAiImageGenerationService(null,new MockEnvironment()
-                .withProperty("openai.api-key","test-only").withProperty("openai.base-url","https://images.example/v1")
-                .withProperty("openai.image-model","gpt-image-2.5-sunburst"));
+        Path config=dir.resolve("model.properties");
+        Files.write(config,("image.base-url=https://images.example/v1\n"
+                +"image.api-key=test-only\n"
+                +"image.image-model=gpt-image-2.5-sunburst\n"
+                +"image.image-models=gpt-image-2.5-sunburst,gpt-image-2.5-flare\n")
+                .getBytes(StandardCharsets.UTF_8));
+        OpenAiImageGenerationService service=new OpenAiImageGenerationService(
+                null,ModelProperties.load(config).provider("image"));
         Field f=OpenAiImageGenerationService.class.getDeclaredField("restTemplate");f.setAccessible(true);
         MockRestServiceServer server=MockRestServiceServer.bindTo((RestTemplate)f.get(service)).build();
         server.expect(requestTo("https://images.example/v1/images/generations"))

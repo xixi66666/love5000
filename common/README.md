@@ -1,4 +1,7 @@
-﻿# common
+# common
+
+> 模型配置已统一：模型目录、密钥和各服务原配置只从项目根目录 `model.properties` 读取（模板 `model.properties.example`）。本文中出现的模型环境变量、`deepseek.local.json`、`INTRO_*` / `MIMO_*` 示例仅作历史说明，不再生效。
+
 
 `common` 是 `love530` Maven 聚合工程的公共能力模块，不作为独立 Web 服务启动。它为业务模块提供 OSS 自动配置、上传工具和通用 Session 认证能力。
 

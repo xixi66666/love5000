@@ -36,7 +36,7 @@ class ImageTemplateHomepageStaticAssetsTest {
                 "detailCategory", "detailTitle", "detailSummary", "jsonTemplate",
                 "promptTemplate", "variablesInput", "extraInstructionInput",
                 "renderedPrompt", "renderPromptButton", "copyPromptButton",
-                "openAiApiKeyInput", "referenceImageInput", "imageSizeSelect",
+                "referenceImageInput", "imageSizeSelect",
                 "generateImageButton", "generatedImage", "downloadImageButton"
         };
         for (String id : existingIds) {

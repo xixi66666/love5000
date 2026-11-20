@@ -315,7 +315,6 @@ async def ai_heal_selector(req: HealSelectorRequest):
         raise HTTPException(status_code=404, detail="Session not found")
     try:
         healed = await heal_selector(
-            api_key=req.api_key,
             broken_selector=req.broken_selector,
             action_type=req.action_type,
             page=session.page,

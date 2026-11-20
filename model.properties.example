@@ -1,0 +1,93 @@
+# ============================================================================
+# 统一模型配置（唯一来源）
+# ----------------------------------------------------------------------------
+# 复制本文件为项目根目录的 model.properties 后填写真实值。
+# model.properties 已被 .gitignore 忽略，禁止提交真实密钥。
+#
+# 所有服务（website、personal-agent、python-a、scrapling-ui、skill-finder、
+# imagetemplate）只读这个文件；不再读取 deepseek.local.json / backend/.env /
+# OPENAI_API_KEY 等分散配置，也不读取任何模型相关环境变量。
+# 服务启动后从当前目录与代码目录向上查找 model.properties。
+#
+# 结构：
+#   <provider>.label          显示名称
+#   <provider>.base-url       API 根地址（不含结尾斜杠）
+#   <provider>.api-key        密钥；留空表示未配置
+#   <provider>.capability     text（默认，进入模型选择器）/ image / vision
+#   <provider>.models         文本模型目录，逗号分隔；选择器只展示这些模型
+#   <provider>.<option>       其他选项（图片、语音、超时、代理等）
+#   service.<服务标识>        <provider>:<模型>，服务原配置
+# ============================================================================
+
+# --- DeepSeek（文本）-------------------------------------------------------
+deepseek.label=DeepSeek
+deepseek.base-url=https://api.deepseek.com
+deepseek.api-key=
+deepseek.capability=text
+deepseek.models=deepseek-flash,deepseek-v4-pro
+
+# --- Xiaomi MiMo（文本 + 配音）--------------------------------------------
+mimo.label=Xiaomi MiMo
+mimo.base-url=https://api.xiaomimimo.com/v1
+mimo.api-key=
+mimo.capability=text
+mimo.models=mimo-v2.6-pro,mimo-v2.6-flash
+mimo.tts-model=mimo-v2.5-tts
+mimo.tts-voice=苏打
+mimo.tts-style=自然的中文科技工具推荐，语速明快但不赶，短句清楚，重点词有重音，保留自然停顿，不夸张播报。
+
+# --- Skill Finder 模型网关（中文简介）-------------------------------------
+intro.label=Skill Finder 网关
+intro.base-url=https://opencode.ai/zen/go/v1
+intro.api-key=
+intro.capability=text
+intro.models=ox-alpha-free,deepseek-v4-flash
+
+# --- OpenAI 兼容（文本）----------------------------------------------------
+openai.label=OpenAI 兼容
+openai.base-url=https://api.openai.com/v1
+openai.api-key=
+openai.capability=text
+openai.models=
+
+# --- 个人 Agent 网关（文本）------------------------------------------------
+personal.label=个人 Agent 网关
+personal.base-url=https://api.deepseek.com
+personal.api-key=
+personal.capability=text
+personal.models=deepseek-flash
+
+# --- 本机 Qwen / Strata（文本）---------------------------------------------
+strata.label=本机 Qwen · Strata
+strata.base-url=http://127.0.0.1:9999/v1
+strata.api-key=
+strata.capability=text
+strata.models=Qwen3.8-Flash-Next
+
+# --- 图片生成（imagetemplate）-----------------------------------------------
+image.label=图片生成 · OpenAI 兼容
+image.base-url=https://nimabo.io/v1
+image.api-key=
+image.capability=image
+image.image-model=gpt-image-2.5-sunburst
+image.image-models=gpt-image-2.5-sunburst,gpt-image-2.5-flare
+image.connect-timeout-ms=300000
+image.read-timeout-ms=1800000
+image.proxy-type=HTTP
+image.proxy-host=
+image.proxy-port=0
+
+# --- 视觉识别（python-a 截图解析）------------------------------------------
+vision.label=视觉识别
+vision.base-url=https://api.openai.com/v1
+vision.api-key=
+vision.capability=vision
+vision.model=gpt-4o-mini
+
+# --- 各服务原配置（选择“服务原配置”时使用）----------------------------------
+# 未单独配置的服务回退 service.global。
+service.global=deepseek:deepseek-v4-pro
+service.python-a=deepseek:deepseek-v4-pro
+service.personal-agent=deepseek:deepseek-flash
+service.scrapling-ui=deepseek:deepseek-v4-pro
+service.skill-finder=intro:ox-alpha-free

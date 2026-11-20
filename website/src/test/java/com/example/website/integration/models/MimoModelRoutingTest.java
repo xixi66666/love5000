@@ -40,21 +40,19 @@ class MimoModelRoutingTest {
         service = new ModelRoutingService(json, sources, http, dir.resolve("selection.json"));
     }
 
-    @Test void readsExistingPrivateKeyAndEnvironmentWinsWithoutChangingTts() throws Exception {
-        Path config = dir.resolve("website/skill-finder/backend/.env");
-        Files.createDirectories(config.getParent());
-        String original = "MIMO_API_KEY='test-local-key'\nMIMO_TTS_MODEL=mimo-v2.5-tts\n";
+    @Test void modelPropertiesDrivesMimoCatalogWithoutReadingOtherFiles() throws Exception {
+        Path config = dir.resolve("model.properties");
+        String original = "mimo.label=Xiaomi MiMo\n"
+                + "mimo.base-url=https://api.xiaomimimo.com/v1\n"
+                + "mimo.api-key=test-local-key\n"
+                + "mimo.models=mimo-v2.6-pro,mimo-v2.6-flash\n"
+                + "mimo.tts-model=mimo-v2.5-tts\n";
         Files.write(config, original.getBytes(StandardCharsets.UTF_8));
-        ModelSources local = new ModelSources(new MockEnvironment(), json, dir);
+        ModelSources local = new ModelSources(new MockEnvironment(), dir);
         ModelSources.Source fromFile = local.read().stream().filter(s -> "mimo".equals(s.id)).findFirst().get();
         assertThat(fromFile.key).isEqualTo("test-local-key");
         assertThat(fromFile.base).isEqualTo("https://api.xiaomimimo.com/v1");
         assertThat(fromFile.configured).containsExactly("mimo-v2.6-pro", "mimo-v2.6-flash");
-        ModelSources env = new ModelSources(new MockEnvironment().withProperty("MIMO_API_KEY", "test-env-key")
-                .withProperty("MIMO_CHAT_MODELS", "mimo-v2.6-flash"), json, dir);
-        ModelSources.Source override = env.read().stream().filter(s -> "mimo".equals(s.id)).findFirst().get();
-        assertThat(override.key).isEqualTo("test-env-key");
-        assertThat(override.configured).containsExactly("mimo-v2.6-flash");
         assertThat(new String(Files.readAllBytes(config), StandardCharsets.UTF_8)).isEqualTo(original);
     }
 

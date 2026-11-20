@@ -40,7 +40,7 @@ class VisionParseService:
 
     def _call_vision(self, prompt: str, image_bytes: bytes, mime_type: str) -> Dict[str, Any]:
         if not self.api_key:
-            raise ValueError("VISION_API_KEY 未配置，无法使用截图 AI 解析；请使用人工录入或配置视觉模型。")
+            raise ValueError("视觉模型未配置，无法使用截图 AI 解析；请在项目根目录 model.properties 填写 vision.api-key，或使用人工录入。")
         image_data = base64.b64encode(image_bytes).decode("ascii")
         payload = {
             "model": self.model,

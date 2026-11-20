@@ -1,5 +1,8 @@
 # Scrapling UI（love5000 集成版）
 
+> 模型配置已统一：模型目录、密钥和各服务原配置只从项目根目录 `model.properties` 读取（模板 `model.properties.example`）。本文中出现的模型环境变量、`deepseek.local.json`、`INTRO_*` / `MIMO_*` 示例仅作历史说明，不再生效。
+
+
 基于 **Scrapling** + **Playwright** 的交互式可视化爬虫工作台（汉化版 v1.2.0）。
 在无头浏览器画布中加载任意网页，悬停/点选元素自动生成 CSS Selector 与 XPath，
 嗅探网络请求，录制交互时间线并实时生成可运行的 Python Scrapling 脚本。

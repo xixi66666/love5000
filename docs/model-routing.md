@@ -40,13 +40,22 @@ Java 客户端和 JSON 传输在 `common/ai`；Python 公共源码在 `website/m
 Docker 或独立复制服务不再依赖仓库目录；只维护公共源码，运行 `python scripts/sync-model-routing.py` 同步，
 `python scripts/sync-model-routing.py --check` 检查三个副本，公共客户端测试也会检查一致性。
 
-服务端默认网关 `http://127.0.0.1:8080`，`MODEL_HUB_URL` 可指定其他回环端口。
-选择文件默认根 `.runtime/model-routing.json`（gitignored），仅存模型 ID 和覆盖，不存密钥。
-`MODEL_ROUTING_STATE` 可指定绝对路径，各服务必须指向同一文件。
-website 从根或 website 目录启动均可定位配置；独立 jar 部署通过环境变量提供凭据和共享状态路径。
+服务端网关固定为 `http://127.0.0.1:8080`，不再读取 `MODEL_HUB_URL`。
+选择文件固定为项目根 `.runtime/model-routing.json`（gitignored），仅存模型 ID 和覆盖，不存密钥；
+不再读取 `MODEL_ROUTING_STATE`。
 
-密钥只从已有环境变量、python-a 私有 JSON、Skill Finder 私有 .env 及其引用文件读取，
-不回显、复制或提交。上游地址来自管理员配置，浏览器不能传入任意 URL、密钥或命令。
+模型目录、密钥和各服务原配置只来自项目根目录 `model.properties`（gitignored，模板为
+`model.properties.example`）。Java 使用 `common/ai/ModelProperties`，Python 使用
+`website/model-routing/model_properties.py`（部署副本 `_model_properties.py`，与
+`_model_routing.py` 一起由 `python scripts/sync-model-routing.py` 同步）。两者都只按当前目录与
+代码目录向上查找，不读取环境变量；云端部署必须挂载该文件。
+
+不再读取 `DEEPSEEK_API_KEY`、`OPENAI_API_KEY`、`PERSONAL_AGENT_API_*`、`INTRO_*`、`MIMO_*`
+等模型环境变量，也不再读取 `website/python-a/deepseek.local.json` 或 Skill Finder `.env`
+中的模型键。`website` 的目录发现只使用 `capability=text` 的 provider；图片（`image`）、
+视觉（`vision`）、TTS（`mimo.tts-*`）也读取同一文件。密钥只驻留内存，不回显、复制或提交。
+
+上游地址来自管理员配置，浏览器不能传入任意 URL、密钥或命令。
 入口限制回环来源、本机 Host 和已知服务端口 Origin，写请求需 `X-Love530-Model: 1`。
 生成代理只允许服务端调用。未选择统一模型时保留原逻辑；已选择但网关离线时报错，不静默换模型。
 状态原子保存失败时，不更新内存选择，不谎报成功。
@@ -103,6 +112,20 @@ Skill Finder 的原生模型重试/降级和个人 Agent 的等待配置任务�
 
 浏览器默认本机8080，改端口需配置宿主 `data-model-hub` 并更新已知 Origin 清单。
 云端独立服务保持原配置，此入口不扩大为远程管理接口。
+
+## 共享选择器交互
+
+`website/src/main/resources/static/model-picker/picker.js` 是首页与四个服务的唯一实现，页面只提供宿主元素：
+
+- `data-model-theme` 支持 `home`、`forest`、`scrapling`、`stock`（python-a）和 `knowledge`（personal-agent）。
+  `knowledge` 直接映射宿主的 `--bg`、`--ink`、`--muted`、`--accent`、`--line`、`--tint`，浅色与深色主题自动跟随；
+  `stock` 继续使用 python-a 的米色与橙色令牌。
+- 同一页面只请求一次目录并缓存 20 秒；多个实例通过 `love530:modelselection` 事件同步选择，
+  `love530:modelchange` 继续表示生效状态。页面重建后旧宿主会被清理，不再累积监听器。
+- 交互：点击展开；桌面端搜索框自动聚焦；`↑`/`↓`/`Home`/`End` 移动、`Enter` 保存、`Esc` 关闭；
+  保存为乐观更新，失败回滚并显示脱敏原因，成功后短暂确认并收起面板。
+- 视口宽度不超过 560px 或可用高度不足 240px 时切换为带遮罩的底部抽屉，不自动弹出键盘；
+  列表可滚动时底部渐隐提示。
 
 ## API
 

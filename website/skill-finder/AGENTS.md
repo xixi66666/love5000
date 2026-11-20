@@ -142,10 +142,10 @@ Remotion 与 MiMo TTS 已接入，默认使用实际音轨转写字幕并要求�
 `GET /api/v1/stats` 增加可空字段 `last_run_warning`；首页部分完成时更新榜单并显示警告。
 详情页缺失介绍显示“暂未生成中文介绍”，不把缺失误称为正在生成。
 
-配置可使用 `INTRO_API_BASE=https://api.deepseek.com`、`INTRO_MODEL=deepseek-flash`，
-或显式指定其他实际可用模型。`INTRO_API_KEY_FILE` 可引用已有本机私有密钥文件，优先于 `INTRO_API_KEY`；
-支持纯文本或 JSON 中的 `INTRO_API_KEY`、`DEEPSEEK_API_KEY`、`intro_api_key`、`deepseek_api_key`、`api_key`。
-只读取、不复制密钥文件内容，不向日志或响应输出密钥、私有路径或文件内容；私有配置不提交。
+中文简介和 MiMo 配音的地址、密钥、模型只从项目根目录 `model.properties` 读取：
+`service.skill-finder=intro:<模型>`、`intro.*`、`mimo.*`（含 `tts-model` / `tts-voice` / `tts-style`）。
+不再读取 `INTRO_*`、`MIMO_*` 或 `.env` 中的模型键；`INTRO_ENABLED` 等非模型开关仍留在 `.env`。
+密钥不进入日志或响应；私有配置不提交。
 修复配置后可通过已有受鉴权的 `POST /api/v1/admin/introductions?limit=100&order=daily` 补全缺失介绍，
 不必重新采集榜单；接口继续返回 accepted，由原后台补全逻辑保存结果，不改写已有介绍。
 前端改动后运行 lint/typecheck/test/build，后端运行 pytest 与相关 Ruff 检查，重启 5177 后生效。

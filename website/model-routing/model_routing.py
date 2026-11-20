@@ -1,7 +1,6 @@
 """模型路由与原配置的公共传输；统一路由不读取或传递提供方密钥。"""
 import asyncio
 import json
-import os
 from pathlib import Path
 from urllib import error, parse, request
 
@@ -38,13 +37,11 @@ def _decode(raw):
     return data
 
 
+_HUB = "http://127.0.0.1:8080"
+
+
 def _hub():
-    url = os.environ.get("MODEL_HUB_URL", "http://127.0.0.1:8080").rstrip("/")
-    parsed = parse.urlparse(url)
-    if (parsed.scheme != "http" or parsed.hostname != "127.0.0.1" or parsed.username
-            or parsed.path or parsed.query or parsed.fragment):
-        raise ModelRoutingError("MODEL_HUB_URL 必须是本机回环 HTTP 地址")
-    return url
+    return _HUB
 
 
 def _call(path, payload=None, timeout=3, allow_native=False):
@@ -64,11 +61,14 @@ def _call(path, payload=None, timeout=3, allow_native=False):
         raise ModelRoutingError("统一模型入口返回格式无效") from exc
 
 
-def _require_native(service):
-    configured = os.environ.get("MODEL_ROUTING_STATE")
-    state = Path(configured) if configured else next(
+def _state_path():
+    return next(
         (p / ".runtime/model-routing.json" for p in Path(__file__).resolve().parents
          if (p / ".runtime/model-routing.json").exists()), None)
+
+
+def _require_native(service):
+    state = _state_path()
     if state and state.exists():
         try:
             selected = json.loads(state.read_text(encoding="utf-8"))

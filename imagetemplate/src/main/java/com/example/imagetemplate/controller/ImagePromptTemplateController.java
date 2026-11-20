@@ -118,14 +118,12 @@ public class ImagePromptTemplateController {
 
     @PostMapping(value = "/{id}/generate", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ImageGenerationResponse generateImage(@PathVariable("id") String id,
-                                                 @RequestHeader(value = "X-OpenAI-Api-Key", required = false) String userApiKey,
                                                  @RequestBody(required = false) ImageGenerationRequest request) {
-        return openAiImageGenerationService.generate(id, request, userApiKey);
+        return openAiImageGenerationService.generate(id, request);
     }
 
     @PostMapping(value = "/{id}/generate", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ImageGenerationResponse generateImageWithReferences(@PathVariable("id") String id,
-                                                               @RequestHeader(value = "X-OpenAI-Api-Key", required = false) String userApiKey,
                                                                @RequestParam(value = "variables", required = false) String variables,
                                                                @RequestParam(value = "extraInstruction", required = false) String extraInstruction,
                                                                @RequestParam(value = "prompt", required = false) String prompt,
@@ -145,7 +143,7 @@ public class ImagePromptTemplateController {
         request.setBackground(background);
         request.setModel(model);
         request.setReferenceImages(readReferenceImages(referenceImages));
-        return openAiImageGenerationService.generate(id, request, userApiKey);
+        return openAiImageGenerationService.generate(id, request);
     }
 
     private Map<String, Object> readVariables(String variables) {

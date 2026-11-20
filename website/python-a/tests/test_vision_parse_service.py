@@ -10,7 +10,7 @@ class VisionParseServiceTests(unittest.TestCase):
         with self.assertRaises(ValueError) as context:
             service.parse_account_screenshot(b"fake-image", "image/jpeg")
 
-        self.assertIn("VISION_API_KEY", str(context.exception))
+        self.assertIn("vision.api-key", str(context.exception))
 
     def test_build_account_prompt_names_required_fields(self):
         service = VisionParseService(api_key="key", api_base="https://example.invalid/v1", model="vision-test")

@@ -171,9 +171,15 @@ def test_hyperframes_sample_uses_selected_engine_demo(tmp_path, monkeypatch):
 
 
 def test_hyperframes_console_shows_real_engine_without_remotion(runtime, monkeypatch):
+    from types import SimpleNamespace
+
+    from app.services import model_settings
+
     monkeypatch.setattr(settings, "daily_video_renderer", "hyperframes")
     monkeypatch.setattr(settings, "daily_tts_provider", "mimo")
-    monkeypatch.setattr(settings, "mimo_api_key", type(settings.mimo_api_key)("private-test-key"))
+    monkeypatch.setattr(model_settings, "mimo",
+                        lambda: SimpleNamespace(api_key="private-test-key",
+                                                option=lambda name, default="": default))
     values = {item["id"]: item for item in console.runtime()}
     assert values["renderer"]["ready"] is True
     assert "HyperFrames" in values["renderer"]["value"]

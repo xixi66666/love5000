@@ -7,7 +7,6 @@ import com.example.imagetemplate.dto.ReferenceImageInput;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ByteArrayResource;
-import org.springframework.core.env.Environment;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -57,31 +56,36 @@ public class OpenAiImageGenerationService {
 
     private final java.util.List<String> imageModels;
 
-    public OpenAiImageGenerationService(ImagePromptTemplateService imagePromptTemplateService, Environment environment) {
+    @org.springframework.beans.factory.annotation.Autowired
+    public OpenAiImageGenerationService(ImagePromptTemplateService imagePromptTemplateService) {
+        this(imagePromptTemplateService, com.example.common.ai.ModelProperties.load().provider("image"));
+    }
+
+    OpenAiImageGenerationService(ImagePromptTemplateService imagePromptTemplateService,
+                                 com.example.common.ai.ModelProperties.Provider provider) {
         this.imagePromptTemplateService = imagePromptTemplateService;
-        this.apiKey = environment.getProperty("openai.api-key", "");
-        this.baseUrl = environment.getProperty("openai.base-url", "https://nimabo.cn/v1");
-        this.imageModel = environment.getProperty("openai.image-model", "gpt-image-2.5-sunburst");
+        this.apiKey = provider == null ? "" : provider.apiKey();
+        this.baseUrl = provider == null ? "https://nimabo.io/v1" : provider.baseUrl();
+        this.imageModel = provider == null ? "gpt-image-2.5-sunburst"
+                : provider.option("image-model", "gpt-image-2.5-sunburst");
         java.util.Set<String> configuredModels = new java.util.LinkedHashSet<String>();
         configuredModels.add(imageModel);
-        for (String model : environment.getProperty("openai.image-models", "gpt-image-2.5-sunburst,gpt-image-2.5-flare").split(",")) {
+        java.util.List<String> configured = provider == null
+                ? java.util.Arrays.asList("gpt-image-2.5-sunburst", "gpt-image-2.5-flare")
+                : provider.optionList("image-models");
+        for (String model : configured) {
             if (!model.trim().isEmpty()) configuredModels.add(model.trim());
         }
         this.imageModels = java.util.Collections.unmodifiableList(new java.util.ArrayList<String>(configuredModels));
 
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(readInt(environment, "openai.connect-timeout-ms", 300000));
-        requestFactory.setReadTimeout(readInt(environment, "openai.read-timeout-ms", 180000));
-        configureProxy(requestFactory, environment);
+        requestFactory.setConnectTimeout(provider == null ? 300000 : provider.intOption("connect-timeout-ms", 300000));
+        requestFactory.setReadTimeout(provider == null ? 180000 : provider.intOption("read-timeout-ms", 180000));
+        configureProxy(requestFactory, provider);
         this.restTemplate = new RestTemplate(requestFactory);
     }
 
     public ImageGenerationResponse generate(String templateId, ImageGenerationRequest request) {
-        return generate(templateId, request, null);
-    }
-
-    public ImageGenerationResponse generate(String templateId, ImageGenerationRequest request, String userApiKey) {
-        String effectiveApiKey = resolveApiKey(userApiKey);
         ImageGenerationRequest generationRequest = request == null ? new ImageGenerationRequest() : request;
         String selectedModel = resolveModel(generationRequest.getModel());
         String imageSize = normalizeImageSize(generationRequest.getSize());
@@ -89,6 +93,7 @@ public class OpenAiImageGenerationService {
         String outputFormat = normalizeOption(generationRequest.getOutputFormat(), "png");
         String mimeType = mimeType(outputFormat);
         List<ReferenceImageInput> referenceImages = validateReferenceImages(generationRequest.getReferenceImages());
+        String effectiveApiKey = resolveApiKey();
 
         if (!referenceImages.isEmpty()) {
             LOGGER.info("Generating image with references. templateId={}, model={}, endpoint={}, size={}, quality={}, outputFormat={}, background={}, referenceImageCount={}",
@@ -332,14 +337,11 @@ public class OpenAiImageGenerationService {
         return model;
     }
 
-    private String resolveApiKey(String userApiKey) {
-        if (hasText(userApiKey)) {
-            return userApiKey.trim();
-        }
+    private String resolveApiKey() {
         if (hasText(apiKey)) {
             return apiKey.trim();
         }
-        throw new ImageGenerationException("No OpenAI API key is available. Enter your API key on the page or set OPENAI_API_KEY before starting imagetemplate.");
+        throw new ImageGenerationException("图片模型未配置：请在项目根目录 model.properties 的 image.api-key 填写密钥。");
     }
 
     private String cleanBaseUrl() {
@@ -350,27 +352,19 @@ public class OpenAiImageGenerationService {
         return value;
     }
 
-    private void configureProxy(SimpleClientHttpRequestFactory requestFactory, Environment environment) {
-        String proxyHost = environment.getProperty("openai.proxy.host", "");
-        int proxyPort = readInt(environment, "openai.proxy.port", 0);
+    private void configureProxy(SimpleClientHttpRequestFactory requestFactory,
+                                com.example.common.ai.ModelProperties.Provider provider) {
+        if (provider == null) {
+            return;
+        }
+        String proxyHost = provider.option("proxy-host", "");
+        int proxyPort = provider.intOption("proxy-port", 0);
         if (!hasText(proxyHost) || proxyPort <= 0) {
             return;
         }
-        String proxyType = environment.getProperty("openai.proxy.type", "HTTP");
+        String proxyType = provider.option("proxy-type", "HTTP");
         Proxy.Type type = "SOCKS".equalsIgnoreCase(proxyType) ? Proxy.Type.SOCKS : Proxy.Type.HTTP;
         requestFactory.setProxy(new Proxy(type, new InetSocketAddress(proxyHost.trim(), proxyPort)));
-    }
-
-    private int readInt(Environment environment, String name, int fallback) {
-        String value = environment.getProperty(name);
-        if (!hasText(value)) {
-            return fallback;
-        }
-        try {
-            return Integer.parseInt(value.trim());
-        } catch (NumberFormatException exception) {
-            return fallback;
-        }
     }
 
     private String normalizeOption(String value, String fallback) {

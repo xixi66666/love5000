@@ -53,6 +53,9 @@ website/python-a/deepseek.local.json
 website/python-a/server.out.log
 website/python-a/server.err.log
 
+### 统一模型配置（含密钥，只保留 model.properties.example） ###
+/model.properties
+
 ### 开奖数据操作台本地产物（数据 CSV 提交，产物在首次启动时生成） ###
 /website/lottery/output/
 /website/lottery/cache/

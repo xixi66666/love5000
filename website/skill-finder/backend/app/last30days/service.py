@@ -132,7 +132,6 @@ def _engine_environment() -> dict[str, str]:
         "BRAVE_API_KEY",
         "EXA_API_KEY",
         "GITHUB_TOKEN",
-        "OPENAI_API_KEY",
         "PERPLEXITY_API_KEY",
         "SERPER_API_KEY",
         "TAVILY_API_KEY",

@@ -69,7 +69,12 @@ def test_stopped_generation_is_recoverable(workspace):
 
 
 def test_console_only_returns_safe_environment_metadata(workspace, monkeypatch):
-    monkeypatch.setattr(settings, "mimo_api_key", type(settings.mimo_api_key)("private-tts-value"))
+    from types import SimpleNamespace
+
+    from app.services import model_settings
+
+    monkeypatch.setattr(model_settings, "mimo",
+                        lambda: SimpleNamespace(api_key="private-tts-value", base_url="https://example.invalid/v1"))
     monkeypatch.setattr(settings, "daily_whisper_model", "C:/private/models/small")
     response = client().get("/api/v1/daily-reports/console", params={"day": workspace["date"]})
     assert response.status_code == 200

@@ -77,11 +77,14 @@ class ModelRoutingServiceTest {
         ObjectNode images=payload;
         assertThatThrownBy(()->service.chat("python-a",images)).hasMessageContaining("文本");
     }
-    @Test void privateFileSourceIsReadWithoutCopying()throws Exception {
-        Path config=dir.resolve("website/python-a");Files.createDirectories(config);
-        Files.write(config.resolve("deepseek.local.json"),"{\"DEEPSEEK_API_KEY\":\"private-test-key\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8));
-        ModelSources actual=new ModelSources(new MockEnvironment(),json,dir);
+    @Test void modelPropertiesSourceIsReadWithoutCopying()throws Exception {
+        Path config=dir.resolve("model.properties");
+        Files.write(config,("deepseek.base-url=https://test.example/v1\n"
+                +"deepseek.api-key=private-test-key\n"
+                +"deepseek.models=flash,pro\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        ModelSources actual=new ModelSources(new MockEnvironment(),dir);
         assertThat(actual.read().get(0).key).isEqualTo("private-test-key");
+        assertThat(actual.read().get(0).configured).containsExactly("flash","pro");
     }
     @Test void completeReturnsNativeWithoutDiscoveryAndKeepsStrictChatContract()throws Exception {
         ObjectNode payload=json.createObjectNode();

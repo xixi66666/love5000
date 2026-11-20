@@ -6,7 +6,6 @@ import logging
 import re
 import uuid
 from dataclasses import dataclass, replace
-from pathlib import Path
 
 import httpx
 from sqlalchemy import select
@@ -16,7 +15,7 @@ from app.core.config import settings
 from app.db.models import Repository, TrendingEntry
 from app.db.session import async_session_factory
 from app.repositories.repositories import RepositoryStore
-from app.services import model_hub
+from app.services import model_hub, model_settings
 
 logger = logging.getLogger(__name__)
 
@@ -168,48 +167,19 @@ def _model_chain(raw: str) -> list[str]:
 
 
 def _resolve_api_key() -> str:
-    if settings.intro_api_key_file.strip():
-        # 引用已有本机私有文件，不在多个项目间复制密钥。
-        try:
-            raw = Path(settings.intro_api_key_file).expanduser().read_text(encoding="utf-8-sig").strip()
-            if raw.startswith("{"):
-                data = json.loads(raw)
-                value = next((data.get(name) for name in (
-                    "INTRO_API_KEY", "DEEPSEEK_API_KEY", "intro_api_key", "deepseek_api_key", "api_key"
-                ) if isinstance(data.get(name), str) and data[name].strip()), "")
-            else:
-                value = raw
-            if not value:
-                raise ValueError("empty key")
-            return value.strip()
-        except (OSError, UnicodeError, ValueError, TypeError, AttributeError):
-            raise IntroductionAuthError("无法从本机私有密钥文件读取简介服务密钥。") from None
-    if settings.intro_api_key.get_secret_value().strip():
-        return settings.intro_api_key.get_secret_value().strip()
-    if not settings.intro_api_base.startswith("https://opencode.ai/"):
-        raise IntroductionAuthError("请为当前模型服务设置 INTRO_API_KEY。")
-    if settings.opencode_api_key.strip():
-        return settings.opencode_api_key.strip()
-    auth_path = Path.home() / ".local" / "share" / "opencode" / "auth.json"
-    try:
-        data = json.loads(auth_path.read_text(encoding="utf-8"))
-        key = str((data.get("opencode-go") or {}).get("key") or "")
-    except (OSError, json.JSONDecodeError):
-        key = ""
+    key = model_settings.intro_api_key()
     if not key:
-        raise IntroductionAuthError(
-            "未找到模型网关密钥：请设置 OPENCODE_API_KEY，或先在本机 opencode 登录。"
-        )
+        raise IntroductionAuthError("model.properties 的 intro.api-key 未配置。")
     return key
 
 
 async def _call_chat(
-    client: httpx.AsyncClient, api_model: str, api_key: str, prompt: str, timeout: float
+    client: httpx.AsyncClient, base_url: str, api_model: str, api_key: str, prompt: str, timeout: float
 ) -> str:
     try:
         data = await model_hub.native_chat(
             client,
-            f"{settings.intro_api_base}/chat/completions",
+            f"{base_url}/chat/completions",
             api_key,
             {"model": api_model, "messages": [{"role": "user", "content": prompt}]},
             headers={
@@ -250,17 +220,18 @@ async def generate_introductions(
     except Exception as exc:
         # 延续认证失败即停止的语义，不拆分、不换模型重试。
         raise IntroductionAuthError("统一模型请求失败，请检查已选模型后重试。") from exc
-    chain = _model_chain(model or settings.intro_model)
+    chain = model_settings.intro_models(model or "")
     if not chain:
-        raise IntroductionGenerationError("INTRO_MODEL 未配置任何可用模型。")
+        raise IntroductionGenerationError("model.properties 未配置 service.skill-finder 或 intro.models。")
     api_key = _resolve_api_key()
+    base_url = model_settings.intro_base_url()
     seconds = timeout or settings.intro_timeout_seconds
     last_error: Exception | None = None
     async with httpx.AsyncClient() as client:
         for api_model in chain:
             for attempt in range(_MAX_ATTEMPTS_PER_MODEL):
                 try:
-                    text = await _call_chat(client, api_model, api_key, prompt, seconds)
+                    text = await _call_chat(client, base_url, api_model, api_key, prompt, seconds)
                     return _parse_introductions(text, len(repos))
                 except IntroductionAuthError:
                     raise

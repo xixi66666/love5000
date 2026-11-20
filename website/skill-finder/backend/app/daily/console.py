@@ -15,6 +15,7 @@ from app.core.config import settings
 from app.daily import store
 from app.daily.progress import blank, load, now
 from app.daily.remotion import RENDERER_DIR
+from app.services import model_settings
 
 
 def asset_status(project: str) -> dict:
@@ -63,7 +64,7 @@ def runtime() -> list[dict]:
         {"id": "ffmpeg", "label": "音视频工具", "value": "FFmpeg / 双遍响度与成片检测" if modern else "FFmpeg / ffprobe",
          "ready": bool(shutil.which(settings.daily_ffmpeg_command) and shutil.which(settings.daily_ffprobe_command))},
         {"id": "tts", "label": "配音服务", "value": settings.daily_tts_provider if modern else "edge",
-         "ready": not mimo or bool(settings.mimo_api_key.get_secret_value())},
+         "ready": not mimo or bool(getattr(model_settings.mimo(), "api_key", ""))},
         {"id": "captions", "label": "字幕对齐", "value": "Whisper / " + (
             settings.daily_whisper_model if re.fullmatch(r"[A-Za-z0-9_.-]+", settings.daily_whisper_model)
             else "本地模型")
