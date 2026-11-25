@@ -1,0 +1,289 @@
+{
+  "description": "Synthetic model.properties conformance cases shared by Java ModelPropertiesConformanceTest and Python test_model_properties.py. Never read the repository model.properties or real credentials.",
+  "scopes": ["global", "python-a", "skill-finder", "personal-agent", "scrapling-ui"],
+  "cases": [
+    {
+      "name": "bom-crlf",
+      "content": "\ufeffdeepseek.label=DeepSeek\r\ndeepseek.base-url=https://api.example/v1\r\ndeepseek.models=deepseek-flash,deepseek-v4-pro\r\nservice.global=deepseek:deepseek-flash\r\n",
+      "providers": [
+        {
+          "id": "deepseek",
+          "label": "DeepSeek",
+          "baseUrl": "https://api.example/v1",
+          "apiKey": "",
+          "capability": "text",
+          "models": ["deepseek-flash", "deepseek-v4-pro"],
+          "options": {}
+        }
+      ],
+      "routes": {
+        "global": "deepseek:deepseek-flash",
+        "python-a": "deepseek:deepseek-flash",
+        "skill-finder": "deepseek:deepseek-flash",
+        "personal-agent": "deepseek:deepseek-flash",
+        "scrapling-ui": "deepseek:deepseek-flash"
+      }
+    },
+    {
+      "name": "crlf-continuation",
+      "content": "deepseek.base-url=https://api.example/v1\r\ndeepseek.models=deepseek-flash, \\\r\n   deepseek-v4-pro\r\ndeepseek.label=DeepSeek\r\n",
+      "providers": [
+        {
+          "id": "deepseek",
+          "label": "DeepSeek",
+          "baseUrl": "https://api.example/v1",
+          "apiKey": "",
+          "capability": "text",
+          "models": ["deepseek-flash", "deepseek-v4-pro"],
+          "options": {}
+        }
+      ],
+      "routes": {
+        "global": null,
+        "python-a": null,
+        "skill-finder": null,
+        "personal-agent": null,
+        "scrapling-ui": null
+      }
+    },
+    {
+      "name": "continuation-normal",
+      "content": "deepseek.base-url=https://api.example/v1\ndeepseek.models=deepseek-flash, \\\n   deepseek-v4-pro\ndeepseek.label=DeepSeek\n",
+      "providers": [
+        {
+          "id": "deepseek",
+          "label": "DeepSeek",
+          "baseUrl": "https://api.example/v1",
+          "apiKey": "",
+          "capability": "text",
+          "models": ["deepseek-flash", "deepseek-v4-pro"],
+          "options": {}
+        }
+      ],
+      "routes": {
+        "global": null,
+        "python-a": null,
+        "skill-finder": null,
+        "personal-agent": null,
+        "scrapling-ui": null
+      }
+    },
+    {
+      "name": "continuation-trailing-space",
+      "content": "deepseek.base-url=https://api.example/v1\ndeepseek.label=Deep \\   \nSeek\n",
+      "providers": [
+        {
+          "id": "deepseek",
+          "label": "Deep",
+          "baseUrl": "https://api.example/v1",
+          "apiKey": "",
+          "capability": "text",
+          "models": [],
+          "options": {}
+        }
+      ],
+      "routes": {
+        "global": null,
+        "python-a": null,
+        "skill-finder": null,
+        "personal-agent": null,
+        "scrapling-ui": null
+      }
+    },
+    {
+      "name": "continuation-double-backslash",
+      "content": "deepseek.base-url=https://api.example/v1\ndeepseek.label=Deep\\\\\ndeepseek.api-key=test-key\n",
+      "providers": [
+        {
+          "id": "deepseek",
+          "label": "Deep\\",
+          "baseUrl": "https://api.example/v1",
+          "apiKey": "test-key",
+          "capability": "text",
+          "models": [],
+          "options": {}
+        }
+      ],
+      "routes": {
+        "global": null,
+        "python-a": null,
+        "skill-finder": null,
+        "personal-agent": null,
+        "scrapling-ui": null
+      }
+    },
+    {
+      "name": "continuation-eof",
+      "content": "deepseek.base-url=https://api.example/v1\ndeepseek.label=Deep\\",
+      "providers": [
+        {
+          "id": "deepseek",
+          "label": "Deep",
+          "baseUrl": "https://api.example/v1",
+          "apiKey": "",
+          "capability": "text",
+          "models": [],
+          "options": {}
+        }
+      ],
+      "routes": {
+        "global": null,
+        "python-a": null,
+        "skill-finder": null,
+        "personal-agent": null,
+        "scrapling-ui": null
+      }
+    },
+    {
+      "name": "comment-continuation",
+      "content": "deepseek.base-url=https://api.example/v1\ndeepseek.label=DeepSeek\ndeepseek.capability=text\n# comment with slash \\\ndeepseek.capability=image\n",
+      "providers": [
+        {
+          "id": "deepseek",
+          "label": "DeepSeek",
+          "baseUrl": "https://api.example/v1",
+          "apiKey": "",
+          "capability": "image",
+          "models": [],
+          "options": {}
+        }
+      ],
+      "routes": {
+        "global": null,
+        "python-a": null,
+        "skill-finder": null,
+        "personal-agent": null,
+        "scrapling-ui": null
+      }
+    },
+    {
+      "name": "escapes",
+      "content": "deepseek.base-url=https://api.example/v1\ndeepseek.label=Deep\\u0053eek\ndeepseek.api-key=line\\nbreak\\tend\ndeepseek.models=deepseek-flash,deepseek\\u002dv4-pro\ndeepseek.tts-model=mimo\\u002dv2.5-tts\ndeepseek.proxy-host=host\\=name\nservice.global=deepseek:deepseek\\u002dflash\n",
+      "providers": [
+        {
+          "id": "deepseek",
+          "label": "DeepSeek",
+          "baseUrl": "https://api.example/v1",
+          "apiKey": "line\nbreak\tend",
+          "capability": "text",
+          "models": ["deepseek-flash", "deepseek-v4-pro"],
+          "options": {
+            "tts-model": "mimo-v2.5-tts",
+            "proxy-host": "host=name"
+          }
+        }
+      ],
+      "routes": {
+        "global": "deepseek:deepseek-flash",
+        "python-a": "deepseek:deepseek-flash",
+        "skill-finder": "deepseek:deepseek-flash",
+        "personal-agent": "deepseek:deepseek-flash",
+        "scrapling-ui": "deepseek:deepseek-flash"
+      }
+    },
+    {
+      "name": "duplicates",
+      "content": "deepseek.base-url=https://api.example/v1\ndeepseek.label=First\ndeepseek.label=Second\ndeepseek.api-key=first-key\ndeepseek.api\\u002dkey=second-key\ndeepseek.capability=text\ndeepseek.capability:image\ndeepseek.capability image\nservice.python-a=deepseek:first-model\nservice.python-a=deepseek:second-model\n",
+      "providers": [
+        {
+          "id": "deepseek",
+          "label": "Second",
+          "baseUrl": "https://api.example/v1",
+          "apiKey": "second-key",
+          "capability": "image",
+          "models": [],
+          "options": {}
+        }
+      ],
+      "routes": {
+        "global": null,
+        "python-a": "deepseek:second-model",
+        "skill-finder": null,
+        "personal-agent": null,
+        "scrapling-ui": null
+      }
+    },
+    {
+      "name": "separators",
+      "content": "deepseek.base-url:https://api.example/v1\ndeepseek.label DeepSeek\ndeepseek.api-key = spaced\ndeepseek.models deepseek-flash,deepseek-v4-pro\n",
+      "providers": [
+        {
+          "id": "deepseek",
+          "label": "DeepSeek",
+          "baseUrl": "https://api.example/v1",
+          "apiKey": "spaced",
+          "capability": "text",
+          "models": ["deepseek-flash", "deepseek-v4-pro"],
+          "options": {}
+        }
+      ],
+      "routes": {
+        "global": null,
+        "python-a": null,
+        "skill-finder": null,
+        "personal-agent": null,
+        "scrapling-ui": null
+      }
+    },
+    {
+      "name": "provider-order-continuation",
+      "content": "q.base-\\\nurl:https://api.example/v2\np.base-url=https://api.example/v1\nq.label=Provider Q\np.label=Provider P\nservice.global=q:q-model\n",
+      "providers": [
+        {
+          "id": "q",
+          "label": "Provider Q",
+          "baseUrl": "https://api.example/v2",
+          "apiKey": "",
+          "capability": "text",
+          "models": [],
+          "options": {}
+        },
+        {
+          "id": "p",
+          "label": "Provider P",
+          "baseUrl": "https://api.example/v1",
+          "apiKey": "",
+          "capability": "text",
+          "models": [],
+          "options": {}
+        }
+      ],
+      "routes": {
+        "global": "q:q-model",
+        "python-a": "q:q-model",
+        "skill-finder": "q:q-model",
+        "personal-agent": "q:q-model",
+        "scrapling-ui": "q:q-model"
+      }
+    },
+    {
+      "name": "unicode-trim",
+      "content": "deepseek.base-url=https://api.example/v1\ndeepseek.label=\u00a0Deep\u00a0\ndeepseek.models=deepseek-flash,\u00a0deepseek-v4-pro\u00a0\ndeepseek.tts-model=\u00a0mimo-v2.5-tts\u00a0\n",
+      "providers": [
+        {
+          "id": "deepseek",
+          "label": "\u00a0Deep\u00a0",
+          "baseUrl": "https://api.example/v1",
+          "apiKey": "",
+          "capability": "text",
+          "models": ["deepseek-flash", "\u00a0deepseek-v4-pro\u00a0"],
+          "options": {
+            "tts-model": "\u00a0mimo-v2.5-tts\u00a0"
+          }
+        }
+      ],
+      "routes": {
+        "global": null,
+        "python-a": null,
+        "skill-finder": null,
+        "personal-agent": null,
+        "scrapling-ui": null
+      }
+    },
+    {
+      "name": "invalid-unicode",
+      "content": "deepseek.base-url=https://api.example/v1\ndeepseek.label=bad\\u12zz\n",
+      "error": "malformed-unicode"
+    }
+  ]
+}

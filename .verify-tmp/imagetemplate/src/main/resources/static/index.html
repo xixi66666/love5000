@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#182c41">
+    <title>Image Prompt Atelier</title>
+    <link rel="preconnect" href="https://api.fontshare.com">
+    <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@400,500,700,800&display=swap">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ffffff'/%3E%3Cpath d='M32 8 56 32 32 56 8 32Z' fill='none' stroke='%230f766e' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='8' fill='%2314b8a6'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="cinematic-backdrop" aria-hidden="true">
+    <img class="deep-woods-video" src="media/background.png" alt=""
+         aria-hidden="true">
+    <div class="deep-woods-shade"></div>
+    <div class="deep-woods-grain"></div>
+    <div class="backdrop-orb backdrop-orb-one"></div>
+    <div class="backdrop-orb backdrop-orb-two"></div>
+    <div class="golden-trace golden-trace-one"></div>
+    <div class="golden-trace golden-trace-two"></div>
+</div>
+
+<div class="app-shell">
+    <header class="topbar">
+        <div class="brand" aria-label="图片提示词工作台">
+            <span class="brand-mark" aria-hidden="true"><i></i></span>
+            <span class="brand-copy">
+                <strong>Prompt Atelier</strong>
+                <small>IMAGE DIRECTION STUDIO</small>
+            </span>
+        </div>
+        <div class="topbar-center">
+            <span class="eyebrow">当前场景</span>
+            <span id="sceneStatus" class="scene-status" aria-live="polite">01 · 灵感大厅</span>
+        </div>
+        <div class="topbar-actions">
+            <label class="image-model-picker">图片模型
+                <select id="imageModelSelect" aria-label="仅为当前图片工作台选择模型"><option value="">服务默认</option></select>
+            </label>
+            <span class="api-indicator"><i aria-hidden="true"></i>API · 8082</span>
+            <a class="source-link" href="http://localhost:8080/">返回主页</a>
+            <a class="source-link source-link-muted" target="_blank" rel="noopener"
+               href="https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/templates.md#section-templates">模板来源</a>
+        </div>
+    </header>
+
+    <main class="scene-stage">
+        <section class="scene is-active" data-scene="discover" aria-labelledby="discoverTitle">
+            <div class="scene-scroll">
+                <div class="discover-layout">
+                    <div class="scene-intro discover-intro">
+                        <div class="hero-copy">
+                            <p class="scene-kicker">CURATED PROMPT LIBRARY</p>
+                            <h1 id="discoverTitle" tabindex="-1">让每一句灵感，走进<span class="inline-heading-image" aria-hidden="true"></span><span>可生成的世界。</span></h1>
+                            <p class="scene-lead">从 15 个一级功能和细分场景开始，找到真正可执行的视觉指令。选中模板后，继续解构、编导并生成你的画面。</p>
+                            <div class="discover-summary">
+                                <button class="primary-action" type="button" data-scroll-target="promptBrowser">
+                                    开始探索模板 <span aria-hidden="true">↘</span>
+                                </button>
+                                <button class="text-action" type="button" data-scene-target="deconstruct">继续上次创作</button>
+                            </div>
+                        </div>
+                        <div class="hero-visual" aria-label="视觉创作理念轮播">
+                            <div class="hero-visual-frame">
+                                <span class="hero-visual-word">IMAGINE</span>
+                                <div class="direction-carousel">
+                                    <div class="direction-slide is-active">A prompt is a camera<br>for what does not exist yet.</div>
+                                    <div class="direction-slide">先定义画面意图，<br>再决定风格与细节。</div>
+                                    <div class="direction-slide">让限制条件成为<br>视觉语言的一部分。</div>
+                                    <div class="direction-controls">
+                                        <button type="button" data-direction="prev" aria-label="上一条创作理念">←</button>
+                                        <span><i id="directionIndex">1</i> / 3</span>
+                                        <button type="button" data-direction="next" aria-label="下一条创作理念">→</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <section class="process-accordion" aria-label="从灵感到生成的工作方式">
+                        <button class="process-panel" type="button" data-scroll-target="promptBrowser">
+                            <span>Explore</span><strong>在 4456 条指令里找到起点</strong><small>按任务、场景与来源精准收敛</small>
+                        </button>
+                        <button class="process-panel" type="button" data-scene-target="deconstruct">
+                            <span>Decode</span><strong>把好画面拆成可编辑结构</strong><small>理解变量、叙事与视觉约束</small>
+                        </button>
+                        <button class="process-panel" type="button" data-scene-target="render">
+                            <span>Create</span><strong>让文字成为最终画面</strong><small>自定义尺寸、参考图与输出格式</small>
+                        </button>
+                    </section>
+
+                    <div class="gallery-panel" id="promptBrowser">
+                        <div class="browser-toolbar">
+                            <div class="search-row">
+                                <label class="sr-only" for="keywordInput">搜索提示词</label>
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.35-4.35m2.35-5.65a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z"/></svg>
+                                <input id="keywordInput" type="search" placeholder="搜索标题、标签、用途或场景" autocomplete="off">
+                            </div>
+                            <label class="image-only-control" for="imageOnlyToggle">
+                                <input id="imageOnlyToggle" type="checkbox">
+                                <span>仅看图片提示词</span>
+                            </label>
+                            <div class="library-meter" aria-label="当前模板结果">
+                                <strong id="templateCount">0</strong><span>results</span>
+                            </div>
+                            <button id="clearFiltersButton" class="clear-filters" type="button">清除筛选</button>
+                        </div>
+                        <div id="libraryAlert" class="library-alert" role="alert" hidden></div>
+
+                        <div class="prompt-browser">
+                            <aside class="filter-sidebar" aria-label="提示词筛选条件">
+                                <div class="filter-sidebar-heading">
+                                    <div>
+                                        <p class="panel-index">FILTERS</p>
+                                        <h2>筛选提示词</h2>
+                                    </div>
+                                    <span>先选任务，再选场景</span>
+                                </div>
+
+                                <section class="filter-group" aria-labelledby="functionFilterTitle">
+                                    <div class="filter-group-title">
+                                        <strong id="functionFilterTitle">一级功能</strong>
+                                        <span>必选入口</span>
+                                    </div>
+                                    <div class="function-category-toolbar">
+                                        <label class="function-category-select" for="functionCategorySelect">
+                                            <span class="sr-only">选择一级功能</span>
+                                            <select id="functionCategorySelect" aria-label="选择一级功能">
+                                                <option value="">全部功能</option>
+                                            </select>
+                                        </label>
+                                    </div>
+                                    <div id="functionCategoryFilters" class="function-filters"
+                                         aria-label="一级功能分类"></div>
+                                </section>
+
+                                <section class="filter-group scene-filter-group" aria-labelledby="sceneFilterTitle">
+                                    <div class="filter-group-title">
+                                        <strong id="sceneFilterTitle">二级场景</strong>
+                                        <span>随功能变化</span>
+                                    </div>
+                                    <div id="functionSceneFilters" class="function-scenes"
+                                         aria-label="二级功能场景"></div>
+                                    <p class="scene-filter-empty">选择一级功能后显示对应场景</p>
+                                </section>
+
+                                <details id="advancedFilters" class="advanced-filters">
+                                    <summary>更多筛选</summary>
+                                    <div class="advanced-filter-content">
+                                        <div>
+                                            <span class="filter-caption">模板来源</span>
+                                            <div id="sourceFilters" class="source-filters"
+                                                 aria-label="提示词来源"></div>
+                                        </div>
+                                        <div class="library-filters">
+                                            <label for="categorySelect">
+                                                <span>原始分类</span>
+                                                <select id="categorySelect">
+                                                    <option value="">全部原始分类</option>
+                                                </select>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </details>
+                            </aside>
+
+                            <section class="results-panel" aria-labelledby="resultTitle">
+                                <div class="panel-heading">
+                                    <div>
+                                        <p class="panel-index">PROMPT RESULTS</p>
+                                        <h2 id="resultTitle">提示词结果</h2>
+                                    </div>
+                                    <div id="listStatus" class="list-status" role="status"></div>
+                                </div>
+                                <div class="template-list" id="templateList" aria-live="polite"></div>
+                                <button id="loadMoreButton" class="load-more" type="button" hidden>加载更多提示词</button>
+                            </section>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="scene" data-scene="deconstruct" aria-labelledby="deconstructTitle" aria-hidden="true">
+            <div class="scene-scroll">
+                <div class="scene-heading-row">
+                    <div class="scene-heading">
+                        <p class="scene-kicker">READ THE BLUEPRINT</p>
+                        <h1 id="deconstructTitle" tabindex="-1">拆开模板，读懂<span>画面的叙事结构。</span></h1>
+                    </div>
+                    <button class="ghost-action" type="button" data-scene-target="discover">返回展廊</button>
+                </div>
+
+                <article class="deconstruct-panel">
+                    <header class="detail-header">
+                        <div>
+                            <p id="detailCategory" class="detail-category">请选择模板</p>
+                            <h2 id="detailTitle">模板详情</h2>
+                            <p id="detailSummary" class="detail-summary"></p>
+                        </div>
+                        <button class="copy-button" id="copyPromptButton" type="button">复制 Prompt</button>
+                    </header>
+
+                    <div class="detail-grid">
+                        <section class="field-block">
+                            <div class="field-title">
+                                <span>STRUCTURED BLUEPRINT</span>
+                                <strong>JSON 模板（可编辑）</strong>
+                            </div>
+                            <textarea id="jsonTemplate" class="code-block" spellcheck="false"
+                                      aria-describedby="jsonTemplateStatus">{}</textarea>
+                            <div id="jsonTemplateStatus" class="editor-status" role="status">
+                                可直接修改；进入 Prompt 编导台时会同步到变量剧本。
+                            </div>
+                        </section>
+                        <section class="field-block">
+                            <div class="field-title">
+                                <span>NARRATIVE PROMPT</span>
+                                <strong>常规模板</strong>
+                            </div>
+                            <div id="promptTemplate" class="prompt-template"></div>
+                        </section>
+                    </div>
+                    <div class="scene-callout">
+                        <p>模板只是底片。下一幕，把人物、风格与限制条件写进你的版本。</p>
+                        <button class="primary-action" type="button" data-scene-target="direct">
+                            进入 Prompt 编导台 <span aria-hidden="true">→</span>
+                        </button>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <section class="scene" data-scene="direct" aria-labelledby="directTitle" aria-hidden="true">
+            <div class="scene-scroll">
+                <div class="scene-heading-row">
+                    <div class="scene-heading">
+                        <p class="scene-kicker">DIRECT THE PROMPT</p>
+                        <h1 id="directTitle" tabindex="-1">把你的意图，写进<span>每一束光里。</span></h1>
+                    </div>
+                    <button class="ghost-action" type="button" data-scene-target="deconstruct">查看模板结构</button>
+                </div>
+
+                <section class="prompt-builder">
+                    <div class="builder-head">
+                        <div>
+                            <p class="panel-index">PROMPT DIRECTION DESK</p>
+                            <h2>Prompt 编导台</h2>
+                            <p>将变量覆盖到 JSON 模板，再由 Java 生成 prompt 字段内容。</p>
+                        </div>
+                        <button id="renderPromptButton" class="primary-action" type="button">生成 Prompt</button>
+                    </div>
+
+                    <div class="director-grid">
+                        <div class="director-inputs">
+                            <label for="variablesInput">
+                                <span>01 / 变量剧本</span>
+                                <small>VARIABLE JSON</small>
+                            </label>
+                            <textarea id="variablesInput" spellcheck="false">{}</textarea>
+
+                            <label for="extraInstructionInput">
+                                <span>02 / 导演备注</span>
+                                <small>EXTRA DIRECTION</small>
+                            </label>
+                            <input id="extraInstructionInput" type="text"
+                                   placeholder="例如：竖版 4:5，画面更高级，保留品牌主色">
+                        </div>
+                        <div class="prompt-output">
+                            <label for="renderedPrompt">
+                                <span>03 / 最终 Prompt</span>
+                                <small>FINAL PROMPT</small>
+                            </label>
+                            <textarea id="renderedPrompt" spellcheck="false"
+                                      placeholder="生成后可在这里继续编辑 prompt，再进入图片生成舱"></textarea>
+                            <div id="statusLine" class="status-line" role="status"></div>
+                        </div>
+                    </div>
+                    <div class="scene-callout">
+                        <p>确认文字的节奏与细节，然后把它送入最后的生成舱。</p>
+                        <button class="primary-action" type="button" data-scene-target="render">
+                            进入图片生成舱 <span aria-hidden="true">→</span>
+                        </button>
+                    </div>
+                </section>
+            </div>
+        </section>
+
+        <section class="scene" data-scene="render" aria-labelledby="renderTitle" aria-hidden="true">
+            <div class="scene-scroll">
+                <div class="scene-heading-row render-heading">
+                    <div class="scene-heading">
+                        <p class="scene-kicker">RENDER THE VISION</p>
+                        <h1 id="renderTitle" tabindex="-1">最后，让文字在画布上<span>显影。</span></h1>
+                    </div>
+                    <button class="ghost-action" type="button" data-scene-target="direct">返回编导台</button>
+                </div>
+
+                <section class="generation-panel">
+                    <div class="generation-controls">
+                        <div class="builder-head">
+                            <div>
+                                <p class="panel-index">IMAGE GENERATION CHAMBER</p>
+                                <h2>图片生成舱</h2>
+                                <p>通过服务端调用 gpt-image-2.5；密钥不会写入页面或永久存储。</p>
+                            </div>
+                            <button id="generateImageButton" class="primary-action" type="button">生成图片</button>
+                        </div>
+
+                        <div class="api-key-box">
+                            <p class="api-key-note">图片模型、密钥与代理统一在项目根目录 <code>model.properties</code> 的 <code>image.*</code> 中配置，页面不再保存密钥。</p>
+                        </div>
+
+                        <div class="reference-upload">
+                            <div class="reference-upload-head">
+                                <div>
+                                    <label for="referenceImageInput">参考图片</label>
+                                    <p>可上传角色、商品或风格参考图，最多 16 张。</p>
+                                </div>
+                                <button id="clearReferenceImagesButton" type="button" disabled>清空</button>
+                            </div>
+                            <input id="referenceImageInput" type="file"
+                                   accept="image/png,image/jpeg,image/webp" multiple>
+                            <div id="referenceImagePreview" class="reference-preview">
+                                <span>未选择参考图片</span>
+                            </div>
+                        </div>
+
+                        <div class="option-grid">
+                            <label>
+                                <span>尺寸</span>
+                                <select id="imageSizeSelect">
+                                    <option value="1024x1024">1024 x 1024</option>
+                                    <option value="2048x2048">2048 x 2048</option>
+                                    <option value="1536x1024">1536 x 1024</option>
+                                    <option value="1024x1536">1024 x 1536</option>
+                                    <option value="1920x1088">1920 x 1088</option>
+                                    <option value="2560x1440">2560 x 1440</option>
+                                    <option value="3840x2160">3840 x 2160</option>
+                                    <option value="1088x1920">1088 x 1920</option>
+                                    <option value="1440x2560">1440 x 2560</option>
+                                    <option value="2160x3840">2160 x 3840</option>
+                                    <option value="custom">自定义尺寸</option>
+                                </select>
+                            </label>
+                            <label id="customImageSizeField" class="custom-size-field" hidden>
+                                <span>自定义尺寸</span>
+                                <input id="customImageSizeInput" type="text" inputmode="text"
+                                       placeholder="例如：3840x2160">
+                            </label>
+                            <label>
+                                <span>质量</span>
+                                <select id="imageQualitySelect">
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                </select>
+                            </label>
+                            <label>
+                                <span>格式</span>
+                                <select id="imageFormatSelect">
+                                    <option value="png">PNG</option>
+                                    <option value="jpeg">JPEG</option>
+                                    <option value="webp">WebP</option>
+                                </select>
+                            </label>
+                            <label>
+                                <span>背景</span>
+                                <select id="imageBackgroundSelect">
+                                    <option value="auto">Auto</option>
+                                    <option value="transparent">Transparent</option>
+                                    <option value="opaque">Opaque</option>
+                                </select>
+                            </label>
+                            <p id="imageSizeHint" class="size-hint">
+                                尺寸需为宽x高，宽高为 16 的倍数，单边不超过 3840。
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="result-gallery">
+                        <div class="result-frame">
+                            <div class="result-label">
+                                <span>FINAL ARTWORK</span>
+                                <strong>生成画作</strong>
+                            </div>
+                            <div class="image-result" id="imageResult">
+                                <div class="empty-image-state" id="emptyImageState">
+                                    <span aria-hidden="true">✦</span>
+                                    <p>生成后的图片会在这里显影</p>
+                                </div>
+                                <img id="generatedImage" alt="AI 生成图片" hidden>
+                            </div>
+                        </div>
+                        <div class="generation-actions">
+                            <div id="imageStatusLine" class="status-line" role="status"></div>
+                            <a id="downloadImageButton" href="#" download="generated-image.png"
+                               aria-disabled="true">下载图片</a>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </section>
+    </main>
+
+    <nav class="scene-dock" aria-label="工作台场景">
+        <div class="dock-rail-heading" aria-hidden="true">
+            <small>WORKFLOW</small>
+            <strong>创作流程</strong>
+        </div>
+        <div class="dock-progress" aria-hidden="true"><span id="dockProgressBar"></span></div>
+        <div class="dock-steps" role="tablist" aria-label="创作流程">
+            <button class="dock-step is-active" type="button" role="tab"
+                    data-scene-target="discover" aria-selected="true">
+                <span>01</span><strong>灵感大厅</strong>
+            </button>
+            <button class="dock-step" type="button" role="tab"
+                    data-scene-target="deconstruct" aria-selected="false">
+                <span>02</span><strong>模板解构</strong>
+            </button>
+            <button class="dock-step" type="button" role="tab"
+                    data-scene-target="direct" aria-selected="false">
+                <span>03</span><strong>Prompt 编导台</strong>
+            </button>
+            <button class="dock-step" type="button" role="tab"
+                    data-scene-target="render" aria-selected="false">
+                <span>04</span><strong>图片生成舱</strong>
+            </button>
+        </div>
+        <div class="dock-arrows">
+            <button id="scenePrevButton" type="button" aria-label="上一幕" disabled>←</button>
+            <button id="sceneNextButton" type="button" aria-label="下一幕">→</button>
+        </div>
+    </nav>
+</div>
+
+<script src="vendor/gsap-3.13.0.min.js"></script>
+<script src="vendor/ScrollTrigger-3.13.0.min.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

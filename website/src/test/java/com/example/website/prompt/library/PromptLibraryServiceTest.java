@@ -22,8 +22,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class PromptLibraryServiceTest {
@@ -57,7 +60,7 @@ class PromptLibraryServiceTest {
     @Test
     void searchClampsPageAndSizeAndEscapesLikeWildcards() {
         when(dao.countByFilter(any(), any(), any(), any(), any())).thenReturn(1L);
-        when(dao.searchPage(any(), any(), any(), any(), any(), anyInt(), anyInt()))
+        when(dao.searchPage(any(), any(), any(), any(), any(), anyLong(), anyInt()))
                 .thenReturn(Arrays.asList(entry()));
 
         PromptSearchRequest request = new PromptSearchRequest();
@@ -67,7 +70,7 @@ class PromptLibraryServiceTest {
         PromptListResponse response = service.search(request);
 
         verify(dao).countByFilter("50\\%\\_off\\\\x", null, null, null, null);
-        verify(dao).searchPage("50\\%\\_off\\\\x", null, null, null, null, 0, 100);
+        verify(dao).searchPage("50\\%\\_off\\\\x", null, null, null, null, 0L, 100);
         assertThat(response.getPage()).isEqualTo(1);
         assertThat(response.getSize()).isEqualTo(100);
         assertThat(response.getEntries()).hasSize(1);
@@ -80,15 +83,73 @@ class PromptLibraryServiceTest {
     @Test
     void searchDefaultsPageAndSize() {
         when(dao.countByFilter(any(), any(), any(), any(), any())).thenReturn(0L);
-        when(dao.searchPage(any(), any(), any(), any(), any(), anyInt(), anyInt()))
-                .thenReturn(Collections.emptyList());
-
         PromptListResponse response = service.search(new PromptSearchRequest());
 
         assertThat(response.getPage()).isEqualTo(1);
         assertThat(response.getSize()).isEqualTo(48);
         assertThat(response.getTotal()).isZero();
         assertThat(response.getEntries()).isEmpty();
+        verify(dao, never()).searchPage(any(), any(), any(), any(), any(), anyLong(), anyInt());
+    }
+
+    @Test
+    void searchClampsNegativePageAndSize() {
+        when(dao.countByFilter(any(), any(), any(), any(), any())).thenReturn(1L);
+        when(dao.searchPage(any(), any(), any(), any(), any(), anyLong(), anyInt()))
+                .thenReturn(Collections.emptyList());
+
+        PromptSearchRequest request = new PromptSearchRequest();
+        request.setPage(-5);
+        request.setSize(-1);
+
+        PromptListResponse response = service.search(request);
+
+        assertThat(response.getPage()).isEqualTo(1);
+        assertThat(response.getSize()).isEqualTo(1);
+        verify(dao).searchPage(null, null, null, null, null, 0L, 1);
+    }
+
+    @Test
+    void searchPassesEscapedKeywordAllFiltersAndSecondPageOffset() {
+        String escaped = "50\\%\\_off\\\\x";
+        when(dao.countByFilter(escaped, "writing-content", "小红书", "manual", "imported")).thenReturn(100L);
+        when(dao.searchPage(escaped, "writing-content", "小红书", "manual", "imported", 48L, 48))
+                .thenReturn(Collections.singletonList(entry()));
+
+        PromptSearchRequest request = new PromptSearchRequest();
+        request.setKeyword(" 50%_off\\x ");
+        request.setGroup(" writing-content ");
+        request.setCategory(" 小红书 ");
+        request.setSource(" manual ");
+        request.setStatus(" imported ");
+        request.setPage(2);
+        request.setSize(48);
+
+        PromptListResponse response = service.search(request);
+
+        assertThat(response.getPage()).isEqualTo(2);
+        assertThat(response.getSize()).isEqualTo(48);
+        assertThat(response.getTotal()).isEqualTo(100L);
+        assertThat(response.getEntries()).hasSize(1);
+        verify(dao).countByFilter(escaped, "writing-content", "小红书", "manual", "imported");
+        verify(dao).searchPage(escaped, "writing-content", "小红书", "manual", "imported", 48L, 48);
+    }
+
+    @Test
+    void searchSkipsPageQueryWhenPageIsBeyondTotal() {
+        when(dao.countByFilter(any(), any(), any(), any(), any())).thenReturn(10L);
+
+        PromptSearchRequest request = new PromptSearchRequest();
+        request.setPage(Integer.MAX_VALUE);
+        request.setSize(100);
+
+        PromptListResponse response = service.search(request);
+
+        assertThat(response.getPage()).isEqualTo(Integer.MAX_VALUE);
+        assertThat(response.getSize()).isEqualTo(100);
+        assertThat(response.getTotal()).isEqualTo(10L);
+        assertThat(response.getEntries()).isEmpty();
+        verify(dao, never()).searchPage(any(), any(), any(), any(), any(), anyLong(), anyInt());
     }
 
     @Test
@@ -97,7 +158,7 @@ class PromptLibraryServiceTest {
         PromptEntry row = entry();
         row.setPrompt("这是很长的完整正文……");
         row.setPreview("来自 SQL 的预览");
-        when(dao.searchPage(any(), any(), any(), any(), any(), anyInt(), anyInt()))
+        when(dao.searchPage(any(), any(), any(), any(), any(), anyLong(), anyInt()))
                 .thenReturn(Arrays.asList(row));
 
         PromptListResponse response = service.search(new PromptSearchRequest());
@@ -220,6 +281,90 @@ class PromptLibraryServiceTest {
         assertThatThrownBy(() -> service.create(request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("512");
+    }
+
+    @Test
+    void createRejectsOverlongOptionalFields() {
+        PromptCreateRequest tagsRequest = validCreateRequest();
+        tagsRequest.setTags(repeat('t', 501) + "," + repeat('t', 501));
+        assertThatThrownBy(() -> service.create(tagsRequest))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("标签")
+                .hasMessageContaining("1000");
+
+        PromptCreateRequest sourceUrlRequest = validCreateRequest();
+        sourceUrlRequest.setSourceUrl(repeat('u', 513));
+        assertThatThrownBy(() -> service.create(sourceUrlRequest))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("来源链接")
+                .hasMessageContaining("512");
+
+        PromptCreateRequest licenseRequest = validCreateRequest();
+        licenseRequest.setLicense(repeat('l', 256));
+        assertThatThrownBy(() -> service.create(licenseRequest))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("授权")
+                .hasMessageContaining("255");
+
+        verifyNoInteractions(dao);
+    }
+
+    @Test
+    void createAcceptsOptionalFieldsAtMaxLength() {
+        when(dao.findGroupSlugByCategory("分类")).thenReturn("writing-content");
+        when(dao.insert(any(PromptEntry.class))).thenAnswer(invocation -> {
+            PromptEntry entry = invocation.getArgument(0);
+            entry.setId(11L);
+            return 1;
+        });
+        when(dao.findById(11L)).thenReturn(createdRow(11L, "writing-content"));
+
+        String tags = repeat('t', 1000);
+        String sourceUrl = repeat('u', 512);
+        String license = repeat('l', 255);
+        PromptCreateRequest request = validCreateRequest();
+        request.setTags(tags);
+        request.setSourceUrl(sourceUrl);
+        request.setLicense(license);
+
+        service.create(request);
+
+        ArgumentCaptor<PromptEntry> captor = ArgumentCaptor.forClass(PromptEntry.class);
+        verify(dao).insert(captor.capture());
+        assertThat(captor.getValue().getTags()).isEqualTo(tags);
+        assertThat(captor.getValue().getSourceUrl()).isEqualTo(sourceUrl);
+        assertThat(captor.getValue().getLicense()).isEqualTo(license);
+    }
+
+    @Test
+    void createRejectsOverlongCategoryAndPrompt() {
+        PromptCreateRequest categoryRequest = validCreateRequest();
+        categoryRequest.setCategory(repeat('c', 129));
+        assertThatThrownBy(() -> service.create(categoryRequest))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("128");
+
+        PromptCreateRequest promptRequest = validCreateRequest();
+        promptRequest.setPrompt(repeat('p', 60001));
+        assertThatThrownBy(() -> service.create(promptRequest))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("60000");
+
+        verifyNoInteractions(dao);
+    }
+
+    private PromptCreateRequest validCreateRequest() {
+        PromptCreateRequest request = new PromptCreateRequest();
+        request.setTitle("标题");
+        request.setCategory("分类");
+        request.setPrompt("正文");
+        return request;
+    }
+
+    private String repeat(char value, int count) {
+        char[] chars = new char[count];
+        Arrays.fill(chars, value);
+        return new String(chars);
     }
 
     private PromptEntry createdRow(Long id, String groupSlug) {

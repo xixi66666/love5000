@@ -27,6 +27,14 @@ public class ModelRoutingClient {
         try { return http.request(hub+"/api/models/effective/"+service,"",null,2000).path("active").asBoolean(); }
         catch(ConnectException e) { requireNative(service);return false; }
     }
+    /** 当前生效的模型标识（provider:model）；未启用统一选择或网关不可达时返回空串。 */
+    public String effectiveModel(String service) {
+        try {
+            JsonNode body=http.request(hub+"/api/models/effective/"+service,"",null,2000);
+            String model=body.path("modelId").asText("");
+            return body.path("active").asBoolean(false)?model:"";
+        } catch(IOException unavailable) { return ""; }
+    }
     /** null 表示明确使用原配置；超时、HTTP 错误和无效 JSON 不自动换模型。 */
     public JsonNode tryChat(String service,Object payload) throws IOException {
         try { return http.request(hub+"/api/models/complete/"+service,"",json.valueToTree(payload),300000,true); }

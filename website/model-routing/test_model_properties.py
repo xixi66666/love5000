@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -62,6 +63,44 @@ class ModelPropertiesTests(unittest.TestCase):
         self.assertIsNone(settings.route("python-a"))
         self.assertIsNone(settings.route("skill-finder"))
         self.assertIsNone(settings.route("personal-agent"))
+
+    def test_shared_conformance_cases(self):
+        conformance = Path(__file__).with_name("conformance") / "cases.json"
+        cases = json.loads(conformance.read_text(encoding="utf-8"))
+        for case in cases["cases"]:
+            with self.subTest(case=case["name"]):
+                file = Path(self.dir.name) / (case["name"] + ".properties")
+                file.write_bytes(case["content"].encode("utf-8"))
+
+                if case.get("error"):
+                    with self.assertRaises(ValueError):
+                        ModelProperties.load(file)
+                    continue
+
+                settings = ModelProperties.load(file)
+                providers = list(settings.providers)
+                self.assertEqual(len(providers), len(case["providers"]), case["name"])
+                actual = []
+                for provider, expected in zip(providers, case["providers"]):
+                    actual.append({
+                        "id": provider.id,
+                        "label": provider.label,
+                        "baseUrl": provider.base_url,
+                        "apiKey": provider.api_key,
+                        "capability": provider.capability,
+                        "models": provider.models,
+                        "options": {
+                            name: provider.option(name)
+                            for name in expected.get("options", {})
+                        },
+                    })
+                self.assertEqual(actual, case["providers"], case["name"])
+
+                for scope, expected_route in case["routes"].items():
+                    route = settings.route(scope)
+                    actual_route = None if route is None else route.id
+                    self.assertEqual(actual_route, expected_route,
+                                     f"{case['name']} route {scope}")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vault-snapshot"
+version = "0.1.0"
+description = "Offline, verifiable Vault snapshots using only the Python standard library"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+vault-snapshot = "vault_snapshot.cli:main"
+
+[tool.setuptools]
+packages = ["vault_snapshot"]

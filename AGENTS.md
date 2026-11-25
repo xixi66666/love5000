@@ -2,11 +2,16 @@
 
 ## 统一服务健康检查
 
-七个独立服务 `lovestory`、`imagetemplate`、`python-a`、`quant-a`、`scrapling-ui`、`skill-finder`、`personal-agent`
+八个独立服务 `lovestory`、`imagetemplate`、`python-a`、`quant-a`、`scrapling-ui`、`skill-finder`、`personal-agent`、`lottery`
 均提供 `GET /api/health`，响应顶层必须包含布尔值 `success=true` 和稳定的 `service`
-标识。`website` 使用 `ServiceHealthChecker` 统一探测，并通过
-`GET /api/services/health` 并行返回配置顺序一致的聚合结果；HTTP 200 表示聚合执行成功，
-顶层 `healthy` 表示是否所有服务均在线。连接/读取超时默认分别为 2000/3000ms。
+标识。`website` 使用 `ServiceHealthChecker` 并行巡检，通过
+`GET /api/services/health` 返回最近结果。默认启动时巡检一次，后续间隔 30 分钟。默认检查 11 个目标：
+上述八个服务，加上经 `website` 适配的 `strata`、`aimedia`、`h3`
+（`http://127.0.0.1:8080/api/services/local/{service}/health`）；顺序以
+`website/src/main/resources/application.yml` 的 `website.service-health.services` 为准。
+HTTP 200 表示成功返回聚合响应。顶层 `success=true` 表示巡检已生成汇总，即使全部目标离线仍可为 true，`healthy` 表示是否所有目标均在线。
+单个目标在 HTTP 2xx 且响应顶层布尔值 `success=true` 时判定为健康。
+连接/读取超时默认分别为 2000/3000ms。
 
 ## 统一模型配置（model.properties）
 
@@ -23,6 +28,7 @@
   等模型环境变量，也不再读取 `website/python-a/deepseek.local.json`、`skill-finder/backend/.env`
   中的模型键；`website` 的 `.runtime/model-routing.json` 仍只保存选择结果（模型 ID）。
 - 修改模型后可在模型选择器点 ↻（`POST /api/models/refresh`）重新探测；密钥不得出现在网页、日志或响应中。
+- OpenCode Go 文本模型使用 `opencode-go.*`，基础地址为 `https://opencode.ai/inference/go/openai/v1`，请求模型 ID 为 `deepseek-v4.1-flash`。
 
 ## 项目概述
 
@@ -120,7 +126,7 @@ mvn -pl lovestory -am spring-boot:run -Dspring-boot.run.main-class=com.ycxandwuq
 mvn -pl website -am spring-boot:run
 ```
 
-`website` 启动时会默认自动检查并启动 `python-a` 和 `quant-a`。如果本机对应健康检查已可用，则直接复用已有服务，不重复启动。两个 Python 子服务默认把 stdout/stderr 输出到 `website` 的同一个控制台，便于在 IDEA Run/Terminal 中直接查看运行日志和接口访问日志。`scrapling-ui` 和 `skill-finder` 不随 `website` 自动拉起，只由首页 Dock 卡片点击启动。
+`website` 启动时会默认自动检查并启动 `python-a` 和 `quant-a`。如果本机对应健康检查已可用，则直接复用已有服务，不重复启动。两个 Python 子服务默认把 stdout/stderr 输出到 `website` 的同一个控制台，便于在 IDEA Run/Terminal 中直接查看运行日志和接口访问日志。`scrapling-ui`、`skill-finder`、`lottery` 和 03 Deep Woods 的 `personal-agent` 不随 `website` 自动拉起，只由首页 Dock 卡片点击启动。
 
 启动 `imagetemplate`，默认端口 `8082`：
 
@@ -237,7 +243,7 @@ npm run test -- --run
 npm run build
 ```
 
-日常本地联调直接启动 `website`：它会自动检查并拉起 `python-a` 和 `quant-a`；`scrapling-ui`、`skill-finder` 由首页按钮点击启动，首次使用前完成一次上面的环境准备即可。
+日常本地联调直接启动 `website`：它会自动检查并拉起 `python-a` 和 `quant-a`；`scrapling-ui`、`skill-finder`、`lottery` 由首页按钮点击启动，`personal-agent` 由 03 Deep Woods 的个人资料库卡片点击启动，首次使用前完成一次上面的环境准备即可。
 
 ## 项目结构
 
@@ -486,7 +492,7 @@ website/skill-finder/
 - 当前主页面采用四场景电影化单视口布局，服务入口位于底部液态玻璃 Dock；新增入口时沿用现有 `service-card` 结构，并验证桌面宽度和移动端横向滚动。
 - 四场景仅展示原风景视频，不添加车窗覆盖图或车窗晃动动画；保留暗角、颗粒、背景降级和原视频切换时序。
 - 四段场景片各 10.04 秒且首尾不是同一镜头，原生 `loop` 会先停帧再跳回第一帧。循环走 `setupVideoSwitcher` 的交叉淡化补层：`.scene-video--loop` 按当前场景由脚本动态创建（不写进 `index.html`，四段原视频与 URL 不变），在原视频最后 1 秒从第一帧起播并接管，原视频在自己不可见时才回到片头。**关键**：两层上下叠放，只能让上层补层改变 `opacity`，下层原视频必须始终保持不透明——两层同时半透明时合成覆盖率只有 `上层 + 下层 × (1 − 上层)`（中点仅 75%），会透出深色背景，观感就是“突然黑一下”。`loopFadeMs` 必须与 `.scene-video--loop` 的 `opacity` 过渡一致；`play()` 被拒绝或片段过短时退回原生 `loop`；切换场景必须等新视频 `readyState ≥ 2` 再淡入。验证：`node website/src/test/js/homepage-video-loop.test.js`。
-- 四场景按钮通过 `data-scene-title` / `data-scene-statement` / `data-scene-badge` 配置各自文案，通过 `data-scene-dock` 选择服务目录。01 Golden Hour 保留原文案与 9 个入口；02 Still Water、03 Deep Woods、04 Quiet Dawn 分别使用独立的 `still-water-service-dock`、`deep-woods-service-dock`、`quiet-dawn-service-dock`，未添加卡片时隐藏整个 Dock。背景视频、动画和切换时序保持不变。
+- 四场景按钮通过 `data-scene-title` / `data-scene-statement` / `data-scene-badge` 配置各自文案，通过 `data-scene-dock` 选择服务目录。01 Golden Hour 保留原文案与 9 个入口；03 Deep Woods 的 `deep-woods-service-dock` 展示“个人资料库”（5178，点击启动）；02 Still Water、04 Quiet Dawn 使用独立目录，未添加卡片时隐藏整个 Dock。背景视频、动画和切换时序保持不变。
 - 主页面入口需要包含服务名称、端口或访问标识，并配置实时可用性检测地址。
 - 入口样式和状态点维护在 `website/src/main/resources/static/css/style.css`，健康检测逻辑维护在 `website/src/main/resources/static/js/script.js`。
 - 如果新增服务没有专门健康检查接口，优先使用其首页或登录页作为检测地址；跨端口检测可使用前端 `no-cors` 方式，只把网络失败视为不可用。
@@ -692,7 +698,7 @@ DELETE /api/scheduler/jobs/{job_id}
 POST   /api/scheduler/jobs/{job_id}/run
 ```
 
-`website` 侧点击启动与状态接口见“Scrapling UI 微服务入口方式”和“Skill Finder 微服务入口方式”。
+`website` 侧点击启动与状态接口见“Scrapling UI 微服务入口方式”“Skill Finder 微服务入口方式”，以及 03 Deep Woods 的 `POST /api/services/personal-agent/start` 与 01 的 `POST /api/services/lottery/start`。
 
 `skill-finder` 趋势追踪接口（统一前缀 `/api/v1`，另有统一健康检查 `GET /api/health`）：
 
@@ -799,6 +805,22 @@ mvn -pl lovestory -am test
 mvn -pl website -am test
 mvn -pl imagetemplate -am test
 ```
+
+### 一键离线回归
+
+从仓库根目录运行以下命令。若当前在其他目录，传入脚本的绝对路径。
+
+```bash
+python scripts/run-regression.py
+```
+
+脚本依次运行 `website/src/test/js` 下四份 Node 测试（`homepage-motion.test.js`、`homepage-video-loop.test.js`、`service-health.test.js`、`prompt-console/prompt-category-groups.test.js`）、`python -m unittest discover -s website/model-routing`、`python scripts/sync-model-picker.py --check`、`python scripts/sync-model-routing.py --check`，最后执行 Maven 离线白名单测试 `mvn -o -pl website,personal-agent -am -Dtest=ServiceHealthCheckerTest,ServiceHealthAggregatorTest,ServiceHealthControllerTest,ModelRoutingServiceTest,KnowledgeIntegrationTest -Dsurefire.failIfNoSpecifiedTests=false test`。
+
+两个 `--check` 只读比较部署副本。Java 测试使用 Maven 本地仓库以及测试替身。脚本兼容 Python 3.7+ 和 Windows `mvn.cmd`。全部通过返回 0，检查失败返回 1，只有运行工具缺失时返回 2。
+
+`tools/service-doctor/` 是独立的 Python 标准库诊断 CLI，用于探测本机服务的健康接口和导出 HTML 报告。工作范围和测试见 `tools/service-doctor/AGENTS.md`。
+
+`tools/vault-snapshot/` 用于离线创建、校验和恢复显式指定的 Vault 快照。`tools/prompt-casebench/` 用于模板变量校验、离线渲染和固定用例对比。各目录的 README 记录运行和测试命令。
 
 修改 `website/src/main/resources/static/prompt-console` 的提示词分类映射后，至少执行：
 
@@ -1077,7 +1099,7 @@ Single-context layout: root `CONTEXT.md` and `docs/adr/`, created lazily when ne
 
 三个应用继续独立运行，不加入 Maven modules，不随 website 自动启动或关闭。`website.local-services` 配置本机目录、端口和180秒启动等待；目录可通过 `STRATA_HOME`、`AIMEDIA_HOME` 覆盖。入口仅适用于运行这些应用的 Windows 主机；使用 UU 远程操作主机上的浏览器也可管理。
 
-API：`GET /api/services/local/{strata|aimedia|h3}/status`；同路径 `/health` 在在线时返回HTTP200、`success=true`和稳定的`service`标识，离线时HTTP503。`POST /api/services/local/{service}/{start|load|unload|stop}` 执行操作，只有Strata支持load，AIMedia不支持unload。修改请求需 `X-Love530-Local: 1`；仅允许回环地址、localhost/127.0.0.1/::1 Host与同源Origin，不能传入自定义命令或PID。统一 `/api/services/health` 清单在原五个服务后追加strata、aimedia、h3三个适配健康检查，共八项。
+API：`GET /api/services/local/{strata|aimedia|h3}/status`；同路径 `/health` 在在线时返回HTTP200、`success=true`和稳定的`service`标识，离线时HTTP503。`POST /api/services/local/{service}/{start|load|unload|stop}` 执行操作，只有Strata支持load，AIMedia不支持unload。修改请求需 `X-Love530-Local: 1`；仅允许回环地址、localhost/127.0.0.1/::1 Host与同源Origin，不能传入自定义命令或PID。统一 `/api/services/health` 默认检查 11 个目标，包括上述三个本机适配与八个独立服务。
 
 Strata以`--lazy`启动服务，第一条生成请求或「加载模型」按钮才加载权重；「卸载模型」保留API和权重文件。AIMedia通过已有GPU Python环境直接启动操作台后端，不在这里顺带启动H3。H3在提交生成任务后才加载权重，页面不把「引擎在线」或「权重已安装」谎报为「模型已加载」。释放调用ComfyUI `/free`，是异步请求，作用于该引擎缓存的模型，不删除权重和作品。视频队列或操作台作业忙碌时返回409，无法确认队列时拒绝释放/停止。启动生成任务前先卸载Qwen，避免两个大型模型争用内存和显存。
 
@@ -1087,7 +1109,7 @@ Strata以`--lazy`启动服务，第一条生成请求或「加载模型」按钮
 
 ## 个人长期资料库（Obsidian + Quartz，03 Deep Woods，5178）
 
-健康档案提供人体热点和健康文档双链图。各资料领域显示自己的双链与近六个月最后编辑统计，复用 `GET /api/vault/overview?domain=...`。
+健康档案默认展示最近检查、可核对的摘录、原报告建议和各次报告原值对照；人体图默认显示在报告选择器下方，健康文档双链可展开查看。详情的 `analysis_version` 区分空档、旧稿和新版。各资料领域通过 `GET /api/vault/overview?domain=...` 读取双链与编辑统计。
 
 个人资料库总览展示真实 Vault 的最近笔记和至多 48 个节点的双链图（`GET /api/vault/overview`）。`GET /api/note` 同时提供安全 Markdown 阅读预览与反向链接，完整图谱、嵌入和 Bases 仍通过私有 Quartz 浏览页查看。
 
@@ -1178,7 +1200,7 @@ IDEA 中重新运行 `WebsiteApplication` 后生效，浏览器刷新首页以�
 
 主页提供全局文本模型选择，python-a、scrapling-ui、skill-finder、personal-agent 提供“跟随主页 / 服务原配置 / 独立模型”，下一次请求生效。图片、视觉、语音和视频保留专用模型；quant-a 与 lovestory 当前没有文本模型调用。
 website 的 `/api/models` 提供目录核验、选择持久化和文本代理，状态文件为根 `.runtime/model-routing.json`，仅存模型 ID、不存密钥；Java 客户端在 common，Python 公共源码在 website/model-routing，部署副本 _model_routing.py 随各服务打包。原有认证保留。未选择时保留原逻辑，已选择但网关离线时报错。
-共享选择器源为 website/src/main/resources/static/model-picker/picker.js，修改后执行 `python scripts/sync-model-picker.py`，React/Vue 修改后重新构建 dist。图片工作台新增独立图片模型下拉与 `OPENAI_IMAGE_MODELS` 白名单，支持 JSON/multipart 的 `model` 字段。
+共享选择器源为 website/src/main/resources/static/model-picker/picker.js，修改后执行 `python scripts/sync-model-picker.py`，或用 `python scripts/sync-model-picker.py --check` 只读校验；React/Vue 修改后重新构建 dist。图片工作台新增独立图片模型下拉与 `OPENAI_IMAGE_MODELS` 白名单，支持 JSON/multipart 的 `model` 字段。
 完整盘点、API、边界与验证见 [统一模型入口](docs/model-routing.md)。跨模块验证 `mvn test`；公共 Python 客户端验证 `python -m unittest discover -s website/model-routing`。
 
 ### MiMo V2.6 文本接入（2026-10-20）

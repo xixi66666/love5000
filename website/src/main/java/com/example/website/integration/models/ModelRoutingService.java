@@ -69,7 +69,11 @@ public class ModelRoutingService {
             Set<String> models=new LinkedHashSet<>(); Set<String> discovered=new LinkedHashSet<>();
             boolean verified=false;
             boolean configured=!source.key.isEmpty() || "strata".equals(source.id);
-            if(configured) try { JsonNode data=http.request(source.base+"/models",source.key,null,6000);
+            if(configured) try {
+                // OpenCode Go 位于 Cloudflare 之后，缺省 Java 客户端标识会被 1010 拒绝，必须复用其请求头。
+                JsonNode data="opencode-go".equals(source.id)
+                        ?http.requestOpenCodeGo(source.base+"/models",source.key,null,6000)
+                        :http.request(source.base+"/models",source.key,null,6000);
                 if(data.path("data").isArray()) { verified=true; for(JsonNode model:data.path("data")) {
                     String id=model.path("id").asText();
                     if(isChatModel(id)) discovered.add(id);
@@ -163,7 +167,13 @@ public class ModelRoutingService {
                 payload.remove(Arrays.asList("temperature", "top_p"));
             }
         }
-        try { return http.request(selected.source.base+"/chat/completions",selected.source.key,payload,300000); }
+        String url = selected.source.base + "/chat/completions";
+        try {
+            if ("opencode-go".equals(selected.source.id)) {
+                return http.requestOpenCodeGoChat(url, selected.source.key, payload, 300000);
+            }
+            return http.request(url, selected.source.key, payload, 300000);
+        }
         catch(Exception e) { fail(502,"模型请求失败，请检查提供方状态或私有凭据后重试");return null; }
     }
     private void validateService(String s){if(!SERVICES.contains(s))fail(400,"不支持的服务");}

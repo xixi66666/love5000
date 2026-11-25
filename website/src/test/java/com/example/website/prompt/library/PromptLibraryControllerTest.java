@@ -1,13 +1,16 @@
 package com.example.website.prompt.library;
 
 import com.example.website.prompt.library.controller.PromptLibraryController;
+import com.example.website.prompt.library.dto.PromptCreateRequest;
 import com.example.website.prompt.library.dto.PromptCreateResponse;
 import com.example.website.prompt.library.dto.PromptDetailResponse;
 import com.example.website.prompt.library.dto.PromptListResponse;
 import com.example.website.prompt.library.dto.PromptMetaResponse;
+import com.example.website.prompt.library.dto.PromptSearchRequest;
 import com.example.website.prompt.library.service.PromptLibraryService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -15,8 +18,10 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.util.Arrays;
 import java.util.Collections;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -96,6 +101,51 @@ class PromptLibraryControllerTest {
     }
 
     @Test
+    void listBindsDefaultPaginationAndEmptyFilters() throws Exception {
+        when(service.search(any())).thenReturn(new PromptListResponse());
+
+        mockMvc.perform(get("/api/prompts"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<PromptSearchRequest> captor = ArgumentCaptor.forClass(PromptSearchRequest.class);
+        verify(service).search(captor.capture());
+        PromptSearchRequest request = captor.getValue();
+        assertThat(request.getPage()).isEqualTo(1);
+        assertThat(request.getSize()).isEqualTo(48);
+        assertThat(request.getKeyword()).isNull();
+        assertThat(request.getGroup()).isNull();
+        assertThat(request.getCategory()).isNull();
+        assertThat(request.getSource()).isNull();
+        assertThat(request.getStatus()).isNull();
+    }
+
+    @Test
+    void listBindsAllFrontendQueryParameters() throws Exception {
+        when(service.search(any())).thenReturn(new PromptListResponse());
+
+        mockMvc.perform(get("/api/prompts")
+                        .param("keyword", "50% off")
+                        .param("group", "writing-content")
+                        .param("category", "小红书")
+                        .param("source", "manual")
+                        .param("status", "imported")
+                        .param("page", "2")
+                        .param("size", "48"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<PromptSearchRequest> captor = ArgumentCaptor.forClass(PromptSearchRequest.class);
+        verify(service).search(captor.capture());
+        PromptSearchRequest request = captor.getValue();
+        assertThat(request.getKeyword()).isEqualTo("50% off");
+        assertThat(request.getGroup()).isEqualTo("writing-content");
+        assertThat(request.getCategory()).isEqualTo("小红书");
+        assertThat(request.getSource()).isEqualTo("manual");
+        assertThat(request.getStatus()).isEqualTo("imported");
+        assertThat(request.getPage()).isEqualTo(2);
+        assertThat(request.getSize()).isEqualTo(48);
+    }
+
+    @Test
     void detailReturnsEntry() throws Exception {
         PromptDetailResponse response = new PromptDetailResponse();
         PromptDetailResponse.EntryDetail detail = new PromptDetailResponse.EntryDetail();
@@ -144,13 +194,25 @@ class PromptLibraryControllerTest {
 
         mockMvc.perform(post("/api/prompts")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\":\"新提示词\",\"category\":\"小红书\",\"prompt\":\"正文\"}"))
+                        .content("{\"title\":\"新提示词\",\"category\":\"小红书\",\"prompt\":\"正文\","
+                                + "\"tags\":\"标签A,标签B\",\"sourceUrl\":\"https://example.com/prompt\","
+                                + "\"license\":\"CC0\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.entry.id").value(9))
                 .andExpect(jsonPath("$.entry.title").value("新提示词"))
                 .andExpect(jsonPath("$.entry.sourceName").value("手动添加"))
                 .andExpect(jsonPath("$.entry.prompt").value("正文"));
+
+        ArgumentCaptor<PromptCreateRequest> captor = ArgumentCaptor.forClass(PromptCreateRequest.class);
+        verify(service).create(captor.capture());
+        PromptCreateRequest request = captor.getValue();
+        assertThat(request.getTitle()).isEqualTo("新提示词");
+        assertThat(request.getCategory()).isEqualTo("小红书");
+        assertThat(request.getPrompt()).isEqualTo("正文");
+        assertThat(request.getTags()).isEqualTo("标签A,标签B");
+        assertThat(request.getSourceUrl()).isEqualTo("https://example.com/prompt");
+        assertThat(request.getLicense()).isEqualTo("CC0");
     }
 
     @Test

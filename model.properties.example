@@ -26,6 +26,13 @@ deepseek.api-key=
 deepseek.capability=text
 deepseek.models=deepseek-flash,deepseek-v4-pro
 
+# --- OpenCode Go（文本）---------------------------------------------------
+opencode-go.label=OpenCode Go
+opencode-go.base-url=https://opencode.ai/inference/go/openai/v1
+opencode-go.api-key=
+opencode-go.capability=text
+opencode-go.models=deepseek-v4.1-flash
+
 # --- Xiaomi MiMo（文本 + 配音）--------------------------------------------
 mimo.label=Xiaomi MiMo
 mimo.base-url=https://api.xiaomimimo.com/v1

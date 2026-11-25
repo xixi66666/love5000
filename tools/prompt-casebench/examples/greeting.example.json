@@ -1,0 +1,25 @@
+{
+  "name": "greeting brace 语法问候模板",
+  "syntax": "brace",
+  "template": "你好，{{name}}！今天是{{date}}，请帮我{{task}}。",
+  "cases": [
+    {
+      "id": "morning",
+      "variables": {
+        "name": "小明",
+        "date": "2026-01-12",
+        "task": "整理周报"
+      },
+      "expected": "你好，小明！今天是2026-01-12，请帮我整理周报。"
+    },
+    {
+      "id": "literal-symbols",
+      "variables": {
+        "name": "ACME",
+        "date": "2026-01-12",
+        "task": "写一封主题为 ${budget} 的邮件，报价 500 元"
+      },
+      "expected": "你好，ACME！今天是2026-01-12，请帮我写一封主题为 ${budget} 的邮件，报价 500 元。"
+    }
+  ]
+}

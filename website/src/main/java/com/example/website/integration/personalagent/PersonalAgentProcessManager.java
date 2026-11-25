@@ -9,7 +9,6 @@ import org.springframework.stereotype.Component;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.ConnectException;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -147,6 +146,9 @@ public class PersonalAgentProcessManager {
     }
 
     HealthStatus probeHealth() {
+        if (!isPortInUse()) {
+            return HealthStatus.UNAVAILABLE;
+        }
         HttpURLConnection connection = null;
         try {
             connection = openHealthConnection();
@@ -169,8 +171,6 @@ public class PersonalAgentProcessManager {
                 return status >= 200 && status < 300 && success.isBoolean() && success.booleanValue()
                         ? HealthStatus.HEALTHY : HealthStatus.NOT_READY;
             }
-        } catch (ConnectException exception) {
-            return HealthStatus.UNAVAILABLE;
         } catch (IOException exception) {
             return HealthStatus.OCCUPIED;
         } finally {
@@ -185,10 +185,10 @@ public class PersonalAgentProcessManager {
             socket.connect(new InetSocketAddress("127.0.0.1", properties.getPort()),
                     healthProperties.getConnectTimeoutMs());
             return true;
-        } catch (ConnectException exception) {
-            return false;
         } catch (IOException exception) {
-            return true;
+            // 连接被拒绝或超时都表示没有进程接受连接，不能据此判定端口已被其他应用占用；
+            // 本机防火墙丢弃 SYN 时会表现为超时，若误判为占用会导致服务永远无法启动。
+            return false;
         }
     }
 

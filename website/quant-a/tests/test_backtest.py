@@ -21,13 +21,61 @@ def build_scores(repository: QuantRepository, trade_date: str):
     return ScoringService().score(trade_date, factors, repository.latest_data_version(), "v0.1")
 
 
-def build_backtest(tmp_path: Path, top_n: int = 3, single_stock_weight_limit: float = 0.05):
+def build_backtest(
+    tmp_path: Path,
+    top_n: int = 3,
+    single_stock_weight_limit: float = 0.05,
+    data_end_date: str = "2024-03-31",
+):
     repository = QuantRepository(tmp_path / "quant.duckdb")
-    QuantPipeline(repository=repository, provider=MockProvider()).sync_data("2024-01-02", "2024-03-31", ["CSI300"])
+    QuantPipeline(repository=repository, provider=MockProvider()).sync_data(
+        "2024-01-02", data_end_date, ["CSI300"]
+    )
     calendar = TradingCalendarService(repository)
     portfolio = PortfolioService(top_n=top_n, single_stock_weight_limit=single_stock_weight_limit)
     backtest = BacktestService(repository, calendar, portfolio)
     return repository, backtest
+
+
+def fixed_scores(*codes: str):
+    return [
+        {
+            "code": code,
+            "name": code,
+            "industry": "测试",
+            "rank": rank,
+            "total_score": 100.0 - rank,
+        }
+        for rank, code in enumerate(codes, start=1)
+    ]
+
+
+def mutate_prices_after(repository: QuantRepository, end_date: str) -> int:
+    rows = repository.fetch_dicts(
+        "select count(*) as count from daily_bar where trade_date > ?",
+        [end_date],
+    )
+    count = int(rows[0]["count"])
+    repository.connection.execute(
+        """
+        update daily_bar
+        set open = open * 1000.0,
+            high = high * 1000.0,
+            low = low * 1000.0,
+            close = close * 1000.0,
+            pre_close = pre_close * 1000.0
+        where trade_date > ?
+        """,
+        [end_date],
+    )
+    return count
+
+
+def assert_same_backtest_result(left, right) -> None:
+    assert left["initial_cash"] == right["initial_cash"]
+    assert left["nav"] == right["nav"]
+    assert left["orders"] == right["orders"]
+    assert left["holdings"] == right["holdings"]
 
 
 def test_monthly_backtest_outputs_report(tmp_path: Path):
@@ -93,3 +141,106 @@ def test_missing_close_price_raises_clear_error(tmp_path: Path):
 
     with pytest.raises(ValueError, match="Missing close price for 600001 on 2099-01-01"):
         backtest._close_price("2099-01-01", "600001")
+
+
+def test_prices_after_end_date_do_not_change_backtest_result(tmp_path: Path):
+    repository, backtest = build_backtest(
+        tmp_path,
+        top_n=2,
+        single_stock_weight_limit=0.2,
+        data_end_date="2024-04-30",
+    )
+    scores_by_date = {
+        "2024-01-31": fixed_scores("600001", "600002"),
+        "2024-02-29": fixed_scores("600001", "600002"),
+        "2024-03-29": fixed_scores("600002", "600003"),
+    }
+    end_date = "2024-04-01"
+    baseline = backtest.run("2024-01-02", end_date, scores_by_date, initial_cash=1000000.0)
+
+    end_date_orders = [
+        order for order in baseline["orders"]
+        if order["signal_date"] == "2024-03-29"
+    ]
+    assert end_date_orders
+    assert {order["trade_date"] for order in end_date_orders} == {end_date}
+    assert {order["side"] for order in end_date_orders} == {"buy", "sell"}
+    assert all(order["signal_date"] < order["trade_date"] for order in baseline["orders"])
+    assert all(order["trade_date"] <= end_date for order in baseline["orders"])
+    assert len({order["order_id"] for order in baseline["orders"]}) == len(baseline["orders"])
+    assert baseline["nav"][-1]["trade_date"] == end_date
+
+    final_nav = baseline["nav"][-1]
+    expected_market_value = 0.0
+    for code, quantity in baseline["holdings"].items():
+        close_rows = repository.fetch_dicts(
+            "select close from daily_bar where trade_date = ? and code = ?",
+            [end_date, code],
+        )
+        expected_market_value += float(quantity) * float(close_rows[0]["close"])
+    assert final_nav["market_value"] == pytest.approx(round(expected_market_value, 4), abs=0.001)
+    assert final_nav["total_asset"] == pytest.approx(final_nav["cash"] + final_nav["market_value"], abs=0.001)
+    assert final_nav["nav"] == pytest.approx(final_nav["total_asset"] / 1000000.0, abs=0.000001)
+
+    assert mutate_prices_after(repository, end_date) > 0
+    changed = backtest.run("2024-01-02", end_date, scores_by_date, initial_cash=1000000.0)
+    assert_same_backtest_result(baseline, changed)
+
+
+def test_end_date_rebalance_does_not_require_future_price_rows(tmp_path: Path):
+    repository, backtest = build_backtest(
+        tmp_path,
+        top_n=2,
+        single_stock_weight_limit=0.2,
+        data_end_date="2024-04-01",
+    )
+    scores_by_date = {
+        "2024-01-31": fixed_scores("600001", "600002"),
+        "2024-02-29": fixed_scores("600001", "600002"),
+        "2024-03-29": fixed_scores("600002", "600003"),
+    }
+    end_date = "2024-04-01"
+    result = backtest.run("2024-01-02", end_date, scores_by_date, initial_cash=1000000.0)
+
+    future_rows = repository.fetch_dicts(
+        "select count(*) as count from daily_bar where trade_date > ?",
+        [end_date],
+    )
+    assert int(future_rows[0]["count"]) == 0
+    assert result["nav"][-1]["trade_date"] == end_date
+    end_date_orders = [
+        order for order in result["orders"]
+        if order["signal_date"] == "2024-03-29"
+    ]
+    assert end_date_orders
+    assert {order["trade_date"] for order in end_date_orders} == {end_date}
+    assert {order["side"] for order in end_date_orders} == {"buy", "sell"}
+    assert result["holdings"]
+    assert result["nav"][-1]["cash"] >= 0
+
+
+def test_month_end_signal_is_not_executed_after_end_date(tmp_path: Path):
+    repository, backtest = build_backtest(
+        tmp_path,
+        top_n=2,
+        single_stock_weight_limit=0.2,
+        data_end_date="2024-04-30",
+    )
+    scores_by_date = {
+        "2024-01-31": fixed_scores("600001", "600002"),
+        "2024-02-29": fixed_scores("600001", "600002"),
+        "2024-03-29": fixed_scores("600002", "600003"),
+    }
+    end_date = "2024-03-29"
+    baseline = backtest.run("2024-01-02", end_date, scores_by_date, initial_cash=1000000.0)
+
+    assert baseline["nav"][-1]["trade_date"] == end_date
+    assert all(order["trade_date"] <= end_date for order in baseline["orders"])
+    assert all(order["signal_date"] != "2024-03-29" for order in baseline["orders"])
+
+    # 2024-04-01 is the next trading day for the final month-end signal. It is
+    # outside the requested window, so prices on and after that date must not
+    # influence the backtest.
+    assert mutate_prices_after(repository, end_date) > 0
+    changed = backtest.run("2024-01-02", end_date, scores_by_date, initial_cash=1000000.0)
+    assert_same_backtest_result(baseline, changed)

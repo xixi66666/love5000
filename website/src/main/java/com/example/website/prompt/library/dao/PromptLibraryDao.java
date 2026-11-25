@@ -25,7 +25,7 @@ public interface PromptLibraryDao {
                                  @Param("category") String category,
                                  @Param("source") String source,
                                  @Param("status") String status,
-                                 @Param("offset") int offset,
+                                 @Param("offset") long offset,
                                  @Param("size") int size);
 
     PromptEntry findById(@Param("id") Long id);

@@ -14,6 +14,7 @@ import com.example.website.prompt.library.model.PromptSourceStat;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -98,8 +99,11 @@ public class PromptLibraryServiceImpl implements PromptLibraryService {
         String status = trimToNull(request.getStatus());
 
         long total = dao.countByFilter(keyword, group, category, source, status);
-        int offset = (page - 1) * size;
-        List<PromptEntry> rows = dao.searchPage(keyword, group, category, source, status, offset, size);
+        // Use a long offset and skip past-the-end pages before building a LIMIT clause.
+        long offset = ((long) page - 1) * size;
+        List<PromptEntry> rows = offset < total
+                ? dao.searchPage(keyword, group, category, source, status, offset, size)
+                : Collections.emptyList();
 
         List<PromptListResponse.EntrySummary> summaries = new ArrayList<PromptListResponse.EntrySummary>();
         for (PromptEntry row : rows) {
@@ -147,9 +151,13 @@ public class PromptLibraryServiceImpl implements PromptLibraryService {
         String title = requireTrimmed(request.getTitle(), "标题不能为空", MAX_TITLE);
         String category = requireTrimmed(request.getCategory(), "小分类不能为空", MAX_CATEGORY);
         String prompt = requireTrimmed(request.getPrompt(), "提示词正文不能为空", MAX_PROMPT);
-        String tags = normalizeTags(request.getTags());
-        String sourceUrl = trimToLength(request.getSourceUrl(), MAX_SOURCE_URL);
-        String license = trimToLength(request.getLicense(), MAX_LICENSE);
+        String rawTags = trimToNull(request.getTags());
+        if (rawTags != null && rawTags.length() > MAX_TAGS) {
+            throw new IllegalArgumentException("标签长度不能超过 " + MAX_TAGS + " 个字符");
+        }
+        String tags = normalizeTags(rawTags);
+        String sourceUrl = normalizeOptional(request.getSourceUrl(), "来源链接", MAX_SOURCE_URL);
+        String license = normalizeOptional(request.getLicense(), "授权", MAX_LICENSE);
 
         String groupSlug = dao.findGroupSlugByCategory(category);
         if (groupSlug == null || groupSlug.isEmpty()) {
@@ -205,12 +213,15 @@ public class PromptLibraryServiceImpl implements PromptLibraryService {
         return trimmed;
     }
 
-    private String trimToLength(String value, int max) {
+    private String normalizeOptional(String value, String fieldName, int max) {
         String trimmed = trimToNull(value);
         if (trimmed == null) {
             return "";
         }
-        return trimmed.length() > max ? trimmed.substring(0, max) : trimmed;
+        if (trimmed.length() > max) {
+            throw new IllegalArgumentException(fieldName + "长度不能超过 " + max + " 个字符");
+        }
+        return trimmed;
     }
 
     private String normalizeTags(String value) {

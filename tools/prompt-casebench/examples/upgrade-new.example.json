@@ -1,0 +1,16 @@
+{
+  "name": "upgrade 前后对比示例（新版模板）",
+  "syntax": "dollar",
+  "template": "请用${tone}的语气写一段关于${topic}的简介，并控制在${words}字以内。",
+  "cases": [
+    {
+      "id": "intro",
+      "variables": {
+        "tone": "专业",
+        "topic": "量子计算",
+        "words": "200"
+      },
+      "expected": "请用专业的语气写一段关于量子计算的简介，并控制在200字以内。"
+    }
+  ]
+}

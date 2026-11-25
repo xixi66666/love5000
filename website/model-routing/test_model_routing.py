@@ -108,10 +108,16 @@ class ModelRoutingTests(unittest.TestCase):
     def test_packaged_client_is_synchronized_and_works_without_repository(self):
         root = Path(__file__).resolve().parents[2]
         source = Path(routing.__file__).read_bytes()
+        properties_source = Path(__file__).with_name("model_properties.py").read_bytes()
         for relative in ("website/python-a/services/_model_routing.py",
                          "website/scrapling-ui/backend/services/_model_routing.py",
                          "website/skill-finder/backend/app/services/_model_routing.py"):
             self.assertEqual((root / relative).read_bytes(), source,
+                             "Run python scripts/sync-model-routing.py")
+        for relative in ("website/python-a/services/_model_properties.py",
+                         "website/scrapling-ui/backend/services/_model_properties.py",
+                         "website/skill-finder/backend/app/services/_model_properties.py"):
+            self.assertEqual((root / relative).read_bytes(), properties_source,
                              "Run python scripts/sync-model-routing.py")
         with tempfile.TemporaryDirectory() as folder:
             copy = Path(folder) / "standalone.py"

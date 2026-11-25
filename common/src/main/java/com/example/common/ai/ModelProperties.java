@@ -2,7 +2,6 @@ package com.example.common.ai;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -11,10 +10,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 /**
  * 项目根目录 model.properties 的唯一读取入口。
@@ -155,16 +156,18 @@ public final class ModelProperties {
         LinkedHashMap<String, String> routes = new LinkedHashMap<String, String>();
         if (!exists) return new ModelProperties(path, false, providers, routes);
 
-        Properties properties = new Properties();
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(Files.newInputStream(path), StandardCharsets.UTF_8))) {
+        OrderedProperties properties = new OrderedProperties();
+        try (BufferedReader reader = openReader(path)) {
             properties.load(reader);
         } catch (IOException e) {
             throw new IllegalStateException("无法读取模型配置：" + path, e);
         }
 
         LinkedHashMap<String, Map<String, String>> groups = new LinkedHashMap<String, Map<String, String>>();
-        for (String id : providerOrder(path)) groups.put(id, new LinkedHashMap<String, String>());
+        for (String name : properties.keyOrder()) {
+            String id = providerId(name);
+            if (id != null) groups.put(id, new LinkedHashMap<String, String>());
+        }
         for (String name : properties.stringPropertyNames()) {
             String key = name.trim();
             if (key.isEmpty()) continue;
@@ -174,11 +177,11 @@ public final class ModelProperties {
                 if (!scope.isEmpty() && !value.isEmpty()) routes.put(scope, value);
                 continue;
             }
+            String id = providerId(name);
+            if (id == null) continue;
             int dot = key.indexOf('.');
-            if (dot <= 0) continue;
-            String id = key.substring(0, dot).trim().toLowerCase(Locale.ROOT);
             String field = key.substring(dot + 1).trim().toLowerCase(Locale.ROOT);
-            if (id.isEmpty() || field.isEmpty()) continue;
+            if (field.isEmpty()) continue;
             Map<String, String> group = groups.get(id);
             if (group == null) { group = new LinkedHashMap<String, String>(); groups.put(id, group); }
             group.put(field, properties.getProperty(name, "").trim());
@@ -203,27 +206,38 @@ public final class ModelProperties {
         return new ModelProperties(path, true, providers, routes);
     }
 
-    static List<String> providerOrder(Path path) {
-        List<String> order = new ArrayList<String>();
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(Files.newInputStream(path), StandardCharsets.UTF_8))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                String text = line.trim();
-                if (text.isEmpty() || text.startsWith("#") || text.startsWith("!")) continue;
-                int equals = text.indexOf('=');
-                if (equals <= 0) continue;
-                String key = text.substring(0, equals).trim();
-                if (key.startsWith("service.")) continue;
-                int dot = key.indexOf('.');
-                if (dot <= 0) continue;
-                String id = key.substring(0, dot).trim().toLowerCase(Locale.ROOT);
-                if (!id.isEmpty() && !order.contains(id)) order.add(id);
-            }
-        } catch (IOException ignored) {
-            // 顺序仅影响展示，读取失败时保持 Properties 自身顺序。
+    private static BufferedReader openReader(Path path) throws IOException {
+        BufferedReader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8);
+        reader.mark(1);
+        if (reader.read() != '\uFEFF') {
+            reader.reset();
         }
-        return order;
+        return reader;
+    }
+
+    private static String providerId(String name) {
+        String key = name.trim();
+        if (key.isEmpty() || key.startsWith("service.")) return null;
+        int dot = key.indexOf('.');
+        if (dot <= 0) return null;
+        String id = key.substring(0, dot).trim().toLowerCase(Locale.ROOT);
+        return id.isEmpty() ? null : id;
+    }
+
+    /** 记录键首次进入 Properties 的顺序，供展示顺序使用。 */
+    private static final class OrderedProperties extends Properties {
+        private static final long serialVersionUID = 1L;
+        private final Set<String> keys = new LinkedHashSet<String>();
+
+        @Override
+        public synchronized Object put(Object key, Object value) {
+            if (key instanceof String) keys.add((String) key);
+            return super.put(key, value);
+        }
+
+        List<String> keyOrder() {
+            return new ArrayList<String>(keys);
+        }
     }
 
     static List<String> splitList(String raw) {

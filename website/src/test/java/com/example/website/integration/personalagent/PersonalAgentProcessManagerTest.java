@@ -7,7 +7,6 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.net.ConnectException;
 import java.net.HttpURLConnection;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
@@ -87,16 +86,36 @@ class PersonalAgentProcessManagerTest {
     }
 
     @Test
-    void treatsInvalidResponseAndTimeoutAsOccupiedButRefusedConnectionAsOffline(@TempDir Path directory)
+    void treatsInvalidResponseAndReadTimeoutAsOccupiedButUnreachablePortAsOffline(@TempDir Path directory)
             throws Exception {
         PersonalAgentProcessManager manager = manager(directory, "java");
         healthConnection(manager, 200, "not JSON");
         assertThat(manager.probeHealth()).isEqualTo(OCCUPIED);
         HttpURLConnection connection = mock(HttpURLConnection.class);
         doReturn(connection).when(manager).openHealthConnection();
-        when(connection.getResponseCode()).thenThrow(new SocketTimeoutException(), new ConnectException());
+        when(connection.getResponseCode()).thenThrow(new SocketTimeoutException());
         assertThat(manager.probeHealth()).isEqualTo(OCCUPIED);
+
+        doReturn(false).when(manager).isPortInUse();
+        HttpURLConnection unreachable = mock(HttpURLConnection.class);
+        doReturn(unreachable).when(manager).openHealthConnection();
         assertThat(manager.probeHealth()).isEqualTo(UNAVAILABLE);
+        verify(unreachable, never()).getResponseCode();
+    }
+
+    @Test
+    void startsWhenNothingListensEvenIfHealthProbeTimesOut(@TempDir Path directory) throws Exception {
+        createEntry(directory);
+        PersonalAgentProcessManager manager = manager(directory, "java");
+        doReturn(UNAVAILABLE).when(manager).probeHealth();
+        doReturn(false).when(manager).isPortInUse();
+        Process process = mock(Process.class);
+        when(process.isAlive()).thenReturn(true);
+        doReturn(process).when(manager).launch(any(ProcessBuilder.class));
+        doReturn(true).when(manager).waitUntilHealthy();
+
+        assertThat(manager.start().getStatus()).isEqualTo("started");
+        verify(manager, times(1)).launch(any(ProcessBuilder.class));
     }
 
     @Test
@@ -109,7 +128,6 @@ class PersonalAgentProcessManagerTest {
         assertThat(result.getStatus()).isEqualTo("already-running");
         assertThat(result.getUrl()).isEqualTo("http://127.0.0.1:5178/");
         verify(manager, never()).launch(any(ProcessBuilder.class));
-        verify(manager, never()).isPortInUse();
     }
 
     @Test
@@ -120,7 +138,6 @@ class PersonalAgentProcessManagerTest {
         assertThatThrownBy(manager::start).isInstanceOf(PersonalAgentStartException.class)
                 .hasMessageContaining("端口 5178").hasMessageContaining("占用");
         verify(manager, never()).launch(any(ProcessBuilder.class));
-        verify(manager, never()).isPortInUse();
     }
 
     @Test
@@ -239,6 +256,7 @@ class PersonalAgentProcessManagerTest {
 
     private HttpURLConnection healthConnection(PersonalAgentProcessManager manager, int status, String body)
             throws Exception {
+        doReturn(true).when(manager).isPortInUse();
         HttpURLConnection connection = mock(HttpURLConnection.class);
         when(connection.getResponseCode()).thenReturn(status);
         ByteArrayInputStream input = new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));

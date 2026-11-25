@@ -38,11 +38,17 @@ public class ImagePromptTemplateService {
 
     private final Map<String, ImagePromptTemplate> templatesById;
 
+    private final Map<String, TemplateSearchIndex> searchIndexById;
+
     private final LibraryAggregationStatus aggregationStatus;
 
     private final List<TemplateSourceResponse> sources;
 
     private final List<TemplateFunctionCategoryResponse> functionCategories;
+
+    private final List<TemplateCategoryResponse> categories;
+
+    private final int imageRelatedCount;
 
     private String curatedLoadMessage = "";
 
@@ -62,12 +68,15 @@ public class ImagePromptTemplateService {
         decorateFunctionalClassifications(aggregated, functionClassifier);
         this.templates = Collections.unmodifiableList(aggregated);
         this.templatesById = Collections.unmodifiableMap(indexById(aggregated));
+        this.searchIndexById = Collections.unmodifiableMap(indexForSearch(aggregated));
         this.aggregationStatus =
                 buildStatus(curated.size(), imported.size(), libraryResult);
         this.sources = Collections.unmodifiableList(
                 buildSources(libraryResult.getSources(), aggregated));
         this.functionCategories = Collections.unmodifiableList(
                 buildFunctionCategories(functionClassifier, aggregated));
+        this.categories = Collections.unmodifiableList(buildCategories(aggregated));
+        this.imageRelatedCount = countImageRelated(aggregated);
     }
 
     public ImageTemplatePageResponse search(ImageTemplateQuery query) {
@@ -80,17 +89,39 @@ public class ImagePromptTemplateService {
                 normalize(actual.getFunctionCategory());
         String normalizedFunctionScene = normalize(actual.getFunctionScene());
         String normalizedKeyword = normalize(actual.getKeyword());
-        List<ImagePromptTemplate> filtered = new ArrayList<ImagePromptTemplate>();
-        for (ImagePromptTemplate template : templates) {
-            if (!matchesSource(template, normalizedSource)
-                    || !matchesCategory(template, normalizedCategory)
-                    || !matchesFunctionCategory(template, normalizedFunctionCategory)
-                    || !matchesFunctionScene(template, normalizedFunctionScene)
-                    || (actual.isImageOnly() && !template.isImageRelated())
-                    || !matchesKeyword(template, normalizedKeyword)) {
-                continue;
+        boolean sourceFiltered = hasText(normalizedSource) && !"all".equals(normalizedSource);
+        boolean categoryFiltered = hasText(normalizedCategory) && !"all".equals(normalizedCategory);
+        boolean functionCategoryFiltered =
+                hasText(normalizedFunctionCategory) && !"all".equals(normalizedFunctionCategory);
+        boolean functionSceneFiltered =
+                hasText(normalizedFunctionScene) && !"all".equals(normalizedFunctionScene);
+        boolean keywordFiltered = hasText(normalizedKeyword);
+        boolean indexedFilter = sourceFiltered || categoryFiltered
+                || functionCategoryFiltered || functionSceneFiltered || keywordFiltered;
+        List<ImagePromptTemplate> filtered;
+        if (!indexedFilter && !actual.isImageOnly()) {
+            filtered = templates;
+        } else {
+            filtered = new ArrayList<ImagePromptTemplate>();
+            for (ImagePromptTemplate template : templates) {
+                if (actual.isImageOnly() && !template.isImageRelated()) {
+                    continue;
+                }
+                if (indexedFilter) {
+                    TemplateSearchIndex index = searchIndexById.get(template.getId());
+                    if ((sourceFiltered && !index.matchesSource(normalizedSource))
+                            || (categoryFiltered && !index.matchesCategory(normalizedCategory))
+                            || (functionCategoryFiltered
+                                && !index.matchesFunctionCategory(normalizedFunctionCategory))
+                            || (functionSceneFiltered
+                                && !index.matchesFunctionScene(normalizedFunctionScene))
+                            || (keywordFiltered
+                                && !index.matchesKeyword(normalizedKeyword))) {
+                        continue;
+                    }
+                }
+                filtered.add(template);
             }
-            filtered.add(template);
         }
 
         long fromLong = ((long) actual.getPage() - 1L) * actual.getSize();
@@ -118,10 +149,10 @@ public class ImagePromptTemplateService {
         response.setTotal(templates.size());
         response.setCuratedCount(aggregationStatus.getLoadedCuratedCount());
         response.setLibraryCount(aggregationStatus.getLoadedLibraryCount());
-        response.setImageRelatedCount(countImageRelated());
+        response.setImageRelatedCount(imageRelatedCount);
         response.setStatus(aggregationStatus);
         response.setSources(new ArrayList<TemplateSourceResponse>(sources));
-        response.setCategories(listCategories());
+        response.setCategories(copyCategories(categories));
         response.setFunctionCategories(
                 new ArrayList<TemplateFunctionCategoryResponse>(functionCategories));
         return response;
@@ -130,13 +161,17 @@ public class ImagePromptTemplateService {
     public List<ImagePromptTemplate> listTemplates(String category, String keyword) {
         String normalizedCategory = normalize(category);
         String normalizedKeyword = normalize(keyword);
+        boolean categoryFiltered =
+                hasText(normalizedCategory) && !"all".equals(normalizedCategory);
+        boolean keywordFiltered = hasText(normalizedKeyword);
         List<ImagePromptTemplate> result = new ArrayList<ImagePromptTemplate>();
         for (ImagePromptTemplate template : templates) {
-            if (!matchesCategory(template, normalizedCategory)) {
-                continue;
-            }
-            if (!matchesKeyword(template, normalizedKeyword)) {
-                continue;
+            if (categoryFiltered || keywordFiltered) {
+                TemplateSearchIndex index = searchIndexById.get(template.getId());
+                if ((categoryFiltered && !index.matchesCategory(normalizedCategory))
+                        || (keywordFiltered && !index.matchesKeyword(normalizedKeyword))) {
+                    continue;
+                }
             }
             result.add(template);
         }
@@ -144,18 +179,7 @@ public class ImagePromptTemplateService {
     }
 
     public List<TemplateCategoryResponse> listCategories() {
-        Map<String, TemplateCategoryResponse> categories =
-                new LinkedHashMap<String, TemplateCategoryResponse>();
-        for (ImagePromptTemplate template : templates) {
-            TemplateCategoryResponse category = categories.get(template.getCategorySlug());
-            if (category == null) {
-                category = new TemplateCategoryResponse(
-                        template.getCategory(), template.getCategorySlug(), 0);
-                categories.put(template.getCategorySlug(), category);
-            }
-            category.setCount(category.getCount() + 1);
-        }
-        return new ArrayList<TemplateCategoryResponse>(categories.values());
+        return copyCategories(categories);
     }
 
     public ImagePromptTemplate findById(String id) {
@@ -283,6 +307,44 @@ public class ImagePromptTemplateService {
         return indexed;
     }
 
+    private Map<String, TemplateSearchIndex> indexForSearch(
+            List<ImagePromptTemplate> values) {
+        Map<String, TemplateSearchIndex> indexed =
+                new LinkedHashMap<String, TemplateSearchIndex>();
+        for (ImagePromptTemplate template : values) {
+            indexed.put(template.getId(), new TemplateSearchIndex(template));
+        }
+        return indexed;
+    }
+
+    private List<TemplateCategoryResponse> buildCategories(
+            List<ImagePromptTemplate> values) {
+        Map<String, TemplateCategoryResponse> categories =
+                new LinkedHashMap<String, TemplateCategoryResponse>();
+        for (ImagePromptTemplate template : values) {
+            String slug = template.getCategorySlug();
+            TemplateCategoryResponse category = categories.get(slug);
+            if (category == null) {
+                category = new TemplateCategoryResponse(
+                        template.getCategory(), slug, 0);
+                categories.put(slug, category);
+            }
+            category.setCount(category.getCount() + 1);
+        }
+        return new ArrayList<TemplateCategoryResponse>(categories.values());
+    }
+
+    private List<TemplateCategoryResponse> copyCategories(
+            List<TemplateCategoryResponse> values) {
+        List<TemplateCategoryResponse> copies =
+                new ArrayList<TemplateCategoryResponse>(values.size());
+        for (TemplateCategoryResponse value : values) {
+            copies.add(new TemplateCategoryResponse(
+                    value.getName(), value.getSlug(), value.getCount()));
+        }
+        return copies;
+    }
+
     private LibraryAggregationStatus buildStatus(int curatedCount,
                                                  int libraryCount,
                                                  PromptLibraryLoadResult libraryResult) {
@@ -341,9 +403,9 @@ public class ImagePromptTemplateService {
         return count == null ? 0 : count;
     }
 
-    private int countImageRelated() {
+    private int countImageRelated(List<ImagePromptTemplate> values) {
         int count = 0;
-        for (ImagePromptTemplate template : templates) {
+        for (ImagePromptTemplate template : values) {
             if (template.isImageRelated()) {
                 count++;
             }
@@ -358,54 +420,6 @@ public class ImagePromptTemplateService {
         if (query.getSize() < 1 || query.getSize() > 100) {
             throw new ImageTemplateQueryValidationException("size 必须在 1 到 100 之间");
         }
-    }
-
-    private boolean matchesSource(ImagePromptTemplate template, String normalizedSource) {
-        return !hasText(normalizedSource)
-                || "all".equals(normalizedSource)
-                || normalize(template.getSourceId()).equals(normalizedSource);
-    }
-
-    private boolean matchesCategory(ImagePromptTemplate template, String normalizedCategory) {
-        if (!hasText(normalizedCategory) || "all".equals(normalizedCategory)) {
-            return true;
-        }
-        return normalize(template.getCategorySlug()).equals(normalizedCategory)
-                || normalize(template.getCategory()).equals(normalizedCategory);
-    }
-
-    private boolean matchesFunctionCategory(ImagePromptTemplate template,
-                                            String normalizedCategory) {
-        return !hasText(normalizedCategory)
-                || "all".equals(normalizedCategory)
-                || normalize(template.getFunctionCategorySlug()).equals(normalizedCategory)
-                || normalize(template.getFunctionCategory()).equals(normalizedCategory);
-    }
-
-    private boolean matchesFunctionScene(ImagePromptTemplate template,
-                                         String normalizedScene) {
-        return !hasText(normalizedScene)
-                || "all".equals(normalizedScene)
-                || normalize(template.getFunctionSceneSlug()).equals(normalizedScene)
-                || normalize(template.getFunctionScene()).equals(normalizedScene);
-    }
-
-    private boolean matchesKeyword(ImagePromptTemplate template, String normalizedKeyword) {
-        if (!hasText(normalizedKeyword)) {
-            return true;
-        }
-        StringBuilder haystack = new StringBuilder();
-        haystack.append(template.getTitle()).append(' ')
-                .append(template.getSummary()).append(' ')
-                .append(template.getCategory()).append(' ')
-                .append(template.getSourceName()).append(' ')
-                .append(template.getPromptTemplate());
-        if (template.getTags() != null) {
-            for (String tag : template.getTags()) {
-                haystack.append(' ').append(tag);
-            }
-        }
-        return normalize(haystack.toString()).contains(normalizedKeyword);
     }
 
     private Map<String, Object> resolveTemplate(Map<String, Object> jsonTemplate,

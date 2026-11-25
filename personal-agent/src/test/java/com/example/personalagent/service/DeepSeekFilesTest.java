@@ -42,6 +42,18 @@ class DeepSeekFilesTest {
         server.verify();
     }
 
+    @Test
+    void followsSelectedDeepSeekModelFromPicker() {
+        upload("user_data", "txt");
+        server.expect(requestTo("https://api.deepseek.com/chat/completions")).andExpect(method(HttpMethod.POST))
+            .andExpect(jsonPath("$.model").value("deepseek-v4-pro"))
+            .andExpect(jsonPath("$.messages[1].content[0].file_id").value("file-api-fixture"))
+            .andRespond(withSuccess("{\"choices\":[{\"finish_reason\":\"stop\",\"message\":{\"content\":\"完成\"}}]}", MediaType.APPLICATION_JSON));
+        delete();
+        assertEquals("完成", files.analyze("original-fixture".getBytes(StandardCharsets.UTF_8), "txt", "整理", "fixture-key", "deepseek-v4-pro"));
+        server.verify();
+    }
+
     private void upload(String purpose, String extension) {
         server.expect(requestTo("https://api.deepseek.com/files")).andExpect(method(HttpMethod.POST))
             .andExpect(header(HttpHeaders.AUTHORIZATION,"Bearer fixture-key"))

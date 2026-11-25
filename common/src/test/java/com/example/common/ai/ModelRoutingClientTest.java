@@ -28,6 +28,16 @@ class ModelRoutingClientTest {
         verify(http).request(eq("http://127.0.0.1:8080/api/models/complete/personal-agent"),eq(""),any(),eq(300000),eq(true));
         verifyNoMoreInteractions(http);
     }
+    @Test void effectiveModelOnlyReturnsActiveSelection()throws Exception {
+        when(http.request(eq("http://127.0.0.1:8080/api/models/effective/personal-agent"),eq(""),any(),eq(2000)))
+                .thenReturn(json.readTree("{\"success\":true,\"active\":true,\"modelId\":\"deepseek:deepseek-flash\"}"));
+        assertThat(client.effectiveModel("personal-agent")).isEqualTo("deepseek:deepseek-flash");
+        when(http.request(anyString(),eq(""),any(),eq(2000)))
+                .thenReturn(json.readTree("{\"success\":true,\"active\":false,\"modelId\":\"\"}"));
+        assertThat(client.effectiveModel("personal-agent")).isEmpty();
+        when(http.request(anyString(),eq(""),any(),eq(2000))).thenThrow(new SocketTimeoutException());
+        assertThat(client.effectiveModel("personal-agent")).isEmpty();
+    }
     @Test void explicitNativeResponseAllowsLocalConfiguration()throws Exception {
         assertThat(client.tryChat("personal-agent",json.createObjectNode())).isNull();
     }

@@ -41,15 +41,25 @@ public class DeepSeekFiles {
     }
 
     public String analyze(byte[] bytes, String extension, String instruction) {
+        return analyzeWithModel(bytes, extension, instruction, "");
+    }
+
+    /** model 为空时使用默认 deepseek-flash；传入统一模型选择里的 DeepSeek 型号即可跟随顶部栏选择器。 */
+    public String analyzeWithModel(byte[] bytes, String extension, String instruction, String model) {
         ModelProperties.Provider provider = ModelProperties.load().provider("deepseek");
         if (provider == null || provider.apiKey().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                 "请在根目录 model.properties 配置 DeepSeek 官方 API 密钥");
         }
-        return analyze(bytes, extension, instruction, provider.apiKey());
+        return analyze(bytes, extension, instruction, provider.apiKey(), model);
     }
 
     String analyze(byte[] bytes, String extension, String instruction, String apiKey) {
+        return analyze(bytes, extension, instruction, apiKey, "");
+    }
+
+    String analyze(byte[] bytes, String extension, String instruction, String apiKey, String model) {
+        String selected = model == null || model.trim().isEmpty() ? "deepseek-flash" : model.trim();
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(apiKey);
         HttpHeaders uploadHeaders = new HttpHeaders();
@@ -71,7 +81,7 @@ public class DeepSeekFiles {
             }
             fileId = uploaded.path("id").asText();
             JsonNode result = http.postForObject(BASE + "/chat/completions", new HttpEntity<>(map(
-                "model","deepseek-flash","max_tokens",6000,"thinking",map("type","disabled"),
+                "model",selected,"max_tokens",6000,"thinking",map("type","disabled"),
                 "messages",Arrays.asList(map("role","system","content",instruction),map("role","user","content",Arrays.asList(
                     map("type","file","file_id",fileId),map("type","text","text","请按要求整理本次上传的附件。"))))
             ), headers), JsonNode.class);

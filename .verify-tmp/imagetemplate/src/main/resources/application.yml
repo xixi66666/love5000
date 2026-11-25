@@ -1,0 +1,17 @@
+server:
+  port: 8082
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: strict
+
+spring:
+  application:
+    name: imagetemplate
+  web:
+    resources:
+      static-locations:
+        - classpath:/static/
+
+# 图片模型、密钥、超时与代理统一在项目根目录 model.properties 的 image.* 中配置。

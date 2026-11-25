@@ -21,6 +21,8 @@
             <artifactId>spring-web</artifactId>
         </dependency>
 
+        <!-- 仅此一处：AuthAutoConfiguration 直接引用 WebMvcConfigurer。
+             compile/未设 optional 维持既有传递行为，版本由父工程导入的 Spring Boot BOM 管理。 -->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-webmvc</artifactId>
@@ -72,10 +74,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-configuration-processor</artifactId>
             <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-webmvc</artifactId>
         </dependency>
     </dependencies>
     <build>

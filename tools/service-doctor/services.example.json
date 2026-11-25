@@ -1,0 +1,57 @@
+{
+  "services": [
+    {
+      "name": "website",
+      "url": "http://127.0.0.1:8080/api/services/health",
+      "kind": "aggregate"
+    },
+    {
+      "name": "lovestory",
+      "url": "http://127.0.0.1:8081/api/health",
+      "kind": "service",
+      "expected_service": "lovestory"
+    },
+    {
+      "name": "imagetemplate",
+      "url": "http://127.0.0.1:8082/api/health",
+      "kind": "service",
+      "expected_service": "imagetemplate"
+    },
+    {
+      "name": "python-a",
+      "url": "http://127.0.0.1:5174/api/health",
+      "kind": "service",
+      "expected_service": "python-a"
+    },
+    {
+      "name": "quant-a",
+      "url": "http://127.0.0.1:5175/api/health",
+      "kind": "service",
+      "expected_service": "quant-a"
+    },
+    {
+      "name": "scrapling-ui",
+      "url": "http://127.0.0.1:5176/api/health",
+      "kind": "service",
+      "expected_service": "scrapling-ui"
+    },
+    {
+      "name": "skill-finder",
+      "url": "http://127.0.0.1:5177/api/health",
+      "kind": "service",
+      "expected_service": "skill-finder"
+    },
+    {
+      "name": "personal-agent",
+      "url": "http://127.0.0.1:5178/api/health",
+      "kind": "service",
+      "expected_service": "personal-agent"
+    },
+    {
+      "name": "lottery",
+      "url": "http://127.0.0.1:5179/api/health",
+      "kind": "service",
+      "expected_service": "lottery"
+    }
+  ]
+}

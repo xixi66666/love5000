@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.*;
 import java.net.*;
+import java.util.Collections;
+import java.util.Map;
 
 /** 模型 JSON 传输公共实现：限制响应大小、禁止重定向、只返回脱敏错误。 */
 public class ModelHttp {
@@ -19,9 +21,14 @@ public class ModelHttp {
         return request(url,key,body,timeout,false);
     }
     public JsonNode request(String url,String key,JsonNode body,int timeout,boolean allowNative) throws IOException {
+        return request(url, key, body, timeout, allowNative, Collections.emptyMap());
+    }
+    protected JsonNode request(String url, String key, JsonNode body, int timeout, boolean allowNative,
+                               Map<String, String> headers) throws IOException {
         HttpURLConnection connection=(HttpURLConnection)URI.create(url).toURL().openConnection();
         connection.setInstanceFollowRedirects(false);
         connection.setConnectTimeout(connectTimeout);connection.setReadTimeout(timeout);
+        headers.forEach(connection::setRequestProperty);
         connection.setRequestProperty("Content-Type","application/json");
         if(!key.isEmpty()) connection.setRequestProperty("Authorization","Bearer "+key);
         else connection.setRequestProperty("X-Love530-Model","1");

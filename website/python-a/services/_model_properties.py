@@ -28,7 +28,7 @@ class Provider:
         return self.capability == "text"
 
     def option(self, name: str, default: str = "") -> str:
-        value = self.options.get(name, "").strip()
+        value = _trim(self.options.get(name, ""))
         return value or default
 
     def int_option(self, name: str, default: int) -> int:
@@ -70,7 +70,7 @@ class ModelProperties:
         return self._providers.values()
 
     def provider(self, provider_id: str) -> Provider | None:
-        return self._providers.get((provider_id or "").strip().lower())
+        return self._providers.get(_trim(provider_id or "").lower())
 
     def text_providers(self) -> list[Provider]:
         return [provider for provider in self._providers.values() if provider.text]
@@ -82,14 +82,14 @@ class ModelProperties:
     def _parse_route(self, raw: str | None) -> Route | None:
         if not raw:
             return None
-        value = raw.strip()
+        value = _trim(raw)
         if ":" not in value:
             return None
         provider_id, model_id = value.split(":", 1)
         provider = self.provider(provider_id)
-        if provider is None or not model_id.strip():
+        if provider is None or not _trim(model_id):
             return None
-        return Route(provider, model_id.strip())
+        return Route(provider, _trim(model_id))
 
     @classmethod
     def locate(cls, start: Path | None = None) -> Path:
@@ -114,30 +114,183 @@ class ModelProperties:
         return cls(file, True, *_parse(raw))
 
 
+_WHITESPACE = " \t\f"
+
+
 def _read(path: Path) -> dict[str, str]:
+    """按 ``java.util.Properties.load(Reader)`` 的语法读取 UTF-8 属性文件。
+
+    允许一个 UTF-8 BOM；自然换行、注释、续行、分隔符、转义和重复键
+    均与 Java 保持一致。值保持原样（含尾部空格），由 ``_parse`` 统一裁剪。
+    """
     values: dict[str, str] = {}
-    pending = ""
-    for line in path.read_text(encoding="utf-8-sig").splitlines():
-        text = pending + line.strip()
-        if text.endswith("\\"):
-            pending = text[:-1]
-            continue
-        pending = ""
-        if not text or text.startswith(("#", "!")):
-            continue
-        if "=" not in text:
-            continue
-        key, value = text.split("=", 1)
-        values[key.strip()] = value.strip()
-    if pending:
-        values.setdefault(pending, "")
+    for line in _logical_lines(path.read_bytes().decode("utf-8-sig")):
+        key, value = _split_property(line)
+        values[key] = value
     return values
+
+
+def _logical_lines(text: str) -> Iterable[str]:
+    """生成 Properties 的逻辑行，移植自 OpenJDK LineReader.readLine。"""
+    line: list[str] = []
+    offset = 0
+    length = len(text)
+    skip_white_space = True
+    is_comment_line = False
+    is_new_line = True
+    appended_line_begin = False
+    preceding_backslash = False
+    skip_lf = False
+
+    while True:
+        if offset >= length:
+            if not line or is_comment_line:
+                return
+            if preceding_backslash:
+                line.pop()
+            yield "".join(line)
+            return
+
+        char = text[offset]
+        offset += 1
+
+        if skip_lf:
+            skip_lf = False
+            if char == "\n":
+                continue
+
+        if skip_white_space:
+            if char in _WHITESPACE:
+                continue
+            if not appended_line_begin and char in "\r\n":
+                continue
+            skip_white_space = False
+            appended_line_begin = False
+
+        if is_new_line:
+            is_new_line = False
+            if char in "#!":
+                is_comment_line = True
+                continue
+
+        if char not in "\r\n":
+            line.append(char)
+            if char == "\\":
+                preceding_backslash = not preceding_backslash
+            else:
+                preceding_backslash = False
+            continue
+
+        if is_comment_line or not line:
+            is_comment_line = False
+            is_new_line = True
+            skip_white_space = True
+            line.clear()
+            continue
+
+        if preceding_backslash:
+            line.pop()
+            skip_white_space = True
+            appended_line_begin = True
+            preceding_backslash = False
+            if char == "\r":
+                skip_lf = True
+            continue
+
+        yield "".join(line)
+        line.clear()
+        skip_white_space = True
+        is_comment_line = False
+        is_new_line = True
+        appended_line_begin = False
+        preceding_backslash = False
+        skip_lf = False
+
+
+def _split_property(line: str) -> tuple[str, str]:
+    """拆分逻辑行为 key/value，移植自 OpenJDK Properties.load0。"""
+    limit = len(line)
+    key_length = 0
+    value_start = limit
+    has_separator = False
+    preceding_backslash = False
+
+    while key_length < limit:
+        char = line[key_length]
+        if char in "=:" and not preceding_backslash:
+            value_start = key_length + 1
+            has_separator = True
+            break
+        if char in _WHITESPACE and not preceding_backslash:
+            value_start = key_length + 1
+            break
+        if char == "\\":
+            preceding_backslash = not preceding_backslash
+        else:
+            preceding_backslash = False
+        key_length += 1
+
+    while value_start < limit:
+        char = line[value_start]
+        if char not in _WHITESPACE:
+            if not has_separator and char in "=:":
+                has_separator = True
+            else:
+                break
+        value_start += 1
+
+    return _unescape(line[:key_length]), _unescape(line[value_start:])
+
+
+def _unescape(raw: str) -> str:
+    """处理 Properties 的 ``\\t``/``\\n``/``\\r``/``\\f``/``\\uXXXX``。"""
+    value: list[str] = []
+    offset = 0
+    length = len(raw)
+    while offset < length:
+        char = raw[offset]
+        offset += 1
+        if char != "\\":
+            value.append(char)
+            continue
+        if offset >= length:
+            raise ValueError("Malformed \\uxxxx encoding.")
+        char = raw[offset]
+        offset += 1
+        if char == "u":
+            digits = raw[offset:offset + 4]
+            if len(digits) != 4 or any(digit not in "0123456789abcdefABCDEF" for digit in digits):
+                raise ValueError("Malformed \\uxxxx encoding.")
+            value.append(chr(int(digits, 16)))
+            offset += 4
+        elif char == "t":
+            value.append("\t")
+        elif char == "r":
+            value.append("\r")
+        elif char == "n":
+            value.append("\n")
+        elif char == "f":
+            value.append("\f")
+        else:
+            value.append(char)
+    return "".join(value)
+
+
+def _trim(value: str) -> str:
+    """等价于 Java String.trim：只裁剪 U+0020 及以下字符。"""
+    start = 0
+    end = len(value)
+    while start < end and ord(value[start]) <= 0x20:
+        start += 1
+    while end > start and ord(value[end - 1]) <= 0x20:
+        end -= 1
+    return value[start:end]
 
 
 def _split_list(raw: str) -> list[str]:
     names: list[str] = []
     for part in str(raw or "").split(","):
-        name = part.strip()
+        name = _trim(part)
         if name and name not in names:
             names.append(name)
     return names
@@ -148,21 +301,21 @@ def _parse(values: dict[str, str]):
     routes: dict[str, str] = {}
     groups: dict[str, dict[str, str]] = {}
     for name, value in values.items():
-        key = name.strip()
+        key = _trim(name)
         if not key:
             continue
         if key.startswith("service."):
-            scope = key[len("service."):].strip().lower()
-            if scope and value.strip():
-                routes[scope] = value.strip()
+            scope = _trim(key[len("service."):]).lower()
+            if scope and _trim(value):
+                routes[scope] = _trim(value)
             continue
         if "." not in key:
             continue
         provider_id, field = key.split(".", 1)
-        provider_id, field = provider_id.strip().lower(), field.strip().lower()
+        provider_id, field = _trim(provider_id).lower(), _trim(field).lower()
         if not provider_id or not field:
             continue
-        groups.setdefault(provider_id, {})[field] = value.strip()
+        groups.setdefault(provider_id, {})[field] = _trim(value)
     for provider_id, fields in groups.items():
         base_url = fields.get("base-url", "").rstrip("/")
         if not base_url:

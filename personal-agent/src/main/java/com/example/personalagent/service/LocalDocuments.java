@@ -2,14 +2,18 @@ package com.example.personalagent.service;
 
 import com.example.personalagent.model.VaultNote;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.concurrent.Semaphore;
+import java.util.regex.Pattern;
 
 import static com.example.personalagent.Api.*;
 
@@ -18,15 +22,21 @@ public class LocalDocuments {
     static final String ORIGINALS = "99-附件/导入资料/";
     static final long MAX_BYTES = 12L * 1024 * 1024;
     static final String TYPES = "pdf|png|jpe?g|gif|webp|txt|md|docx?|pptx?|xlsx?|csv";
+    static final Pattern TEXT_TYPES = Pattern.compile("txt|md|csv|tsv|json|html?|xml|ya?ml|log");
+    static final int MAX_TEXT_CHARS = 60000;
     private final VaultService vault;
     private final ObjectMapper json;
     private final DeepSeekFiles files;
+    private final AiGateway gateway;
+    private final ModelRoute route;
     private final Semaphore analyzing = new Semaphore(1);
 
-    public LocalDocuments(VaultService vault, ObjectMapper json, DeepSeekFiles files) {
+    public LocalDocuments(VaultService vault, ObjectMapper json, DeepSeekFiles files, AiGateway gateway, ModelRoute route) {
         this.vault = vault;
         this.json = json;
         this.files = files;
+        this.gateway = gateway;
+        this.route = route;
     }
 
     public VaultNote archive(MultipartFile file, Map<String,String> fields) throws Exception {
@@ -49,7 +59,7 @@ public class LocalDocuments {
         String path = VaultService.DOMAINS.get(domain) + "/" + key + ".md";
         String attachment = ORIGINALS + key + "." + document.storageExtension();
         String note = "---\ntitle: " + json.writeValueAsString(title) + "\ndomain: " + domain + "\nrecord_type: imported_document"
-            + (draft.isEmpty() ? "\nstatus: historical\nsource: 本地归档" : "\nstatus: draft\norigin: ai_generated\nsource: DeepSeek 原件分析")
+            + (draft.isEmpty() ? "\nstatus: historical\nsource: 本地归档" : "\nstatus: draft\norigin: ai_generated\nsource: 原件 AI 分析")
             + "\nobserved_at: " + json.writeValueAsString(date) + "\nrecorded_at: " + json.writeValueAsString(now())
             + "\nai_exclude: true\nattachment: " + attachment + "\nattachment_sha256: " + document.hash
             + "\n---\n\n[[" + attachment + "|原件]]\n" + (draft.isEmpty() ? "" : "\n## AI 整理草稿\n\n" + indent(draft) + "\n");
@@ -90,13 +100,38 @@ public class LocalDocuments {
         if (!vault.root().toString().equals(workspace)) throw conflict("仓库已切换，请重新打开导入页面");
     }
 
-    String analyze(Attachment document, String instruction) {
+    String analyze(Attachment document, String instruction) throws Exception {
         require(analyzing.tryAcquire(), "另一份附件正在处理，请稍后重试");
         try {
-            return files.analyze(document.bytes, document.extension, instruction);
+            return analyzeWithSelectedModel(document, instruction);
         } finally {
             analyzing.release();
         }
+    }
+
+    /** 跟随顶部栏选择器：DeepSeek 型号走官方文件接口，其他提供方仅在文本类附件时走统一入口。 */
+    private String analyzeWithSelectedModel(Attachment document, String instruction) throws Exception {
+        String selected = route.current("personal-agent");
+        if (selected == null || selected.isEmpty()) return files.analyze(document.bytes, document.extension, instruction);
+        String deepSeek = deepSeekModel(selected);
+        if (!deepSeek.isEmpty()) return files.analyzeWithModel(document.bytes, document.extension, instruction, deepSeek);
+        if (!textLike(document.extension)) throw unsupportedOriginal();
+        String text = new String(document.bytes, StandardCharsets.UTF_8);
+        if (text.length() > MAX_TEXT_CHARS) text = text.substring(0, MAX_TEXT_CHARS) + "\n\n（原文过长，以上为前 " + MAX_TEXT_CHARS + " 个字符）";
+        return gateway.complete(instruction, text);
+    }
+
+    static String deepSeekModel(String route) {
+        return route != null && route.startsWith("deepseek:") ? route.substring("deepseek:".length()) : "";
+    }
+
+    static boolean textLike(String extension) {
+        return extension != null && TEXT_TYPES.matcher(extension).matches();
+    }
+
+    static ResponseStatusException unsupportedOriginal() {
+        return new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+            "当前选择的模型无法解析 PDF、图片或 Office 原件，请切换到 DeepSeek 模型后重试，或上传 txt/md/csv 等文本文件");
     }
 
     VaultNote save(Attachment document, String workspace, String path, String attachment, String note) throws Exception {

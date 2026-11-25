@@ -1,0 +1,27 @@
+{
+  "name": "image-style 图片风格模板",
+  "syntax": "dollar",
+  "template": "画一张${style}风格的${subject}，构图${composition}，光线${lighting}。",
+  "cases": [
+    {
+      "id": "minimal",
+      "variables": {
+        "style": "水彩",
+        "subject": "海边灯塔",
+        "composition": "居中",
+        "lighting": "黄昏逆光"
+      },
+      "expected": "画一张水彩风格的海边灯塔，构图居中，光线黄昏逆光。"
+    },
+    {
+      "id": "cinematic",
+      "variables": {
+        "style": "赛博朋克",
+        "subject": "雨夜街道",
+        "composition": "三分法",
+        "lighting": "霓虹"
+      },
+      "expected": "画一张赛博朋克风格的雨夜街道，构图三分法，光线霓虹。"
+    }
+  ]
+}

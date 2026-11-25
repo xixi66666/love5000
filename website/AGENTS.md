@@ -3,12 +3,18 @@
 ## 统一健康检查职责
 
 `integration/health` 维护 `ServiceHealthChecker`、配置化服务清单、并行聚合器和
-`GET /api/services/health`。清单依次包含 `lovestory:8081`、`imagetemplate:8082`、
-`python-a:5174`、`quant-a:5175`、`scrapling-ui:5176`、`skill-finder:5177`、`lottery:5179`，再加Strata:9999、AIMedia:8190、H3引擎:8189的本机健康适配。远程响应只有在
-HTTP 2xx 且顶层布尔值 `success=true` 时才健康；连接/读取超时默认 2000/3000ms。
+`GET /api/services/health`。默认聚合 11 个目标，顺序以
+`src/main/resources/application.yml` 的 `website.service-health.services` 为准：
+`lovestory:8081`、`imagetemplate:8082`、`python-a:5174`、`quant-a:5175`、
+`scrapling-ui:5176`、`skill-finder:5177`，`strata`、`aimedia`、`h3`
+通过 `/api/services/local/{service}/health` 适配，然后是 `personal-agent:5178`、`lottery:5179`。
+远程响应只有在 HTTP 2xx 且顶层布尔值 `success=true` 时才健康；连接/读取超时默认 2000/3000ms。
+`GET /api/services/health` 读取最近一次巡检结果。默认启动时巡检一次，后续间隔 30 分钟。
+HTTP 200 表示成功返回聚合响应，顶层 `success=true` 表示巡检已生成汇总，即使全部目标离线仍可为 true，`healthy` 表示是否全部在线。
 `website` 启动时仍只自动启动 `python-a`、`quant-a` 两个 Python 服务；
-`scrapling-ui`、`skill-finder` 和 `lottery` 只通过首页按钮点击启动
-（`integration/scrapling`、`integration/skillfinder`）。
+`scrapling-ui`、`skill-finder`、`lottery` 和 03 Deep Woods 的 `personal-agent`
+只通过首页按钮点击启动（`integration/scrapling`、`integration/skillfinder`、
+`integration/lottery`、`integration/personalagent`）。
 
 ## 项目概述
 
@@ -43,7 +49,7 @@ C:/Code/Java_Code/love5000/website
 配置文件：
 
 - `pom.xml`：模块依赖、Java 8 编译配置、Spring Boot 主类。
-- `src/main/resources/application.yml`：端口、MySQL、Druid、静态资源路径，以及两个 Python 子服务的自动启动配置和 `scrapling-ui`、`skill-finder` 的点击启动配置。
+- `src/main/resources/application.yml`：端口、MySQL、Druid、静态资源路径，以及两个 Python 子服务的自动启动配置和 `scrapling-ui`、`skill-finder`、`personal-agent`、`lottery` 的点击启动配置。
 
 **关键**：`website` 是可独立启动的 Web 服务，默认端口为 `8080`。
 
@@ -223,6 +229,9 @@ website/
     │   │   │   ├── PythonAAutoStartRunner.java
     │   │   │   ├── QuantAAutoStartRunner.java
     │   │   │   ├── health/
+    │   │   │   ├── local/
+    │   │   │   ├── lottery/
+    │   │   │   ├── personalagent/
     │   │   │   ├── scrapling/
     │   │   │   └── skillfinder/
     │   │   ├── nacosdiscovery/
@@ -271,6 +280,11 @@ website/
   （执行 `python server.py --port 5179`，等待健康默认 60s），`LotteryController` 暴露
   `POST /api/services/lottery/start` 与 `GET /api/services/lottery/status`；只由首页按钮点击触发，
   不做启动时自动拉起，也不在 `website` 关闭时强杀。
+- `integration/personalagent`：`PersonalAgentProcessManager` 负责按需启动/复用根目录 `personal-agent`
+  （默认端口 5178，等待健康默认 90s），`PersonalAgentController` 暴露
+  `POST /api/services/personal-agent/start` 与 `GET /api/services/personal-agent/status`；
+  只由 03 Deep Woods 的“个人资料库”卡片点击触发，不做启动时自动拉起。
+- `integration/local`：本机模型与视频服务管理，提供 strata / aimedia / h3 的状态、健康适配和启停接口。
 
 ## 配置约定
 
@@ -444,7 +458,7 @@ Spring 约定：
 - 图片放在 `src/main/resources/static/img`。
 - 提示词控制台放在 `src/main/resources/static/prompt-console`。
 - 页面引用资源时使用相对路径，不使用本机绝对路径。
-- 首页各场景的文案配置在 `index.html` 对应按钮的 `data-scene-title` / `data-scene-statement` / `data-scene-badge`；`data-scene-dock` 指向该场景的服务目录，`setupSceneContent` 监听现有 `xixiscenechange` 事件切换内容。01 Golden Hour 保持原诗句、布局和 9 个入口；02 Still Water、03 Deep Woods、04 Quiet Dawn 分别使用独立的 `still-water-service-dock`、`deep-woods-service-dock`、`quiet-dawn-service-dock`，空目录隐藏，新增服务沿用 `service-card`。不要修改四场景的背景动画。
+- 首页各场景的文案配置在 `index.html` 对应按钮的 `data-scene-title` / `data-scene-statement` / `data-scene-badge`；`data-scene-dock` 指向该场景的服务目录，`setupSceneContent` 监听现有 `xixiscenechange` 事件切换内容。01 Golden Hour 保持原诗句、布局和 9 个入口；03 Deep Woods 的 `deep-woods-service-dock` 展示“个人资料库”（5178，点击启动）；02 Still Water、04 Quiet Dawn 使用各自独立目录，空目录隐藏，新增服务沿用 `service-card`。不要修改四场景的背景动画。
 - 首页四段远程场景视频保持原样，仅展示风景，不添加车窗图片覆盖或车窗晃动动画；保留文字可读的暗角、颗粒和黑色/渐变降级背景，外部媒体失败不得影响服务入口、鉴权或健康检测。
 - 四段场景片各 10.04 秒且首尾不是同一镜头，原生 `loop` 会先停帧再跳回第一帧。循环必须继续走 `setupVideoSwitcher` 的交叉淡化补层：`.scene-video--loop` 由脚本动态创建（不写进 `index.html`，保持四段原视频与 URL 不变）、默认 `paused` + `preload="none"` + `aria-hidden`，在最后 1 秒从第一帧起播并接管，`loopFadeMs = 1000` 必须与 `.scene-video--loop` 的 `opacity` 过渡一致；`video.play()` 被拒绝、`readyState` 不足或片段短于 2.5 个淡化区间时退回原生 `loop`。**关键**：补层排在全部场景视频之上、`.scene-shade` 之下，两层是上下叠放，只允许上层补层改变不透明度，下层 `.scene-video.is-active` 必须始终保持 `opacity: 1`——两层同时半透明时合成覆盖率只有 `上层 + 下层 × (1 − 上层)`（中点 75%），会透出深色背景，观感就是“突然黑一下”；不要重新引入 `is-loop-hidden` 之类的原视频淡出。切换场景必须在 `reveal()` 里等新视频 `readyState ≥ 2`（最多 `sceneRevealTimeoutMs = 2000`）再执行 `showVideo()`，否则会把旧画面淡出到只剩背景；接管时用 `getAnimations()` 同步 `ken-burns` 相位。改动该逻辑后运行 `node website/src/test/js/homepage-video-loop.test.js`。
 - 首页保持单个 `100svh` 视口且不产生页面级滚动；服务 Dock 桌面端为单行 9 列且 9 个入口一屏全部可见（列宽用 `repeat(9, minmax(0, 1fr))` 随容器自适应收缩，不产生横向滚动），1180px 及以下才切换为定宽列并只允许服务 Dock 自身横向滚动，任何宽度都不允许换行成两排。
@@ -462,6 +476,10 @@ Spring 约定：
 ```bash
 mvn -pl website -am test
 ```
+
+### 一键离线回归
+
+从仓库根目录执行 `python scripts/run-regression.py`。若当前在其他目录，传入脚本的绝对路径。脚本运行四份 Node 测试、模型路由 unittest、两个部署副本只读检查以及健康检查、模型路由和个人资料库的 Maven 离线测试。全部通过返回 0，检查失败返回 1，只有运行工具缺失时返回 2。独立的本地健康诊断 CLI 见 `tools/service-doctor/README.md`。
 
 当前已有测试：
 
@@ -537,7 +555,7 @@ mvn -pl website -am spring-boot:run
 
 三个应用继续独立运行，不加入 Maven modules，不随 website 自动启动或关闭。`website.local-services` 配置本机目录、端口和180秒启动等待；目录可通过 `STRATA_HOME`、`AIMEDIA_HOME` 覆盖。入口仅适用于运行这些应用的 Windows 主机；使用 UU 远程操作主机上的浏览器也可管理。
 
-API：`GET /api/services/local/{strata|aimedia|h3}/status`；同路径 `/health` 在在线时返回HTTP200、`success=true`和稳定的`service`标识，离线时HTTP503。`POST /api/services/local/{service}/{start|load|unload|stop}` 执行操作，只有Strata支持load，AIMedia不支持unload。修改请求需 `X-Love530-Local: 1`；仅允许回环地址、localhost/127.0.0.1/::1 Host与同源Origin，不能传入自定义命令或PID。统一 `/api/services/health` 清单在原五个服务后追加strata、aimedia、h3三个适配健康检查，共八项。
+API：`GET /api/services/local/{strata|aimedia|h3}/status`；同路径 `/health` 在在线时返回HTTP200、`success=true`和稳定的`service`标识，离线时HTTP503。`POST /api/services/local/{service}/{start|load|unload|stop}` 执行操作，只有Strata支持load，AIMedia不支持unload。修改请求需 `X-Love530-Local: 1`；仅允许回环地址、localhost/127.0.0.1/::1 Host与同源Origin，不能传入自定义命令或PID。统一 `/api/services/health` 默认检查 11 个目标，包括上述三个本机适配与八个独立服务。
 
 Strata以`--lazy`启动服务，第一条生成请求或「加载模型」按钮才加载权重；「卸载模型」保留API和权重文件。AIMedia通过已有GPU Python环境直接启动操作台后端，不在这里顺带启动H3。H3在提交生成任务后才加载权重，页面不把「引擎在线」或「权重已安装」谎报为「模型已加载」。释放调用ComfyUI `/free`，是异步请求，作用于该引擎缓存的模型，不删除权重和作品。视频队列或操作台作业忙碌时返回409，无法确认队列时拒绝释放/停止。启动生成任务前先卸载Qwen，避免两个大型模型争用内存和显存。
 
@@ -547,11 +565,11 @@ Strata以`--lazy`启动服务，第一条生成请求或「加载模型」按钮
 
 ## 个人长期资料库（Obsidian + Quartz，03 Deep Woods，5178）
 
-健康档案提供人体热点和健康文档双链图。各资料领域显示自己的双链与近六个月最后编辑统计，复用 `GET /api/vault/overview?domain=...`。
+健康档案默认展示最近检查、可核对的摘录、原报告建议和各次报告原值对照；人体图默认显示在报告选择器下方，健康文档双链可展开查看。详情的 `analysis_version` 区分空档、旧稿和新版。各资料领域通过 `GET /api/vault/overview?domain=...` 读取双链与编辑统计。
 
 个人资料库总览展示真实 Vault 的最近笔记和至多 48 个节点的双链图（`GET /api/vault/overview`）。`GET /api/note` 同时提供安全 Markdown 阅读预览与反向链接，完整图谱、嵌入和 Bases 仍通过私有 Quartz 浏览页查看。
 
-个人资料总览的通用导入（`/api/documents`）和健康档案（`/api/exams`）支持仅归档或经确认后把原件发给 DeepSeek 官方 Files API，使用 `deepseek-flash` 生成 Markdown 草稿。官方密钥读取根目录 `model.properties` 的 `deepseek.api-key`。体检解读保留指标摘录和历史对照。具体路径和验证见 `personal-agent/README.md`。
+个人资料总览的通用导入（`/api/documents`）和健康档案（`/api/exams`）支持仅归档或经确认后把原件交给所选模型，生成 Markdown 草稿。分析跟随顶部栏模型选择器：选中 DeepSeek 型号时用该型号走官方 Files API（默认 `deepseek-flash`，官方密钥读取根目录 `model.properties` 的 `deepseek.api-key`）；选中其他提供方时，仅 txt/md/csv 等文本类附件改走统一模型入口，PDF、图片与 Office 原件返回 HTTP 422 并提示切换到 DeepSeek。体检解读保留指标摘录和历史对照。具体路径和验证见 `personal-agent/README.md`。
 
 `personal-agent/` 是 Java 8 + Spring Boot 2.6.13 Maven 模块，服务标识仍为 `personal-agent`，监听 `127.0.0.1:5178`。内容已替换为真实 Obsidian Vault 的个人长期资料库，覆盖财务、健康、工作、生活等领域；网页提供资料记录、关键词搜索、版本校验编辑，以及用户确认来源后发起的 AI 分析。Quartz 5.1.0 的真实源码位于 `personal-agent/quartz/`，负责阅读、全文搜索、双链图、反向链接与原生 `.base` 视图。
 
@@ -637,8 +655,10 @@ IDEA 中重新运行 `WebsiteApplication` 后生效，浏览器刷新首页以�
 ## 统一模型入口（2026-10-20）
 
 主页提供全局文本模型选择，python-a、scrapling-ui、skill-finder、personal-agent 提供“跟随主页 / 服务原配置 / 独立模型”，下一次请求生效。图片、视觉、语音和视频保留专用模型；quant-a 与 lovestory 当前没有文本模型调用。
+
+OpenCode Go 从根目录私有 `model.properties` 的 `opencode-go.*` 读取，使用 OpenAI 兼容的 `/models` 探测与 `/chat/completions` 生成，请求模型 ID 为 `deepseek-v4.1-flash`。生成请求携带本站客户端标识和独立的 `X-OpenCode-Session`。该域名位于 Cloudflare 之后，缺省 Java 客户端标识会被以 HTTP 403 `error code: 1010` 拒绝，因此**目录探测与生成都必须走 `ModelHttp#requestOpenCodeGo`**（附带 `User-Agent: love5000-website/1.0` 与 `X-OpenCode-Session`），否则选择器里的 `deepseek-v4.1-flash` 会一直显示“未就绪”。
 website 的 `/api/models` 提供目录核验、选择持久化和文本代理，状态文件为根 `.runtime/model-routing.json`，仅存模型 ID、不存密钥；Java 客户端在 common，Python 公共源码在 website/model-routing，部署副本 _model_routing.py 随各服务打包。原有认证保留。未选择时保留原逻辑，已选择但网关离线时报错。
-共享选择器源为 website/src/main/resources/static/model-picker/picker.js，修改后执行 `python scripts/sync-model-picker.py`，React/Vue 修改后重新构建 dist。图片工作台新增独立图片模型下拉与 `OPENAI_IMAGE_MODELS` 白名单，支持 JSON/multipart 的 `model` 字段。
+共享选择器源为 website/src/main/resources/static/model-picker/picker.js，修改后执行 `python scripts/sync-model-picker.py`，或用 `python scripts/sync-model-picker.py --check` 只读校验；React/Vue 修改后重新构建 dist。图片工作台新增独立图片模型下拉与 `OPENAI_IMAGE_MODELS` 白名单，支持 JSON/multipart 的 `model` 字段。
 完整盘点、API、边界与验证见 [统一模型入口](../docs/model-routing.md)。跨模块验证 `mvn test`；公共 Python 客户端验证 `python -m unittest discover -s website/model-routing`。
 
 ### MiMo V2.6 文本接入（2026-10-20）

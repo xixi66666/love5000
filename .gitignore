@@ -61,6 +61,8 @@ website/python-a/server.err.log
 /website/lottery/cache/
 /website/lottery/logs/
 /website/lottery/data/backup/
+/website/lottery/data/.update.lock
+/website/lottery/data/.*.csv.*.tmp
 /website/lottery/server.out.log
 /website/lottery/server.err.log
 

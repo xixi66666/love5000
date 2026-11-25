@@ -86,6 +86,23 @@ class ModelRoutingServiceTest {
         assertThat(actual.read().get(0).key).isEqualTo("private-test-key");
         assertThat(actual.read().get(0).configured).containsExactly("flash","pro");
     }
+    @Test void openCodeGoSelectionUsesSessionAwareTransport() throws Exception {
+        String base = "https://opencode.ai/inference/go/openai/v1";
+        String model = "deepseek-v4.1-flash";
+        when(sources.read()).thenReturn(Collections.singletonList(
+                new ModelSources.Source("opencode-go", "OpenCode Go", base, "test-go-key", model)));
+        when(http.requestOpenCodeGo(eq(base + "/models"), eq("test-go-key"), isNull(), anyInt()))
+                .thenReturn(json.readTree("{\"data\":[{\"id\":\"deepseek-v4.1-flash\"}]}"));
+        when(http.requestOpenCodeGoChat(eq(base + "/chat/completions"), eq("test-go-key"),
+                any(JsonNode.class), anyInt())).thenAnswer(call -> (JsonNode) call.getArgument(2));
+
+        service.select("global", "opencode-go:" + model);
+        ObjectNode payload = json.createObjectNode();
+        payload.putArray("messages").addObject().put("role", "user").put("content", "hello");
+        assertThat(service.complete("python-a", payload).path("model").asText()).isEqualTo(model);
+        verify(http, never()).request(eq(base + "/chat/completions"), anyString(), any(JsonNode.class), anyInt());
+        verify(http, never()).request(eq(base + "/models"), anyString(), isNull(), anyInt());
+    }
     @Test void completeReturnsNativeWithoutDiscoveryAndKeepsStrictChatContract()throws Exception {
         ObjectNode payload=json.createObjectNode();
         assertThat(service.complete("python-a",payload)).isNull();
