@@ -1,19 +1,26 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""love5000 离线回归。
+"""love5000 离线回归入口。
 
-一键运行：
-  1. website/src/test/js 下四份 Node 测试（首页三份 + 提示词一份）
-  2. python -m unittest discover -s website/model-routing
-  3. scripts/sync-model-picker.py --check（只检查，不写入）
-  4. scripts/sync-model-routing.py --check（只检查，不写入）
-  5. Maven 离线白名单测试（-o，不访问远程仓库）
+用途：一条命令验证当前工作区没有破坏首页动效、首页视频循环、首页服务健康、提示词分类、
+模型路由公共客户端与部署副本一致性，以及五个白名单 Maven 测试类。
 
-不访问远程服务，不读取 model.properties、.env、用户笔记或密钥。
-可从任意目录执行；脚本以自身位置定位仓库根目录。
-兼容 Python 3.7+ 与 Windows mvn.cmd。
+参数：不接受命令行参数，也没有开关；仓库根目录由脚本自身位置推导（``parents[1]``），
+因此可以从任意工作目录执行。兼容 Python 3.7+ 与 Windows 的 ``mvn.cmd``。
 
-退出码 0 表示全部通过，1 表示检查失败，2 表示只有运行工具缺失。
+执行阶段（与 ``main`` 里的编号注释一一对应）：
+  1. 逐份运行 website/src/test/js 下四份 Node 测试（首页三份 + 提示词一份）；
+  2. 运行 python -m unittest discover -s website/model-routing；
+  3. 以 --check 只读校验 scripts/sync-model-picker.py 与 scripts/sync-model-routing.py
+     生成的部署副本是否与唯一源码一致；
+  4. 以 -o 离线模式运行 Maven 白名单测试，不访问远程仓库。
+
+副作用：以子进程方式调用 node、当前解释器、两个同步脚本和 Maven；Maven 会写入各模块的
+target/ 目录（surefire 报告用于确认测试真的执行过），其余阶段不写文件。不访问远程服务，
+不读取 model.properties、.env、用户笔记或密钥。
+
+退出码：0 表示全部通过；1 表示至少一步失败（含超时、同步检查不一致、测试未真正执行）；
+2 表示只有运行工具（node / Maven / java）缺失，没有任何断言失败。
 """
 import os
 import shutil
@@ -44,9 +51,11 @@ JAVA_TESTS = (
     ("personal-agent", "com.example.personalagent.KnowledgeIntegrationTest"),
 )
 
+# 各阶段子进程超时，单位秒；Maven 首次运行要编译多个模块，因此放宽到 30 分钟。
 NODE_TIMEOUT_SECONDS = 120
 PYTHON_TIMEOUT_SECONDS = 300
 MAVEN_TIMEOUT_SECONDS = 1800
+# 失败步骤只回显输出末尾这么多行：够看到断言与异常栈顶，又不会把整段编译日志刷进终端。
 OUTPUT_TAIL_LINES = 120
 
 
@@ -68,6 +77,11 @@ def find_maven():
 
 
 def find_java():
+    """定位 java 可执行文件。
+
+    Maven 需要 JDK，但用户常只设置 ``JAVA_HOME`` 而不把 java 放进 PATH，
+    所以 PATH 找不到时再回退到 ``JAVA_HOME/bin``。
+    """
     found = shutil.which("java")
     if found:
         return found
@@ -90,6 +104,11 @@ def decode_stream(stream):
 
 
 def tail_text(text, lines=OUTPUT_TAIL_LINES):
+    """截取输出末尾若干行用于回显。
+
+    子进程输出常混用 CRLF 与 LF（Windows 的 mvn.cmd 尤其明显），先统一换行再切行，
+    避免回显时出现多余空行或缩进错乱。
+    """
     rows = text.replace("\r\n", "\n").replace("\r", "\n").rstrip().split("\n")
     return "\n".join(rows[-lines:])
 
@@ -123,6 +142,7 @@ def run_command(command, timeout):
 
 
 def record(results, name, status, seconds=0.0, detail=""):
+    """把一步结果追加进汇总列表；detail 仅在非通过时填充，供最后统一回显。"""
     results.append({
         "name": name,
         "status": status,
@@ -132,12 +152,14 @@ def record(results, name, status, seconds=0.0, detail=""):
 
 
 def run_test_step(results, name, command, timeout):
+    """打印当前步骤、执行命令并记录结果；失败时保留输出尾部以便定位。"""
     print("正在运行 %s…" % name, flush=True)
     status, output, seconds = run_command(command, timeout)
     record(results, name, status, seconds, output if status != PASS else "")
 
 
 def report_timestamp(report):
+    """返回 surefire 报告的修改时间（纳秒）；报告不存在时返回 None，首轮运行属正常情况。"""
     try:
         return report.stat().st_mtime_ns
     except FileNotFoundError:
@@ -145,6 +167,18 @@ def report_timestamp(report):
 
 
 def check_java_reports(previous):
+    """确认本轮 Maven 真的执行了指定测试。
+
+    ``-Dtest=...`` 的类名写错或 Surefire 判定跳过时，Maven 依然返回 0，因此改为比较运行前后
+    报告的修改时间，并要求报告里的 tests 数大于 skipped 数；无法判断时按失败处理，宁可误报
+    也不让白名单测试静默空跑。
+
+    Args:
+        previous: 运行前采集的 ``{报告路径: 修改时间}`` 快照。
+
+    Returns:
+        逐条问题描述、以换行连接；空字符串表示全部通过。
+    """
     problems = []
     for report, timestamp in previous.items():
         updated = report_timestamp(report)
@@ -161,6 +195,7 @@ def check_java_reports(previous):
 
 
 def main():
+    """按顺序执行四个阶段并打印汇总，返回值直接作为进程退出码（0 通过 / 1 失败 / 2 缺工具）。"""
     results = []
 
     python = sys.executable or "python"
@@ -177,7 +212,7 @@ def main():
             continue
         run_test_step(results, name, [node, str(test_path)], NODE_TIMEOUT_SECONDS)
 
-    # 2. 模型路由公共 unittest。
+    # 2. 模型路由公共 unittest。目录缺失时记为失败，不静默跳过，避免回归覆盖率悄悄变少。
     model_routing_dir = ROOT / "website" / "model-routing"
     if not model_routing_dir.is_dir():
         record(results, "Python 模型路由 unittest", FAIL, 0.0,
@@ -190,7 +225,7 @@ def main():
             PYTHON_TIMEOUT_SECONDS,
         )
 
-    # 3. 两个同步脚本的只读检查。
+    # 3. 两个同步脚本的只读检查。只比较部署副本，不写入仓库。
     for name, relative_path in (
         ("模型选择器同步 --check", "scripts/sync-model-picker.py"),
         ("模型路由同步 --check", "scripts/sync-model-routing.py"),
@@ -227,7 +262,7 @@ def main():
             "-Dsurefire.failIfNoSpecifiedTests=false",
             "test",
         ]
-        # common 参与 reactor 构建。通过每个指定类的新报告确认测试真正执行。
+        # common 也参与 reactor 构建；逐个比对指定类的新报告，避免 -Dtest 类名失效后静默空跑。
         report_paths = [
             ROOT / module / "target" / "surefire-reports" / ("TEST-" + name + ".xml")
             for module, name in JAVA_TESTS

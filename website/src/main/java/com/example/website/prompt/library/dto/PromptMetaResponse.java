@@ -2,6 +2,13 @@ package com.example.website.prompt.library.dto;
 
 import java.util.List;
 
+/**
+ * {@code GET /api/prompts/meta} 的响应体，用于渲染提示词库的筛选面板。
+ *
+ * <p>由三条聚合统计拼装而成：{@code groups} 是大分类树（每个大分类挂自己的小分类与计数），
+ * {@code sources} 是来源列表（含授权与摘要），{@code total} 是全库条目数。
+ * 所有集合都保证非 {@code null}，没有数据的分类会返回空的小分类列表而不是缺字段。</p>
+ */
 public class PromptMetaResponse {
 
     private boolean success = true;
@@ -41,6 +48,12 @@ public class PromptMetaResponse {
         this.sources = sources;
     }
 
+    /**
+     * 一级分类（大分类）汇总，按 {@code prompt_group.sort_order} 排序。
+     *
+     * <p>{@code slug} 是前端传回 {@code GET /api/prompts?group=} 的值；{@code count} 是该大分类下
+     * 的条目数，可能为 0（分类已建但还没有提示词）；{@code categories} 为二级分类，绝不返回 {@code null}。</p>
+     */
     public static class GroupSummary {
 
         private String slug;
@@ -81,6 +94,12 @@ public class PromptMetaResponse {
         }
     }
 
+    /**
+     * 二级分类（小分类）汇总。
+     *
+     * <p>{@code name} 是数据库里的小分类原文，前端原样作为 {@code GET /api/prompts?category=} 的入参，
+     * 服务端按等值匹配，不做大小写或同义词归一化。</p>
+     */
     public static class CategorySummary {
 
         private String name;
@@ -111,6 +130,13 @@ public class PromptMetaResponse {
         }
     }
 
+    /**
+     * 来源汇总。
+     *
+     * <p>{@code id} 用于 {@code GET /api/prompts?source=} 过滤；{@code status} 是来源自身的状态标识
+     * （例如 {@code imported}），与单条提示词的 {@code status} 不是同一概念；
+     * {@code license}/{@code summary} 可能为空串，前端需容忍空值。</p>
+     */
     public static class SourceSummary {
 
         private String id;

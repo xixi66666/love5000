@@ -17,7 +17,13 @@
 package com.example.website.demos.web;
 
 /**
- * @author <a href="mailto:chenxilzx1@gmail.com">theonefx</a>
+ * 基础 Web Demo 的示例用户对象。
+ *
+ * <p>属于 {@code demos} 示例包，仅用于演示 Spring MVC 的表单/查询参数绑定与 JSON 序列化，
+ * 不是站点真实的用户模型；真实账户信息由 {@code common} 模块的 {@code AuthUser} 承载。</p>
+ *
+ * <p>字段刻意保持可变并配有 getter/setter，因为 {@link BasicController} 依赖
+ * {@code @ModelAttribute} 与请求参数按属性名回填。</p>
  */
 public class User {
 

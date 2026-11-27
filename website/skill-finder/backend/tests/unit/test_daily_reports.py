@@ -1,3 +1,23 @@
+"""日报审核与发布的流程护栏。
+
+覆盖 `/api/v1/daily-reports/{day}/review`、`/publish`、抖音登录截屏入口以及
+`app.daily.pipeline.generate`：
+
+- 审核必须带 `X-Admin-Key`，且批准只对「这一份视频 + 这一段口播 + 这一版文案」生效：
+  换文案或换视频文件后 `review_digest` / `video_sha256` 校验都会失败；
+- 没批准的日报永远进不了发布器，选择“拒绝”也不会触发发布；
+- 管理接口只允许 HTTPS 或本机连接（公网明文 HTTP 403），登录截屏未鉴权时 401；
+- 定时重试不得覆盖已进入审核的草稿；取不到当日新鲜榜单时宁可把任务记为 `failed`，
+  也不编造 Top10；
+- `generate` 内的采集与候选查询必须复用同一个事件循环，否则异步数据库会话会跨
+  循环使用。
+
+隔离方式：`daily` fixture 把 `daily_reports_dir` 指到 `tmp_path`、注入测试用
+`admin_key` 并落一份 `pending_review` 假日报（视频是几字节占位内容，不跑渲染）；
+发布器 `task` 用 `AsyncMock` 顶替，采集、候选查询、渲染均 monkeypatch，既不连
+数据库也不调用模型。
+"""
+
 import asyncio
 import json
 from unittest.mock import AsyncMock
@@ -12,11 +32,18 @@ from app.main import app
 
 
 def client():
+    """管理接口只放行 HTTPS 或本机来源，这里用 localhost 作为 base_url 通过校验。"""
     return TestClient(app, base_url="http://localhost")
 
 
 @pytest.fixture
 def daily(tmp_path, monkeypatch):
+    """落一份已进入审核的假日报，并按真实算法生成视频与审批摘要。
+
+    视频只是几字节占位内容，但 `video_sha256`、`review_digest` 都用 `store` 的真实
+    实现计算，因此后文改动文案或覆盖视频文件时，`verify_approval` 的绑定校验才有
+    意义。
+    """
     monkeypatch.setattr(settings, "daily_reports_dir", str(tmp_path))
     monkeypatch.setattr(settings, "admin_key", type(settings.admin_key)("test-review-key"))
     report = {
@@ -160,6 +187,8 @@ def test_collection_and_report_query_share_one_database_event_loop(tmp_path, mon
     assert generate(collect=True)["status"] == "pending_review"
 
 
+# 三类非法 day：路径穿越、日历上不存在的日期、未零填充的月份。都必须被拒绝，
+# 否则报告目录会读写到 data/ 之外。
 @pytest.mark.parametrize("day", ["../private", "2026-13-40", "2026-1-1"])
 def test_report_path_validation(day):
     with pytest.raises(ValueError):

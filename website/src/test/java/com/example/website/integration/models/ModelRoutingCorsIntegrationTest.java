@@ -12,10 +12,22 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-/** 使用真实 MVC HandlerMapping 与预检适配器，避免仅测控制器手写 OPTIONS。 */
+/**
+ * {@code /api/models/**} 跨域预检在真实 MVC 配置下的集成测试。
+ *
+ * <p>与只测控制器手写 OPTIONS 的用例不同，本类用
+ * {@link AnnotationConfigWebApplicationContext} 加 {@code @EnableWebMvc} 装配真实的
+ * HandlerMapping 与预检适配器：浏览器预检在进入控制器方法之前就由 MVC 处理，只测控制器会漏掉
+ * 真实的来源与允许头判定。</p>
+ *
+ * <p>覆盖 personal-agent（5178）在同源页面选择模型所需的预检：GET 与 PUT 放行、允许
+ * {@code x-love530-model}；未知来源（9998）和非白名单请求头（authorization）被拒绝。
+ * 服务与进程管理都是 mock，不访问真实模型网关。</p>
+ */
 class ModelRoutingCorsIntegrationTest {
     AnnotationConfigWebApplicationContext context;
     MockMvc mvc;
+    /** 最小 MVC 上下文：只注册控制器与两个 mock 协作者，避免拉起真实模型服务或本机进程管理。 */
     @Configuration
     @EnableWebMvc
     static class Config {
@@ -24,6 +36,8 @@ class ModelRoutingCorsIntegrationTest {
         @Bean ModelRoutingController modelRoutingController(ModelRoutingService service,LocalServicesManager local){return new ModelRoutingController(service,local);}
     }
     @BeforeEach void setup(){
+        // 交给 webAppContextSetup 后，请求才会经过 DispatcherServlet 与真实的 CORS 预检适配器，
+        // 而不是控制器里的手写响应头。
         context=new AnnotationConfigWebApplicationContext();context.setServletContext(new MockServletContext());
         context.register(Config.class);context.refresh();mvc=MockMvcBuilders.webAppContextSetup(context).build();
     }

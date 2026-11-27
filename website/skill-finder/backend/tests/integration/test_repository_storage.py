@@ -1,3 +1,12 @@
+"""集成测试：三个 Store 的幂等写入与任务记录。
+
+覆盖：仓库 upsert 生效与软删除后不可见、``full_name`` 相同但 ``github_id`` 变化时合并到
+同一行、每日快照按 ``(repository_id, snapshot_date)`` 覆盖、榜单按周期整段替换（含用空
+列表清空）、采集任务从 ``RUNNING`` 到终态的字段回填。
+
+隔离：需要 ``TEST_DATABASE_URL``（专用测试库），未设置时整模块跳过；每个用例前
+``DROP`` 四张表并按 ``sql/schema.sql`` 重建，不连接远程生产库。
+"""
 import os
 from datetime import UTC, date, datetime
 from pathlib import Path

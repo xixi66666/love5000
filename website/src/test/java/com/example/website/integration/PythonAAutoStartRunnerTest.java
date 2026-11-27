@@ -11,6 +11,24 @@ import java.nio.file.Path;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
+/**
+ * {@link PythonAAutoStartRunner} 的单元测试。
+ *
+ * <p>被测对象是 website 的自动启动适配层。本类只验证它交给操作系统的解释器、参数与工作目录，
+ * 不启动 Python、不绑定端口、不访问网络：与进程相关的断言只检查尚未执行的
+ * {@link ProcessBuilder}，与目录相关的断言用 {@link TempDir} 造假目录。</p>
+ *
+ * <p>固定的关键分支：</p>
+ * <ul>
+ *   <li>{@code log-to-console=true} 时输出重定向为 {@code INHERIT}，并注入
+ *       {@code PORT=5174} 与 {@code PYTHONUNBUFFERED=1}，否则控制台看不到实时请求日志；</li>
+ *   <li>工作目录下存在 {@code .venv/Scripts/python.exe} 时优先使用它，而不是配置的
+ *       {@code python}；</li>
+ *   <li>{@code run()} 在命令不存在时只告警不抛异常，自动启动失败不能让 website 起不来；</li>
+ *   <li>从仓库根目录与 {@code website} 模块目录启动时都能解析到 {@code website/python-a}，
+ *       因为 IDE 与命令行给出的 {@code user.dir} 不同。</li>
+ * </ul>
+ */
 class PythonAAutoStartRunnerTest {
 
     @Test
@@ -97,6 +115,14 @@ class PythonAAutoStartRunnerTest {
         }
     }
 
+    /**
+     * 定位 {@code website} 模块目录。
+     *
+     * <p>测试可能从仓库根目录或模块目录运行；当前目录名已是 {@code website} 时不能再拼一层，
+     * 否则会得到不存在的 {@code website/website}。</p>
+     *
+     * @return {@code website} 模块目录
+     */
     private File resolveWebsiteDir() {
         File currentDir = new File(System.getProperty("user.dir"));
         if ("website".equals(currentDir.getName())) {
@@ -105,6 +131,13 @@ class PythonAAutoStartRunnerTest {
         return new File(currentDir, "website");
     }
 
+    /**
+     * 由 {@code website} 目录上溯到仓库根目录。
+     *
+     * <p>供临时改写 {@code user.dir} 的用例使用，用完必须在 {@code finally} 中还原。</p>
+     *
+     * @return 仓库根目录
+     */
     private File resolveRepositoryRoot() {
         File websiteDir = resolveWebsiteDir();
         return websiteDir.getParentFile();

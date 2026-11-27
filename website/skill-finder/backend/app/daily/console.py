@@ -1,4 +1,13 @@
-"""操作台只返回可展示的状态，不返回凭据、私有路径或上游异常正文。"""
+"""日报制作操作台的状态快照。
+
+把任务目录里的 `report.json`、`workflow.json`、`render-progress.json` 和各产物
+文件聚合成前端每 5 秒轮询一次的只读视图，同时给出运行环境自检（渲染引擎、
+FFmpeg、配音、字幕、配乐、抖音登录、QQ 接入口）、样片列表与模板元数据。
+
+返回值只含可展示字段：不含凭据、私有绝对路径或上游异常正文。历史任务没有逐步
+记录时标为 `untracked`，不补造进度；`render_progress` 只在渲染步骤确实运行时读取，
+且只转发渲染器自己写下的帧数字段。
+"""
 from __future__ import annotations
 
 import importlib.util
@@ -19,6 +28,16 @@ from app.services import model_settings
 
 
 def asset_status(project: str) -> dict:
+    """只读地汇报某个项目的演示素材是否可用。
+
+    Args:
+        project: `owner/repo`；格式不合法时返回 `invalid` 而不是抛异常。
+
+    Returns:
+        `{"project", "status", "source", "filename"}`，`status` 为
+        `ready`、`missing` 或 `invalid`。manifest 指向资产目录外、来源非 HTTPS
+        或文件缺失都归为 `invalid`。
+    """
     root = Path(settings.daily_assets_dir).resolve()
     result = {"project": project, "status": "missing", "source": "", "filename": ""}
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", project):
@@ -41,6 +60,13 @@ def asset_status(project: str) -> dict:
 
 
 def runtime() -> list[dict]:
+    """汇总操作台顶部的运行环境自检项。
+
+    只做可达性判断，不启动任何服务：HyperFrames 走 `ensure_runtime`（Node、
+    依赖、浏览器），Remotion 只检查 node 命令与 `remotion` 依赖目录，legacy 恒为
+    可用。配音和字幕是否必需取决于引擎与 `DAILY_TTS_PROVIDER`；配乐、抖音登录、
+    QQ 接入口属于可选能力，未配置时 `ready=False` 但不阻塞生成。
+    """
     engine = settings.daily_video_renderer
     modern = engine in {"remotion", "hyperframes"}
     mimo = settings.daily_tts_provider == "mimo" and modern
@@ -83,6 +109,11 @@ def runtime() -> list[dict]:
 
 
 def samples() -> list[dict]:
+    """列出最近 10 条可播放样片。
+
+    只接受目录名形如 `<时间戳>` 且存在 `video.mp4` 的样片；`render-result.json`
+    缺失或损坏的样片直接跳过，不伪造时长、分辨率或引擎。
+    """
     result = []
     for path in sorted((store.root().parent / "video-samples").glob("*/render-result.json"), reverse=True):
         if not re.fullmatch(r"\d{8}-\d{6}", path.parent.name) or not (path.parent / "video.mp4").is_file():
@@ -100,7 +131,12 @@ def samples() -> list[dict]:
 
 
 def template_metadata() -> dict:
-    """只公开所选引擎的工程说明，不返回私有版本或浏览器路径。"""
+    """只公开所选引擎的工程说明，不返回私有版本或浏览器路径。
+
+    Returns:
+        引擎标识、展示名、Composition、分辨率与帧率、工程目录、编辑器与 API
+        地址，以及该引擎允许编辑的文件清单；legacy 没有文件清单。
+    """
     engine = settings.daily_video_renderer
     hyperframes = engine == "hyperframes"
     from app.daily.templates import descriptor
@@ -128,6 +164,24 @@ def template_metadata() -> dict:
 
 
 def snapshot(day: str) -> dict:
+    """组装某一天的操作台快照。
+
+    数据来源依次为 `report.json`、`workflow.json`、`render-progress.json` 和产物
+    文件，状态推导规则：
+
+    - 历史任务没有 `workflow.json` 时，前 7 个步骤标为 `untracked`，不补造记录。
+    - 进入审核之后的报告按真实状态改写 review 与 publish 两步的文案。
+    - 状态显示运行中但已超过 30 秒又拿不到全局锁时判定为 `interrupted`，提示可以
+      重新运行。
+    - `render_progress` 只在渲染步骤确实运行时读取，且只取渲染器写下的字段。
+
+    Args:
+        day: `YYYY-MM-DD`；非法日期由 `store.report_dir` 抛 `ValueError`。
+
+    Returns:
+        可直接返回给前端的字典，含 workflow、产物就绪标记、素材状态、环境自检、
+        样片与模板元数据。
+    """
     directory = store.report_dir(day)
     try:
         report = store.load(day)

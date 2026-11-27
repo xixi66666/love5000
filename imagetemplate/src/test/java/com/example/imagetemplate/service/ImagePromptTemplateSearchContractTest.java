@@ -19,6 +19,20 @@ import java.util.Locale;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+/**
+ * 搜索与元数据的对外契约测试。
+ *
+ * <p>以真实聚合结果（47 条精选 + 4409 条大库 = 4456 条）为基准，锁定前端依赖的行为：精选
+ * 模板整体排在前面且跨页顺序稳定、默认分页为 48、中文关键词与 ASCII 均忽略大小写、一级
+ * 功能与二级场景同时支持 slug 和中文名、{@code imageOnly} 与 meta 的
+ * {@code imageRelatedCount} 一致、越界页码被夹取而不是报错，以及分类、来源、一级功能的计数
+ * 之和必须等于总数、二级场景计数之和必须等于所属一级功能。最后一个用例还验证 meta 与分类
+ * 列表每次返回独立快照，调用方修改不会污染下一次响应。</p>
+ *
+ * <p>隔离手段：服务层用真实实现读取 classpath JSON，不启动 Spring 上下文、不访问数据库或
+ * 网络；关键词期望值由 {@link #expectedKeywordIds(String)} 独立重算，不复用被测实现的
+ * 匹配逻辑。</p>
+ */
 class ImagePromptTemplateSearchContractTest {
 
     private static ImagePromptTemplateService service;
@@ -45,6 +59,7 @@ class ImagePromptTemplateSearchContractTest {
         assertThat(ids(pages)).doesNotHaveDuplicates();
         assertThat(ids(pages)).containsExactlyElementsOf(templateIds());
         assertThat(pages.subList(0, 47)).allMatch(ImageTemplateSummaryResponse::isCurated);
+        // 精选库固定 47 条并整体置顶，第 48 条起才是可编辑的大库条目。
         assertThat(pages.get(47).isCurated()).isFalse();
 
         ImageTemplatePageResponse defaults = service.search(new ImageTemplateQuery());
@@ -162,6 +177,7 @@ class ImagePromptTemplateSearchContractTest {
         assertThat(beyond.getSize()).isEqualTo(100);
         assertThat(beyond.isHasMore()).isFalse();
 
+        // 页码取 Integer.MAX_VALUE，验证 (page - 1) * size 的偏移计算不会溢出成负数。
         ImageTemplatePageResponse overflow = service.search(
                 query(Integer.MAX_VALUE, 100));
         assertThat(overflow.getTemplates()).isEmpty();
@@ -311,6 +327,12 @@ class ImagePromptTemplateSearchContractTest {
         return query;
     }
 
+    /**
+     * 以 {@code size=100} 逐页翻完整个结果集，用于验证分页边界与跨页顺序。
+     *
+     * <p>会就地修改传入 query 的 page 与 size；{@code hasMore=false} 视为结束，并断言总页数
+     * 小于 100，防止分页标志写错时用例陷入死循环。</p>
+     */
     private static List<ImageTemplateSummaryResponse> collectAll(ImageTemplateQuery base) {
         List<ImageTemplateSummaryResponse> all =
                 new ArrayList<ImageTemplateSummaryResponse>();
@@ -342,6 +364,12 @@ class ImagePromptTemplateSearchContractTest {
         return ids;
     }
 
+    /**
+     * 按文档约定的关键词字段集合独立重算期望 ID 列表。
+     *
+     * <p>字段为标题、摘要、分类、来源名、Prompt 正文与全部标签，统一转小写后做包含匹配。
+     * 这里刻意不复用 {@link TemplateSearchIndex}，以便发现实现漏掉某个字段的回归。</p>
+     */
     private static List<String> expectedKeywordIds(String keyword) {
         String needle = keyword.trim().toLowerCase(Locale.ROOT);
         List<String> ids = new ArrayList<String>();

@@ -9,6 +9,14 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicInteger;
 import static org.assertj.core.api.Assertions.*;
 
+/**
+ * {@code ModelHttp} 的传输行为测试。
+ *
+ * <p>用 JDK 自带的 {@code HttpServer} 在本机随机端口起一个可编程端点，不连接外部网络；
+ * 覆盖正常 JSON 往返、Bearer 与网关标记二选一、204 空响应、非 2xx 错误脱敏、
+ * 禁止跟随重定向，以及响应超限与非法 JSON 被拒绝。断言重点之一是错误消息不得泄露
+ * 上游响应体或密钥。</p>
+ */
 class ModelHttpTest {
     HttpServer server;
     ObjectMapper json=new ObjectMapper();

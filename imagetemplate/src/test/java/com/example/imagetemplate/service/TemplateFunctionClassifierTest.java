@@ -13,6 +13,18 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * {@link TemplateFunctionClassifier} 的目录与判定规则测试。
+ *
+ * <p>锁定三件事：目录固定为 15 个一级功能，顺序稳定且一级 slug 与二级场景 slug 在各自层级
+ * 内唯一；标题和标签能命中编程、云原生、安全等二级场景，未知模板回落到
+ * {@code other-tools/general-prompt}；标题规则的优先级高于泛化标签，Prompt123 这类噪声标签
+ * 若得不到标题印证就不得把模板误判为编程类。专业与职场标题按实际职能归类，歧义标题优先
+ * 采用显式任务词。</p>
+ *
+ * <p>隔离手段：分类器是纯函数，用例只在内存中构造 {@link ImagePromptTemplate}，
+ * 不读取模板 JSON、不启动 Spring、不联网。</p>
+ */
 class TemplateFunctionClassifierTest {
 
     private TemplateFunctionClassifier classifier;
@@ -28,6 +40,7 @@ class TemplateFunctionClassifierTest {
         assertThat(classifier.getCatalog())
                 .extracting(TemplateFunctionClassifier.CategoryDefinition::getSlug)
                 .contains("programming-development");
+        // 一级功能顺序是前端导航与 meta 返回顺序的契约，编程与技术开发固定在第 7 位。
         assertThat(classifier.getCatalog().get(6).getName()).isEqualTo("编程与技术开发");
     }
 
@@ -132,6 +145,12 @@ class TemplateFunctionClassifierTest {
                 "data-research", "data-analysis");
     }
 
+    /**
+     * 构造最小模板并断言一级功能与二级场景。
+     *
+     * <p>只用标题、分类和标签驱动判定；ID 由标题哈希生成，便于断言失败时区分用例。同时检查
+     * 展示名非空，防止目录缺名字导致 meta 返回空白导航。</p>
+     */
     private void assertClassification(String title,
                                       String category,
                                       List<String> tags,

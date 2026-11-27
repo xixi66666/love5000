@@ -20,7 +20,11 @@ import java.awt.image.BufferedImage;
  * 组图出现肤色漂移属于交付级事故，由 {@link Comparison#getSkinColorShift()} 兜底。
  *
  * <p>所有对比都在“同尺寸、真实像素”前提下进行；宽图会被等比缩到 {@value #NORMALIZED_WIDTH}
- * 宽以控制计算量（长宽比保持不变）。
+ * 宽以控制计算量（长宽比保持不变）。</p>
+ *
+ * <p>本类位于 service 层，只做纯计算：不读文件、不发网络请求、不缓存中间结果，
+ * 也没有可变共享状态，因此可以并发调用。所有对外数值统一保留 3 位小数，
+ * {@code NaN} 与无穷大归零，保证响应可安全序列化为 JSON。</p>
  */
 @Service
 public class ImageQualityMetricsService {
@@ -61,8 +65,12 @@ public class ImageQualityMetricsService {
     /**
      * 计算单图绝对指标。
      *
+     * <p>宽度超过 {@value #NORMALIZED_WIDTH} 的图会先等比缩小再分析，未超过时只做色彩模型转换；
+     * 因此返回的 {@code width}/{@code height} 是分析用尺寸，不一定是原图尺寸。</p>
+     *
      * @param image 待分析图片，不能为空
-     * @return 单图指标
+     * @return 单图指标；所有指标保留 3 位小数
+     * @throws IllegalArgumentException 图片为 {@code null}
      */
     public Metrics analyze(BufferedImage image) {
         if (image == null) {
@@ -75,11 +83,17 @@ public class ImageQualityMetricsService {
      * 对比“修图前”与“修图后”。
      *
      * <p>两张图尺寸必须一致：质检的意义就是在交付尺寸下逐像素比较，
-     * 尺寸不一致时缩放会引入插值高频，使纹理保留率失真。
+     * 尺寸不一致时缩放会引入插值高频，使纹理保留率失真。</p>
+     *
+     * <p>两张图都会先转换成 {@code TYPE_INT_RGB}（透明像素的 alpha 不再参与），
+     * 再分别计算单图指标，最后得出亮度偏移、肤色色差、结构保持度（皮尔逊相关系数）、
+     * 纹理保留率与纹理熵比，并由 {@link #judge} 生成中文判定结论。
+     * 基准图纹理能量为 0 时纹理保留率取 1.0，避免除以零把正常图判成过度磨皮。</p>
      *
      * @param baseline  修图前（原片）
      * @param retouched 修图后（交付候选）
      * @return 对比结果，含中文判定结论
+     * @throws IllegalArgumentException 任一参数为 {@code null}，或两图宽高不一致
      */
     public Comparison compare(BufferedImage baseline, BufferedImage retouched) {
         if (baseline == null || retouched == null) {
@@ -117,6 +131,16 @@ public class ImageQualityMetricsService {
         return comparison;
     }
 
+    /**
+     * 计算一张（已归一化尺寸的）图片的全部绝对指标。
+     *
+     * <p>亮度数组只提取一次，均值、标准差与拉普拉斯响应都复用它；噪点与纹理熵再复用
+     * 同一份响应，避免对同一张图重复做全图卷积。肤色统计要扫 RGB 三通道，
+     * 因此单独再遍历一遍原图。</p>
+     *
+     * @param image 已转换成 RGB 的分析图
+     * @return 填好全部字段的指标对象
+     */
     private Metrics measure(BufferedImage image) {
         int width = image.getWidth();
         int height = image.getHeight();
@@ -144,6 +168,19 @@ public class ImageQualityMetricsService {
         return metrics;
     }
 
+    /**
+     * 依据阈值生成中文判定结论。
+     *
+     * <p>四条告警各自独立判断，命中多条时按“纹理 → 结构 → 曝光 → 肤色”的顺序用空格拼接，
+     * 因此结论里可能同时出现多个问题；一条都不命中时返回固定的“通过”文案。
+     * 阈值分别为：纹理保留率低于 {@value #TEXTURE_RETENTION_WARN}（疑似过度磨皮）、
+     * 结构保持度低于 {@value #STRUCTURE_WARN}（疑似改动五官）、亮度偏移超过
+     * {@value #BRIGHTNESS_SHIFT_WARN}（曝光漂移）、肤色色差超过
+     * {@value #SKIN_COLOR_SHIFT_WARN}（组图肤色漂移）。</p>
+     *
+     * @param comparison 已算好各项指标的对比结果
+     * @return 中文判定结论，永不为空
+     */
     private String judge(Comparison comparison) {
         StringBuilder verdict = new StringBuilder();
         if (comparison.getTextureRetention() < TEXTURE_RETENTION_WARN) {
@@ -183,12 +220,24 @@ public class ImageQualityMetricsService {
         return verdict.toString();
     }
 
+    /** 若已有内容则先补一个空格，避免多条告警文字粘连。 */
     private void appendSpace(StringBuilder builder) {
         if (builder.length() > 0) {
             builder.append(' ');
         }
     }
 
+    /**
+     * 计算两张图肤色均值的欧氏距离。
+     *
+     * <p>任一张图没有检出肤色像素时直接返回 0：没有肤色基准就无法比较，
+     * 返回 0 可避免把“风景图”误报成肤色漂移。距离在 RGB 空间按三通道平方和
+     * 除以 3 再开方，量级与单通道差异一致，便于用 0-255 尺度设阈值。</p>
+     *
+     * @param baseline  修图前指标
+     * @param retouched 修图后指标
+     * @return 肤色色差；任一方无肤色时为 0
+     */
     private double skinColorDistance(Metrics baseline, Metrics retouched) {
         if (baseline.getSkinRatio() <= 0.0d || retouched.getSkinRatio() <= 0.0d) {
             return 0.0d;
@@ -199,6 +248,18 @@ public class ImageQualityMetricsService {
         return Math.sqrt((dRed * dRed + dGreen * dGreen + dBlue * dBlue) / 3.0d);
     }
 
+    /**
+     * 计算两张图的纹理熵比值。
+     *
+     * <p>与纹理保留率互补：保留率看高频能量强弱，熵看高频分布是否被压扁。
+     * 基准熵为 0（原片本身就极平滑）时返回 1.0，不做无意义的除法。</p>
+     *
+     * @param baseImage   修图前图片
+     * @param resultImage 修图后图片
+     * @param baseLuma    修图前亮度数组
+     * @param resultLuma  修图后亮度数组
+     * @return 修图后熵 / 修图前熵，未舍入
+     */
     private double entropyRatio(BufferedImage baseImage,
                                 BufferedImage resultImage,
                                 double[] baseLuma,
@@ -356,6 +417,16 @@ public class ImageQualityMetricsService {
         return sum / count;
     }
 
+    /**
+     * 把图片像素转成亮度数组（行优先）。
+     *
+     * <p>亮度按 ITU-R BT.601 系数 {@code 0.299R + 0.587G + 0.114B} 计算，单位为 0-255。
+     * 带 alpha 的图片中，透明度低于 128 的像素按纯白（255）处理，
+     * 避免透明底被当成黑色而拉低亮度、制造虚假的高频边缘。</p>
+     *
+     * @param image 输入图片
+     * @return 长度为 {@code width * height} 的亮度数组
+     */
     private double[] extractLuma(BufferedImage image) {
         int width = image.getWidth();
         int height = image.getHeight();
@@ -379,6 +450,17 @@ public class ImageQualityMetricsService {
         return values;
     }
 
+    /**
+     * 计算 5 点拉普拉斯响应（4 邻域，中心权重 {@value #LAPLACIAN_CENTER}）。
+     *
+     * <p>只遍历内部像素，最外圈保持 0，因此后续统计都跳过边界一圈，
+     * 避免把边框当成高频。响应值可正可负，各指标分别按绝对值或平方使用。</p>
+     *
+     * @param values 亮度数组
+     * @param width  图片宽度
+     * @param height 图片高度
+     * @return 与输入等长的响应数组
+     */
     private Lap laplacian(double[] values, int width, int height) {
         double[] response = new double[values.length];
         for (int y = 1; y < height - 1; y++) {
@@ -395,6 +477,7 @@ public class ImageQualityMetricsService {
         return new Lap(response);
     }
 
+    /** 算术平均值；空数组返回 0，避免调用方处理 {@code NaN}。 */
     private double mean(double[] values) {
         if (values.length == 0) {
             return 0.0d;
@@ -406,6 +489,13 @@ public class ImageQualityMetricsService {
         return sum / values.length;
     }
 
+    /**
+     * 总体标准差（除以 {@code n}，不是样本标准差的 {@code n-1}）。
+     *
+     * @param values 数组
+     * @param mean   已算好的均值
+     * @return 标准差；空数组返回 0
+     */
     private double stdDev(double[] values, double mean) {
         if (values.length == 0) {
             return 0.0d;
@@ -418,12 +508,32 @@ public class ImageQualityMetricsService {
         return Math.sqrt(sum / values.length);
     }
 
+    /**
+     * 方差（标准差的平方）。
+     *
+     * <p>锐度与噪声都在拉普拉斯响应上取方差，因此复用该方法；
+     * 先开方再平方会带来极小的浮点误差，但结果差异远低于保留的 3 位小数。</p>
+     *
+     * @param values 数组
+     * @return 方差；空数组返回 0
+     */
     private double varianceOf(double[] values) {
         double mean = mean(values);
         double standardDeviation = stdDev(values, mean);
         return standardDeviation * standardDeviation;
     }
 
+    /**
+     * 皮尔逊相关系数，用作结构保持度。
+     *
+     * <p>对亮度数组逐像素比较：越接近 1 说明明暗结构越一致，构图、五官位置偏移都会拉低该值。
+     * 两个数组为空或长度不一致（理论上不会发生）时返回 0.0；任一方方差为 0（纯色图）时
+     * 返回 1.0，避免把“无结构可比较”误判为结构漂移。</p>
+     *
+     * @param left  修图前亮度
+     * @param right 修图后亮度
+     * @return 相关系数，范围 -1 到 1；退化情况见上
+     */
     private double pearson(double[] left, double[] right) {
         if (left.length == 0 || left.length != right.length) {
             return 0.0d;
@@ -447,6 +557,15 @@ public class ImageQualityMetricsService {
         return covariance / denominator;
     }
 
+    /**
+     * 统计肤色像素占比与平均 RGB。
+     *
+     * <p>全图逐像素扫描，透明像素（alpha 低于 128）不计入分母，避免 PNG 透明区域稀释占比。
+     * 没有任何肤色像素或全部透明时占比与均值都返回 0，此时肤色漂移判定会被跳过。</p>
+     *
+     * @param image 输入图片
+     * @return 肤色统计（占比 0-1，均值为 0-255 且保留 3 位小数）
+     */
     private SkinStats skinStats(BufferedImage image) {
         int width = image.getWidth();
         int height = image.getHeight();
@@ -529,6 +648,16 @@ public class ImageQualityMetricsService {
         return scaled;
     }
 
+    /**
+     * 把任意色彩模型转成 {@code TYPE_INT_RGB}。
+     *
+     * <p>已是目标类型时直接返回原对象（不复制），因此调用方不能继续修改返回的图片。
+     * 其他类型（含带 alpha 的 PNG）通过一次绘制完成转换：目标画布初始为黑色，
+     * 半透明与全透明像素会与黑色合成，之后的指标都基于合成结果。</p>
+     *
+     * @param image 输入图片
+     * @return {@code TYPE_INT_RGB} 图片，可能是原对象
+     */
     private BufferedImage toRgb(BufferedImage image) {
         if (image.getType() == BufferedImage.TYPE_INT_RGB) {
             return image;
@@ -543,6 +672,15 @@ public class ImageQualityMetricsService {
         return copy;
     }
 
+    /**
+     * 统一保留 3 位小数。
+     *
+     * <p>{@code NaN} 与无穷大（例如除零产生的值）一律归零，保证序列化到 JSON 时
+     * 不会出现非数字字面量导致前端解析失败。</p>
+     *
+     * @param value 原始值
+     * @return 四舍五入到 3 位小数；非法值返回 0
+     */
     private double round(double value) {
         if (Double.isNaN(value) || Double.isInfinite(value)) {
             return 0.0d;
@@ -550,15 +688,25 @@ public class ImageQualityMetricsService {
         return Math.round(value * 1000.0d) / 1000.0d;
     }
 
+    /**
+     * 拉普拉斯响应数组的轻量包装。
+     *
+     * <p>只用于把响应在多个指标（锐度、噪点、纹理熵、纹理能量）之间传递，
+     * 不含计算方法，避免对同一张图重复卷积。</p>
+     */
     private static final class Lap {
 
         private final double[] response;
 
+        /**
+         * @param response 与图片等长、边界为 0 的响应数组
+         */
         private Lap(double[] response) {
             this.response = response;
         }
     }
 
+    /** 肤色统计的中间结果：占比 0-1，RGB 均值为 0-255。 */
     private static final class SkinStats {
 
         private double ratio;
@@ -572,31 +720,48 @@ public class ImageQualityMetricsService {
 
     /**
      * 单图绝对指标。
+     *
+     * <p>由 {@link #analyze} 产出的纯数据对象，字段之间没有约束关系，直接序列化返回。
+     * 量纲分三类：{@code brightness}/{@code contrast} 与肤色均值为 0-255 的像素尺度；
+     * {@code sharpness}/{@code noise} 是拉普拉斯响应的方差或均方，量纲为像素差的平方；
+     * {@code textureEntropy} 以 bit 为单位，{@code skinRatio} 是 0-1 的占比。</p>
      */
     public static class Metrics {
 
+        /** 分析用图片宽度；超过 {@value #NORMALIZED_WIDTH} 的图已被等比缩小，可能不等于原图。 */
         private int width;
 
+        /** 分析用图片高度，随宽度等比缩放。 */
         private int height;
 
+        /** 分析用像素总数（{@code width * height}），与用户上传体积无关。 */
         private long pixelCount;
 
+        /** 平均亮度，0-255 尺度；越大越亮。 */
         private double brightness;
 
+        /** 亮度标准差，0-255 尺度；越大明暗反差越强。 */
         private double contrast;
 
+        /** 锐度：拉普拉斯响应的方差；越大边缘越锐利。 */
         private double sharpness;
 
+        /** 噪点：平坦区（局部方差最低的 10%）上的拉普拉斯响应均方值，量纲为像素差的平方。 */
         private double noise;
 
+        /** 纹理熵，单位 bit，上限为 {@code log2(64) = 6}；过度平滑时明显下降。 */
         private double textureEntropy;
 
+        /** 肤色像素占比 0-1；为 0 时肤色相关判定不参与结论。 */
         private double skinRatio;
 
+        /** 肤色像素平均红色分量，0-255。 */
         private double skinRed;
 
+        /** 肤色像素平均绿色分量，0-255。 */
         private double skinGreen;
 
+        /** 肤色像素平均蓝色分量，0-255。 */
         private double skinBlue;
 
         public int getWidth() {
@@ -698,23 +863,36 @@ public class ImageQualityMetricsService {
 
     /**
      * 双图对比结果。
+     *
+     * <p>包含两张图各自的绝对指标、四个对比指标与一段可直接展示的中文结论。
+     * 对比指标的量纲：{@code brightnessShift} 与 {@code skinColorShift} 为 0-255 尺度，
+     * {@code structureRetention} 为相关系数（-1 到 1，实践中接近 1），
+     * {@code textureRetention} 与 {@code textureEntropyRatio} 为比值（1 表示无损）。</p>
      */
     public static class Comparison {
 
+        /** 修图前的单图指标。 */
         private Metrics baseline;
 
+        /** 修图后的单图指标。 */
         private Metrics retouched;
 
+        /** 两图平均亮度之差的绝对值，0-255 尺度；越大曝光越不一致。 */
         private double brightnessShift;
 
+        /** 两图肤色平均 RGB 的欧氏距离，0-255 尺度；任一方无肤色时为 0。 */
         private double skinColorShift;
 
+        /** 结构保持度：两图亮度的皮尔逊相关系数，越低越可能改动了五官或脸型。 */
         private double structureRetention;
 
+        /** 纹理保留率：修图后 / 修图前的分块高频能量，低于 0.75 疑似过度磨皮。 */
         private double textureRetention;
 
+        /** 纹理熵比值：修图后 / 修图前的拉普拉斯响应熵。 */
         private double textureEntropyRatio;
 
+        /** 中文判定结论，由 {@link #judge} 生成，可能包含多条告警。 */
         private String verdict;
 
         public Metrics getBaseline() {

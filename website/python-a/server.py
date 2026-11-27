@@ -1,3 +1,27 @@
+"""A 股自选股 AI 研究台的本地 HTTP 后端。
+
+用标准库 ``ThreadingHTTPServer`` 在 ``127.0.0.1:5174``（可由 ``PORT`` 覆盖）提供静态页面
+与 ``/api/**`` JSON 接口，共四类能力：
+
+- 自选股与行情：读取 Obsidian 里的 ``data/watchlist.json``，聚合东方财富 ``push2`` 实时
+  行情与 ``push2his`` 前复权日 K，在本地算均线、换手分位、趋势/派发评分与结论文案；
+- 研究数据：经 ``StockResearchService`` 汇总腾讯、东方财富、新浪、巨潮的估值、资金流、
+  研报与公告，按小节返回并各自标记 ``success``；
+- 交易台账与截图解析：账户/交易/资金流/草稿的 JSON 存储，截图走 ``vision`` 模型解析；
+- 复盘与 AI：把多维度分析写入 Obsidian（股票笔记 + 当日复盘），AI 结果经统一模型网关
+  转发，未走网关时才用 ``model.properties`` 的原配置直连。
+
+模型与密钥只来自仓库根目录 ``model.properties``（通过 ``services/_model_properties.py``
+读取），不读环境变量；``PORT``/``ASHARE_OBSIDIAN_ROOT`` 是仅有的运行期环境变量。
+
+降级策略：每个上游请求都带超时与重试上限，单只股票或单个数据源失败只影响对应字段——
+自选股列表退化成“档案占位”并标注来源模式，研究快照里缺失的小节整节省略，接口始终返回
+可渲染的 JSON（``ok``/``success`` 如实反映状态），不因外部接口抖动让页面整体不可用。
+
+并发与缓存：行情用 ``ThreadPoolExecutor`` 并行抓取，进程内缓存 180 秒；``STOCK_CACHE``
+与 ``WATCHLIST_CACHE`` 由 ``CACHE_LOCK`` 保护，自选股写入后立即失效。
+"""
+
 from __future__ import annotations
 
 import json
@@ -35,16 +59,24 @@ from services.vision_parse_service import VisionParseService
 from services import _model_properties as model_properties
 
 
+# 静态页面与 services 包所在目录；SimpleHTTPRequestHandler 以它为文档根。
 ROOT = Path(__file__).resolve().parent
+# Obsidian 写入根目录；ASHARE_OBSIDIAN_ROOT 可把它指向真实 vault。
 OBSIDIAN_ROOT = Path(os.environ.get("ASHARE_OBSIDIAN_ROOT", ROOT / "obsidian-vault" / "A股AI")).resolve()
+# 自选股、交易台账与元数据缓存等 JSON 数据的存放目录。
 DATA_ROOT = OBSIDIAN_ROOT / "data"
+# 监听端口；PORT 是仅有的运行期环境变量之一（模型配置只读 model.properties）。
 PORT = int(os.environ.get("PORT", "5174"))
+# 行情缓存有效期（秒）：覆盖页面轮询频率，同时控制上游请求量。
 CACHE_TTL_SECONDS = 180
+# 自选股并行抓取上限，避免一次刷新把上游打出限流。
 FETCH_WORKERS = 6
 
+# 早期硬编码自选池的占位；实际自选股由 data/watchlist.json 维护。
 WATCHLIST = [
 ]
 
+# 东方财富对缺少 Referer/UA 的请求会返回空数据，这里统一伪装浏览器。
 HTTP_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -53,12 +85,24 @@ HTTP_HEADERS = {
     "Referer": "https://quote.eastmoney.com/",
 }
 
+# 单只股票行情缓存：code -> {"time", "stock"}。
 STOCK_CACHE: Dict[str, Dict[str, Any]] = {}
+# 整个自选股列表的缓存；time 为 0 表示已被写入操作置为失效。
 WATCHLIST_CACHE: Dict[str, Any] = {"time": 0.0, "payload": None}
+# 两个缓存字典的互斥锁；真正的抓取在锁外进行，慢请求不会阻塞其他线程。
 CACHE_LOCK = Lock()
 
 
 def build_stock_research_service() -> StockResearchService:
+    """装配研究数据聚合服务。
+
+    把四个数据源 provider（腾讯/东方财富/新浪/巨潮）与本地元数据服务一起注入
+    ``StockResearchService``；provider 每次新建，方便测试替换，生产路径只在模块加载时
+    构建一次（``STOCK_RESEARCH_SERVICE``）。
+
+    Returns:
+        可直接调用 ``build_snapshot``/``get_overview`` 等方法的聚合服务实例。
+    """
     return StockResearchService(
         tencent_provider=TencentQuoteProvider(),
         eastmoney_provider=EastmoneyResearchProvider(),
@@ -68,23 +112,50 @@ def build_stock_research_service() -> StockResearchService:
     )
 
 
+# 模块加载时构建一次，复用各 provider 内部的连接与缓存状态。
 STOCK_RESEARCH_SERVICE = build_stock_research_service()
 
 
 class DataSourceError(RuntimeError):
+    """上游行情/研究数据不可用或结构不符时抛出的异常。
+
+    调用方统一按“该字段降级”处理：``fetch_watchlist_payload`` 收集成 ``errors``，
+    ``/api/stock`` 映射成 502。内部堆栈与上游原文不会透给前端，避免把内部地址带出去。
+    """
     pass
 
 
 def now_iso() -> str:
+    """当前本地时区的 ISO-8601 时间戳（秒级）。
+
+    Returns:
+        形如 ``2026-11-27T10:31:13+08:00`` 的字符串，写入响应与 Obsidian 元数据，
+        便于跨天复盘时判断数据新鲜度。
+    """
     return datetime.now().astimezone().isoformat(timespec="seconds")
 
 
 def text_route(scope: str = "python-a"):
-    """读取 model.properties 中该服务的原配置。"""
+    """读取 ``model.properties`` 中该服务的原配置路由。
+
+    Args:
+        scope: 服务标识，对应 ``service.<scope>``；缺省为 ``python-a``。
+
+    Returns:
+        ``Route`` 或 ``None``；文件缺失、键缺失或模型 ID 为空都返回 ``None``，
+        调用方据此提示“模型未配置”而不是抛异常。
+    """
     return model_properties.ModelProperties.load().route(scope)
 
 
 def vision_config() -> Dict[str, str]:
+    """读取 ``vision.*`` 提供方配置，供截图解析使用。
+
+    Returns:
+        含 ``api_key``/``api_base``/``model`` 的字典。缺少 ``vision`` 提供方时返回空密钥与
+        默认模型名，真正调用前的校验由 ``VisionParseService`` 负责，
+        避免进程启动阶段就因配置缺失而退出。
+    """
     provider = model_properties.ModelProperties.load().provider("vision")
     if provider is None:
         return {"api_key": "", "api_base": "", "model": "gpt-4o-mini"}
@@ -96,6 +167,15 @@ def vision_config() -> Dict[str, str]:
 
 
 def trading_services() -> Dict[str, Any]:
+    """按请求装配交易相关服务集合。
+
+    每次请求新建实例而不是全局复用：``JsonStore`` 以文件为单位读写、服务本身无状态，
+    这样可以避免跨请求持有过期缓存或文件句柄。
+
+    Returns:
+        含 ``account``/``trade``/``stock_match``/``obsidian``/``metadata``/
+        ``knowledge_graph``/``vision`` 七个服务实例的字典。
+    """
     store = JsonStore(DATA_ROOT)
     vision = vision_config()
     return {
@@ -114,6 +194,17 @@ def trading_services() -> Dict[str, Any]:
 
 
 def secid_for_code(code: str) -> str:
+    """把 6 位 A 股代码转换成东方财富的 ``secid``（``市场.代码``）。
+
+    Args:
+        code: 6 位数字代码，允许首尾空白。
+
+    Returns:
+        ``1.<code>`` 表示沪市（6/9 开头，含科创板与 B 股），``0.<code>`` 表示深市。
+
+    Raises:
+        ValueError: 代码不是 6 位数字。
+    """
     code = code.strip()
     if not re.fullmatch(r"\d{6}", code):
         raise ValueError(f"Invalid A-share code: {code}")
@@ -122,6 +213,22 @@ def secid_for_code(code: str) -> str:
 
 
 def eastmoney_json(url: str) -> Dict[str, Any]:
+    """请求东方财富接口并返回解析后的 JSON。
+
+    优先走 ``curl.exe``：部分 Windows 环境里 urllib 会因 TLS/代理差异被对端直接断开，
+    而 curl 自带 ``--retry`` 与 ``--max-time`` 控制。curl 不可用或返回非预期结构时回退
+    urllib，最多两次退避重试；两种方式都失败才抛 ``DataSourceError``，由上层把该字段
+    降级成“不可用”，不影响页面其他部分。
+
+    Args:
+        url: 已带完整查询串的东方财富接口地址。
+
+    Returns:
+        顶层为 dict 的响应体，且 ``rc`` 为 0/缺失、``data`` 非空。
+
+    Raises:
+        DataSourceError: 全部传输方式失败，或响应缺少 ``data``、``rc`` 非 0。
+    """
     try:
         completed = subprocess.run(
             [
@@ -157,8 +264,10 @@ def eastmoney_json(url: str) -> Dict[str, Any]:
     except Exception:
         pass
 
+    # curl 分支的任何异常（命令缺失、超时、结构不符）都吞掉，改走标准库重试。
     request = urllib.request.Request(url, headers=HTTP_HEADERS)
     last_error: Optional[BaseException] = None
+    # 上游偶发 RemoteDisconnected，最多重试两次且间隔递增；仍失败则整体降级。
     for attempt in range(2):
         try:
             with urllib.request.urlopen(request, timeout=12) as response:
@@ -178,6 +287,16 @@ def eastmoney_json(url: str) -> Dict[str, Any]:
 
 
 def scaled_price(value: Any) -> Optional[float]:
+    """把东方财富的定点价格（×100 的整数）换算成元。
+
+    ``-100000`` 及以下是对端的“无数据/停牌”哨兵值，按缺失处理，避免出现 -1000 元的荒谬价格。
+
+    Args:
+        value: 上游原始值，可能是字符串、数字或 ``-``。
+
+    Returns:
+        保留两位小数的价格；缺失或非法时返回 ``None``。
+    """
     if value in (None, "-", ""):
         return None
     try:
@@ -190,6 +309,16 @@ def scaled_price(value: Any) -> Optional[float]:
 
 
 def scaled_percent(value: Any) -> Optional[float]:
+    """把东方财富的定点百分比（×100 的整数）换算成百分数。
+
+    ``abs(value) > 100000`` 视为哨兵值（停牌或异常放大），按缺失处理。
+
+    Args:
+        value: 上游原始值。
+
+    Returns:
+        保留两位小数的百分比；缺失或越界时返回 ``None``。
+    """
     if value in (None, "-", ""):
         return None
     try:
@@ -202,6 +331,15 @@ def scaled_percent(value: Any) -> Optional[float]:
 
 
 def as_float(value: Any, digits: Optional[int] = None) -> Optional[float]:
+    """把上游原始值转成 ``float``，可选四舍五入。
+
+    Args:
+        value: 可能是数字、数字字符串、``-`` 或 ``None``。
+        digits: 保留小数位；``None`` 表示不舍入。
+
+    Returns:
+        有限浮点数；非法值以及 NaN/Inf 返回 ``None``——K 线里混入 NaN 会污染均线与评分。
+    """
     if value in (None, "-", ""):
         return None
     try:
@@ -214,11 +352,24 @@ def as_float(value: Any, digits: Optional[int] = None) -> Optional[float]:
 
 
 def mean(values: Iterable[float]) -> Optional[float]:
+    """算术平均；空序列返回 ``None``，避免调用方处理 ``ZeroDivisionError``。"""
     values = list(values)
     return sum(values) / len(values) if values else None
 
 
 def moving_average(values: List[float], window: int) -> List[Optional[float]]:
+    """按窗口计算移动平均，返回与入参等长的列表。
+
+    前 ``window - 1`` 个位置数据不足，填 ``None`` 而不是用数据起点截断，这样下标与 K 线
+    一一对应，图表点位和评分都不会错位。
+
+    Args:
+        values: 收盘价序列，按时间升序。
+        window: 窗口长度，例如 5/10/30。
+
+    Returns:
+        长度等于 ``values`` 的列表，不足窗口处为 ``None``。
+    """
     result: List[Optional[float]] = []
     for index in range(len(values)):
         if index + 1 < window:
@@ -229,6 +380,10 @@ def moving_average(values: List[float], window: int) -> List[Optional[float]]:
 
 
 def percentile_rank(values: List[float], current: float) -> float:
+    """计算 ``current`` 在历史序列中的分位（0-100，越大越接近历史高位）。
+
+    用 ``<=`` 计数，等于当前值的样本也算在内；空序列返回 0.0，调用方无需判空。
+    """
     if not values:
         return 0.0
     less_or_equal = sum(1 for value in values if value <= current)
@@ -236,6 +391,18 @@ def percentile_rank(values: List[float], current: float) -> float:
 
 
 def parse_kline(raw: str) -> Dict[str, Any]:
+    """解析东方财富 K 线的一行逗号分隔字符串。
+
+    字段顺序固定为 ``日期,开,收,高,低,成交量,成交额,振幅,涨跌幅,涨跌额,换手率``
+    （对应请求的 ``fields2=f51..f61``）。上游不返回字段名，只能按位置取值，
+    字段不足或缺失时由调用方（``fetch_stock``）统一降级。
+
+    Args:
+        raw: 形如 ``2026-11-26,10.01,10.20,...`` 的单行字符串。
+
+    Returns:
+        含 ``date`` 与 10 个数值字段的字典；无法转换的字段为 ``None``。
+    """
     fields = raw.split(",")
     return {
         "date": fields[0],
@@ -253,6 +420,11 @@ def parse_kline(raw: str) -> Dict[str, Any]:
 
 
 def classify_risk(distribution_score: int, risk_text: str) -> str:
+    """把派发评分与均线状态映射成风险等级（低/中/高）。
+
+    阈值沿用复盘口径：派发分 ≥72 或跌破 30 日线判“高”，≥45 或跌破 10 日线判“中”，
+    其余为“低”。分档只用于展示与排序，不构成操作建议。
+    """
     if distribution_score >= 72 or "跌破30日" in risk_text:
         return "高"
     if distribution_score >= 45 or "跌破10日" in risk_text:
@@ -261,6 +433,12 @@ def classify_risk(distribution_score: int, risk_text: str) -> str:
 
 
 def trend_status(latest: Dict[str, Any], ma5: Optional[float], ma10: Optional[float], ma30: Optional[float]) -> str:
+    """根据收盘价与 MA5/MA10/MA30 的相对位置给出趋势状态文案。
+
+    Returns:
+        ``多头排列``/``跌破30日``/``跌破10日``/``震荡修复``/``等待确认``；
+        任一均线缺失时只返回“等待确认”，避免用不足 30 根 K 线的样本下结论。
+    """
     close = latest["close"]
     if ma5 and ma10 and ma30:
         if close >= ma5 > ma10 > ma30:
@@ -275,6 +453,11 @@ def trend_status(latest: Dict[str, Any], ma5: Optional[float], ma10: Optional[fl
 
 
 def trend_score(latest: Dict[str, Any], ma5: Optional[float], ma10: Optional[float], ma30: Optional[float]) -> int:
+    """给趋势结构打分（0-100，基准 50）。
+
+    加分项：站上各条均线、短均线位于长均线之上、当日上涨；涨幅贡献封顶 8 分，
+    防止单日大涨把评分直接拉满。返回值截断到 0-100。
+    """
     close = latest["close"]
     score = 50
     if ma5 and close >= ma5:
@@ -293,6 +476,18 @@ def trend_score(latest: Dict[str, Any], ma5: Optional[float], ma10: Optional[flo
 
 
 def distribution_score(kline: List[Dict[str, Any]], turnover_percentile: float) -> int:
+    """估算高位派发风险评分（0-100）。
+
+    三个维度：收盘价在近 60 日高点区间中的位置（越靠上越危险）、换手率历史分位、
+    当日上影线占振幅的比例；再补两条“放量滞涨 / 放量收阴”的经验规则。
+
+    Args:
+        kline: 按时间升序的 K 线，至少 1 条。
+        turnover_percentile: 最新换手率的历史分位（0-100）。
+
+    Returns:
+        0-100 的整数评分，越大越像派发。
+    """
     latest = kline[-1]
     close = latest["close"]
     open_price = latest["open"]
@@ -325,6 +520,11 @@ def distribution_score(kline: List[Dict[str, Any]], turnover_percentile: float) 
 
 
 def status_from_scores(trend: int, turnover_percentile: float, distribution: int, ma_state: str) -> str:
+    """把评分与均线状态汇总成一句标签。
+
+    判定顺序即优先级：先排除派发与诱多，再看均线破位，最后才给出低吸/接力/观察候选，
+    保证互相矛盾的信号按保守顺序裁决。
+    """
     if distribution >= 72:
         return "疑似派发"
     if distribution >= 58 and turnover_percentile >= 80:
@@ -341,6 +541,13 @@ def status_from_scores(trend: int, turnover_percentile: float, distribution: int
 
 
 def quote_url(code: str) -> str:
+    """构造单只股票的实时行情接口地址（``push2``）。
+
+    ``f43/f44/f45/f46/f47/f48`` 为最新价/最高/最低/今开/成交量/成交额，``f57/f58`` 为代码
+    与名称，``f60`` 为昨收，``f116`` 为总市值，``f168`` 为换手率，``f170`` 为涨跌幅；
+    ``f85``（量比）与 ``f292``（交易状态）目前只请求不使用，保留给后续扩展。
+    所有数值都按定点整数返回，需用 ``scaled_price``/``scaled_percent`` 还原。
+    """
     fields = ",".join(
         [
             "f43",
@@ -363,6 +570,11 @@ def quote_url(code: str) -> str:
 
 
 def kline_url(code: str) -> str:
+    """构造日 K 线接口地址（``push2his``）。
+
+    ``klt=101`` 为日线，``fqt=1`` 为前复权（保证均线连续），起始日期固定在 2024-01-01，
+    足够覆盖 MA30 与 60 日分布区间；结束日期取远景值，由上游返回最新一根。
+    """
     fields1 = "f1,f2,f3,f4,f5,f6"
     fields2 = "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61"
     return (
@@ -373,14 +585,33 @@ def kline_url(code: str) -> str:
 
 
 def fetch_stock(code: str, meta: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    """抓取并计算单只股票的完整研究指标。
+
+    两次上游请求（实时行情 + 日 K），之后全部在本地完成：MA5/10/30、换手分位、
+    趋势/派发/量化评分、综合分、图表点位与结论文案。
+
+    Args:
+        code: 6 位 A 股代码。
+        meta: 自选股档案（industry/board/pool/note），用于元数据缺失时兜底。
+
+    Returns:
+        行情字典：价格与量能、均线、各项评分、风险等级、结论文案、最近 80 个图表点、
+        最近 20 根 K 线，以及 ``source`` 溯源信息（含两个上游 URL 与抓取时间）。
+
+    Raises:
+        DataSourceError: 东方财富不可用，或有效 K 线不足 35 根——无法稳定算出 MA30 时
+            宁可让该股票整体降级，也不返回残缺指标。
+    """
     meta = meta or {}
     metadata = StockMetadataService(DATA_ROOT).get_stock_metadata(code, fallback=meta)
     quote_data = eastmoney_json(quote_url(code))["data"]
     kline_data = eastmoney_json(kline_url(code))["data"]
     klines = [parse_kline(raw) for raw in kline_data.get("klines", [])]
+    # 少于 35 根既算不出稳定 MA30，也没有足够样本算换手分位，直接按数据不足处理。
     if len(klines) < 35:
         raise DataSourceError(f"Not enough kline data for {code}")
 
+    # 均线只基于非空收盘价；正常数据下该列表与 klines 等长，缺失值不会污染均值。
     closes = [item["close"] for item in klines if item["close"] is not None]
     ma5 = moving_average(closes, 5)
     ma10 = moving_average(closes, 10)
@@ -389,6 +620,7 @@ def fetch_stock(code: str, meta: Optional[Dict[str, str]] = None) -> Dict[str, A
     ma5_latest = ma5[-1]
     ma10_latest = ma10[-1]
     ma30_latest = ma30[-1]
+    # 换手分位取最近约一年（250 个交易日）样本，过长历史会稀释当前拥挤度。
     turnover_values = [item["turnover_rate"] for item in klines[-250:] if item["turnover_rate"] is not None]
     latest_turnover = latest["turnover_rate"] or scaled_percent(quote_data.get("f168")) or 0.0
     turnover_percentile = percentile_rank(turnover_values, latest_turnover)
@@ -399,9 +631,12 @@ def fetch_stock(code: str, meta: Optional[Dict[str, str]] = None) -> Dict[str, A
     distribution = distribution_score(klines, turnover_percentile)
     status = status_from_scores(trend, turnover_percentile, distribution, ma_state)
     risk = classify_risk(distribution, ma_state)
+    # 短线拥挤度近似：换手分位为主，振幅与涨跌幅为辅，只用于排序参考。
     quant_score = max(0, min(100, int(turnover_percentile * 0.62 + (latest.get("amplitude") or 0) * 4 + abs(latest.get("pct_change") or 0) * 2)))
+    # 综合分＝趋势 34%、换手 22%、派发反向 22%、量化 12%，另加 10 分基线。
     overall = int(round(trend * 0.34 + turnover_percentile * 0.22 + (100 - distribution) * 0.22 + quant_score * 0.12 + 10))
 
+    # 图表只回传最近 80 个点，控制响应体积与前端渲染成本。
     chart_points = []
     start = max(0, len(closes) - 80)
     for index in range(start, len(closes)):
@@ -479,6 +714,23 @@ def fetch_stock(code: str, meta: Optional[Dict[str, str]] = None) -> Dict[str, A
 
 
 def get_stock_cached(code: str, meta: Optional[Dict[str, str]] = None, force: bool = False) -> Dict[str, Any]:
+    """带进程内缓存地获取单只股票行情。
+
+    缓存键只有 ``code``：命中时直接返回缓存里那份 ``stock``（其中 ``pool``/``watch_note``
+    是填充缓存时写入的），因此修改自选股备注后需要 ``force=True`` 或等缓存过期才会体现在
+    行情响应里。
+
+    Args:
+        code: 6 位 A 股代码。
+        meta: 自选股档案，可空。
+        force: ``True`` 时跳过缓存（手动刷新、新增自选股时使用）。
+
+    Returns:
+        行情字典，额外带 ``pool`` 与 ``watch_note``。
+
+    Raises:
+        DataSourceError: 缓存未命中且上游抓取失败；失败结果不会写入缓存。
+    """
     meta = meta or {}
     now = time.time()
     with CACHE_LOCK:
@@ -494,6 +746,16 @@ def get_stock_cached(code: str, meta: Optional[Dict[str, str]] = None, force: bo
 
 
 def fetch_watchlist_payload(force: bool = False) -> Dict[str, Any]:
+    """并行抓取整个自选股列表，单只失败只记入 ``errors``。
+
+    Args:
+        force: ``True`` 时同时绕过列表缓存与单只缓存（页面“刷新”按钮）。
+
+    Returns:
+        ``{"ok": True, "stocks": [...], "watchlist": [...], "errors": [...], "source": {...}}``。
+        若所有股票都抓取失败，会退化成“档案占位”列表并把 ``source.mode`` 标成 ``fallback``，
+        保证页面仍能展示自选池并给出可读说明。
+    """
     now = time.time()
     with CACHE_LOCK:
         cached = WATCHLIST_CACHE.get("payload")
@@ -504,6 +766,7 @@ def fetch_watchlist_payload(force: bool = False) -> Dict[str, Any]:
     items = read_watchlist()
     result: List[Dict[str, Any]] = []
     errors: List[Dict[str, str]] = []
+    # 线程数不超过自选股数量；单只股票的异常在 future.result() 处收集，不中断其余抓取。
     with ThreadPoolExecutor(max_workers=min(FETCH_WORKERS, max(1, len(items)))) as executor:
         futures = {executor.submit(get_stock_cached, item["code"], item, force): item for item in items}
         for future in as_completed(futures):
@@ -513,9 +776,11 @@ def fetch_watchlist_payload(force: bool = False) -> Dict[str, Any]:
             except Exception as exc:
                 errors.append({"code": item["code"], "error": str(exc)})
 
+    # 并行完成顺序不可控，按自选池原顺序重排后再返回。
     order = {item["code"]: index for index, item in enumerate(items)}
     result.sort(key=lambda stock: order.get(stock["code"], 9999))
     fallback_only = False
+    # 全部失败时给出档案占位，页面仍有内容，并在 source.mode 里如实标注降级。
     if items and not result:
         fallback_only = True
         result = [
@@ -581,6 +846,19 @@ def build_conclusion(
     distribution: int,
     risk: str,
 ) -> str:
+    """生成一段可读的中文结论文案（页面展示与复盘共用）。
+
+    Args:
+        name: 股票名称。
+        ma_state: ``trend_status`` 给出的均线状态。
+        turnover_percentile: 换手率历史分位。
+        turnover_ratio: 当日换手 / 20 日均换手。
+        distribution: 派发评分。
+        risk: 风险等级。
+
+    Returns:
+        由 3-4 句组成的结论文本；只描述研究观察与反证条件，不含买卖指令。
+    """
     parts = [f"{name} 当前技术结构为“{ma_state}”。"]
     if turnover_percentile >= 85:
         parts.append(f"换手率处于自身历史高分位（约 {turnover_percentile}%），需要重点识别高换手后的承接质量。")
@@ -600,11 +878,21 @@ def build_conclusion(
 
 
 def sanitize_filename(value: str) -> str:
+    """把任意文本清洗成可安全落盘的 Windows 文件名片段。
+
+    把 ``<>:"/\|?*`` 与控制字符替换成 ``-``，并截断到 120 字符，
+    防止生成非法路径或超长文件名；清洗后为空时回退为“未命名”。
+    """
     value = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "-", value.strip())
     return value[:120] or "未命名"
 
 
 def ensure_vault() -> None:
+    """确保 Obsidian 目录骨架存在（幂等）。
+
+    ``exist_ok=True`` 让并发请求同时启动时不会因为“目录已存在”而失败；
+    这里的目录清单与各处写入位置一一对应，新增写入目录时要同步补上。
+    """
     for folder in [
         OBSIDIAN_ROOT,
         OBSIDIAN_ROOT / "股票",
@@ -620,14 +908,24 @@ def ensure_vault() -> None:
 
 
 def watchlist_path() -> Path:
+    """自选股档案文件位置：``<vault>/data/watchlist.json``。"""
     return OBSIDIAN_ROOT / "data" / "watchlist.json"
 
 
 def default_watchlist() -> List[Dict[str, str]]:
+    """自选股默认值：空池，由用户在前端维护。"""
     return []
 
 
 def read_watchlist() -> List[Dict[str, str]]:
+    """读取自选股档案，并做去重与字段归一化。
+
+    文件缺失时先写入默认空池；JSON 损坏时按空池处理而不抛异常（用户手改坏文件不应该让
+    整个页面打不开）。只保留 6 位数字代码，重复代码只保留首次出现的一条。
+
+    Returns:
+        列表，每项含 ``code``/``industry``/``board``/``pool``/``note``，缺失字段用默认值补齐。
+    """
     ensure_vault()
     path = watchlist_path()
     if not path.exists():
@@ -656,14 +954,33 @@ def read_watchlist() -> List[Dict[str, str]]:
 
 
 def write_watchlist(items: List[Dict[str, str]]) -> None:
+    """整体覆盖写入自选股档案，并让列表缓存立即失效。
+
+    Args:
+        items: 已归一化的自选股列表。
+    """
     ensure_vault()
     watchlist_path().write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
+    # 用 time=0 让下一次读取必然重新抓取，同时保持缓存结构不变，读取方无需判空。
     with CACHE_LOCK:
         WATCHLIST_CACHE["time"] = 0.0
         WATCHLIST_CACHE["payload"] = None
 
 
 def add_watchlist_item(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """新增一只自选股：校验代码、预抓行情、写档案并建股票笔记。
+
+    行情抓取失败不阻断新增——先把档案落盘，等上游恢复后行情会自动补上。
+
+    Args:
+        payload: 请求体；``code`` 必填，``industry``/``board``/``pool``/``note`` 可选。
+
+    Returns:
+        ``{"ok": True, "item", "stock", "stock_path"}``，``stock_path`` 为 Obsidian 笔记路径。
+
+    Raises:
+        ValueError: 代码不是 6 位数字，或该代码已在自选池中。
+    """
     code = str(payload.get("code") or "").strip()
     if not re.fullmatch(r"\d{6}", code):
         raise ValueError("请输入 6 位 A 股代码")
@@ -677,6 +994,7 @@ def add_watchlist_item(payload: Dict[str, Any]) -> Dict[str, Any]:
         "pool": str(payload.get("pool") or "核心自选"),
         "note": str(payload.get("note") or ""),
     }
+    # 先按真实行情补全行业/板块；上游异常时退化为占位档案，不阻断新增。
     try:
         stock = get_stock_cached(code, meta, force=True)
     except Exception:
@@ -695,6 +1013,7 @@ def add_watchlist_item(payload: Dict[str, Any]) -> Dict[str, Any]:
             "conclusion": "已先创建自选股档案；行情恢复后会自动补充实时数据。",
             "source": {"provider": "自选股档案", "latest_trade_date": "待确认", "fetched_at": now_iso()},
         }
+    # 用户没填的行业/板块用行情接口推断值补齐，避免笔记里全是“待映射”。
     meta["industry"] = meta["industry"] if meta["industry"] != "待映射" else stock.get("industry", "待映射")
     meta["board"] = meta["board"] if meta["board"] != "A股" else stock.get("board", "A股")
     items.append(meta)
@@ -704,6 +1023,17 @@ def add_watchlist_item(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def delete_watchlist_item(code: str) -> Dict[str, Any]:
+    """删除一只自选股。
+
+    Args:
+        code: 6 位 A 股代码。
+
+    Returns:
+        ``{"ok": True, "code", "count"}``，``count`` 为删除后的剩余数量。
+
+    Raises:
+        ValueError: 代码格式非法，或该代码不在自选池中。
+    """
     if not re.fullmatch(r"\d{6}", code):
         raise ValueError("请输入 6 位 A 股代码")
     items = read_watchlist()
@@ -715,10 +1045,22 @@ def delete_watchlist_item(code: str) -> Dict[str, Any]:
 
 
 def stock_note_path(stock_code: str, stock_name: str) -> Path:
+    """股票笔记路径：``<vault>/股票/<code>-<name>.md``，两段都做文件名清洗。"""
     return OBSIDIAN_ROOT / "股票" / f"{sanitize_filename(stock_code)}-{sanitize_filename(stock_name)}.md"
 
 
 def ensure_stock_note(stock: Dict[str, Any]) -> Path:
+    """确保单只股票的笔记存在并返回其路径。
+
+    缺少时用固定骨架（YAML front matter + “股票画像”提纲）新建；已存在则原样返回，
+    不覆盖用户手写内容，只由 ``append_stock_review`` 追加。
+
+    Args:
+        stock: 含 ``code``/``name`` 及可选 industry/board/pool 的字典。
+
+    Returns:
+        笔记的绝对路径。
+    """
     ensure_vault()
     stock_code = str(stock.get("code") or "unknown")
     stock_name = str(stock.get("name") or "未知股票")
@@ -751,7 +1093,20 @@ def ensure_stock_note(stock: Dict[str, Any]) -> Path:
 
 
 def append_stock_review(stock_code: str, stock_name: str, review_date: str, summary: str, review_path: Path) -> Path:
+    """把一条复盘摘要追加到股票笔记底部，并双链回每日复盘文件。
+
+    Args:
+        stock_code: 股票代码，用于定位（缺失时新建）笔记。
+        stock_name: 股票名称。
+        review_date: 复盘日期，``YYYY-MM-DD``。
+        summary: 一行摘要。
+        review_path: 当日复盘 Markdown 路径，用其文件名主干生成 ``[[双链]]``。
+
+    Returns:
+        被追加的股票笔记路径。
+    """
     stock_file = ensure_stock_note({"code": stock_code, "name": stock_name})
+    # 一行一条复盘摘要，并用双链指回当天的历史回顾文件。
     with stock_file.open("a", encoding="utf-8") as handle:
         handle.write(
             f"- {review_date}：{summary}。来源：[[{review_path.stem}]]\n"
@@ -760,6 +1115,7 @@ def append_stock_review(stock_code: str, stock_name: str, review_date: str, summ
 
 
 def provider_display_name(provider: Any) -> str:
+    """把上游 provider 标识翻译成中文展示名，未知标识原样返回。"""
     names = {
         "tencent": "腾讯财经",
         "eastmoney": "东方财富",
@@ -775,6 +1131,17 @@ def provider_display_name(provider: Any) -> str:
 
 
 def research_snapshot_markdown(snapshot: Dict[str, Any]) -> str:
+    """把研究数据快照渲染成 Markdown 片段（写入 Obsidian 复盘）。
+
+    逐个小节先判断 ``success`` 再输出，缺失的数据源整节省略——复盘里不出现空表格或
+    “未知”占位行；末尾固定附一条数据来源与交叉核验提示。
+
+    Args:
+        snapshot: ``StockResearchService.build_snapshot`` 返回的结构。
+
+    Returns:
+        Markdown 文本；快照为空时返回空串，调用方据空串跳过拼接。
+    """
     if not isinstance(snapshot, dict) or not snapshot:
         return ""
     lines = ["#### 研究数据快照", ""]
@@ -876,6 +1243,22 @@ def research_snapshot_markdown(snapshot: Dict[str, Any]) -> str:
 
 
 def write_stock_daily_review(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """写入单只股票的多维度分析：追加股票笔记 + 生成当日复盘文件。
+
+    同时把知识图谱概念笔记、研究快照与 AI 对话摘录落盘，是“AI 分析 → 长期记忆”的主入口。
+
+    Args:
+        payload: 前端表单与 AI 结果；常用键为 ``date``/``stock_code``/``stock_name``/
+            各维度笔记文本/``ai_summary``/``evaluation``/``quote_snapshot``/
+            ``research_snapshot``/``ai_dialogue``。
+
+    Returns:
+        ``{"ok": True, "stock_path", "daily_path", "written_at"}``。
+
+    Notes:
+        所有文本都先 ``str(...).strip()`` 并给默认值，缺字段只会写入“未填写”，不会抛异常；
+        两个文件分别写入、没有事务，第二个文件失败时第一个文件已落盘（调用方转成 400）。
+    """
     ensure_vault()
     review_date = payload.get("date") or datetime.now().strftime("%Y-%m-%d")
     stock_code = sanitize_filename(str(payload.get("stock_code") or "unknown"))
@@ -890,6 +1273,7 @@ def write_stock_daily_review(payload: Dict[str, Any]) -> Dict[str, Any]:
     evaluation = str(payload.get("evaluation") or "等待研究结论").strip()
     quote_snapshot = payload.get("quote_snapshot") or {}
     research_snapshot = payload.get("research_snapshot") or {}
+    # 前端没带快照时按需现抓；研究服务异常只让该小节缺失，不阻断复盘写入。
     if not research_snapshot and re.fullmatch(r"\d{6}", stock_code):
         try:
             research_snapshot = STOCK_RESEARCH_SERVICE.build_snapshot(stock_code, load_missing=False)
@@ -953,6 +1337,7 @@ def write_stock_daily_review(payload: Dict[str, Any]) -> Dict[str, Any]:
             "pool": payload.get("pool", "核心自选"),
         }
     )
+    # 复盘块只用 Markdown；多行 AI 文本逐行补 ">" 才能保持 callout 结构。
     block = (
         f"\n### {review_date} 多维度分析\n\n"
         f"- 分析重点：{analysis_focus}\n"
@@ -989,9 +1374,11 @@ def write_stock_daily_review(payload: Dict[str, Any]) -> Dict[str, Any]:
     if dialogue_lines:
         block += "\n#### AI 对话记录\n\n" + "\n".join(dialogue_lines) + "\n"
 
+    # 追加写入：同一只股票的历次分析都保留，不覆盖用户已有内容。
     with stock_file.open("a", encoding="utf-8") as handle:
         handle.write(block)
 
+    # 当日复盘单独成文，便于在 Obsidian 里按日期检索，并与股票笔记互链。
     daily_file = OBSIDIAN_ROOT / "操作记录" / f"{review_date}-{stock_code}-{stock_name}.md"
     daily_file.write_text(
         (
@@ -1020,6 +1407,18 @@ def write_stock_daily_review(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def write_daily_review(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """写入“每日研究回顾”：保存 Markdown 原文，并把摘要追加进股票笔记。
+
+    Args:
+        payload: ``markdown`` 必填；``date``/``stock_code``/``stock_name``/
+            ``success_reason``/``failure_reason`` 可选。
+
+    Returns:
+        ``{"ok": True, "vault_root", "review_path", "stock_path", "written_at"}``。
+
+    Raises:
+        ValueError: ``markdown`` 为空，避免生成空复盘文件。
+    """
     ensure_vault()
     review_date = payload.get("date") or datetime.now().strftime("%Y-%m-%d")
     stock_code = sanitize_filename(str(payload.get("stock_code") or "unknown"))
@@ -1051,6 +1450,19 @@ def deepseek_dimension_prompt(
     review: Dict[str, Any],
     research_snapshot: Optional[Dict[str, Any]] = None,
 ) -> List[Dict[str, str]]:
+    """构造维度分析的对话消息（system 约束 + user JSON 载荷）。
+
+    system 固定要求严格 JSON 且不承诺收益；user 把行情、当前表单和研究快照序列化进去，
+    让模型只基于已提供的事实作答，减少编造公告或财务数据的空间。
+
+    Args:
+        stock: 行情/指标字典。
+        review: 当前表单里已填写的内容。
+        research_snapshot: 研究快照，可为空字典。
+
+    Returns:
+        ``[{"role": "system", ...}, {"role": "user", ...}]`` 两条消息。
+    """
     system_prompt = (
         "你是一名严谨的A股股票研究助手，只做研究分析和风险提示，不承诺收益，不输出确定性买卖指令。"
         "你需要根据给定行情、技术指标、换手、行业板块和用户关注点，生成可写入长期复盘系统的分析。"
@@ -1080,6 +1492,20 @@ def deepseek_dimension_prompt(
 
 
 def parse_deepseek_json(content: str) -> Dict[str, str]:
+    """从模型输出里解析维度分析 JSON。
+
+    模型偶尔会带上 Markdown 代码围栏，这里先剥壳再解析；七个字段统一转成去空白字符串，
+    缺字段补空串，避免前端因为少一个键就整块渲染失败。
+
+    Args:
+        content: 模型返回的 ``choices[0].message.content``。
+
+    Returns:
+        七个键的字符串字典（技术/量能/基本面/风险/计划/维度分析/研究结论）。
+
+    Raises:
+        json.JSONDecodeError: 输出不是合法 JSON，由调用方转成可读提示。
+    """
     text = content.strip()
     if text.startswith("```"):
         text = re.sub(r"^```(?:json)?\s*", "", text)
@@ -1100,6 +1526,22 @@ def parse_deepseek_json(content: str) -> Dict[str, str]:
 
 
 def call_deepseek_dimension_analysis(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """调用文本模型完成多维度分析并返回结构化结果。
+
+    优先走统一模型网关（``model_hub.try_chat``）：返回 ``None`` 表示网关明确要求使用服务
+    原配置，此时才读取 ``model.properties`` 的密钥直连提供方；网关报错不会静默改道，
+    避免一次可能已计费的请求被重放。
+
+    Args:
+        payload: ``stock``/``review``/``research_snapshot``/``stock_code``。
+
+    Returns:
+        ``{"ok": True, "model", "analysis", "research_snapshot", "generated_at"}``。
+
+    Raises:
+        ValueError: 既没有统一路由、也没有原配置的模型与密钥时，提示去 ``model.properties`` 配置。
+    """
+    # 延迟导入：model_hub 在导入期读取模型配置，放函数内可避免启动阶段直接失败。
     from services import model_hub
     stock = payload.get("stock") or {}
     review = payload.get("review") or {}
@@ -1115,6 +1557,7 @@ def call_deepseek_dimension_analysis(payload: Dict[str, Any]) -> Dict[str, Any]:
         "max_tokens": 3000,
         "response_format": {"type": "json_object"},
     }
+    # 只有网关明确返回 204（None）才允许回退原配置；超时或 HTTP 错误直接抛出，避免重复计费。
     response_payload = model_hub.try_chat(request_payload)
     if response_payload is None:
         if route is None or not route.provider.api_key:
@@ -1132,10 +1575,19 @@ def call_deepseek_dimension_analysis(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+# 研究数据路径：/api/stocks/<6 位代码>/research/{overview|capital|events}。
 RESEARCH_ROUTE_PATTERN = re.compile(r"^/api/stocks/(\d{6})/research/(overview|capital|events)$")
 
 
 def parse_research_route(path: str) -> Optional[tuple]:
+    """解析研究数据接口路径。
+
+    Args:
+        path: 去掉查询串的 URL 路径。
+
+    Returns:
+        ``(code, section)`` 元组；路径不匹配时返回 ``None``。
+    """
     match = RESEARCH_ROUTE_PATTERN.fullmatch(str(path or ""))
     if not match:
         return None
@@ -1147,6 +1599,20 @@ def get_research_response(
     query_string: str,
     service: Optional[StockResearchService] = None,
 ) -> Dict[str, Any]:
+    """执行研究数据接口，并把查询参数转成服务调用参数。
+
+    Args:
+        path: 请求路径，用于解析股票代码与小节。
+        query_string: 原始查询串，支持 ``force``/``page``/``page_size``/``kind``。
+        service: 可注入的聚合服务（测试用）；缺省用模块级 ``STOCK_RESEARCH_SERVICE``。
+
+    Returns:
+        对应小节的响应字典（含 ``success`` 与各数据源的降级标记）。
+
+    Raises:
+        ValueError: 路径无效、代码非法或分页参数不是整数——属于调用方错误，
+            由 handler 映射成 400；上游不可用则由 handler 映射成 502。
+    """
     route = parse_research_route(path)
     if route is None:
         raise ValueError("研究数据接口路径无效")
@@ -1175,6 +1641,16 @@ def get_research_response(
 
 
 def json_response(handler: SimpleHTTPRequestHandler, payload: Dict[str, Any], status: int = 200) -> None:
+    """统一的 JSON 响应出口。
+
+    固定 ``no-store``（行情与复盘数据不允许浏览器缓存）、UTF-8 与 ``Content-Length``；
+    ``ensure_ascii=False`` 保证中文可读，便于直接排查抓包结果。
+
+    Args:
+        handler: 当前请求的处理器，用于写状态行与正文。
+        payload: 待序列化对象。
+        status: HTTP 状态码，默认 200。
+    """
     body = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
     handler.send_response(status)
     handler.send_header("Content-Type", "application/json; charset=utf-8")
@@ -1185,10 +1661,23 @@ def json_response(handler: SimpleHTTPRequestHandler, payload: Dict[str, Any], st
 
 
 def read_uploaded_image(handler: SimpleHTTPRequestHandler) -> Dict[str, Any]:
+    """解析 ``multipart/form-data`` 截图上传。
+
+    Args:
+        handler: 处理器，提供 ``rfile`` 与请求头。
+
+    Returns:
+        ``{"image_bytes", "mime_type", "trade_date"}``；未带日期时取当天。
+
+    Raises:
+        ValueError: 不是 multipart 请求、缺少 ``file`` 字段或解析失败；
+            错误文案会直接回给前端，因此不拼接上游响应正文。
+    """
     content_type = handler.headers.get("Content-Type", "")
     if not content_type.startswith("multipart/form-data"):
         raise ValueError("请使用 multipart/form-data 上传截图")
     try:
+        # cgi 只在截图上传时需要，延迟导入让缺少该模块的环境仍能启动并返回可读错误。
         import cgi
 
         form = cgi.FieldStorage(
@@ -1213,10 +1702,37 @@ def read_uploaded_image(handler: SimpleHTTPRequestHandler) -> Dict[str, Any]:
 
 
 class AShareHandler(SimpleHTTPRequestHandler):
+    """静态页面与 ``/api/**`` 的请求处理器（仅监听本机回环，无鉴权）。
+
+    路由表：
+
+    - ``GET /api/health``：健康检查，``success=true`` + ``service=python-a``。
+    - ``GET /api/stock?code=&force=``：单只行情（带缓存）。
+    - ``GET|POST|DELETE /api/watchlist``：自选股列表/新增/删除。
+    - ``GET /api/stocks/{code}/research/{overview|capital|events}``：研究数据聚合。
+    - ``GET|POST /api/trading/**``：台账、资金流、账户快照、交易、截图解析草稿。
+    - ``POST /api/obsidian/**``：复盘写入 Obsidian。
+    - ``POST /api/ai/dimension-analysis``：AI 维度分析。
+    - 其余路径交给 ``SimpleHTTPRequestHandler`` 直接提供静态文件。
+
+    错误映射：调用方参数问题返回 400，上游数据源问题返回 502，未匹配的 ``/api/**``
+    POST 返回 404；响应体统一带 ``ok``/``success`` 与 ``error``/``message``。
+    """
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """把静态文件根固定到 ``python-a`` 目录，而不是进程当前目录。
+
+        Args:
+            *args: 透传给 ``SimpleHTTPRequestHandler``（socket、客户端地址、server）。
+            **kwargs: 其余透传参数；``directory`` 已被本方法覆盖。
+        """
         super().__init__(*args, directory=str(ROOT), **kwargs)
 
     def end_headers(self) -> None:
+        """给静态资源补禁缓存头。
+
+        ``/api/**`` 由 ``json_response`` 自行声明 ``no-store``，这里只处理页面与 js/css：
+        行情刷新频繁，浏览器缓存旧 ``app.js`` 会让改动看起来没生效。
+        """
         parsed = urllib.parse.urlparse(self.path)
         if not parsed.path.startswith("/api/"):
             self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
@@ -1225,6 +1741,15 @@ class AShareHandler(SimpleHTTPRequestHandler):
         super().end_headers()
 
     def do_GET(self) -> None:
+        """处理所有只读接口与静态资源。
+
+        路由顺序按特异度排列：先判带正则的研究接口，再是健康检查、行情与交易只读接口，
+        最后落到 ``super().do_GET()`` 提供静态文件。
+
+        Returns:
+            ``None``；响应直接写入 ``self.wfile``。每个分支都自带异常映射，
+            保证单次请求出错不会让服务线程抛出堆栈。
+        """
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path.startswith("/api/stocks/") and "/research/" in parsed.path:
             try:
@@ -1301,9 +1826,18 @@ class AShareHandler(SimpleHTTPRequestHandler):
             services = trading_services()
             json_response(self, {"ok": True, "success": True, "drafts": services["trade"].list_parse_drafts()})
             return
+        # 其余路径交给静态文件服务（index.html / app.js / styles.css）。
         return super().do_GET()
 
     def do_POST(self) -> None:
+        """处理写入类接口：截图解析、Obsidian 写入、AI 分析与台账增改。
+
+        截图接口走 multipart，其余接口统一按 ``Content-Length`` 读取 JSON 正文；
+        未匹配的路径返回 404，任何异常都收敛成 400 + 可读原因。
+
+        Returns:
+            ``None``；响应直接写入 ``self.wfile``。
+        """
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path in {"/api/trading/parse/account-screenshot", "/api/trading/parse/trades-screenshot"}:
             try:
@@ -1382,9 +1916,14 @@ class AShareHandler(SimpleHTTPRequestHandler):
                 return
             json_response(self, {"ok": False, "error": "Not found"}, status=404)
         except Exception as exc:
+            # 校验、存储与模型异常统一收敛成 400 + 可读原因，前端据此提示而不是白屏。
             json_response(self, {"ok": False, "success": False, "error": str(exc), "message": str(exc)}, status=400)
 
     def do_DELETE(self) -> None:
+        """删除自选股（当前唯一的 DELETE 接口）。
+
+        只接受 ``/api/watchlist?code=``；其它路径一律 404，避免误删。
+        """
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path != "/api/watchlist":
             json_response(self, {"ok": False, "error": "Not found"}, status=404)
@@ -1397,6 +1936,11 @@ class AShareHandler(SimpleHTTPRequestHandler):
             json_response(self, {"ok": False, "error": str(exc)}, status=400)
 
     def log_message(self, format: str, *args: Any) -> None:
+        """把访问日志压成单行并加时间前缀；stdout 不可用时静默忽略。
+
+        Windows 下控制台被关闭或重定向时 ``print`` 会抛 ``OSError``，这里吞掉，
+        避免日志问题影响请求处理。
+        """
         try:
             print(f"[{datetime.now().strftime('%H:%M:%S')}] {format % args}")
         except OSError:
@@ -1404,6 +1948,11 @@ class AShareHandler(SimpleHTTPRequestHandler):
 
 
 def main() -> None:
+    """启动入口：准备 vault 目录后用 ``ThreadingHTTPServer`` 阻塞监听。
+
+    只绑定 ``127.0.0.1``：这是个人本机研究台，不对外网暴露；需要统一域名时由上层
+    Nginx/Spring 反向代理转发。端口取 ``PORT``，默认 5174。
+    """
     ensure_vault()
     server = ThreadingHTTPServer(("127.0.0.1", PORT), AShareHandler)
     try:

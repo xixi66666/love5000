@@ -8,6 +8,17 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * 提示词来源「实时抓取」分支的测试。
+ *
+ * <p>类名带 Live，但并不访问外网：{@link PromptSourceFetchService} 通过三参构造器注入固定的
+ * 抓取函数，分别模拟成功（返回一段 HTML）和失败（抛异常）。成功时快照状态为 {@code live}，
+ * 摘要由 {@link PromptSourceSummaryService} 从 HTML 里提炼出标题与关键词；失败时降级为
+ * 白名单自带的 {@code fallback} 摘要，并把异常消息记进 {@code message}，
+ * 保证页面拿到可用内容而不是空列表。</p>
+ *
+ * <p>隔离：抓取函数是 lambda 替身，不联网；不连数据库、不起 Spring 上下文。</p>
+ */
 class PromptSourceRefreshLiveTest {
 
     @Test

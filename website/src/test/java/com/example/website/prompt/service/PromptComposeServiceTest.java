@@ -10,6 +10,19 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+/**
+ * 提示词拼装服务 {@link PromptComposeService} 的单元测试。
+ *
+ * <p>被测逻辑是纯字符串模板拼装，不碰数据库和网络：场景为空白时抛
+ * {@link IllegalArgumentException}（消息含「场景不能为空」）；{@code purpose} 决定排在第一位的变体
+ * （image / video / poster / general），其后补齐 general、image、video、poster、short 五种形态；
+ * 图片版必须带上『镜头』『光线』『构图』和「不要出现乱码文字、水印、额外 logo」的负面限制；
+ * 视频版换成三个镜头的分镜语言，且不残留图片模板的占位说明；选中的来源快照会以
+ * 「参考来源综合」前缀注入正文，未选中的来源不得出现，{@code sourceIds} 原样回传。</p>
+ *
+ * <p>隔离：{@link PromptSourceRegistry} 用真实实例（白名单是常量），抓取服务注入返回固定文本的假
+ * HTTP 客户端，因此不联网、也不依赖 MySQL；拼装过程没有随机分支，断言可以逐字比对关键词。</p>
+ */
 class PromptComposeServiceTest {
 
     private final PromptSourceRegistry registry = new PromptSourceRegistry();
@@ -66,6 +79,7 @@ class PromptComposeServiceTest {
                 .contains("跟拍")
                 .contains("光线")
                 .contains("声音")
+                // 回归：图片版模板里的占位说明不能漏进视频分镜正文。
                 .doesNotContain("按镜头 1、镜头 2、镜头 3 描述画面推进");
     }
 

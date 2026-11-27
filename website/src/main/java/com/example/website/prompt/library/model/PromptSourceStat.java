@@ -1,5 +1,13 @@
 package com.example.website.prompt.library.model;
 
+/**
+ * 来源的条目计数与展示字段，是 meta 接口来源列表的数据载体。
+ *
+ * <p>对应 {@code selectSourceStats} 的聚合结果：从 {@code prompt_source} 左连条目，按来源自增
+ * id 排序，因此没有条目的来源也会出现（{@code count} 为 0）。{@code status} 是来源自身状态
+ * （例如 {@code imported}），与单条提示词的 {@code status} 无关；{@code url} 只用于展示，
+ * 前端不会拿它去抓取内容。</p>
+ */
 public class PromptSourceStat {
 
     private String sourceId;

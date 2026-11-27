@@ -1,3 +1,13 @@
+"""股票元数据服务（services.stock_metadata_service.StockMetadataService）的单元测试。
+
+被测对象：行业、板块、概念元数据的数据源优先级与降级链 —— 先读本地缓存，缓存缺失时走东方财富
+板块接口，其次 Tushare（需要 token），两者都失败时才回退调用方传入的 fallback，并用 ``source``
+字段如实标注本次数据来自哪个源，避免页面把兜底数据展示成实时数据。
+
+隔离：全部使用手写替身：``FakeTushareClient`` / ``FakeEastmoneyClient`` 返回固定数据，
+``BrokenEastmoneyClient`` 与内联 ``BrokenClient`` 模拟网络异常；缓存根指向
+``tempfile.TemporaryDirectory``，不联网、不写 data/stock-metadata 真实目录。
+"""
 import tempfile
 import unittest
 from pathlib import Path
@@ -6,6 +16,7 @@ from services.stock_metadata_service import StockMetadataService
 
 
 class FakeTushareClient:
+    """伪造 Tushare 客户端：stock_basic 返回个股基础信息，ths_member 返回概念成员，其余接口返回空列表。"""
     def __init__(self):
         self.calls = []
 
@@ -22,6 +33,7 @@ class FakeTushareClient:
 
 
 class FakeEastmoneyClient:
+    """伪造东方财富板块接口：同时给出行业、地域与概念板块，用来验证服务端的板块筛选规则。"""
     def fetch_boards(self, code):
         return [
             {"BOARD_NAME": "电力设备", "BOARD_RANK": 1, "IS_PRECISE": None},
@@ -33,11 +45,13 @@ class FakeEastmoneyClient:
 
 
 class BrokenEastmoneyClient:
+    """模拟板块接口整体不可用，用于触发服务换用下一个数据源。"""
     def fetch_boards(self, code):
         raise RuntimeError("network failed")
 
 
 class StockMetadataServiceTests(unittest.TestCase):
+    """覆盖三条降级路径：东方财富优先、Tushare 兜底并写缓存、两个源都失败时回退 fallback。"""
     def test_get_stock_metadata_prefers_eastmoney_without_tushare_token(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             service = StockMetadataService(

@@ -1,9 +1,33 @@
 #!/usr/bin/env python3
-"""本地服务诊断台。
+"""本地服务诊断台：探测显式清单中的本机服务健康接口，并可按需导出 HTML 报告。
 
-只使用 Python 3.7+ 标准库，通过显式清单探测本机 HTTP/HTTPS 服务。
-不读取用户配置或凭据，不启动服务，不跟随重定向，不使用系统代理。
-URL 主机只接受数值回环地址，不做域名解析。
+只使用 Python 3.7+ 标准库，从仓库根目录以
+``python tools/service-doctor/service_doctor.py`` 运行。工具按 JSON 清单逐个
+探测标准服务的 ``/api/health`` 与聚合接口 ``/api/services/health``，在终端打印
+每项状态，并可额外写出一份自包含的中文 HTML 报告。
+
+命令行参数与默认值：
+
+- ``-m/--manifest PATH``：JSON 清单，默认同目录的 ``services.example.json``。
+- ``-o/--html PATH``：额外写出 HTML 报告；缺省时不创建任何文件。
+- ``-t/--timeout SECONDS``：单个目标的连接与读取超时，默认 ``3.0``，允许
+  ``0.05`` 到 ``60``。
+- ``-j/--jobs N``：并发上限，默认 ``8``，允许 ``1`` 到 ``32``；实际并发数还会
+  被目标数量压小，结果始终按清单顺序输出。
+- ``--version``：打印版本后退出。
+
+退出码：``0`` 全部目标正常；``1`` 至少一个目标检查失败；``2`` 配置错误，包括
+清单不可读、URL 不合法、``--timeout``/``--jobs`` 越界，以及 HTML 报告写入失败。
+配置错误在探测之前返回，不会访问任何目标。
+
+副作用：只读取清单文件；只有显式给出 ``--html`` 时才以 UTF-8 编码、LF 换行写出
+一个报告文件（不创建目录，报告路径与清单相同会被拒绝）。工具不读取环境变量里
+的代理设置、不读取用户配置或凭据、不启动或停止任何服务、不跟随 3xx 重定向、不把
+响应正文写进终端或报告。
+
+降级策略：单个目标的连接拒绝、超时、HTTP 错误和响应格式错误都只折叠成一条
+``CheckResult`` 状态，不会中断整轮巡检，因此一次运行总能给出清单中全部目标的
+结论；只有清单与参数本身的配置错误才会在探测前中止并返回 ``2``。
 """
 
 import argparse
@@ -27,25 +51,33 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 from urllib.parse import urlsplit
 
 VERSION = "1.0.0"
+# 按脚本自身位置定位，保证从任意工作目录调用都能找到随工具提交的默认清单。
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_MANIFEST = SCRIPT_DIR / "services.example.json"
 
+# 输入/输出上限：清单 1 MiB、单个响应 256 KiB。前者防止异常清单拖垮解析，
+# 后者保证一个畸形的巨大响应也不会被整段读进内存。
 MAX_MANIFEST_BYTES = 1024 * 1024
 MAX_RESPONSE_BYTES = 256 * 1024
+# 清单条数与并发上限，把一次运行的时间和线程数固定在可预期范围内。
 MAX_SERVICES = 256
 MAX_JOBS = 32
+# 超时下限避免 0 或负数产生永远无法完成的探测；上限避免整轮巡检被单个目标拖住。
 MIN_TIMEOUT_SECONDS = 0.05
 MAX_TIMEOUT_SECONDS = 60.0
 DEFAULT_TIMEOUT_SECONDS = 3.0
 DEFAULT_JOBS = 8
 
+# 退出码与 README 的约定一致：0 正常、1 服务失败、2 配置/输出错误。
 EXIT_OK = 0
 EXIT_SERVICE_FAILURE = 1
 EXIT_CONFIG_ERROR = 2
 
+# 清单中的 kind：标准服务要求 service 标识匹配，聚合接口校验 healthy 与 services。
 KIND_SERVICE = "service"
 KIND_AGGREGATE = "aggregate"
 
+# 状态码保持 ASCII，便于写进 HTML 的 class 属性和测试断言；中文标签只用于展示。
 STATUS_HEALTHY = "healthy"
 STATUS_DOWNSTREAM_UNHEALTHY = "downstream_unhealthy"
 STATUS_CONNECTION_REFUSED = "connection_refused"
@@ -63,6 +95,7 @@ STATUS_LABELS = {
     STATUS_FORMAT_ERROR: "格式错误",
     STATUS_CONNECTION_ERROR: "其他连接错误",
 }
+# 固定顺序：汇总计数与状态标签遍历都依赖它，不要改成按出现顺序动态生成。
 STATUS_ORDER = tuple(STATUS_LABELS)
 
 KIND_LABELS = {
@@ -74,15 +107,31 @@ USER_AGENT = "service-doctor/{}".format(VERSION)
 
 
 class ConfigError(Exception):
-    """清单、URL 或 CLI 参数不合法。"""
+    """清单、URL 或 CLI 参数不合法。
+
+    ``main`` 把它统一映射为 ``EXIT_CONFIG_ERROR`` 并只输出一行中文提示，因此消息
+    必须面向最终用户，且不得包含响应正文或凭据。
+    """
 
 
 class ReportError(Exception):
-    """HTML 报告无法写入。"""
+    """HTML 报告无法写入。
+
+    只用于包装底层 ``OSError``，让调用方能把“报告写不出来”与“服务不健康”区分
+    成不同退出码；原始异常链不向外暴露。
+    """
 
 
 @dataclass(frozen=True)
 class ServiceSpec:
+    """清单中一条探测目标，以及规范化后的连接参数。
+
+    ``url`` 保留清单里的原始字符串用于展示；``scheme``/``host``/``port``/
+    ``target`` 是 ``_parse_service_url`` 校验后的结果，其中 ``target`` 已包含查询
+    串。``expected_service`` 只在 ``kind=service`` 时有值，``kind=aggregate`` 时
+    为 ``None``。
+    """
+
     name: str
     url: str
     kind: str
@@ -95,6 +144,13 @@ class ServiceSpec:
 
 @dataclass(frozen=True)
 class CheckResult:
+    """单个目标的探测结论。
+
+    ``status`` 是状态机码值（见 ``STATUS_*``）；``http_status`` 在连接未建立或未
+    收到响应时为 ``None``；``elapsed_ms`` 由 ``time.monotonic`` 差值换算并向下取整
+    到毫秒；``detail`` 是固定措辞的中文说明，永远不包含响应正文。
+    """
+
     name: str
     url: str
     kind: str
@@ -106,10 +162,16 @@ class CheckResult:
 
     @property
     def ok(self) -> bool:
+        """是否健康；只有 ``healthy`` 视为通过，其余状态都计入失败。"""
         return self.status == STATUS_HEALTHY
 
 
 def _contains_control(value: str) -> bool:
+    """是否含 C0 控制字符或 DEL（``0x7F``）。
+
+    清单里的名称与 URL 最终会进入终端和 HTML，控制字符会破坏输出、伪造日志行，
+    所以在解析阶段直接拒绝，而不是等到渲染时再处理。
+    """
     for char in value:
         code = ord(char)
         if code < 0x20 or code == 0x7F:
@@ -118,7 +180,14 @@ def _contains_control(value: str) -> bool:
 
 
 def _validate_loopback_host(host: str) -> None:
-    """只接受数值回环地址，避免 localhost 的二次解析和重绑定风险。"""
+    """只接受数值回环地址，避免 localhost 的二次解析和重绑定风险。
+
+    显式拒绝 ``localhost``：它依赖 hosts 解析，既可能落到 IPv6 也可能被改写到
+    非回环地址，探测结果会随机器配置漂移；数值地址则不会在运行期被重新解析。
+
+    Raises:
+        ConfigError: 主机名不是 IP 字面量，或不是回环地址。
+    """
     if host == "localhost":
         raise ConfigError("不接受 localhost，请使用 127.0.0.1 或 ::1")
     try:
@@ -132,6 +201,22 @@ def _validate_loopback_host(host: str) -> None:
 
 
 def _parse_service_url(raw_url: Any) -> Tuple[str, str, int, str]:
+    """校验清单里的 url 并拆成 ``http.client`` 需要的连接参数。
+
+    只接受 ASCII 的绝对 ``http``/``https`` 地址：不允许用户名、密码、片段，不允许
+    空白或控制字符，总长不超过 2048；主机必须是数值回环地址。缺少端口时按 scheme
+    取 80/443，路径为空时用 ``/``，查询串原样保留。
+
+    Args:
+        raw_url: 清单中的原始值，可能是任何 JSON 类型。
+
+    Returns:
+        ``(scheme, host, port, target)``，其中 ``target`` 为发往目标的请求路径
+        （含 ``?`` 查询串）。
+
+    Raises:
+        ConfigError: 任一限制不满足；消息只描述规则，不回显敏感内容。
+    """
     if not isinstance(raw_url, str) or not raw_url:
         raise ConfigError("url 必须是非空字符串")
     if not raw_url.isascii():
@@ -178,6 +263,15 @@ def _parse_service_url(raw_url: Any) -> Tuple[str, str, int, str]:
 
 
 def _validate_name(value: Any, field_name: str) -> str:
+    """校验清单里的名称字段，返回去掉首尾空白后的值。
+
+    Args:
+        value: 原始值，必须是字符串。
+        field_name: 出错时展示的字段路径，例如 ``services[0].name``。
+
+    Raises:
+        ConfigError: 非字符串、去空白后为空、超过 120 字符或含控制字符。
+    """
     if not isinstance(value, str):
         raise ConfigError("{} 必须是字符串".format(field_name))
     name = value.strip()
@@ -191,6 +285,19 @@ def _validate_name(value: Any, field_name: str) -> str:
 
 
 def _build_service_spec(entry: Any, index: int) -> ServiceSpec:
+    """把清单中的一条记录校验并转换成 ``ServiceSpec``。
+
+    字段集合是封闭的：出现 ``name``/``url``/``kind``/``expected_service`` 以外的键
+    直接报错，避免拼写错误被静默忽略。``kind=service`` 必须给出非空的
+    ``expected_service``，``kind=aggregate`` 则不允许携带该字段。
+
+    Args:
+        entry: ``services`` 数组里的元素，可能是任何 JSON 类型。
+        index: 数组下标，仅用于拼出 ``services[i]`` 形式的定位。
+
+    Raises:
+        ConfigError: 结构、类型、取值或 URL 任一项不合法。
+    """
     where = "services[{}]".format(index)
     if not isinstance(entry, dict):
         raise ConfigError("{} 必须是对象".format(where))
@@ -233,7 +340,21 @@ def _build_service_spec(entry: Any, index: int) -> ServiceSpec:
 
 
 def load_manifest(path: Path) -> List[ServiceSpec]:
-    """读取并完整校验清单；任何配置问题都抛 ConfigError。"""
+    """读取并完整校验清单；任何配置问题都抛 ConfigError。
+
+    读取上限 1 MiB，按 UTF-8（允许 BOM）解码；顶层只允许 ``services``，且必须是
+    1 到 256 项的非空数组，服务名称不得重复。全部校验通过后才返回，因此调用方拿到
+    的列表可以直接拿去探测。
+
+    Args:
+        path: 清单文件路径。
+
+    Returns:
+        ``ServiceSpec`` 列表，顺序与清单一致。
+
+    Raises:
+        ConfigError: 文件不可读、编码或 JSON 非法、结构不合法、URL 不安全。
+    """
     path = Path(path)
     try:
         raw = path.read_bytes()
@@ -286,6 +407,21 @@ def _result(
     detail: str,
     http_status: Optional[int] = None,
 ) -> CheckResult:
+    """按指定状态打包一条探测结论。
+
+    ``detail`` 只接受固定措辞的说明，调用方不得把响应正文传进来；耗时由
+    ``time.monotonic`` 的差值换算成毫秒，负值（理论上不会出现）夹到 0。
+
+    Args:
+        spec: 被探测的目标，提供名称、URL、kind 与预期 service。
+        status: ``STATUS_*`` 之一。
+        started_at: 探测开始时的 ``time.monotonic()`` 读数。
+        detail: 面向用户的中文说明。
+        http_status: 实际收到的 HTTP 状态码；连接未建立时为 ``None``。
+
+    Returns:
+        冻结后的 ``CheckResult``。
+    """
     return CheckResult(
         name=spec.name,
         url=spec.url,
@@ -299,12 +435,28 @@ def _result(
 
 
 def _parse_health_payload(spec: ServiceSpec, raw_body: bytes) -> Tuple[str, str]:
+    """按健康检查契约解析响应体，返回 ``(状态, 中文说明)``。
+
+    契约要点：响应体不能为空且必须是 JSON 对象；``success`` 必须是字面布尔 ``True``
+    （字符串 ``"true"``、数字 ``1`` 都不算）。``kind=aggregate`` 还要求布尔
+    ``healthy`` 与数组 ``services``，结构合法但 ``healthy=false`` 时单独报告“下游
+    不健康”；``kind=service`` 的 ``service`` 必须是字符串，且与清单里的
+    ``expected_service`` 完全一致。
+
+    Args:
+        spec: 当前目标，决定校验哪一套字段。
+        raw_body: 已限制大小的响应字节。
+
+    Returns:
+        状态码与固定措辞的说明；任何输入都只映射为状态，不抛异常。
+    """
     if not raw_body:
         return STATUS_FORMAT_ERROR, "响应体为空"
 
     try:
         payload = json.loads(raw_body)
     except (ValueError, UnicodeDecodeError, RecursionError):
+        # 嵌套过深的 JSON 会抛 RecursionError，与语法错误一样按“格式错误”处理。
         return STATUS_FORMAT_ERROR, "响应不是有效 JSON"
 
     if not isinstance(payload, dict):
@@ -335,6 +487,12 @@ def _parse_health_payload(spec: ServiceSpec, raw_body: bytes) -> Tuple[str, str]
 
 
 def _is_connection_refused(exc: OSError) -> bool:
+    """判断异常是否表示“端口明确拒绝连接”。
+
+    Windows 上拒绝连接可能表现为 ``WSAECONNREFUSED`` 或 ``winerror=10061``，与
+    ``ECONNREFUSED`` 不总是等价，所以这里同时检查 ``errno`` 与 ``winerror``，以便把
+    “连接被拒绝”与其它网络/TLS 错误分开报告。
+    """
     refused_errno = getattr(errno, "WSAECONNREFUSED", None)
     return (
         isinstance(exc, ConnectionRefusedError)
@@ -347,7 +505,23 @@ def _is_connection_refused(exc: OSError) -> bool:
 def check_service(
     spec: ServiceSpec, timeout: float = DEFAULT_TIMEOUT_SECONDS
 ) -> CheckResult:
-    """探测单个服务；所有返回值都不包含响应正文。"""
+    """探测单个服务；所有返回值都不包含响应正文。
+
+    只发一次 ``GET``，带 ``Connection: close`` 并显式不跟随 3xx：非 200 一律记为
+    ``http_error``。响应体最多读取 ``MAX_RESPONSE_BYTES + 1`` 字节，超出即判
+    ``format_error``，避免畸形响应把内存打满。
+
+    网络层异常全部折叠成状态而不是向外抛出，所以单个目标失败不会中断整轮巡检；
+    这就是本工具的降级策略。
+
+    Args:
+        spec: 已通过清单校验的目标。
+        timeout: 连接与读取共用的超时秒数。
+
+    Returns:
+        ``CheckResult``；``detail`` 是固定中文说明，不含响应正文，可以安全地写进
+        终端和 HTML 报告。
+    """
     started_at = time.monotonic()
     connection = None
     try:
@@ -384,6 +558,7 @@ def check_service(
                 http_status=status_code,
             )
 
+        # 多读 1 字节即可判断是否越界，不必把整个超大响应读进内存。
         body = response.read(MAX_RESPONSE_BYTES + 1)
         if len(body) > MAX_RESPONSE_BYTES:
             return _result(
@@ -446,6 +621,7 @@ def check_service(
             "其他连接错误",
         )
     finally:
+        # 关闭失败不影响已经得到的结论，静默忽略即可。
         if connection is not None:
             try:
                 connection.close()
@@ -458,11 +634,25 @@ def run_checks(
     timeout: float = DEFAULT_TIMEOUT_SECONDS,
     jobs: int = DEFAULT_JOBS,
 ) -> List[CheckResult]:
-    """有界并行执行，并按输入顺序返回结果。"""
+    """有界并行执行，并按输入顺序返回结果。
+
+    并发数取 ``min(jobs, len(specs))`` 且至少为 1；只有一个目标时直接串行探测，避免
+    为单项创建线程池。使用 ``executor.map`` 而不是 ``as_completed``，返回顺序因此与
+    清单一致，汇总和报告都不需要再排序。
+
+    Args:
+        specs: 已通过清单校验的目标，顺序即输出顺序。
+        timeout: 传给 ``check_service`` 的单目标超时秒数。
+        jobs: 并发上限；调用方已在 CLI 层校验过取值范围。
+
+    Returns:
+        与 ``specs`` 等长且同序的 ``CheckResult`` 列表；``specs`` 为空时返回空列表。
+    """
     if not specs:
         return []
     worker_count = max(1, min(int(jobs), len(specs)))
 
+    # 把 timeout 绑定进闭包，executor.map 只接收 spec，避免每项重复写参数。
     def probe(spec: ServiceSpec) -> CheckResult:
         return check_service(spec, timeout)
 
@@ -476,6 +666,17 @@ def run_checks(
 
 
 def summarize(results: Sequence[CheckResult]) -> Dict[str, Any]:
+    """统计各状态数量，返回 ``total``/``healthy``/``failed``/``counts``。
+
+    ``counts`` 始终包含 ``STATUS_ORDER`` 里的全部状态（未出现记 0），
+    ``failed = total - healthy``，因此未知状态也计入失败但不会新增 ``counts`` 键。
+
+    Args:
+        results: 一次巡检验证过的结果序列。
+
+    Returns:
+        供终端摘要、HTML 概览卡和 CLI 退出码共用的统计字典。
+    """
     counts = {status: 0 for status in STATUS_ORDER}
     for result in results:
         if result.status in counts:
@@ -490,16 +691,19 @@ def summarize(results: Sequence[CheckResult]) -> Dict[str, Any]:
 
 
 def _status_label(status: str) -> str:
+    """状态码转中文标签；未知码回退为“未知状态”，保证展示层不会抛 KeyError。"""
     return STATUS_LABELS.get(status, "未知状态")
 
 
 def _expected_text(result: CheckResult) -> str:
+    """报告里“校验目标”一列：聚合接口不校验 service，标准服务列出预期标识。"""
     if result.kind == KIND_AGGREGATE:
         return "聚合接口（不校验 service）"
     return "预期 service={}".format(result.expected_service)
 
 
 def _http_text(result: CheckResult, missing: str = "—") -> str:
+    """报告里“HTTP 状态”一列；未收到响应时使用调用方给的占位符。"""
     if result.http_status is None:
         return missing
     return "HTTP {}".format(result.http_status)
@@ -510,6 +714,20 @@ def format_terminal(
     timeout: float,
     jobs: int,
 ) -> str:
+    """把探测结果渲染成终端文本。
+
+    输出顺序固定为：带总数/超时/并发的标题行、逐项一行（状态、名称、URL、耗时、
+    HTTP 码、校验目标、说明）、汇总行，以及一行“只探测回环地址”的说明。字段全部
+    来自 ``CheckResult`` 的固定枚举值或已校验的清单内容，不含响应正文。
+
+    Args:
+        results: 探测结果，按输入顺序输出。
+        timeout: 本次使用的超时秒数，写进标题行。
+        jobs: 本次使用的并发上限，写进标题行。
+
+    Returns:
+        以换行符连接的整段文本，调用方一次 ``print`` 即可。
+    """
     summary = summarize(results)
     lines = [
         "本地服务诊断：共 {} 项，超时 {:.2f}s，并发 {}".format(
@@ -537,6 +755,9 @@ def format_terminal(
     return "\n".join(lines)
 
 
+# 报告样式整段内联在模块里，生成的文件因此不依赖外部字体、图片或脚本；这里只描述
+# 展示，不拼接任何动态值，所以字符串本身不需要转义。桌面三列概览、移动端单列，
+# 打印时去掉滚动容器。
 _REPORT_CSS = """
 :root {
   color-scheme: light;
@@ -602,6 +823,9 @@ tbody tr:last-child td { border-bottom: 0; }
 }
 """
 
+# 报告骨架用 string.Template：$css、$generated_at、$rows 等占位符由
+# render_html_report 填充。静态 HTML 与文案全部写在这个字面量里，动态值必须先做
+# HTML 逃逸再 substitute；不要在这段字符串内部插入注释或改动排版。
 _REPORT_TEMPLATE = Template(
     dedent(
         """\
@@ -651,6 +875,7 @@ _REPORT_TEMPLATE = Template(
 
 
 def _safe(value: Any) -> str:
+    """把任意值转成字符串并做 HTML 逃逸（连引号一起转义），用于所有插值点。"""
     return html.escape(str(value), quote=True)
 
 
@@ -660,7 +885,20 @@ def render_html_report(
     timeout: Optional[float] = None,
     jobs: Optional[int] = None,
 ) -> str:
-    """生成自包含中文 HTML；所有插值均做 HTML 逃逸，不含响应正文。"""
+    """生成自包含中文 HTML；所有插值均做 HTML 逃逸，不含响应正文。
+
+    报告含概览卡（检查项/正常/失败）、逐项表格（名称与 URL、类型、状态徽标、HTTP
+    状态、耗时、校验目标、说明）和状态分类脚注；CSS 内联，不引用外部资源或脚本。
+
+    Args:
+        results: 探测结果，表格行按该顺序输出。
+        generated_at: 报告时间文本；``None`` 时取本机当前时间与时区偏移。
+        timeout: 本次使用的超时秒数；``None`` 时显示“未记录”。
+        jobs: 本次使用的并发上限；``None`` 时显示“未记录”。
+
+    Returns:
+        完整 HTML 文档字符串，可直接落盘，也可在测试里断言逃逸结果。
+    """
     if generated_at is None:
         generated_at = datetime.now().astimezone().strftime(
             "%Y-%m-%d %H:%M:%S %z"
@@ -719,6 +957,22 @@ def write_html_report(
     timeout: Optional[float] = None,
     jobs: Optional[int] = None,
 ) -> None:
+    """渲染并写出 HTML 报告。
+
+    固定使用 UTF-8 编码与 LF 换行，保证同一份结果在不同平台上产出相同字节；会覆盖
+    同名文件，但父目录必须已存在（本函数不创建目录，主流程另行拒绝覆盖清单文件）。
+
+    Args:
+        path: 输出路径。
+        results: 探测结果，按输入顺序写进表格。
+        generated_at: 报告时间文本；``None`` 时用当前本机时间。
+        timeout: 本次使用的超时秒数；``None`` 时显示“未记录”。
+        jobs: 本次使用的并发上限；``None`` 时显示“未记录”。
+
+    Raises:
+        ReportError: 目标不可写；底层 ``OSError`` 被包装后不再外露，便于 CLI 统一
+            映射到配置错误退出码。
+    """
     document = render_html_report(
         results, generated_at=generated_at, timeout=timeout, jobs=jobs
     )
@@ -731,6 +985,11 @@ def write_html_report(
 
 
 def _validate_timeout(value: float) -> None:
+    """校验超时必须是有限数，且落在允许区间内。
+
+    Raises:
+        ConfigError: ``nan``/``inf`` 或越界；提示里给出完整允许范围。
+    """
     if not math.isfinite(value):
         raise ConfigError("--timeout 必须是有限数字")
     if not MIN_TIMEOUT_SECONDS <= value <= MAX_TIMEOUT_SECONDS:
@@ -742,11 +1001,25 @@ def _validate_timeout(value: float) -> None:
 
 
 def _validate_jobs(value: int) -> None:
+    """校验并发上限在 1 到 ``MAX_JOBS`` 之间。
+
+    Raises:
+        ConfigError: 越界；提示里给出允许范围。
+    """
     if not 1 <= value <= MAX_JOBS:
         raise ConfigError("--jobs 必须在 1 到 {} 之间".format(MAX_JOBS))
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """构造 CLI 解析器。
+
+    帮助文案与 README 的参数表保持一致；``--timeout``/``--jobs`` 的合法范围写在
+    help 里，真正的数值校验留给 ``main``，以便越界时返回文档化的退出码 ``2`` 而不是
+    由 argparse 直接退出。
+
+    Returns:
+        已注册全部参数的 ``ArgumentParser``。
+    """
     parser = argparse.ArgumentParser(
         prog="service-doctor",
         description=(
@@ -792,6 +1065,19 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
+    """CLI 主流程：校验配置 → 探测 → 打印 → 可选写报告 → 返回退出码。
+
+    校验刻意放在探测之前：参数越界、清单不可读、报告路径与清单相同都会在发出任何
+    请求前返回 ``2``。结果总是先打印到 stdout，之后才尝试写报告，因此报告写入失败
+    时终端结论仍然完整（此时退出码为 ``2``，不表示服务状态）。
+
+    Args:
+        argv: 参数列表；``None`` 时由 argparse 读取 ``sys.argv[1:]``。
+
+    Returns:
+        ``EXIT_OK``（全部正常）、``EXIT_SERVICE_FAILURE``（至少一项失败）或
+        ``EXIT_CONFIG_ERROR``（配置或报告写入错误）；错误信息写到 stderr。
+    """
     parser = build_parser()
     args = parser.parse_args(argv)
 
@@ -803,6 +1089,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if args.html is not None:
             html_path = Path(args.html)
             try:
+                # 报告与清单指向同一文件时拒绝，避免把清单覆盖成 HTML；路径解析失败
+                # 时按“不同文件”处理，真正的写入错误会由 write_html_report 报告。
                 same_path = html_path.resolve() == manifest_path.resolve()
             except OSError:
                 same_path = False

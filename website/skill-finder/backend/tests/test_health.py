@@ -1,3 +1,13 @@
+"""单元测试：健康检查、API 404 边界与前端静态托管。
+
+覆盖：``/api/v1/health`` 的旧探针、``/api/health`` 的统一健康结构
+（``success`` + ``service``）、未匹配的 ``/api/**`` 不会被 SPA fallback 吞掉、
+``dist`` 已构建时 ``/`` 返回 HTML、构建出的 JS 资源带 JavaScript MIME
+（Windows 的 ``text/plain`` 回归）。
+
+隔离：全部通过 ``TestClient`` 直接调用应用，不启动真实端口、不连接 MySQL；
+涉及 ``dist`` 的用例在未构建时直接返回，不会因为缺少构建产物而失败。
+"""
 import re
 
 from fastapi.testclient import TestClient

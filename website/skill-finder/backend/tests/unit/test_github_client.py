@@ -1,3 +1,19 @@
+"""GitHub REST 客户端的行为与错误分类。
+
+覆盖 `app.collector.github_client.GitHubClient` 的几条对外约定：
+
+- 没有 Token 时不发 `Authorization`，走匿名额度；
+- README 用 `application/vnd.github.raw` 取原文，并按 `README_MAX_CHARS` 截断；
+- 404 返回 `None`（仓库已删、被改名都不算故障），401 归为 `GitHubAuthError`，
+  `X-RateLimit-Remaining: 0` 的 403 归为 `GitHubRateLimitError` 并解析重置时间；
+- 5xx 与传输层断连重试三次后统一包成 `GitHubRequestError`，不让底层异常漏到采集层；
+- `proxy` 只在构造客户端时透传给 `httpx.AsyncClient`（本机网络需要代理时才生效）。
+
+隔离方式：`respx` 拦截所有 HTTP，用例只声明期望响应，从不访问 api.github.com；
+`retry_delays` 置零让重试不真的等待；检查代理的那条用例把 `httpx.AsyncClient`
+整个替换掉，只断言构造参数。全程不需要真实 Token。
+"""
+
 from datetime import UTC, datetime
 
 import httpx
@@ -36,6 +52,10 @@ async def test_public_repository_without_token_omits_authorization_header() -> N
 
 
 def make_repo_payload(github_id: int = 1, name: str = "agent-hub") -> dict:
+    """构造一份 GitHub 仓库 JSON。
+
+    末尾故意多放 `ignored_field`：DTO 只应读取已知字段，多余字段不能进模型。
+    """
     return {
         "id": github_id,
         "name": name,
@@ -59,6 +79,7 @@ def make_repo_payload(github_id: int = 1, name: str = "agent-hub") -> dict:
 
 @pytest.fixture()
 def client() -> GitHubClient:
+    """带假 Token 的客户端；重试间隔置零，失败用例不必真的等退避。"""
     return GitHubClient(token="test-token", retry_delays=(0.0, 0.0, 0.0))
 
 

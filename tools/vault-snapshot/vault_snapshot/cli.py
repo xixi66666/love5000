@@ -1,4 +1,12 @@
-"""Command-line interface for vault-snapshot."""
+"""vault-snapshot 命令行界面。
+
+定义 ``create`` / ``verify`` / ``restore`` 三个子命令及各自的必填路径参数，
+把 ``vault_snapshot.core`` 抛出的异常翻译成稳定的退出码与可读错误信息，
+使脚本化调用无需解析 traceback：成功为 0，校验或发布失败为 1，路径与用法
+错误为 2（argparse 自身的用法错误同样以 2 退出）。
+
+所有路径都必须显式给出，CLI 不提供任何默认 Vault 或默认工作目录。
+"""
 
 from __future__ import annotations
 
@@ -19,6 +27,16 @@ from .core import (
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """构造完整的参数解析器。
+
+    三个子命令都以 ``required=True`` 注册且路径参数全部必填：缺少子命令或缺少
+    ``--vault`` / ``--work-dir`` / ``--archive`` / ``--dest`` 时由 argparse 直接
+    打印用法并以退出码 2 结束进程，不进入业务函数。
+
+    Returns:
+        注册完毕的 ``argparse.ArgumentParser``；``parse_args`` 产出的命名
+        空间带 ``command`` 字段，取值为 ``create`` / ``verify`` / ``restore``。
+    """
     parser = argparse.ArgumentParser(
         prog="vault-snapshot",
         description=(
@@ -95,6 +113,15 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _print_verification_failure(error: VerificationError) -> None:
+    """把校验问题逐条输出到标准错误。
+
+    问题列表已在异常构造时去重排序，这里只负责排版：数量写在首行，随后每条
+    以 ``kind: detail`` 缩进两格，便于在长日志里按 kind（``MISSING``、
+    ``TAMPERED``、``UNSAFE_PATH`` 等）过滤。
+
+    Args:
+        error: 携带问题元组的校验异常。
+    """
     print(
         f"error: archive verification failed ({len(error.issues)} issue(s)):",
         file=sys.stderr,
@@ -104,6 +131,24 @@ def _print_verification_failure(error: VerificationError) -> None:
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
+    """解析参数、执行单个子命令并返回进程退出码。
+
+    成功路径把结果的三项摘要（路径、文件数、字节数）写到标准输出，失败路径
+    只把错误写到标准错误，便于调用方用重定向区分。
+
+    Args:
+        argv: 参数序列；为 ``None`` 时由 argparse 读取 ``sys.argv[1:]``，测试
+            可直接传入列表以隔离真实命令行。
+
+    Returns:
+        0 表示成功；1 表示归档校验失败或发布失败（含未被包装成输入错误的
+        ``OSError``）；2 表示输入非法（路径不存在、目标已存在、工作目录位于
+        Vault 内、Vault 含符号链接或不可移植路径等）。
+
+    Note:
+        末尾的 ``parser.error`` 分支在正常解析流程中不可达（子命令为必需项），
+        保留它是为了将来新增子命令时漏接分支也能明确失败而不是静默返回 0。
+    """
     parser = build_parser()
     args = parser.parse_args(argv)
 

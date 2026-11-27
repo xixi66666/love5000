@@ -1,3 +1,12 @@
+"""GitHub 仓库分类规则的离线用例。
+
+`classify_repository` 是纯函数：先按 topics 精确匹配，再把名称与描述做驼峰拆分、
+标点归一后按英文短语匹配，最后按 AGENT → SKILL → MCP → PLUGIN 的固定顺序去重输出，
+`matched_rules` 记录命中来源（如 `topic:ai-agent`）以便解释分类结果。
+这里覆盖 topic 与短语两条通路、大小写不敏感、多分类排序，以及只写 `skill`
+（单词形式）不得被误判为 SKILL 的边界。无网络、无数据库。
+"""
+
 from app.collector.classifier import classify_repository
 
 
@@ -51,6 +60,7 @@ def test_single_word_skill_is_not_misclassified() -> None:
 
 
 def test_multiple_categories_sorted_and_deduplicated() -> None:
+    """分类顺序按固定优先级而非命中顺序，同一仓库重复命中只保留一个标签。"""
     result = classify_repository(
         name="agent framework and agent skills hub",
         description="mcp server collection",

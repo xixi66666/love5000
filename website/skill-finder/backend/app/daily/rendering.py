@@ -1,4 +1,12 @@
-"""两种画面引擎共用同一套母带、实际媒体验收和就绪发布流程。"""
+"""两种画面引擎共用同一套母带、实际媒体验收和就绪发布流程。
+
+`finish_render` 是唯一把渲染器输出提升为正式结果的关口：Node 只允许写
+`render-raw-result.json`；这里核对分镜时长、更新 `render-progress.json` 的 phase、
+调用母带函数复检真实音视频，最后原子发布 `render-result.json`。
+
+失败时删除所有中间结果并把 phase 写成 `failed`，因此未通过验收的成片不会进入待
+审核状态；phase 只反映实际推进到的阶段，不预估剩余帧数。
+"""
 from __future__ import annotations
 
 import json
@@ -10,6 +18,26 @@ from app.daily.progress import current
 
 def finish_render(directory: Path, manifest: dict, *, invoke: Callable[[Path], None],
                   master: Callable, engine: str) -> float:
+    """把渲染器的原始输出提升为正式结果。
+
+    顺序：清理旧结果、调用引擎、只读取 `render-raw-result.json`、核对分镜时间轴、
+    把 phase 记为 mastering、调用母带函数做混音与真实音视频验收，最后原子发布
+    `render-result.json`。
+
+    Args:
+        directory: 本期任务目录。
+        manifest: `prepare` 写出的清单，用分镜帧数核对时长。
+        invoke: 引擎调用，签名 `invoke(directory)`。
+        master: 母带函数，签名 `master(directory, duration, music=...)`。
+        engine: 写入结果的引擎标识，`remotion` 或 `hyperframes`。
+
+    Returns:
+        成片时长，单位秒。
+
+    Raises:
+        RuntimeError: 渲染结果与分镜时长不一致，或母带验收失败。失败时删除中间
+            结果并把 phase 写成 `failed`，不会残留正式结果。
+    """
     progress = current()
     if progress:
         progress.begin("render", "正在编排模板、渲染画面并编码音视频。")

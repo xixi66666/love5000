@@ -1,3 +1,13 @@
+"""健康检查、工作台静态页面与版本状态接口的冒烟测试。
+
+覆盖分支：`GET /api/health` 的成功响应结构（顶层 `success` 与稳定的 `service`
+标识）、`GET /` 返回的工作台页面关键片段、`/static` 下 CSS/JS 的可访问性，
+以及 `GET /api/status` 暴露的模型版本、Provider 名称和 DuckDB 存储路径。
+
+隔离方式：全部通过 FastAPI `TestClient` 在进程内调用，按 `configs/app.yaml`
+构造真实 pipeline，不启动 uvicorn、不发任何上游行情请求。
+"""
+
 from fastapi.testclient import TestClient
 
 from main import app

@@ -1,3 +1,16 @@
+"""Provider 工厂、Mock 数据与 DuckDB 仓储的行为测试。
+
+覆盖分支：交易日历（跳过 1 月 1 日、末日 `next_trade_date` 为空）；工厂按配置返回
+Mock/AkShare 并拒绝未知 Provider；显式注入 Provider 时不调用工厂；指数成分与行情
+生成、`available_date` 跳过休市日；财务与估值字段；仓储同步行数与最新版本；
+当日同步命中快照时不再请求 Provider（用调用计数断言）；快速同步只写股票池；
+批量补行情按缺失代码分批、估值优先由行情派生；不完整快照的补齐进度；
+表名/列名校验拒绝注入且不破坏既有行。
+
+隔离方式：临时目录 DuckDB + `MockProvider`/`CountingMockProvider`，用调用计数验证
+"是否真的请求了数据源"，全程不联网。
+"""
+
 from pathlib import Path
 
 import pytest
@@ -9,6 +22,8 @@ from quant.storage.repository import QuantRepository
 
 
 class CountingMockProvider(MockProvider):
+    """记录各接口调用次数的 Mock，用来断言"命中缓存后不再请求数据源"。"""
+
     def __init__(self):
         self.stock_basic_calls = 0
         self.daily_bar_calls = 0

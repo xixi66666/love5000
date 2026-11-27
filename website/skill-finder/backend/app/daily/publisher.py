@@ -1,3 +1,14 @@
+"""抖音发布适配层：只有绑定当前成片指纹的人工批准才会触达提交按钮。
+
+`publish` 的顺序保证：先 `store.verify_approval`（状态为 `approved`、批准摘要与
+当前视频/口播/文案一致、`video.mp4` 的 SHA-256 与记录一致），再检查发布开关与登录
+态，最后才打开创作者后台；上传完成后还会再次校验批准摘要，防止预览与提交之间被
+改动。
+
+结果语义：点击「发布」前失败保持 `approved`；已点击但没有看到平台确认则写
+`publish_unknown`，绝不自动重发。登录态文件由 `douyin_login` 维护，属于私有运行
+数据，其内容不进入报告或日志。
+"""
 from __future__ import annotations
 
 from pathlib import Path
@@ -9,7 +20,18 @@ from app.daily.progress import Tracker
 
 
 async def publish(day: str) -> dict:
-    """Only a hash-bound human approval can reach the creator-center submit button."""
+    """在人工批准后把当前成片提交到抖音创作者后台。
+
+    顺序保证：先 `store.verify_approval` 校验批准摘要与视频 SHA-256，再检查发布
+    开关与登录态，最后才打开创作者后台；上传完成后会再次校验批准摘要，只有仍与
+    审核版本一致才点击「发布」。
+
+    Returns:
+        更新后的报告；`published` 只在平台明确显示成功后写入。
+
+    Raises:
+        ValueError: 没有绑定当前视频的批准，或上传期间批准被改动。
+    """
     with store.lock():
         report = store.load(day)
         if report.get("status") == "published":
@@ -42,7 +64,7 @@ async def publish(day: str) -> dict:
                 await title.fill(report["title"][:30], timeout=120000)
                 caption = page.locator('[contenteditable="true"]').first
                 await caption.fill(report["caption"])
-                # UI changes, login challenges, or ambiguous upload state fail closed.
+                # 页面改版、登录风控或上传结果不确定时一律按失败关闭处理。
                 button = page.get_by_role("button", name="发布", exact=True)
                 await button.wait_for(state="visible", timeout=120000)
                 if not await button.is_enabled():
@@ -71,6 +93,6 @@ async def publish(day: str) -> dict:
             progress.set("publish", "uncertain" if submitted else "blocked",
                          "提交结果未确认，请到抖音作品管理核查，系统不会自动重发。" if submitted
                          else "请检查账号登录或创作者后台页面后再重试。")
-            # A submission with an unknown outcome must never be automatically retried.
+            # 已提交但结果未知的发布绝不能自动重试。
         store.save(report)
         return report

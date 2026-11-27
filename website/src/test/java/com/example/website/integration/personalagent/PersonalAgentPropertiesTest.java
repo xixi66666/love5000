@@ -9,6 +9,16 @@ import org.springframework.context.annotation.Configuration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * {@code personal-agent.click-start.*} 的配置绑定测试。
+ *
+ * <p>用 {@link ApplicationContextRunner} 只装配属性类、进程管理器与控制器，不加载完整
+ * Spring Boot 上下文，也不启动外部进程。</p>
+ *
+ * <p>固定两件事：默认值与 {@code application.yml} 一致（5178、{@code /api/health}、
+ * 控制台日志），以及 {@code enabled=false} 时管理器与控制器都不注册——关闭点击启动后，
+ * 首页不应再存在能拉起个人资料库的入口。</p>
+ */
 class PersonalAgentPropertiesTest {
 
     private final ApplicationContextRunner context = new ApplicationContextRunner()
@@ -45,6 +55,7 @@ class PersonalAgentPropertiesTest {
         });
     }
 
+    /** 只启用 {@code @ConfigurationProperties} 绑定的空配置类，模拟真实自动装配的最小切面。 */
     @Configuration
     @EnableConfigurationProperties
     static class PropertiesConfiguration {

@@ -12,31 +12,77 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+/**
+ * 模板功能树判定器：把任意模板归到一个一级功能与一个二级场景。
+ *
+ * <p>功能树固定为 15 个一级功能（写作、社交媒体、商业营销、视觉设计、摄影、
+ * 视频叙事、编程开发、AI 自动化、数据研究、办公职场、教育学习、专业咨询、
+ * 生活方式、角色互动、其他工具），其下二级场景由 {@link #getCatalog()} 暴露给前端导航。</p>
+ *
+ * <p>判定是纯确定性的关键词规则，只读取模板的 ID、标题、原始分类、标签与来源，
+ * <b>绝不扫描完整 Prompt</b>——大库 Prompt 动辄上万字，逐条解析会让启动时间和内存不可接受。
+ * 优先级自上而下，先命中先返回：</p>
+ * <ol>
+ *   <li>{@link #ID_OVERRIDES}：少数精选模板的标题含义模糊，用 ID 直接钉死分类；</li>
+ *   <li>{@link #HIGH_TITLE_RULES}：强特征标题词，例如“调试”“小红书”“分镜”；</li>
+ *   <li>{@link #METADATA_RULES}：分类与标签的弱特征词，例如“技术与编程”“插画与艺术”；</li>
+ *   <li>{@link #GENERAL_TITLE_RULES}：泛化标题词，例如“总结”“小说”；</li>
+ *   <li>三个图片专用来源兜底为“视觉设计与图片 / 插画艺术”；</li>
+ *   <li>全部未命中时归入“其他工具 / 通用提示词”。</li>
+ * </ol>
+ *
+ * <p>规则里的关键词在构造期统一小写，匹配时用子串包含，因此中文无需分词。
+ * 目录与规则表都是静态不可变结构；目录里的重复 {@code 一级/二级} 组合在类初始化阶段就会抛错，
+ * 规则里写错的 slug 会在该规则首次命中时立刻抛 {@link IllegalStateException}，
+ * 聚合启动过程即可暴露问题，不会静默产出空分类。</p>
+ */
 @Component
 public class TemplateFunctionClassifier {
 
+    /** 一级功能与二级场景的完整目录（15 个一级功能，顺序即前端导航顺序）。 */
     private static final List<CategoryDefinition> CATALOG = buildCatalog();
 
+    /** {@code 一级slug/二级slug} 到分类结果的索引，兼作 slug 合法性校验表。 */
     private static final Map<String, TemplateFunctionClassification> CLASSIFICATIONS =
             buildClassificationIndex(CATALOG);
 
+    /** 精选模板的 ID 到 {@code 一级slug/二级slug} 的强制覆盖，优先于所有关键词规则。 */
     private static final Map<String, String> ID_OVERRIDES = buildIdOverrides();
 
+    /** 最高优先级的标题规则：特征是“看到就该归此类”的强词。 */
     private static final List<Rule> HIGH_TITLE_RULES = buildHighTitleRules();
 
+    /** 元数据规则：只在标题规则未命中时，用原始分类与标签做较弱判定。 */
     private static final List<Rule> METADATA_RULES = buildMetadataRules();
 
+    /** 泛化标题规则：最后兜底的低特异性词，避免过早抢占强规则。 */
     private static final List<Rule> GENERAL_TITLE_RULES = buildGeneralTitleRules();
 
+    /** 图片专用来源：标题与元数据都无特征时，这些来源的条目默认归入插画艺术场景。 */
     private static final List<String> IMAGE_SOURCE_IDS = Arrays.asList(
             "youmind-awesome-gpt-image-2",
             "freestylefly-awesome-gpt-image-2",
             "evolink-awesome-gpt-image-2-prompts");
 
+    /**
+     * 返回功能树目录。
+     *
+     * @return 不可变目录，顺序即前端展示顺序
+     */
     public List<CategoryDefinition> getCatalog() {
         return CATALOG;
     }
 
+    /**
+     * 判定单条模板所属的一级功能与二级场景。
+     *
+     * <p>按“ID 覆盖 → 强标题 → 元数据 → 泛化标题 → 图片来源兜底 → 其他工具”的顺序匹配，
+     * 命中即返回。空模板不会抛异常，直接归入“其他工具 / 通用提示词”，
+     * 保证聚合阶段任何异常数据都不会中断启动。</p>
+     *
+     * @param template 待分类模板，可为 {@code null}
+     * @return 非空的分类结果，包含中英文名称与 slug
+     */
     public TemplateFunctionClassification classify(ImagePromptTemplate template) {
         if (template == null) {
             return classification("other-tools", "general-prompt");
@@ -70,6 +116,16 @@ public class TemplateFunctionClassifier {
         return classification("other-tools", "general-prompt");
     }
 
+    /**
+     * 按顺序尝试一组规则。
+     *
+     * <p>文本为空时不匹配任何规则（避免空串被 {@code contains} 命中）；
+     * 规则表第一个命中即返回，因此插入顺序就是优先级，不要随意重排。</p>
+     *
+     * @param rules 规则表
+     * @param text  已小写的待匹配文本
+     * @return 命中的分类；全部未命中返回 {@code null}
+     */
     private TemplateFunctionClassification match(List<Rule> rules, String text) {
         if (text.isEmpty()) {
             return null;
@@ -82,6 +138,15 @@ public class TemplateFunctionClassifier {
         return null;
     }
 
+    /**
+     * 拼接用于元数据规则匹配的文本。
+     *
+     * <p>普通条目由原始分类加全部标签组成。{@code prompt123} 来源的标签噪声较大，
+     * 只保留分类，避免宽泛标签把条目误判到无关功能。</p>
+     *
+     * @param template 模板
+     * @return 空格分隔的元数据文本（未归一化）
+     */
     private String joinMetadata(ImagePromptTemplate template) {
         StringBuilder text = new StringBuilder();
         append(text, template.getCategory());
@@ -96,17 +161,44 @@ public class TemplateFunctionClassifier {
         return text.toString();
     }
 
+    /**
+     * 追加一个非空白字段到拼接串，前置空格作为分隔。
+     *
+     * @param text  拼接缓冲
+     * @param value 待追加字段，可为 {@code null}
+     */
     private void append(StringBuilder text, String value) {
         if (value != null && !value.trim().isEmpty()) {
             text.append(' ').append(value);
         }
     }
 
+    /**
+     * 按 {@code 一级slug/二级slug} 取分类结果。
+     *
+     * <p>只按第一个斜杠切分两段，因此多写斜杠不会被静默忽略：多出的部分会留在第二段，
+     * 查表时命中不到并抛错，等于顺带校验了路径格式。</p>
+     *
+     * @param path 形如 {@code visual-design-images/poster-layout} 的路径
+     * @return 分类结果
+     * @throws IllegalStateException 路径不在目录中（启动期规则书写错误的信号）
+     */
     private TemplateFunctionClassification classification(String path) {
         String[] parts = path.split("/", 2);
         return classification(parts[0], parts[1]);
     }
 
+    /**
+     * 按一级与二级 slug 取分类结果。
+     *
+     * <p>结果来自 {@link #CLASSIFICATIONS}，因此返回对象是共享的不可变实例，
+     * 调用方不要修改它。</p>
+     *
+     * @param categorySlug 一级功能 slug
+     * @param sceneSlug    二级场景 slug
+     * @return 分类结果
+     * @throws IllegalStateException 组合不在目录中
+     */
     private TemplateFunctionClassification classification(String categorySlug,
                                                           String sceneSlug) {
         TemplateFunctionClassification value =
@@ -118,6 +210,15 @@ public class TemplateFunctionClassifier {
         return value;
     }
 
+    /**
+     * 构造 15 个一级功能及其二级场景目录。
+     *
+     * <p>这里的顺序就是前端导航顺序，也是 {@code /meta} 功能树的输出顺序；
+     * 场景 slug 是前端筛选参数，一旦发布就应保持稳定，否则页面保存的筛选条件会失效。
+     * 返回列表不可变，避免运行期被修改。</p>
+     *
+     * @return 不可变目录
+     */
     private static List<CategoryDefinition> buildCatalog() {
         List<CategoryDefinition> categories = new ArrayList<CategoryDefinition>();
         categories.add(category("写作与内容", "writing-content",
@@ -218,6 +319,17 @@ public class TemplateFunctionClassifier {
         return Collections.unmodifiableList(categories);
     }
 
+    /**
+     * 由目录生成 {@code 一级slug/二级slug} 到分类结果的索引。
+     *
+     * <p>重复组合（同一 slug 被两个场景复用）会让筛选结果串味，
+     * 因此在类初始化阶段直接抛错。返回索引不可变，分类结果在其中复用，
+     * 使 {@link #classify} 不必每次新建对象。</p>
+     *
+     * @param categories 功能目录
+     * @return 不可变索引
+     * @throws IllegalStateException 存在重复的 {@code 一级/二级} 组合
+     */
     private static Map<String, TemplateFunctionClassification> buildClassificationIndex(
             List<CategoryDefinition> categories) {
         Map<String, TemplateFunctionClassification> index =
@@ -236,6 +348,15 @@ public class TemplateFunctionClassifier {
         return Collections.unmodifiableMap(index);
     }
 
+    /**
+     * 精选模板的 ID 级分类覆盖。
+     *
+     * <p>这些模板的标题偏商业表述（例如“商品海报 / 电商图生成”），关键词规则容易把它们
+     * 分散到营销、视觉或摄影多个分类。用 ID 直接钉死可以保证导航计数稳定，
+     * 也说明新增精选模板若要固定分类，应该在这里登记而不是放宽规则。</p>
+     *
+     * @return 不可变的 ID 到 {@code 一级/二级} 路径映射
+     */
     private static Map<String, String> buildIdOverrides() {
         Map<String, String> overrides = new LinkedHashMap<String, String>();
         overrides.put("commerce-product-poster",
@@ -253,6 +374,15 @@ public class TemplateFunctionClassifier {
         return Collections.unmodifiableMap(overrides);
     }
 
+    /**
+     * 强特征标题规则表。
+     *
+     * <p>顺序即优先级，并且刻意让“具体技术栈/具体文体”先于“宽泛领域”：
+     * 调试、测试、前端、后端、移动端、DevOps 等编程场景排在通用的“代码生成”之前，
+     * 否则任何含“代码”的标题都会落进代码生成。同一条规则内的关键词是“或”关系。</p>
+     *
+     * @return 不可变规则表
+     */
     private static List<Rule> buildHighTitleRules() {
         List<Rule> rules = new ArrayList<Rule>();
 
@@ -402,6 +532,15 @@ public class TemplateFunctionClassifier {
         return Collections.unmodifiableList(rules);
     }
 
+    /**
+     * 分类与标签的元数据规则表。
+     *
+     * <p>大库原始分类名（如“技术与编程”“插画与艺术”“摄影与真实感”）比标题更能代表主题，
+     * 但特异性低于强标题词，因此只在标题规则全部未命中时启用。
+     * 顺序即优先级，靠前的具体分类优先于靠后的宽泛分类。</p>
+     *
+     * @return 不可变规则表
+     */
     private static List<Rule> buildMetadataRules() {
         List<Rule> rules = new ArrayList<Rule>();
         rules.add(rule("programming-development", "cybersecurity",
@@ -478,6 +617,15 @@ public class TemplateFunctionClassifier {
         return Collections.unmodifiableList(rules);
     }
 
+    /**
+     * 泛化标题规则表，只在前两级规则全部未命中时使用。
+     *
+     * <p>这里的词（如“文章”“计划”“角色”）覆盖面广、特异性低，放在最后可以兜住
+     * “标题里只有一个宽泛名词”的条目，又不会抢走更精确的分类。
+     * 若某天需要更准确的归属，应把新词加到强标题规则，而不是继续扩充本表。</p>
+     *
+     * @return 不可变规则表
+     */
     private static List<Rule> buildGeneralTitleRules() {
         List<Rule> rules = new ArrayList<Rule>();
         rules.add(rule("writing-content", "translation-language",
@@ -517,34 +665,83 @@ public class TemplateFunctionClassifier {
         return Collections.unmodifiableList(rules);
     }
 
+    /**
+     * 构造一个一级功能节点。
+     *
+     * @param name   中文名（前端展示）
+     * @param slug   英文 slug（前端筛选参数）
+     * @param scenes 二级场景，顺序即展示顺序
+     * @return 不可变分类定义
+     */
     private static CategoryDefinition category(String name,
                                                String slug,
                                                SceneDefinition... scenes) {
         return new CategoryDefinition(name, slug, Arrays.asList(scenes));
     }
 
+    /**
+     * 构造一个二级场景节点。
+     *
+     * @param name 中文名
+     * @param slug 英文 slug
+     * @return 场景定义
+     */
     private static SceneDefinition scene(String name, String slug) {
         return new SceneDefinition(name, slug);
     }
 
+    /**
+     * 构造一条分类规则。
+     *
+     * <p>关键词在 {@link Rule} 构造期统一小写，因此这里可以按最自然的中英文写法录入。</p>
+     *
+     * @param categorySlug 目标一级功能 slug
+     * @param sceneSlug    目标二级场景 slug
+     * @param keywords     触发关键词，任意一个被包含即命中
+     * @return 规则实例
+     */
     private static Rule rule(String categorySlug,
                              String sceneSlug,
                              String... keywords) {
         return new Rule(categorySlug, sceneSlug, Arrays.asList(keywords));
     }
 
+    /**
+     * 归一化待匹配文本：去首尾空白并转小写。
+     *
+     * <p>规则关键词与模板字段都走同一套归一化，因此匹配不区分大小写；
+     * 使用 {@link Locale#ROOT} 避免区域相关的转换差异。{@code null} 归一为空串，
+     * 使后续 {@code contains} 不必判空。</p>
+     *
+     * @param value 原始文本，可为 {@code null}
+     * @return 归一化结果；{@code null} 返回空串
+     */
     private static String normalize(String value) {
         return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
     }
 
+    /**
+     * 一级功能定义。
+     *
+     * <p>由 {@link #buildCatalog()} 构造后不再变化；{@code slug} 同时是前端筛选参数与
+     * 分类索引的键，改名会让已收藏的链接失效。</p>
+     */
     public static final class CategoryDefinition {
 
+        /** 中文显示名。 */
         private final String name;
 
+        /** 英文 slug，用于 URL 参数与索引键。 */
         private final String slug;
 
+        /** 该功能下的二级场景，顺序即展示顺序。 */
         private final List<SceneDefinition> scenes;
 
+        /**
+         * @param name   中文显示名
+         * @param slug   英文 slug
+         * @param scenes 二级场景
+         */
         private CategoryDefinition(String name,
                                    String slug,
                                    List<SceneDefinition> scenes) {
@@ -554,47 +751,86 @@ public class TemplateFunctionClassifier {
                     new ArrayList<SceneDefinition>(scenes));
         }
 
+        /**
+         * @return 中文显示名
+         */
         public String getName() {
             return name;
         }
 
+        /**
+         * @return 英文 slug
+         */
         public String getSlug() {
             return slug;
         }
 
+        /**
+         * @return 不可变的二级场景列表
+         */
         public List<SceneDefinition> getScenes() {
             return scenes;
         }
     }
 
+    /**
+     * 二级场景定义。
+     *
+     * <p>场景必须挂在一级功能下，前端用它做第二级筛选；同一个场景 slug 不应跨一级功能复用。</p>
+     */
     public static final class SceneDefinition {
 
+        /** 中文显示名。 */
         private final String name;
 
+        /** 英文 slug，在同一一级功能内唯一。 */
         private final String slug;
 
+        /**
+         * @param name 中文显示名
+         * @param slug 英文 slug
+         */
         private SceneDefinition(String name, String slug) {
             this.name = name;
             this.slug = slug;
         }
 
+        /**
+         * @return 中文显示名
+         */
         public String getName() {
             return name;
         }
 
+        /**
+         * @return 英文 slug
+         */
         public String getSlug() {
             return slug;
         }
     }
 
+    /**
+     * 一条分类规则：一组关键词命中任意一个，就把模板归到目标场景。
+     *
+     * <p>关键词在构造期统一小写，保证与模板文本的归一化方式一致。</p>
+     */
     private static final class Rule {
 
+        /** 目标一级功能 slug。 */
         private final String categorySlug;
 
+        /** 目标二级场景 slug。 */
         private final String sceneSlug;
 
+        /** 已小写的触发关键词。 */
         private final List<String> keywords;
 
+        /**
+         * @param categorySlug 目标一级功能 slug
+         * @param sceneSlug    目标二级场景 slug
+         * @param keywords     触发关键词，允许混合中英文
+         */
         private Rule(String categorySlug,
                      String sceneSlug,
                      List<String> keywords) {
@@ -607,6 +843,14 @@ public class TemplateFunctionClassifier {
             this.keywords = Collections.unmodifiableList(normalized);
         }
 
+        /**
+         * 判断文本是否包含任一关键词。
+         *
+         * <p>空关键词会被忽略，否则空串会被任何文本包含而使规则恒真。</p>
+         *
+         * @param text 已小写的待匹配文本
+         * @return {@code true} 表示命中
+         */
         private boolean matches(String text) {
             for (String keyword : keywords) {
                 if (!keyword.isEmpty() && text.contains(keyword)) {

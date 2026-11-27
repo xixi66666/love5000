@@ -8,6 +8,19 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+/**
+ * {@link PersonalAgentController} 的 Web 层测试：standalone MockMvc 加 mock 的
+ * {@link PersonalAgentProcessManager}，不拉起 JVM、不监听 5178。
+ *
+ * <p>本类专门固定「谁可以点启动」。个人资料库承载本机私有资料，因此远程地址、非本机 Host、
+ * 跨源 Origin 一律 403；Origin 的 scheme/host/port 必须与请求一致，所以
+ * {@code http://localhost:8080}、{@code null}、带 path 或 query 的 Origin 全部拒绝；
+ * 没有 Origin 时必须由 {@code Sec-Fetch-Site: same-origin} 证明同源，{@code same-site} 不够；
+ * IPv6 回环 {@code [::1]} 与浏览器实际端口放行。</p>
+ *
+ * <p>另外固定两条契约：启动失败返回 503 与可读 {@code message}；状态接口只读，
+ * 绝不触发启动。</p>
+ */
 class PersonalAgentControllerTest {
 
     private final PersonalAgentProcessManager manager = mock(PersonalAgentProcessManager.class);
@@ -80,6 +93,7 @@ class PersonalAgentControllerTest {
 
     @Test
     void validatesOriginPortAndRejectsMalformedOrigins() throws Exception {
+        // MockMvc 默认 serverPort=80，Origin 却写 8080，端口不一致即视为跨源。
         mvc.perform(post("/api/services/personal-agent/start").header("Origin", "http://localhost:8080"))
                 .andExpect(status().isForbidden());
         mvc.perform(post("/api/services/personal-agent/start").header("Origin", "null"))

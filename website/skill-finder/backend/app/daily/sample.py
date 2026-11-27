@@ -1,4 +1,12 @@
-"""无数据库、无发布动作，使用当前显式选择的视频引擎制作样片。"""
+"""无数据库、无发布动作，使用当前显式选择的视频引擎制作样片。
+
+`generate_sample` 在 `video-samples/<时间戳>/` 下用固定演示分镜渲染一条短片，供
+验收模板、配音与字幕链路；样片文案明确声明“非日榜”，不冒充当天 Trending 结果。
+`legacy` 配置直接报错，不会静默换成另一个引擎。
+
+外部命令：node、ffmpeg、ffprobe，均经所选引擎的适配层调用；失败向上抛出，样片目录
+保留现场供排查。
+"""
 import json
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -8,6 +16,11 @@ from app.daily import store
 
 
 def renderer():
+    """按当前配置返回选中的引擎模块。
+
+    Raises:
+        RuntimeError: 配置为 legacy 时没有样片能力，显式报错而不是换引擎。
+    """
     if settings.daily_video_renderer == "hyperframes":
         from app.daily import hyperframes
 
@@ -20,14 +33,28 @@ def renderer():
 
 
 def invoke_renderer(*args, **kwargs):
+    """把引擎调用转发给当前配置的引擎，用于生成演示片。"""
     return renderer().invoke_renderer(*args, **kwargs)
 
 
 def render(*args, **kwargs):
+    """把整片渲染转发给当前配置的引擎，供样片使用。"""
     return renderer().render(*args, **kwargs)
 
 
 def generate_sample() -> dict:
+    """用固定演示分镜渲染一条样片，供验收模板、配音与字幕链路。
+
+    样片落在 `video-samples/<时间戳>/`，分镜文案明确声明不代表当天榜单；先用
+    `invoke_renderer(..., demo=True)` 生成引擎自带演示素材并写 manifest，再走与
+    正式成片相同的 `render` 流程（含母带与验收）。
+
+    Returns:
+        含样片目录、时长、状态与引擎标识的字典。
+
+    Raises:
+        RuntimeError: 当前引擎为 legacy，或渲染、验收失败。
+    """
     engine = settings.daily_video_renderer
     renderer()  # legacy 模式不静默制作另一引擎的样片。
     hyperframes = engine == "hyperframes"

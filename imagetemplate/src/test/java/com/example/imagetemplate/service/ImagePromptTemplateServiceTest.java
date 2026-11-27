@@ -23,6 +23,19 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * {@link ImagePromptTemplateService} 的聚合、筛选与渲染测试。
+ *
+ * <p>核心断言：47 条精选加 4409 条大库必须得到 4456 条且 ID 全局唯一、精选永远排在最前；
+ * 每条模板都被分类器补全一级功能与二级场景；功能树一级计数之和必须闭合到 4456，编程类的
+ * 二级场景计数之和等于该一级计数；分类、直接提示词、GitHub 来源、关键词、来源与
+ * {@code imageOnly} 过滤行为正确；非法分页参数抛校验异常；直接提示词以原文开头并追加导演
+ * 备注或用户变量；结构化模板合并变量后仍保留任务描述；模板不存在时抛 not found。</p>
+ *
+ * <p>隔离手段：正常用例使用真实 loader 读取 classpath 数据；{@code DEGRADED} 用例用
+ * Mockito 替换 {@link PromptLibraryLoader}，让大库返回错误计数，验证只保留 47 条精选、
+ * 状态降级但仍可查询。全程不启动 Spring、不联网。</p>
+ */
 class ImagePromptTemplateServiceTest {
 
     private ImagePromptTemplateService imagePromptTemplateService;
@@ -101,6 +114,7 @@ class ImagePromptTemplateServiceTest {
         List<ImagePromptTemplate> templates =
                 imagePromptTemplateService.listTemplates("direct-prompt", null);
 
+        // 直接提示词固定 20 条，同时充当中文文案与无占位符约束的样例集。
         assertThat(templates).hasSize(20);
         assertThat(templates).allSatisfy(template -> {
             assertThat(template.getCategory()).isEqualTo("直接提示词");
@@ -252,6 +266,7 @@ class ImagePromptTemplateServiceTest {
 
     @Test
     void reportsDegradedLibraryAndKeepsCuratedTemplates() {
+        // 用 mock 制造大库加载失败，确认降级时精选库仍可服务且状态为 DEGRADED。
         PromptLibraryLoader degradedLoader = mock(PromptLibraryLoader.class);
         when(degradedLoader.loadDefault()).thenReturn(new PromptLibraryLoadResult(
                 Collections.<PromptLibrarySource>emptyList(),
@@ -293,6 +308,11 @@ class ImagePromptTemplateServiceTest {
                 .isInstanceOf(ImagePromptTemplateNotFoundException.class);
     }
 
+    /**
+     * 判断是否存在来源链接包含指定片段的模板。
+     *
+     * <p>精选库允许 {@code sourceUrl} 为空，因此先判空再匹配，避免数据缺口让用例抛空指针。</p>
+     */
     private boolean hasSourceUrlContaining(List<ImagePromptTemplate> templates, String value) {
         for (ImagePromptTemplate template : templates) {
             if (template.getSourceUrl() != null && template.getSourceUrl().contains(value)) {

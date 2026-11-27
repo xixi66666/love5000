@@ -1,4 +1,13 @@
-"""中文配音与真实字幕时间轴；供应商失败时不生成静音占位。"""
+"""中文配音与真实字幕时间轴；供应商失败时不生成静音占位。
+
+两条链路：Edge TTS 直接返回词边界时间戳（`edge_speech`）；MiMo 只回音频，由本地
+faster-whisper 转写真实音轨，再用已确认原稿校正专有名词与繁简（`transcribe` 与
+`align_script`）。无法可靠对齐时抛 `RuntimeError`，绝不按字数均分伪造时间。
+
+外部依赖：`edge-tts` 网络服务；MiMo 的 OpenAI 兼容 `/chat/completions`，地址、密钥
+与音色来自项目根 `model.properties` 的 `mimo.*`；可选 `faster_whisper`
+（`uv sync --extra captions`）。密钥不进入日志或异常消息。
+"""
 from __future__ import annotations
 
 import asyncio
@@ -20,7 +29,17 @@ from app.services import model_settings
 
 def script_phrases(text: str, matcher: SequenceMatcher, times: list[tuple[float, float]],
                    max_chars: int = 18) -> list[str]:
-    """长字幕仅在匹配到的真实词边界拆分，不按字数插值时间。"""
+    """长字幕仅在匹配到的真实词边界拆分，不按字数插值时间。
+
+    Args:
+        text: 已确认的口播原稿。
+        matcher: 原稿与 ASR 识别结果之间的 `SequenceMatcher`。
+        times: 与识别结果每个字符一一对应的时间区间。
+        max_chars: 单条字幕的软上限；找不到可用切点时宁可超长也不切词。
+
+    Returns:
+        按标点与真实词边界切好的短语列表。
+    """
     positions = [index for index, char in enumerate(text) if char.isalnum()]
     measured_cuts = {index for index in range(1, len(times))
                      if times[index - 1][1] <= times[index][0] + 0.01}
@@ -55,7 +74,14 @@ def script_phrases(text: str, matcher: SequenceMatcher, times: list[tuple[float,
 
 
 def group_boundaries(boundaries: list[dict]) -> list[dict]:
-    """按真实词边界组成便于手机阅读的意群，保留原时间。"""
+    """按真实词边界组成便于手机阅读的意群，保留原时间。
+
+    一条意群超过 18 字、与下一词间隔超过 0.45 秒或被句末标点结束时就断开；不做
+    时长插值。
+
+    Raises:
+        RuntimeError: 供应商没有返回任何可信时间戳。
+    """
     result: list[dict] = []
     text, start, end = "", 0.0, 0.0
     for item in boundaries:
@@ -85,6 +111,17 @@ def align_script(text: str, boundaries: list[dict]) -> list[dict]:
     """以 ASR 真实边界对齐已确认原稿，修正专有名词和繁简识别错误。
 
     不生成逐字高亮时间；无法可靠匹配时失败，不回退到按字数均分。
+
+    Args:
+        text: 已确认的原稿，保持业务名称与限制条件原样。
+        boundaries: ASR 词边界，每项含 `text`、`start`、`end`（秒）。
+
+    Returns:
+        与时间相邻的字幕段列表；相邻短语时间重叠时并回上一段。
+
+    Raises:
+        RuntimeError: 时间戳为负、非有限或倒序，原稿与识别结果相似度过低，或有
+            短语找不到对应的实测时间。
     """
     def normalized(value):
         return "".join(char.lower() for char in value if char.isalnum())
@@ -140,6 +177,14 @@ def align_script(text: str, boundaries: list[dict]) -> list[dict]:
 
 
 async def edge_speech(text: str, target: Path) -> list[dict]:
+    """用 Edge TTS 流式合成，并收集 WordBoundary 时间戳。
+
+    Returns:
+        按真实词边界聚合成意群的字幕段。
+
+    Raises:
+        RuntimeError: 音频不足 1 KB（视为空结果），或没有任何可信时间戳。
+    """
     import edge_tts
 
     communicator = edge_tts.Communicate(text, settings.daily_tts_voice, rate="+8%", boundary="WordBoundary")
@@ -159,6 +204,15 @@ async def edge_speech(text: str, target: Path) -> list[dict]:
 
 
 async def mimo_speech(text: str, target: Path) -> None:
+    """调用 MiMo 的 OpenAI 兼容接口合成一段 WAV。
+
+    密钥、模型与音色来自项目根 `model.properties` 的 `mimo.*`；请求固定一段中文
+    科技口播风格提示。响应必须是能通过校验的 base64 RIFF/WAVE。
+
+    Raises:
+        RuntimeError: 未配置密钥、请求失败、额度不足、缺少音频字段或音频非法。
+        ValueError: `mimo.base-url` 不是 HTTPS，也不是本机 HTTP。
+    """
     provider = model_settings.mimo()
     key = provider.api_key if provider else ""
     if not key:
@@ -193,6 +247,11 @@ async def mimo_speech(text: str, target: Path) -> None:
 
 @lru_cache(maxsize=1)
 def whisper_model(name: str):
+    """按模型名加载并缓存 faster-whisper 模型（CPU、int8）。
+
+    Raises:
+        RuntimeError: 未安装 `faster_whisper`，提示安装 `--extra captions`。
+    """
     # MiMo TTS 当前官方接口未承诺词时间戳，不能伪造；对实际音轨做转写取时序。
     try:
         from faster_whisper import WhisperModel
@@ -202,6 +261,18 @@ def whisper_model(name: str):
 
 
 def transcribe(audio: Path, text: str | None = None) -> list[dict]:
+    """转写真实音轨得到时间边界，并用原稿校正文字。
+
+    Args:
+        audio: 实际合成出的音频文件。
+        text: 已确认的原稿；为空时只返回分组后的识别文本。
+
+    Returns:
+        字幕段列表，时间全部来自真实测量。
+
+    Raises:
+        RuntimeError: 模型缺失或对齐失败；调用方停在字幕步骤，不回退到估算时长。
+    """
     model = whisper_model(settings.daily_whisper_model)
     segments, _ = model.transcribe(str(audio), language="zh", word_timestamps=True, vad_filter=True,
                                   initial_prompt=text or "Remotion, React, JSON, GitHub, AI, Skill Finder, MCP")
@@ -213,6 +284,17 @@ def transcribe(audio: Path, text: str | None = None) -> list[dict]:
 
 
 def synthesize(text: str, directory: Path) -> tuple[Path, list[dict]]:
+    """合成一段配音并取得该段的字幕时间轴。
+
+    MiMo 分支先请求音频，再转写实际音轨；Edge 分支直接使用供应商返回的时间戳。
+    两条分支都先把 `voice` 计为一次完成，再推进 `captions`。
+
+    Returns:
+        `(音频路径, 字幕段列表)`；MiMo 产出 `voice.wav`，Edge 产出 `voice.mp3`。
+
+    Raises:
+        RuntimeError: 配音或对齐失败；不会写静音占位。
+    """
     progress = current()
     if progress:
         progress.begin("voice", "正在合成当前段落的人声。")

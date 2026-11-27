@@ -2,6 +2,13 @@ package com.example.website.prompt.library.dto;
 
 import java.util.List;
 
+/**
+ * {@code GET /api/prompts/{id}} 的响应体。
+ *
+ * <p>{@code success} 默认 {@code true}；条目不存在时控制器返回的是
+ * {@code {"success":false,"message":"提示词不存在"}} 的 404 响应，不会生成本对象，
+ * 因此这里只描述命中时的形态。</p>
+ */
 public class PromptDetailResponse {
 
     private boolean success = true;
@@ -23,6 +30,13 @@ public class PromptDetailResponse {
         this.entry = entry;
     }
 
+    /**
+     * 单条提示词的完整详情。
+     *
+     * <p>与列表摘要的区别：这里返回不截断的 {@code prompt} 和 {@code sourceUrl}；
+     * {@code tags} 已在服务层从数据库的逗号分隔串拆成列表；{@code groupName}/{@code sourceName}
+     * 来自 {@code prompt_group}/{@code prompt_source} 的左连接，来源或分类被删除时为 {@code null}。</p>
+     */
     public static class EntryDetail {
 
         private Long id;

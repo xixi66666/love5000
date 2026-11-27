@@ -11,6 +11,15 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * {@link ScraplingUiController} 的 Web 层测试：standalone MockMvc 加 mock 的
+ * {@link ScraplingUiProcessManager}，不启动 Python、不启动浏览器、不连接 5176。
+ *
+ * <p>固定首页卡片依赖的响应契约：启动成功返回 200、{@code success=true}、
+ * {@code status=started} 与可打开的 url；已在线时 {@code status=already-running}；
+ * 启动失败返回 503、{@code success=false} 与可读 {@code message}（例如前端未构建）；
+ * 状态接口只读 manager。</p>
+ */
 class ScraplingUiControllerTest {
 
     @Test

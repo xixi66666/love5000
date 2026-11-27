@@ -24,6 +24,13 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * {@link GuitarVideoServiceImpl} 的单元测试。
+ *
+ * <p>DAO 与 {@code OssUtil} 全部使用 Mockito 替身，{@code ObjectProvider} 手工打桩，
+ * 因此既不连接 MySQL 也不访问真实 OSS。覆盖列表响应字段、上传成功（含封面）、
+ * 标题为空、非法视频后缀、删除（含 OSS 清理与记录不存在）、单独上传封面等分支。</p>
+ */
 class GuitarVideoServiceImplTests {
 
     @Test

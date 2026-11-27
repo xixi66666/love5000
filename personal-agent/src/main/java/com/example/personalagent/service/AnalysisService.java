@@ -11,25 +11,77 @@ import java.util.regex.*;
 import java.util.stream.Collectors;
 import static com.example.personalagent.Api.*;
 
-/** 只分析用户确认的资料快照；报告是待核对的派生笔记，不回写个人事实。 */
+/**
+ * 把用户确认过的资料片段交给模型，生成带来源快照的 Markdown 分析草稿。
+ *
+ * <p>属服务层，关键协作者：{@link VaultService}（读笔记、写报告、取资料指纹）、
+ * {@link WorkspaceState}（任务列表持久化）、{@link AiGateway}（模型调用）。</p>
+ *
+ * <p>非显然行为：单线程池加容量 4 的队列，因此分析串行执行、排队超限立刻拒绝而不是
+ * 无限堆积；任务状态写在状态文件里，重启后残留的 queued/running 会被标成
+ * interrupted，避免页面显示一个永远不会完成的任务。生成前后各比对一次仓库路径与
+ * 资料指纹：资料在分析期间变化时报告仍会写出，但开头会加「依据旧快照」的警示；
+ * 若仓库已被切换则拒绝写入。报告固定落在 {@code 80-AI分析/} 且带
+ * {@code origin: ai_generated} 与 {@code ai_exclude: true}，因此永远不会再被选作素材。</p>
+ *
+ * <p>引用校验只做编号范围检查（{@code [S1]} 到 {@code [Sn]}）：越界或完全没有引用时
+ * 在报告里追加人工核对提示，而不是丢弃模型输出——保留原文才能让用户判断错在哪。</p>
+ */
 @Service
 public class AnalysisService {
     private final VaultService vault;
     private final WorkspaceState state;
     private final AiGateway gateway;
     private final ObjectMapper json;
+    /** 单线程执行器：同一时刻只跑一个分析，避免多个大请求同时打满模型配额；队列满即拒绝。 */
     private final ThreadPoolExecutor worker=new ThreadPoolExecutor(1,1,0,TimeUnit.SECONDS,new ArrayBlockingQueue<>(4),r->{Thread t=new Thread(r,"knowledge-analysis");t.setDaemon(true);return t;});
+    /**
+     * 装配依赖，并把上次进程遗留的未完成任务标记为中断。
+     *
+     * <p>构造期即修正状态文件，保证页面刷新后不会看到永远停留在 running 的条目。</p>
+     *
+     * @param vault   资料库读写入口
+     * @param state   任务列表的持久化载体
+     * @param gateway 模型调用出口
+     * @param json    用于序列化发给模型的资料片段
+     */
     public AnalysisService(VaultService vault,WorkspaceState state,AiGateway gateway,ObjectMapper json){
         this.vault=vault;this.state=state;this.gateway=gateway;this.json=json;
         List<Map<String,Object>> jobs=history();boolean changed=false;
         for(Map<String,Object> j:jobs)if(Arrays.asList("queued","running").contains(j.get("status"))){j.put("status","interrupted");j.put("message","服务重启中断了分析，请重新选择资料后生成");changed=true;}
         if(changed)state.put("analyses",jobs);
     }
+    /**
+     * 返回全部分析任务。
+     *
+     * @return 任务副本列表，最新的在前；修改返回值不会写回状态文件
+     */
     public synchronized List<Map<String,Object>> history(){List<Map<String,Object>> values=state.get("analyses");return values==null?new ArrayList<>():values;}
+    /**
+     * 插入或更新一条任务并立即落盘：先按 id 去重，再放到列表头部。
+     *
+     * @param job 任务对象，必须含 {@code id}；同 id 的旧记录被替换而不是追加
+     */
     private synchronized void save(Map<String,Object> job){List<Map<String,Object>> values=history();values.removeIf(j->j.get("id").equals(job.get("id")));values.add(0,new LinkedHashMap<>(job));state.put("analyses",values);}
+    /** 兼容旧调用的预览入口，等价于不限定来源路径的预览。 */
     public Map<String,Object> preview(String question,String domain)throws Exception {
         return preview(question, domain, "");
     }
+    /**
+     * 生成分析前的候选资料清单，不调用模型。
+     *
+     * <p>指定 {@code sourcePath} 时只校验这一篇是否可发送；否则在可发送笔记中做关键词
+     * 打分：标题命中计 5 分、正文命中计 1 分，中文按滑动双字切词以提高召回，
+     * 同分再按修改时间倒序。这是字面量检索而非语义向量检索，返回的 {@code method}
+     * 字段也如实说明这一点，避免用户误判筛选质量。</p>
+     *
+     * @param question   用户问题，1–3000 字，同时作为检索词来源
+     * @param domain     领域 slug，空串表示全部领域
+     * @param sourcePath 指定笔记的相对路径；空串表示按关键词自动挑选
+     * @return {@code sources/eligible_total/method/max_sources}，最多 8 条来源，
+     *         每条正文截断到 2800 字符并用 {@code truncated} 标记
+     * @throws Exception 问题为空或超长返回 422；指定笔记不可发送时同样拒绝
+     */
     public Map<String,Object> preview(String question,String domain,String sourcePath)throws Exception {
         require(question!=null&&!question.trim().isEmpty()&&question.length()<=3000,"问题应为1到3000字");
         if (!sourcePath.isEmpty()) {
@@ -48,12 +100,37 @@ public class AnalysisService {
         for(VaultNote n:all.subList(0,Math.min(8,all.size())))sources.add(source(n,sources.size()+1));
         return map("sources",sources,"eligible_total",all.size(),"method","本地关键词与时间排序；请检查并取消不相关资料","max_sources",8);
     }
+    /**
+     * 计算一篇笔记与检索词的字面匹配分。
+     *
+     * @return 标题命中每次 5 分、正文命中每次 1 分；同一检索词只累加一次
+     */
     private int score(VaultNote n,List<String> tokens){int score=0;String text=(n.title+" "+n.body).toLowerCase(Locale.ROOT);for(String token:tokens)if(text.contains(token))score+=n.title.contains(token)?5:1;return score;}
+    /**
+     * 把笔记包装成可发送的来源片段。
+     *
+     * <p>导入资料取「已核对文字」而不是整篇正文，避免把未复核的 AI 草稿再喂回模型。</p>
+     *
+     * @param number 从 1 开始的引用编号，对应报告正文里的 {@code [Sn]}
+     * @return 含 {@code ref/path/title/domain/revision/properties/modified_at/excerpt/truncated}
+     */
     private Map<String,Object> source(VaultNote n,int number){
         String body = "imported_document".equals(n.properties.get("record_type")) ? LocalDocuments.reviewedText(n) : n.body;
         return map("ref","S"+number,"path",n.path,"title",n.title,"domain",n.domain,"revision",n.revision,
             "properties",n.properties,"modified_at",n.modifiedAt,"excerpt",body.substring(0,Math.min(2800,body.length())),"truncated",body.length()>2800);
     }
+    /**
+     * 校验并排队一次分析任务。
+     *
+     * <p>校验按「为什么拒绝」分层：缺授权、来源为空、超过 8 条、来源重复、笔记当前不可
+     * 发送、revision 与请求不一致，各有独立提示。读取来源与取指纹在 {@code vault} 监视器
+     * 内完成，保证快照与资料一致；入队前再确认队列还有空位。</p>
+     *
+     * @param input 请求体：{@code question}、{@code sources}（每项含 {@code path} 与
+     *              {@code revision}）、{@code consent=true}，可选 {@code domain}
+     * @return 新任务对象，{@code status=queued}；最终结果通过 {@link #history()} 轮询
+     * @throws Exception 任一校验失败抛 422/409；队列已满时同样抛 422
+     */
     @SuppressWarnings("unchecked") public synchronized Map<String,Object> start(Map<String,Object> input)throws Exception {
         String question=text(input,"question");require(!question.trim().isEmpty()&&question.length()<=3000,"问题应为1到3000字");
         require(Boolean.TRUE.equals(input.get("consent")),"请先确认将所选资料发送给当前模型进行分析");
@@ -73,6 +150,17 @@ public class AnalysisService {
         require(worker.getQueue().remainingCapacity()>0,"分析队列已满，请等待当前任务结束");save(job);
         worker.execute(()->run(job,material));return job;
     }
+    /**
+     * 后台执行一次分析：构造约束提示词、调用模型、校验引用、写出报告。
+     *
+     * <p>异常按可恢复程度分流：缺模型配置标 waiting_configuration（用户补上配置后可重发），
+     * 其余标 failed 并给通用排查提示；无论成败都在 {@code finally} 里补 finished_at 并落盘。
+     * 写报告前再次比对仓库路径与指纹，并把「资料已变化」与「引用越界」写成 Markdown 警示块
+     * 附在报告开头，让读者一眼看到可信度。</p>
+     *
+     * @param job      已入队的任务对象，方法内就地更新状态字段
+     * @param material 实际发出的来源片段，顺序决定 {@code [Sn]} 编号
+     */
     private void run(Map<String,Object> job,List<Map<String,Object>> material){
         job.put("status","running");save(job);
         try{
@@ -103,6 +191,8 @@ public class AnalysisService {
         catch(Exception e){job.put("status","failed");job.put("message","分析未完成：请检查模型连接和仓库状态，重新检索资料后再试");}
         finally{job.put("finished_at",now());save(job);}
     }
+    /** 是否有分析正在执行或排队；切换仓库、重建 Quartz 前用它拦住并发写。 */
     public boolean busy(){return worker.getActiveCount()>0||!worker.getQueue().isEmpty();}
+    /** 容器关闭时中断执行线程；未完成的任务在下次启动时被标为 interrupted。 */
     @PreDestroy public void close(){worker.shutdownNow();}
 }

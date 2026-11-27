@@ -1,3 +1,26 @@
+"""模板编辑器的源码、样式、版本与预览边界。
+
+被测对象是 `app.daily.templates` 与 `/api/v1/daily-reports/template` 系列接口。
+这里锁定几条“出错会很贵”的约束：
+
+- 管理接口必须带 `X-Admin-Key`；草稿只能提交声明过的可编辑文件，`../../.env`
+  这类越界路径直接 422，且不能落地 `active.json`；
+- `Draft` 校验同时管大小与样式：单文件超 128 KiB、主题里出现 `url(https://...)`
+  远程资源都拒绝；
+- 编译失败与运行时预览失败都不能改动当前生效模板；保存/恢复走“版本目录 + revision”
+  机制，`expected_revision` 对不上时必须在编译前就 409；
+- 已审核日报（视频、口播、文案）不受模板保存、恢复或版本切换影响；
+- 预览只对外提供打包产物：源码与 `preview.json` 返回 404，并带 CSP/CORS 头；
+- Remotion 与 HyperFrames 的源码、版本目录、预览路由互相隔离，不能跨引擎复用文件
+  或恢复版本；每个引擎只允许编辑自己声明的文件，`package.json` 这类构建文件不能进
+  草稿。
+
+隔离方式：`workspace` / `hyperframes_workspace` 把日报目录指到 `tmp_path`、注入测试
+用 `admin_key`，并用假的 `run`（只写 `diagnostics.json` 与 `preview/app.js`）、
+假的 `invoke_renderer` 顶替真实 node 编译与渲染，因此既不需要 Node.js 也不会真的
+编码视频；渲染目录与引擎选择都通过 monkeypatch 控制。
+"""
+
 import json
 from pathlib import Path
 from unittest.mock import Mock
@@ -13,6 +36,13 @@ from app.main import app
 
 @pytest.fixture
 def workspace(tmp_path, monkeypatch):
+    """准备 Remotion 引擎的模板工作区，返回可作为基线对比的文档。
+
+    内容：临时日报目录、测试用 `admin_key`、以及两个替身——`templates.run` 只写出
+    “编译成功”的产物（`preview/app.js` 与 `diagnostics.json`），
+    `remotion.invoke_renderer` 什么都不做。这样版本切换逻辑可以在没有 Node.js 的
+    机器上被完整验证。
+    """
     monkeypatch.setattr(settings, "daily_video_renderer", "remotion")
     monkeypatch.setattr(settings, "daily_reports_dir", str(tmp_path / "reports"))
     monkeypatch.setattr(settings, "admin_key", type(settings.admin_key)("template-test-only"))
@@ -30,6 +60,12 @@ def workspace(tmp_path, monkeypatch):
 
 @pytest.fixture
 def hyperframes_workspace(workspace, tmp_path, monkeypatch):
+    """在 `workspace` 之上补一个 HyperFrames 渲染目录。
+
+    只创建 `src/template.html`、`src/demo.html` 与 `src/template-defaults.json`，
+    够让 HyperFrames 文档组装出可编辑文件列表；`HYPERFRAMES_RENDERER` 指向这个临时
+    目录，避免读写仓库里真实的 `hyperframes-renderer/`。
+    """
     renderer = tmp_path / "hyperframes-renderer"
     (renderer / "src").mkdir(parents=True)
     for name in ("template.html", "demo.html"):
@@ -40,12 +76,14 @@ def hyperframes_workspace(workspace, tmp_path, monkeypatch):
 
 
 def body(document):
+    """把文档基线拼成提交用的草稿体：可编辑源码、当前 revision 与主题。"""
     return {"engine": document.get("engine", "remotion"),
             "expected_revision": document["revision"], "theme": document["theme"],
             "sources": {file["path"]: file["code"] for file in document["sources"] if file["editable"]}}
 
 
 def client():
+    """管理接口只放行 HTTPS 或本机来源，这里用 localhost 作为 base_url 通过校验。"""
     return TestClient(app, base_url="http://localhost")
 
 
@@ -156,6 +194,7 @@ def test_hyperframes_has_separate_sources_and_preview_capability(hyperframes_wor
 
 
 def test_drafts_cannot_reuse_files_from_another_engine(hyperframes_workspace, workspace):
+    """三种非法草稿：跨引擎复用源码、缺少 engine、夹带 `package.json` 构建文件。"""
     draft = body(hyperframes_workspace)
     draft["sources"] = body(workspace)["sources"]
     with pytest.raises(ValidationError):
@@ -175,6 +214,7 @@ def test_legacy_remotion_metadata_remains_readable(workspace):
     templates.store_version(project, theme, revision)
     version_path = templates.root("remotion") / "versions" / revision / "version.json"
     version = json.loads(version_path.read_text(encoding="utf-8"))
+    # 早于多引擎的版本元数据没有 engine 字段，仍必须能读出当前 revision。
     version.pop("engine")
     templates.json_write(version_path, version)
     templates.json_write(templates.root("remotion") / "active.json", {"revision": revision})

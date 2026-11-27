@@ -1,3 +1,21 @@
+"""仓库列表 / 详情与统计接口的响应契约。
+
+覆盖 `app.api.v1.repositories` 与 `app.api.v1.stats`：
+
+- 列表返回固定字段集合，且 `page` / `page_size` / `sort` / `category` 非法取值一律
+  422（这些参数直接决定 SQL 排序与过滤，不能放过）；
+- 详情 404 走统一错误体，带稳定 `code` 与 `request_id`，便于前端提示和查日志；
+- 统计响应除原有三项外必须带后端补的 `last_run_id` / `last_run_error` /
+  `last_run_warning`，前端刷新轮询依赖这三个可空字段。
+
+另外覆盖 `_parse_introduction` 的三种历史存储格式：完整结构（顺带过滤空白亮点）、
+旧版只存部分字段、以及更早的纯文本。
+
+隔离方式：用独立 `FastAPI()` 只挂需要的路由，并通过 `app.dependency_overrides`
+把 `get_repository_service` / `get_stats_service` 换成文件内的假实现，
+因此不连 MySQL；注册真实 `api_error_handler` 让错误体与线上一致。
+"""
+
 from __future__ import annotations
 
 import json
@@ -13,6 +31,7 @@ from app.schemas.common import PageParams
 from app.schemas.repository import RepositoryDetail, RepositoryListItem
 from app.services.repository_service import _parse_introduction
 
+# 列表接口的样例条目：字段齐全，便于断言序列化后的形状与默认值。
 DUMMY_ITEM = RepositoryListItem(
     id=1,
     owner="octocat",
@@ -32,6 +51,12 @@ DUMMY_ITEM = RepositoryListItem(
 
 
 class FakeRepositoryService:
+    """假仓储服务：列表固定返回一条 `DUMMY_ITEM` 并记下过滤参数。
+
+    详情只认 `octocat/agent-hub`，其余情况抛 `ApiError(REPOSITORY_NOT_FOUND)`
+    模拟“仓库不存在”，让 404 分支走真实错误处理器。
+    """
+
     def __init__(self) -> None:
         self.last_params: dict[str, Any] = {}
         self.detail: RepositoryDetail | None = None
@@ -73,6 +98,7 @@ class FakeRepositoryService:
 
 @pytest.fixture()
 def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    """只挂 repositories 路由的测试客户端，服务依赖被替换成假实现。"""
     service = FakeRepositoryService()
 
     async def service_dep():
@@ -102,6 +128,8 @@ def test_list_contract_shape(client: TestClient) -> None:
     assert item["trend"] == []
 
 
+# 六种非法参数：页码为 0、页码非数字、页大小越界（101 / 0）、未知 sort、未知 category。
+# 每种都要 422，且错误信息里点出出错字段名，前端才能定位到对应输入框。
 @pytest.mark.parametrize(
     ("params", "invalid"),
     [

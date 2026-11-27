@@ -9,11 +9,24 @@ import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * {@code ModelProperties} 的解析行为测试。
+ *
+ * <p>所有用例都把配置写进 JUnit 临时目录，不读取仓库根目录真实的 {@code model.properties}；
+ * 覆盖提供商与路由解析、全局路由回退、文件缺失时的空目录语义，以及非法路由被静默忽略。</p>
+ */
 class ModelPropertiesTest {
 
     @TempDir
     Path dir;
 
+    /**
+     * 把配置文本写入临时文件并解析，供各用例复用。
+     *
+     * @param content properties 文本内容
+     * @return 解析出的配置快照
+     * @throws Exception 写文件失败时抛出
+     */
     private ModelProperties load(String content) throws Exception {
         Path file = dir.resolve("model.properties");
         Files.write(file, content.getBytes(StandardCharsets.UTF_8));

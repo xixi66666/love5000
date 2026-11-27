@@ -1,3 +1,11 @@
+"""Obsidian 交易笔记服务（services.obsidian_service.ObsidianTradingService）的单元测试。
+
+被测对象：日复盘 Markdown 的生成、股票笔记“系统维护区 + 手写心得区”的合并，以及洞察索引的
+分节写入；三者都直接决定写进用户真实 vault 的内容，因此断言的是正文关键字而不是文件存在。
+
+隔离：每个用例用 ``tempfile.TemporaryDirectory`` 充当 vault 根，所有路径都落在临时目录内，
+不读写 obsidian-vault/A股AI，也不发网络请求。
+"""
 import tempfile
 import unittest
 from pathlib import Path
@@ -6,6 +14,7 @@ from services.obsidian_service import ObsidianTradingService
 
 
 class ObsidianTradingServiceTests(unittest.TestCase):
+    """覆盖三个写入入口：日复盘文件、股票笔记保留手写区、洞察索引分节。"""
     def test_write_daily_review_creates_markdown_file(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             service = ObsidianTradingService(Path(temp_dir))

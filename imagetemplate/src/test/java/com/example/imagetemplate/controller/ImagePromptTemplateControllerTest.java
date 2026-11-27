@@ -16,6 +16,18 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * {@link ImagePromptTemplateController} 的 MockMvc 契约测试。
+ *
+ * <p>服务层使用真实实现装载 classpath 上的 47 条精选模板与 4409 条大库，因此断言的是真实
+ * 聚合结果的 HTTP 形状：列表按 48 条分页且只含摘要、meta 总量为 4456、来源 7 个、一级
+ * 功能 15 个、功能筛选按 slug 命中、详情返回完整 prompt、{@code size=101} 返回 400 并提示
+ * 上限 100。</p>
+ *
+ * <p>隔离手段：只装配当前 Controller 的 {@code standaloneSetup}，并把
+ * {@link OpenAiImageGenerationService} 替换为 Mockito mock；生成接口在测试中不会被调用，
+ * 因而不联网、不需要 API Key。</p>
+ */
 class ImagePromptTemplateControllerTest {
 
     private static MockMvc mockMvc;
@@ -59,6 +71,7 @@ class ImagePromptTemplateControllerTest {
                 .andExpect(jsonPath("$.status.status").value("READY"))
                 .andExpect(jsonPath("$.sources.length()").value(7))
                 .andExpect(jsonPath("$.functionCategories.length()").value(15))
+                // 一级功能顺序由分类器目录固定，编程与技术开发固定在第 7 位（索引 6）。
                 .andExpect(jsonPath("$.functionCategories[6].slug")
                         .value("programming-development"));
     }

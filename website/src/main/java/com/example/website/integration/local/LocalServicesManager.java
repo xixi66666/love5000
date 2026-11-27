@@ -14,6 +14,26 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Strata、AIMedia、H3 三个本机服务的管理编排。
+ *
+ * <p>属于 integration/local 的服务层，组合 {@link LocalServiceClient}（HTTP）、
+ * {@link LocalServiceProcessRunner}（进程）与 {@link LocalServiceProperties}
+ * （目录、端口、等待时长），对外只暴露 {@link #status(String)} 与
+ * {@link #action(String, String)}。操作范围固定为这三个服务：端口与命令行由本类拼装，
+ * 不接受浏览器传入的命令、PID 或路径。</p>
+ *
+ * <p>关键约束：</p>
+ * <ul>
+ *   <li>只有 Strata 支持 {@code load}，AIMedia 不支持 {@code unload}，其余组合一律 400。</li>
+ *   <li>停止或释放前先确认空闲：H3 检查 ComfyUI 队列，AIMedia 检查操作台作业；
+ *       忙碌返回 409，无法确认队列则返回 503 并拒绝操作。</li>
+ *   <li>启动时先探测，已在线直接复用；拉起后按 300 毫秒轮询，最多等待
+ *       {@code startup-timeout-seconds}（默认 180 秒），超时后不会重复拉起进程。</li>
+ *   <li>{@code action} 是同步方法，同一时刻只允许一个启停操作，避免并发重复派生进程；
+ *       已派生的进程缓存在 {@code processes} 中，供停止时清理。</li>
+ * </ul>
+ */
 @Component
 public class LocalServicesManager {
     private static final Logger log = LoggerFactory.getLogger(LocalServicesManager.class);
@@ -29,6 +49,16 @@ public class LocalServicesManager {
         this.runner = runner;
     }
 
+    /**
+     * 读取单个本机服务的状态。
+     *
+     * @param service 服务标识：strata、aimedia 或 h3
+     * @return 固定字段的状态表：{@code success} 恒为 true，{@code running} 表示探测通过，
+     *         {@code url} 为服务首页地址；{@code loaded} 仅 Strata 有值；{@code modelState}
+     *         对 H3 固定为 {@code on-demand}，因为引擎在线不代表权重已加载；
+     *         {@code installed} 表示 H3 的四个模型文件是否齐全
+     * @throws LocalServiceException 服务标识未知时抛出 404
+     */
     public Map<String, Object> status(String service) {
         int port = port(service);
         JsonNode remote = probe(service);
@@ -44,6 +74,20 @@ public class LocalServicesManager {
         return state;
     }
 
+    /**
+     * 执行本机服务的启停与模型加载、释放操作。
+     *
+     * <p>先做能力矩阵校验，再按操作分派：{@code start} 拉起服务；{@code load} 拉起后调用
+     * Strata 的 {@code /load}；{@code unload} 与 {@code stop} 在服务在线时先确认空闲，
+     * 再调用 {@code /unload}（Strata）或 {@code /free}（H3），{@code stop} 最后执行停止脚本。
+     * AIMedia 的停止直接校验操作台是否空闲。返回的是操作后的最新状态，便于前端立即刷新。</p>
+     *
+     * @param service 服务标识
+     * @param action  操作名，仅支持 start、load、unload、stop
+     * @return 操作后的状态，并附带 {@code action} 与结果 {@code message}
+     * @throws LocalServiceException 服务标识未知（404）、操作不受支持（400）、
+     *                               任务忙碌（409）、无法确认状态或执行失败（503）时抛出
+     */
     public synchronized Map<String, Object> action(String service, String action) {
         port(service);
         if (!Arrays.asList("start", "load", "unload", "stop").contains(action)
@@ -74,6 +118,16 @@ public class LocalServicesManager {
         return result;
     }
 
+    /**
+     * 拉起服务并等待其可用。
+     *
+     * <p>先探测一次，已在线直接复用，避免重复派生进程；进程缓存里已有存活进程时同样复用。
+     * 随后按 300 毫秒轮询，直到探测通过、进程退出或超过等待时长。超过等待时长不算失败，
+     * 只返回 503 提示稍后刷新状态，并且不会再次启动新进程。</p>
+     *
+     * @param service 服务标识
+     * @throws LocalServiceException 进程启动失败、等待被中断或等待超时时抛出
+     */
     private void start(String service) {
         if (probe(service) != null) return;
         Process existing = processes.get(service);
@@ -94,6 +148,18 @@ public class LocalServicesManager {
         throw new LocalServiceException(503, "服务仍在启动，请稍后刷新状态；不会重复启动进程");
     }
 
+    /**
+     * 探测服务是否在线，并按各自协议校验响应特征。
+     *
+     * <p>三个服务没有统一健康协议，因此分别读取 Strata 的 {@code /health}（要求
+     * {@code service=strata}）、AIMedia 的 {@code /api/status}（要求
+     * {@code app=AIMedia Studio}）与 ComfyUI 的 {@code /system_stats}（要求同时含
+     * {@code system} 与 {@code devices}）。端口被其它应用占用时会因字段不匹配而判为离线，
+     * 避免把别人的服务误认成自己的。</p>
+     *
+     * @param service 服务标识
+     * @return 原始响应；离线、超时或字段不匹配时返回 {@code null}
+     */
     JsonNode probe(String service) {
         JsonNode value = client.get(port(service), "strata".equals(service) ? "/health"
                 : "aimedia".equals(service) ? "/api/status" : "/system_stats");
@@ -104,6 +170,15 @@ public class LocalServicesManager {
         return valid ? value : null;
     }
 
+    /**
+     * 停止或释放 H3 前确认没有视频任务在跑。
+     *
+     * <p>先读 ComfyUI 的 {@code /queue}：响应缺失或缺少 {@code queue_running}、
+     * {@code queue_pending} 数组时无法判断，直接拒绝操作；存在运行中或排队任务时返回 409。
+     * 队列空闲后还要确认 AIMedia 操作台没有作业，避免操作台已提交、引擎尚未入队的空窗期。</p>
+     *
+     * @throws LocalServiceException 无法确认队列（503）或仍有任务（409）时抛出
+     */
     private void assertVideoIdle() {
         JsonNode queue = client.get(properties.getH3Port(), "/queue");
         if (queue == null || !queue.path("queue_running").isArray() || !queue.path("queue_pending").isArray()) {
@@ -115,6 +190,14 @@ public class LocalServicesManager {
         assertStudioIdle();
     }
 
+    /**
+     * 确认 AIMedia 操作台当前没有运行中、排队中或正在停止的作业。
+     *
+     * <p>操作台不在线时视为空闲直接返回；在线但拿不到作业数组时拒绝操作（503）。
+     * 这里只读取作业状态字段，不终止任何任务。</p>
+     *
+     * @throws LocalServiceException 无法确认作业列表（503）或存在活动作业（409）时抛出
+     */
     private void assertStudioIdle() {
         if (probe("aimedia") == null) return;
         JsonNode response = client.get(properties.getStudioPort(), "/api/jobs");
@@ -127,6 +210,18 @@ public class LocalServicesManager {
         }
     }
 
+    /**
+     * 拼装各服务的启动命令行。
+     *
+     * <p>解释器固定使用项目内虚拟环境：Strata 为 {@code .venv/Scripts/python.exe}，
+     * H3 为 {@code ComfyUI/.venv-rocm/Scripts/python.exe}；AIMedia 额外加 {@code -I}
+     * 以隔离用户级 site-packages。Strata 以 {@code --engine strata --lazy} 启动，权重留到
+     * 首次生成或手动加载；H3 以 {@code --listen 127.0.0.1 --reserve-vram 3} 启动，
+     * 只监听回环地址；端口统一追加在末尾。</p>
+     *
+     * @param service 服务标识
+     * @return 完整命令行；包内可见，便于测试直接断言参数顺序
+     */
     List<String> command(String service) {
         File root = directory(service);
         List<String> command = new ArrayList<>();
@@ -147,6 +242,14 @@ public class LocalServicesManager {
         return command;
     }
 
+    /**
+     * 检查 H3 依赖的四个模型文件是否齐全。
+     *
+     * <p>只判断文件是否存在，不校验大小或完整性；缺任何一个即视为未安装，
+     * 避免页面把「引擎在线」误报成「模型可用」。</p>
+     *
+     * @return 四个权重文件都存在时为 {@code true}
+     */
     private boolean h3Installed() {
         File models = new File(properties.getAimediaDir(), "ComfyUI/models");
         for (String file : Arrays.asList("diffusion_models/minimax_h3_ref2va_pruned_int8_convrot.safetensors",
@@ -157,16 +260,44 @@ public class LocalServicesManager {
         return true;
     }
 
+    /**
+     * 取服务对应的项目根目录：Strata 使用自身目录，AIMedia 与 H3 都从 AIMedia 目录派生。
+     *
+     * @param service 服务标识
+     * @return 项目根目录，不保证存在
+     */
     private File directory(String service) {
         return new File("strata".equals(service) ? properties.getStrataDir() : properties.getAimediaDir());
     }
 
+    /**
+     * 取服务的工作目录。
+     *
+     * <p>H3 的进程需要以 {@code ComfyUI} 子目录为基准启动，其余服务直接用项目根目录；
+     * 子进程日志文件也写在这个目录下。</p>
+     *
+     * @param service 服务标识
+     * @return 子进程工作目录
+     */
     private File workDirectory(String service) {
         return "h3".equals(service) ? new File(directory(service), "ComfyUI") : directory(service);
     }
 
+    /**
+     * 长耗时操作的读取超时，复用启动等待时长（默认 180 秒），
+     * 供加载、卸载模型这类可能持续数分钟的本机调用使用。
+     *
+     * @return 超时毫秒数
+     */
     private int timeoutMs() { return properties.getStartupTimeoutSeconds() * 1000; }
 
+    /**
+     * 取服务监听端口。
+     *
+     * @param service 服务标识
+     * @return 配置中的端口
+     * @throws LocalServiceException 服务标识未知时抛出 404
+     */
     private int port(String service) {
         if ("strata".equals(service)) return properties.getStrataPort();
         if ("aimedia".equals(service)) return properties.getStudioPort();

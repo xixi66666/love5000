@@ -10,6 +10,13 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
+/**
+ * {@code ModelRoutingClient} 的路由决策测试。
+ *
+ * <p>用 Mockito 替换 {@code ModelHttp}，既不真的请求模型网关，也能精确校验 URL、空密钥、
+ * 超时与「允许原生响应」标志。覆盖一次请求决定路由、204 视为使用原配置、连接被拒时
+ * 结合状态文件判定、超时与 HTTP 错误不回退、状态文件损坏，以及非回环网关地址被拒绝。</p>
+ */
 class ModelRoutingClientTest {
     @TempDir Path dir;
     ObjectMapper json=new ObjectMapper();

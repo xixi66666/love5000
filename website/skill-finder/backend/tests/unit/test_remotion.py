@@ -1,3 +1,20 @@
+"""字幕对齐、Remotion 素材准备与 MiMo 配音的边界。
+
+覆盖 `app.daily.speech` 的 `group_boundaries` / `align_script` / `mimo_speech` 以及
+`app.daily.remotion` 的 `prepare` / `asset_for`：
+
+- 字幕只在实测时间戳边界处分组，脚本原文必须完整念出；ASR 把英文名听成汉字时以
+  脚本为准改文字、以实测为准留时间；完全对不上音的文本要直接报错，不能硬凑时间；
+- 素材路径必须留在允许的目录内（`../private.mp4` 这类越界值要拒绝），缺演示素材时
+  在花费 TTS 之前就失败；
+- 帧数按累计时长四舍五入，SRT 时间必须跟着同一套累计时间走，否则字幕和画面对不上；
+- MiMo 配音只允许 HTTPS 远端，错误信息必须脱敏，不能带出上游响应体或密钥。
+
+隔离方式：`synthesize`、`normalize_voice`、`run`、`asset_for` 及
+`httpx.AsyncClient.post` 全部 monkeypatch，目录用 `tmp_path`；不产生真实音频、
+不联网、不启动渲染器。
+"""
+
 import json
 from unittest.mock import AsyncMock
 
@@ -78,6 +95,7 @@ def test_local_source_assets_cannot_escape_root(tmp_path, monkeypatch):
 
 
 def test_manifest_frame_rounding_matches_cumulative_subtitle_offsets(tmp_path, monkeypatch):
+    """1.005 秒在 30 FPS 下取 31 帧，SRT 末尾沿用同一累计时间，两边不能各算一套。"""
     def voice(text, directory):
         audio = directory / "voice.wav"
         audio.write_bytes(b"mock")

@@ -14,6 +14,13 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * {@link MessageController} 的单元测试。
+ *
+ * <p>通过包级构造器注入 {@code @TempDir} 下的临时留言文件，完全不触碰
+ * {@code src/main/resources/static/message.txt}，因此用例之间互不影响、也不污染仓库。
+ * 覆盖三条主线：追加后能读回且内容真正落盘、纯空白文本被拒绝、清空后列表为空。</p>
+ */
 class MessageControllerTests {
 
     @TempDir

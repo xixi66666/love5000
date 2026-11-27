@@ -1,3 +1,12 @@
+"""Star 日增/周增回退计算的边界用例。
+
+`calculate_growth` 仅在 `trending_entries` 没有对应周期榜单行时启用：以目标业务日期
+为基准，取不晚于「今天 -1 天」与「今天 -7 天」的最近一条 `star_snapshots` 快照做差。
+快照按天离散落库、允许有缺口，所以这里重点覆盖：连续两天、中间缺天、只有首条快照、
+星数下降、恰好 7 天边界、7 天前缺快照时向前回退，以及完全没有快照。
+缺数据时必须是 `None` 而不是伪造 0，前端据此显示“—”。纯函数，无数据库与网络。
+"""
+
 from datetime import date
 
 from app.services.trend import SnapshotPoint, calculate_growth

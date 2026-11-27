@@ -1,3 +1,13 @@
+"""因子引擎与评分服务的测试。
+
+覆盖分支：VQM 三因子计算与 0~100 分值范围；`rank_percentile` 给并列值相同分数；
+估值倍数非正、净利润非正、估值/财务/行情缺失、字段缺失或为 `None` 时给出可读的
+`ValueError`；评分服务按总分降序排名并写入模型版本。
+
+隔离方式：多数用例在临时目录用 `MockProvider` 走真实 SQL；缺失/非法字段的用例改用
+`FakeFactorRepository` 直接返回构造的行，避开 SQL 层。全程不联网。
+"""
+
 from pathlib import Path
 
 import pytest
@@ -17,6 +27,12 @@ def build_repository(tmp_path: Path) -> QuantRepository:
 
 
 class FakeFactorRepository:
+    """按 SQL 里的表名返回预置行的假仓储，用于构造字段缺失/非法场景。
+
+    只实现 `fetch_dicts`：根据查询文本里出现的 `from valuation`、`from financial`、
+    `from daily_bar` 返回对应的单行或多行数据，其他查询返回空列表。
+    """
+
     def __init__(self, valuation, financial, daily_bars=None):
         self.valuation = valuation
         self.financial = financial

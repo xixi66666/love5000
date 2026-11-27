@@ -1,17 +1,38 @@
 # -*- coding: utf-8 -*-
 """生成「AI 修图模型对比与成本测算」工作簿。
 
+这是 ``imagetemplate/docs/ai-retouch`` 实验文档的离线辅助脚本，**不参与运行时服务**：
+``imagetemplate`` 的 Spring Boot 服务不导入它，也不读它生成的 xlsx。它只负责把「AI
+修图模型选型与报价」调研结论固化成一份可核对的表格，供人阅读和二次编辑。
+
+用法（工作目录必须是 ``imagetemplate/``，因为 `OUT` 是相对路径）::
+
+    cd imagetemplate
+    python docs/ai-retouch/tools/build_workbook.py
+
+依赖 ``openpyxl``；输出覆盖写 ``docs/ai-retouch/AI修图模型对比与成本测算.xlsx``，
+共四个工作表：模型对比、成本测算、场景推荐、说明与来源。成功后打印模型行数、
+最便宜 5 个与最贵 3 个模型，便于与 `verify_workbook.py` 的输出比对。
+
 数据来源：四路调研核实项（读取时点 2026-10-21，汇率 1 USD = 7.10 CNY）。
 设计要点：
   - 汇率集中在「模型对比」F1，改一处即可全表重算。
-  - 「模型对比」H 列(原币单价)为静态值；J 列(人民币/张)为公式，引用 H 列 × 汇率（人民币行除外）。
+  - 「模型对比」I 列(原币单价)为静态值；K 列(人民币/张)为公式，引用 I 列 × 汇率（人民币行除外）。
   - 成本测算表 = 张数 × 人民币单价，改张数即重算，无循环引用。
-  - P 列写 Python 独立复算的参考值，供公式重算前核对（本沙箱 LibreOffice 重算不可用）。
+  - 成本测算表另有一组由 Python 独立复算的参考值，与公式列并列，
+    供公式重算前核对单价（本沙箱 LibreOffice 重算不可用）。
+
+失败行为：脚本没有任何异常兜底——缺少 ``openpyxl`` 会直接 ``ImportError``，
+目录不可写会抛 ``PermissionError``；数据本身（`DATA`）逐行写死，
+某一行的字段个数与注释里的字段顺序不一致时会在解包处抛 ``ValueError``。
 """
+
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
+# 输出路径与基准汇率。OUT 是相对路径，所以必须在 imagetemplate/ 目录下运行；
+# RATE 同时被 verify_workbook.py 用作独立复算的汇率，改这里要同步改那边。
 OUT = "docs/ai-retouch/AI修图模型对比与成本测算.xlsx"
 RATE = 7.10
 
@@ -42,6 +63,8 @@ NCOL = len(headers)
 
 # 字段顺序: 模型, 厂商, 指令编辑, mask, 多图参考, 多轮, 分辨率,
 #           币种, 原币单价, 报价说明, 限流, 商用授权, 核实状态, 备注
+# （共 14 项，对应「人民币/张」之前的列；该列由下面的公式动态算出，不在元组里。
+#   原币单价为 None 表示没有公开报价，写入“未公开”而不是 0。）
 DATA = [
     # ---------- Google ----------
     ("Nano Banana Pro (1K-2K)", "Google", "是", "是", "≤14张", "是", "1K/2K/4K",
@@ -186,7 +209,8 @@ for d in DATA:
             None, limit, lic, status, note]
     for c, v in enumerate(vals, start=1):
         ws.cell(row=r, column=c, value=v)
-    # J 列: 人民币/张（公式）
+    # 人民币/张：第 11 列（K 列）。人民币报价直接引用原币单价，外币报价乘汇率，
+    # 没有公开价的模型写中文“未公开”而不是留空，避免被当成 0 元进入成本排序。
     if price is None:
         ws.cell(row=r, column=11, value="未公开")
     elif cur == "CNY":
@@ -255,6 +279,8 @@ for j, label in enumerate(["20张(参考)", "50张(参考)", "100张(参考)", "
     c.fill = HEAD_FILL
     c.alignment = Alignment(horizontal="center")
 
+# 选出所有有公开单价的模型，统一折算成人民币后按单张成本升序排列；
+# 没有报价的行（price is None）直接跳过，不参与排序，否则会把“未知”排成最便宜。
 pick = []
 for i in range(HDR + 1, LAST + 1):
     name = ws.cell(row=i, column=1).value
@@ -450,11 +476,14 @@ for i, (text, kind) in enumerate(notes, start=1):
         cell.font = Font(size=10)
 nt.column_dimensions["A"].width = 118
 
+# openpyxl 只写公式、不写缓存值；不声明强制重算，Excel 打开时会显示空白或 0，
+# 必须先触发一次全量计算才能看到人民币单价与成本合计。
 wb.calculation.fullCalcOnLoad = True
 wb.save(OUT)
 print("saved:", OUT)
 print("sheets:", wb.sheetnames)
 print("模型对比 rows:", LAST - HDR, "| 成本测算 model rows:", len(pick))
+# 末尾的对照输出用于人工抽查：与 verify_workbook.py 打印的最便宜/最贵列表应完全一致。
 print("cheapest 5:")
 for cny, src, name in pick[:5]:
     print("   %-38s ¥%.3f" % (name, cny))

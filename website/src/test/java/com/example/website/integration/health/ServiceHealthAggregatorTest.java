@@ -14,10 +14,25 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * 并行巡检聚合器 {@link ServiceHealthAggregator} 的单元测试。
+ *
+ * <p>固定住四条对外契约：结果顺序与 {@code website.service-health.services} 的配置顺序一致
+ * （首页按项目名匹配卡片，乱序会错配状态点）；部分目标离线时仍返回 {@code success=true}
+ * （表示汇总已生成），{@code healthy=false} 才表示并非全部在线；单个
+ * {@link ServiceHealthChecker} 抛异常只影响自己那一项，文案固定为 {@code Health check failed}
+ * 且不回显异常内容（异常信息里可能带凭据）；线程池拒绝任务时降级为
+ * {@code Health check unavailable}，不让整轮聚合失败。</p>
+ *
+ * <p>隔离：checker 全部用 Mockito mock，聚合器只在测试线程和自建线程池里跑，
+ * 不发任何 HTTP 请求、不连 MySQL；executor 由各用例创建并在
+ * {@link #shutdownExecutor()} 回收，避免残留线程拖住 Surefire。</p>
+ */
 class ServiceHealthAggregatorTest {
 
     private ExecutorService executor;
 
+    // 线程池必须显式回收：聚合器不负责关闭外部传入的 executor。
     @AfterEach
     void shutdownExecutor() {
         if (executor != null) {
@@ -75,6 +90,7 @@ class ServiceHealthAggregatorTest {
         when(checker.check(any())).thenAnswer(invocation -> {
             ServiceHealthDefinition definition = invocation.getArgument(0);
             started.countDown();
+            // 两个探测都进入后才放行，证明聚合器是并行下发而不是串行排队。
             release.await(2, TimeUnit.SECONDS);
             return ServiceHealthResult.healthy(definition, 200, 1);
         });
@@ -107,10 +123,12 @@ class ServiceHealthAggregatorTest {
         assertThat(summary.getServices().get(0).getMessage()).isEqualTo("Health check unavailable");
     }
 
+    /** 构造指向本机给定端口的检测目标（{@code http://127.0.0.1:端口/api/health}）。 */
     private ServiceHealthDefinition definition(String name, int port) {
         return new ServiceHealthDefinition(name, "http://127.0.0.1:" + port + "/api/health");
     }
 
+    /** 用固定顺序的清单构造配置；入参顺序即配置顺序，也是聚合结果应保持的顺序。 */
     private ServiceHealthProperties properties(ServiceHealthDefinition... definitions) {
         ServiceHealthProperties properties = new ServiceHealthProperties();
         properties.setServices(Arrays.asList(definitions));

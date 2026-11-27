@@ -1,3 +1,13 @@
+"""集成测试：榜单列表查询的排序、筛选与分页。
+
+覆盖：按日/月增量排序、没有某期榜单的仓库排在最后、分类 + 语言 + 关键词组合筛选、
+分页稳定且两页不重叠。数据由 ``RepositoryStore.upsert`` 与 ``TrendingStore.replace_period``
+构造，断言直接打在 ``RepositoryService`` 的返回上。
+
+隔离：需要 ``TEST_DATABASE_URL``（专用测试库），未设置时整模块跳过；每个用例前先
+``DROP`` 四张业务表再按 ``sql/schema.sql`` 重建，因此会在该库内销毁数据，绝不能指向
+生产库或共享的 ``xixi``。
+"""
 import os
 from datetime import UTC, datetime
 from pathlib import Path

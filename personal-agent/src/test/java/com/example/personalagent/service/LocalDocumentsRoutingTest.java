@@ -5,7 +5,15 @@ import org.springframework.http.HttpStatus;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** 附件分析跟随顶部栏模型选择的路由规则（不连接任何外部服务）。 */
+/**
+ * {@link LocalDocuments} 依据顶部栏模型选择做路由的规则测试。
+ *
+ * <p>覆盖分支：{@code deepseek:} 前缀解析出型号、其他提供方与空值返回空串、文本类后缀
+ * 白名单（含 {@code null}），以及「无法解析原件」异常的 422 状态与提示文案。</p>
+ *
+ * <p>隔离手段：只断言静态纯函数与异常构造，不实例化服务、不读 Vault、不连接任何外部
+ * 服务或模型。</p>
+ */
 class LocalDocumentsRoutingTest {
 
     @Test

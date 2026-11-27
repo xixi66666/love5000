@@ -9,6 +9,16 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * {@link TemplateSearchIndex} 的预归一化与匹配测试。
+ *
+ * <p>索引在构造时把标题、摘要、分类、来源、功能层级、Prompt 正文与标签拼成小写检索文本，
+ * 因此中文原样匹配、ASCII 忽略大小写，来源与分类的 slug 和中文名都能命中；空查询等于不做
+ * 过滤，缺失字段按空串处理。用例还用 {@link CountingTemplate} 统计 getter 调用次数，证明
+ * 匹配阶段不再回读模型字段（构造后连续匹配 1000 次读取次数不变）。</p>
+ *
+ * <p>隔离手段：全部使用内存对象与计数子类夹具，不读取模板 JSON、不启动 Spring、不联网。</p>
+ */
 class TemplateSearchIndexTest {
 
     @Test
@@ -46,6 +56,7 @@ class TemplateSearchIndexTest {
         assertThat(index.matchesFunctionScene("portrait-photo")).isTrue();
         assertThat(index.matchesFunctionScene("头像摄影")).isTrue();
 
+        // 连续匹配 1000 次，读取次数必须保持不变，证明匹配阶段只查构造时预归一化的文本。
         for (int i = 0; i < 1000; i++) {
             index.matchesKeyword("水墨");
             index.matchesSource("curated");
@@ -70,6 +81,12 @@ class TemplateSearchIndexTest {
         assertThat(index.matchesKeyword("头像")).isFalse();
     }
 
+    /**
+     * 统计各字段 getter 被调用次数的模板子类。
+     *
+     * <p>用于区分“构造索引时读取一次”和“每次匹配都重新读取”两种实现；若匹配阶段仍在访问
+     * 模型，循环 1000 次后读取次数会增长，用例即可发现性能回归。</p>
+     */
     private static final class CountingTemplate extends ImagePromptTemplate {
 
         private final Map<String, Integer> reads = new HashMap<String, Integer>();

@@ -13,7 +13,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * {@link ImageQualityMetricsService} 的行为测试。
  *
  * <p>重点是验证判据的“方向正确性”：模糊化必须让纹理保留率下降并触发过度磨皮告警，
- * 提亮必须触发曝光漂移告警，同图对比必须判为通过。这些是业务可用性的前提。
+ * 提亮必须触发曝光漂移告警，同图对比必须判为通过。这些是业务可用性的前提。</p>
+ *
+ * <p>同时锁定指标口径：纯色图的亮度等于灰度值，对比度与锐度为零；宽度超过 1024 的图先等比
+ * 缩放再统计；尺寸不一致或空参数以可读异常拒绝。所有测试图都在内存中构造（纯色、棋盘、
+ * 固定种子噪点、盒式模糊），不读取外部图片、不联网。</p>
  */
 class ImageQualityMetricsServiceTest {
 
@@ -191,6 +195,12 @@ class ImageQualityMetricsServiceTest {
         return image;
     }
 
+    /**
+     * 生成整幅单色图。
+     *
+     * <p>方法名为 {@code midGradient}，实际填充的是单一灰度值；曝光用例只需要整体亮度差异，
+     * 不引入渐变细节可以避免干扰曝光漂移判定。</p>
+     */
     private BufferedImage midGradient(int width, int height, int baseGray) {
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         int rgb = (baseGray << 16) | (baseGray << 8) | baseGray;
@@ -202,6 +212,11 @@ class ImageQualityMetricsServiceTest {
         return image;
     }
 
+    /**
+     * 生成黑白棋盘图，{@code cellSize} 为单个方块的边长。
+     *
+     * <p>棋盘提供稳定的高频边缘，用于对比锐度、纹理熵与纹理保留率。</p>
+     */
     private BufferedImage checkerboard(int width, int height, int cellSize) {
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         for (int y = 0; y < height; y++) {
@@ -214,6 +229,11 @@ class ImageQualityMetricsServiceTest {
         return image;
     }
 
+    /**
+     * 生成叠加均匀噪声的灰度图。
+     *
+     * <p>随机数使用固定种子，保证噪声估计用例可重复。</p>
+     */
     private BufferedImage noisy(int width, int height, int baseGray, int amplitude) {
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         Random random = new Random(20261015L);

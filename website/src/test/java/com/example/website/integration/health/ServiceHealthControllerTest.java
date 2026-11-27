@@ -12,6 +12,18 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * 聚合健康接口 {@code GET /api/services/health} 的 MVC 契约测试。
+ *
+ * <p>用 standalone MockMvc 只装配 {@link ServiceHealthController}，{@link ServiceHealthMonitor}
+ * 由 Mockito mock 固定返回一个「一项在线、一项离线」的快照。断言的核心是一条容易误读的语义：
+ * 即使有目标离线，HTTP 状态仍是 200 且 {@code success=true}（表示本轮汇总已经生成），
+ * 是否全部在线由 {@code healthy=false} 表达；同时校验 services 数组保持聚合顺序、
+ * {@code statusCode} 缺省时序列化为空、健康项没有 {@code message}。</p>
+ *
+ * <p>隔离：{@code standaloneSetup} 不加载 Spring 上下文、不建数据源、不触发真实探测，
+ * 因此这里只验证响应形状。首页每半小时只读这份快照，字段改名会先在这里失败。</p>
+ */
 class ServiceHealthControllerTest {
 
     @Test

@@ -16,6 +16,19 @@ import java.nio.file.Path;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+/**
+ * {@link OpenAiImageGenerationService} 的尺寸校验与模型配置测试。
+ *
+ * <p>通过反射直接测试私有方法 {@code normalizeImageSize}，逐条锁定前后端共享的尺寸规则：
+ * 合法 4K {@code 3840x2160} 原样通过；分隔符兼容大写 {@code X} 与首尾空白；空值回落到
+ * {@code 1024x1024}；非 16 倍数、单边超过 3840、总像素低于 655360 或高于 8294400、长短边
+ * 超过 3:1、格式非法都必须抛 {@link ImageGenerationException} 并带上对应阈值。此外验证
+ * 非法尺寸在解析 prompt 与调用 OpenAI 之前就被拒绝，以及默认模型
+ * {@code gpt-image-2.5-sunburst} 可被 {@code model.properties} 覆盖。</p>
+ *
+ * <p>隔离手段：服务以 {@code null} 的 RestTemplate 与空配置构造，校验路径根本不会出网；
+ * 模型配置用例写入 JUnit {@code @TempDir} 临时文件。整个类不发起任何真实 HTTP 请求。</p>
+ */
 class OpenAiImageGenerationServiceTest {
 
     @TempDir
@@ -149,12 +162,19 @@ class OpenAiImageGenerationServiceTest {
         assertThat(readImageModel(service)).isEqualTo("gpt-image-2.5-flare");
     }
 
+    /** 读取私有字段 {@code imageModel}，避免为测试放宽生产字段的可见性。 */
     private String readImageModel(OpenAiImageGenerationService service) throws Exception {
         Field field = OpenAiImageGenerationService.class.getDeclaredField("imageModel");
         field.setAccessible(true);
         return (String) field.get(service);
     }
 
+    /**
+     * 反射调用私有尺寸归一化方法，并把包装异常还原成业务异常。
+     *
+     * <p>{@code Method.invoke} 会把 {@link ImageGenerationException} 包进
+     * {@link InvocationTargetException}；这里解包后重新抛出，断言才能直接检查类型与消息。</p>
+     */
     private String normalizeImageSize(String value) throws Exception {
         Method method = OpenAiImageGenerationService.class.getDeclaredMethod("normalizeImageSize", String.class);
         method.setAccessible(true);

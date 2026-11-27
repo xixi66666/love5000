@@ -1,10 +1,20 @@
-"""Fetch every 大乐透 draw into data/dlt.csv and data/dlt_prizes.csv.
+"""全量回填大乐透开奖，写出 data/dlt.csv 与 data/dlt_prizes.csv。
 
 Source:
-  https://webapi.sporttery.cn official history API
+  https://webapi.sporttery.cn official history API（分页抓取）
+  500.com 历史页只用于字段补全与交叉核对，不单独贡献期次。
 
 Usage:
   python scripts/fetch_dlt.py
+
+命令行参数：无。
+
+副作用：覆盖写 data/dlt.csv 与 data/dlt_prizes.csv，原始响应保存在 data/raw/dlt/。
+官方接口有少量已确认的脏数据，脚本用 FIELD_CORRECTIONS / PRIZE_CORRECTIONS 修正
+数值，并把原因写进 quality_flag 列，下游报告据此标注「该期经过人工核对」。
+
+退出码：没有显式退出码。抓取、解析或校验失败时抛异常，进程以 1 退出；此时尚未
+写任何 CSV，已有数据保持原样。
 """
 
 from __future__ import annotations
@@ -129,10 +139,26 @@ PRIZE_CORRECTIONS = {
 
 
 def parse_date(value):
+    """把上游日期时间归一化成 ISO 日期字符串。
+
+    官方 `lotteryDrawTime` 带时分秒，统一截前 10 位再解析；解析失败抛
+    `ValueError`，宁可整轮中止也不写入畸形日期。
+    """
     return datetime.strptime(str(value).strip()[:10], "%Y-%m-%d").date().isoformat()
 
 
 def normalize_level_name(value):
+    """统一官方奖级名称的写法。
+
+    官方在同一字段里混用全角/半角括号并可能夹空格，先归一化才能可靠判断
+    `(追加)` 后缀，否则追加奖会被错认成普通奖级，奖金列会串位。
+
+    Args:
+        value: 原始奖级名称，可为 `None`。
+
+    Returns:
+        去掉空白、括号统一为半角后的名称；空值返回空字符串。
+    """
     return (
         str(value or "")
         .strip()
@@ -143,6 +169,17 @@ def normalize_level_name(value):
 
 
 def parse_number(value, low, high, label):
+    """解析并校验一个球号，越界即中止本轮抓取。
+
+    Args:
+        value: 单元格或 JSON 字段原文。
+        low: 允许的最小号码。
+        high: 允许的最大号码（前区 35、后区 12）。
+        label: 写进错误信息的字段名，便于判断是哪个区出错。
+
+    Raises:
+        ValueError: 无法解析为整数或超出 `[low, high]`。
+    """
     number = to_int(value)
     if number is None or not low <= number <= high:
         raise ValueError(f"invalid {label}: {value!r}")
@@ -150,6 +187,18 @@ def parse_number(value, low, high, label):
 
 
 def fetch_500():
+    """抓取并解析 500.com 的大乐透历史开奖表格。
+
+    表格固定 15 列，行用 `\\d{5}` 过滤表头与统计行；结果只用于补全与交叉核对，
+    不含奖级明细，因此返回值比官方解析结果薄。
+
+    Returns:
+        以期号为键的行字典。
+
+    Raises:
+        RuntimeError: 页面中没有 `tablelist` 表格，通常是被反爬拦截或改版。
+        ValueError: 期号重复、号码越界或前后区内部重号。
+    """
     response = get(
         C500_URL,
         params={"start": "07001", "end": "99999"},
@@ -222,6 +271,21 @@ def fetch_500():
 
 
 def fuse(primary_rows, auxiliary_rows):
+    """以官方行为主、用 500.com 补齐缺失字段，并套用人工核对结果。
+
+    补全策略比双色球保守：只有官方为 `None`（销量/奖池另允许为 0）时才取
+    500.com 的值，绝不覆盖官方已有数值，因为大乐透官方的销量与奖池口径更权威。
+    一、二等奖的金额只在注数大于 0 时补齐，避免为「0 注」补出一个不存在的奖金。
+
+    Args:
+        primary_rows: 官方接口解析出的行，以期号为键。
+        auxiliary_rows: 500.com 解析出的行，仅作补全来源。
+
+    Returns:
+        以期号为键的合并结果。被 500.com 补过字段或命中 `FIELD_CORRECTIONS`
+        的期次 `aux_source` 为 `"500.com"`；命中 `QUALITY_FLAGS` 的期次写入
+        `quality_flag` 说明。
+    """
     merged = {}
     filled_count = 0
     for issue, row in primary_rows.items():
@@ -275,6 +339,17 @@ def fuse(primary_rows, auxiliary_rows):
 
 
 def fetch_pages():
+    """逐页抓取官方历史接口，返回原始分页负载列表。
+
+    第一页决定总页数，其余页间隔 0.25s 串行请求以避开限流；每页 JSON 落盘到
+    `data/raw/dlt/`，便于核对某期数据来自哪一次抓取。
+
+    Returns:
+        JSON 负载列表，元素形如 `{"value": {"list": [...]}}`。
+
+    Raises:
+        RuntimeError: 首页未返回 `pages` / `total`，说明接口不可用或请求参数失效。
+    """
     raw_dir = RAW_DIR / "dlt"
     raw_dir.mkdir(parents=True, exist_ok=True)
 
@@ -307,6 +382,21 @@ def fetch_pages():
 
 
 def parse_pages(pages):
+    """把分页负载解析成开奖行与奖级明细行。
+
+    每期空格分隔的 7 个号码拆成前区 5 个 + 后区 2 个，逐项校验去重与范围；
+    奖级名称先统一括号写法，再按 `(追加)` 后缀拆出是否追加，最后只保留
+    一等奖/二等奖的普通与追加四组数值。奖池优先取开奖后余额，缺失才回退开奖前。
+
+    Args:
+        pages: `fetch_pages` 返回的分页负载列表。
+
+    Returns:
+        `(rows, prize_rows)`：开奖行以期号为键，奖级明细为按奖级展开的列表。
+
+    Raises:
+        ValueError: 期号重复，或号码个数、去重、范围任一不合法。
+    """
     rows = {}
     prize_rows = []
     for payload in pages:
@@ -382,6 +472,21 @@ def parse_pages(pages):
 
 
 def check_rows(rows):
+    """打印覆盖范围、来源分布与缺期警告，返回按日期排序的行列表。
+
+    与双色球不同，大乐透期号固定 5 位（`YYNNN`），因此这里把期号格式当作硬校验：
+    格式不符说明上游换了编码方式，继续往下算会把年份解析错。
+
+    Args:
+        rows: 以期号为键的行字典。
+
+    Returns:
+        按 `(date, issue)` 升序排列的行列表，即 CSV 的写出顺序。
+
+    Raises:
+        RuntimeError: 传入空字典，此时没有可写的数据。
+        ValueError: 期号不是 5 位。
+    """
     if not rows:
         raise RuntimeError("no DLT rows")
 
@@ -416,6 +521,17 @@ def check_rows(rows):
 
 
 def main():
+    """官方分页抓取、500.com 交叉核对、补全后写出两个 CSV。
+
+    交叉核对只统计前 5 条号码差异及注数/数值差异的条数，不改变输出数据——两站
+    历史上确有录入与口径差异，最终以官方为准。奖级明细写出前套用
+    `PRIZE_CORRECTIONS` 与 `QUALITY_FLAGS`，注数为 0 时金额归零；`sort` 缺失按 0
+    排序，保证同一期内奖级顺序稳定。
+
+    Raises:
+        RuntimeError / ValueError: 任一环节数据非法时向上抛出，此时尚未写 CSV，
+            已有数据保持原样。
+    """
     pages = fetch_pages()
     rows, prize_rows = parse_pages(pages)
     five_rows = fetch_500()

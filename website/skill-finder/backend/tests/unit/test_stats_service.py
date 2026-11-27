@@ -1,3 +1,14 @@
+"""首页统计服务对采集状态的降级文案。
+
+`StatsService.get_stats` 除了聚合数字，还要把 `collection_runs.error_summary`
+翻译成固定中文提示：`FAILED` 走 `last_run_error`，`PARTIAL` 走 `last_run_warning`，
+两条通道按状态互斥。这些文案会直接进 `/api/v1/stats` 响应，因此边界是
+「原始异常、SQL、连接串、令牌一律不得回显」，只能给固定提示。
+
+隔离方式：`AsyncMock` 会话按调用顺序脚本化 `scalar` / `execute` 的返回值，
+结果行用 `MagicMock` 顶替，不连数据库、不写事务。
+"""
+
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -6,6 +17,8 @@ import pytest
 from app.services.stats_service import StatsService
 
 
+# 参数表是「error_summary 关键字 → 固定提示」的映射：前三行各命一个专用分支，
+# 最后一行的异常原文里塞了 password/token，用来确认认不出时降级为通用文案且不回显。
 @pytest.mark.parametrize(
     ("summary", "expected"),
     [

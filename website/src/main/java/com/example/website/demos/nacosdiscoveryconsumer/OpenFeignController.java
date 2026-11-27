@@ -14,6 +14,12 @@
 // * See the License for the specific language governing permissions and
 // * limitations under the License.
 // */
+//
+// 说明：本文件整体被逐行注释，不参与编译，仅作为 OpenFeign 消费端控制器的示例保留，
+// 不是站点实际暴露的接口（当前访问 /feign/echo/{message} 不会命中任何处理器）。
+// 示例链路：GET /feign/echo/{message} → EchoService（@FeignClient）→ 提供者 nacos-service 的
+// GET /echo/{message}。恢复使用时需把包名改为 com.example.website 并补回 openfeign 依赖。
+//
 //package com.example.love530.demos.nacosdiscoveryconsumer;
 //
 //import org.springframework.beans.factory.annotation.Autowired;

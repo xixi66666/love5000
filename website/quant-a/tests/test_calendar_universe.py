@@ -1,3 +1,14 @@
+"""交易日历与选股池的过滤行为测试。
+
+覆盖分支：月末交易日的识别与下一交易日；指数成分池按上市天数、20 日均额、ST、
+停牌过滤；`FULL_MARKET` 在清空成分表后仍能取全市场；空指数列表返回空池；
+决策日早于行情可见日（`available_date`）时流动性/可交易性过滤会筛掉股票，
+验证防前视条件确实生效。
+
+隔离方式：每个用例在 `tmp_path` 建独立 DuckDB，用 `MockProvider` 同步固定区间数据，
+不访问网络、不依赖真实交易日历。
+"""
+
 from pathlib import Path
 
 from quant.calendar.service import TradingCalendarService

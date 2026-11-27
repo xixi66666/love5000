@@ -1,3 +1,21 @@
+"""与 website 共享 MySQL 配置时的解析、覆盖与脱敏。
+
+后端默认直接读 `website/src/main/resources/application.yml` 的 `spring.datasource`。
+本模块锁定：
+
+- 未设 `DATABASE_URL` 时把 JDBC 的 `jdbc:mysql://` 转成 `mysql+asyncmy://`，
+  主机、端口、库名、账号、密码逐项沿用，并强制 `charset=utf8mb4`；
+- `WEBSITE_DB_URL` / `WEBSITE_DB_USERNAME` / `WEBSITE_DB_PASSWORD` 优先于 YAML
+  默认值，且含 `@ : # / ?` 的凭据转义后仍能原样还原；
+- 显式 `DATABASE_URL`（环境变量或 `.env`）优先级最高；
+- 找不到 `application.yml` 时要给出“提供该文件或设置 `DATABASE_URL`”的可执行报错；
+- 报错信息与 `repr(settings)` 都不能带出密码。
+
+隔离方式：`website_config` fixture 把 `WEBSITE_APPLICATION_FILE` 指向 `tmp_path` 下
+自造的最小 YAML，并清掉四个相关环境变量，因此不会读到本机真实的 `website` 配置、
+也不会连向任何真实数据库。
+"""
+
 from pathlib import Path
 
 import pytest
@@ -8,6 +26,11 @@ from app.core import config
 
 @pytest.fixture()
 def website_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """造一份最小 `application.yml` 并让 config 模块指向它。
+
+    同时清掉 `DATABASE_URL` 与三个 `WEBSITE_DB_*` 变量，保证用例从“只有共享配置”
+    这一确定状态开始；YAML 里故意留下 `YOUR_*_HERE` 占位值，便于断言原样沿用。
+    """
     for name in ("DATABASE_URL", "WEBSITE_DB_URL", "WEBSITE_DB_USERNAME", "WEBSITE_DB_PASSWORD"):
         monkeypatch.delenv(name, raising=False)
     config_file = tmp_path / "application.yml"

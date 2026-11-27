@@ -1,9 +1,19 @@
+"""server 模块中研究数据路由与 AI 上下文的单元测试。
+
+被测对象：``server.parse_research_route`` 的路径解析、``server.get_research_response`` 的
+查询参数映射（force、kind、分页）与非法参数拒绝，以及 ``deepseek_dimension_prompt``
+是否把研究快照带进提示词。
+
+隔离：``FakeResearchService`` 是纯内存替身，记录调用参数并返回固定结构；所有用例都不经过
+HTTP 处理循环、不请求任何外部行情接口，也不读取模型配置。
+"""
 import unittest
 
 import server
 
 
 class FakeResearchService:
+    """按分区返回固定结构并记录调用参数的替身，用来验证路由层传下去的参数是否正确。"""
     def __init__(self):
         self.calls = []
 
@@ -24,6 +34,7 @@ class FakeResearchService:
 
 
 class ResearchRouteTests(unittest.TestCase):
+    """覆盖路径解析、查询参数映射，以及分页非数字和股票代码格式错误时抛 ValueError。"""
     def test_parse_research_route(self):
         self.assertEqual(
             server.parse_research_route("/api/stocks/002580/research/events"),
@@ -61,6 +72,7 @@ class ResearchRouteTests(unittest.TestCase):
 
 
 class ResearchAiContextTests(unittest.TestCase):
+    """断言研究快照被序列化进用户消息，AI 才能看到真实数据而不是凭名称猜测。"""
     def test_deepseek_prompt_contains_research_snapshot(self):
         snapshot = {
             "code": "002580",

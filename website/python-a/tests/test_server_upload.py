@@ -1,3 +1,12 @@
+"""server 模块里“截图上传解析”与“个股日复盘写盘”两条链路的单元测试。
+
+被测对象：``server.read_uploaded_image`` 的 multipart 解析（含 trade_date 字段与文件字节），
+以及 ``server.write_stock_daily_review`` 生成的知识图谱双链、研究数据快照与节点文件。
+
+隔离：上传用例用 ``BytesIO`` 冒充 rfile、用 ``email.message.Message`` 冒充请求头，不监听端口；
+复盘用例把 ``server.OBSIDIAN_ROOT`` / ``server.DATA_ROOT`` / ``server.StockMetadataService``
+全部 mock 到临时目录和替身上，不触碰真实 vault、不请求行情或元数据接口。
+"""
 from io import BytesIO
 from email.message import Message
 import tempfile
@@ -10,7 +19,9 @@ from server import read_uploaded_image
 
 
 class UploadImageTests(unittest.TestCase):
+    """覆盖 multipart 解析：文本字段 trade_date、文件 MIME 类型与文件字节都要正确取出。"""
     def test_read_uploaded_image_extracts_file_and_trade_date(self):
+        # server 自己解析 multipart，因此这里手工拼一段等价报文：一个文本字段加一个文件字段。
         boundary = "----python-a-test"
         body = (
             f"--{boundary}\r\n"
@@ -33,8 +44,10 @@ class UploadImageTests(unittest.TestCase):
 
 
 class StockDailyReviewTests(unittest.TestCase):
+    """覆盖个股日复盘的完整落盘：知识图谱双链、研究快照正文、券商展示名与风险节点文件。"""
     def test_write_stock_daily_review_adds_knowledge_graph_links_and_nodes(self):
         class FakeMetadataService:
+            """返回固定行业与概念的元数据替身，避免复盘用例依赖真实板块接口。"""
             def __init__(self, data_root):
                 self.data_root = data_root
 

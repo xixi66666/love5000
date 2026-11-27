@@ -1,3 +1,14 @@
+"""确定性假数据 Provider `MockProvider`。
+
+供单元测试与离线演示使用：6 只虚构股票、工作日日历、按序号线性递增的价格序列，
+不访问任何网络。数据版本固定为 `mock-2024-q1`，所有行的 `data_version` 都带该标记，
+报告里也据此提示"mock 数据只验证流程、不代表真实市场"。
+
+刻意保留的缺陷（不要用它评估策略收益）：价格单调上升、没有停牌与涨跌停约束、
+指数成分只有 2024-01-01 起的一段且无失效日（无成分股历史，无法消除幸存者偏差）、
+估值是写死的倍数、财报只有一期。它只保证字段齐全与接口形状稳定。
+"""
+
 from datetime import date, timedelta
 from typing import List
 
@@ -12,6 +23,8 @@ from quant.providers.base import (
 
 
 class MockProvider:
+    """内存中的确定性行情源，行为完全可复现。"""
+
     name = "mock"
     data_version = "mock-2024-q1"
     closed_dates = {"2024-01-01"}
@@ -26,6 +39,16 @@ class MockProvider:
     ]
 
     def get_trade_calendar(self, start_date: str, end_date: str) -> List[TradeCalendarRow]:
+        """按"工作日减去 `closed_dates`"生成日历。
+
+        Args:
+            start_date: 区间起（含），ISO 日期。
+            end_date: 区间止（含），ISO 日期。
+
+        Returns:
+            升序开市日行；`next_trade_date` 只在本次区间内有效，区间末日为空，
+            `is_month_end` 按"下一开市日已跨月"判断。不识别法定节假日。
+        """
         start = date.fromisoformat(start_date)
         end = date.fromisoformat(end_date)
         days = []
@@ -48,12 +71,18 @@ class MockProvider:
         return rows
 
     def get_stock_basic(self) -> List[StockBasicRow]:
+        """返回 6 只虚构股票的基础信息（全部在市、非 ST、有行业）。"""
         return [
             StockBasicRow(code, name, exchange, list_date, None, "listed", industry, is_st)
             for code, name, exchange, list_date, industry, is_st in self.codes
         ]
 
     def get_index_members(self, index_codes: List[str], trade_date: str) -> List[IndexMemberRow]:
+        """把 6 只虚构股票都当作每个指数的成分股。
+
+        成分区间固定从 `2024-01-01` 开始且无失效日，只有一段历史，因此无法复现
+        成分股调整，回测存在幸存者偏差；这也是 mock 数据只能验证流程的原因之一。
+        """
         rows = []
         for index_code in index_codes:
             for code, *_ in self.codes:
@@ -61,6 +90,21 @@ class MockProvider:
         return rows
 
     def get_daily_bars(self, start_date: str, end_date: str, codes: List[str] = None) -> List[DailyBarRow]:
+        """生成一段确定性的日行情。
+
+        价格按"股票序号定基价、交易日序号定涨幅"线性递增，`amount = volume * close`，
+        涨跌停统一按前收 ±10% 计算（不区分主板/创业板/北交所，也无停牌），
+        `adj_factor` 恒为 1.0（不复权）。`available_date` 取次一开市日，
+        保证下游按可用日过滤时不会用到当天收盘后才知道的价格。
+
+        Args:
+            start_date: 区间起（含），ISO 日期。
+            end_date: 区间止（含），ISO 日期。
+            codes: 可选代码过滤；为空时返回全部 6 只。
+
+        Returns:
+            按股票、交易日展开的行情行；同一输入永远得到同一输出。
+        """
         calendar = self.get_trade_calendar(start_date, end_date)
         code_filter = set(codes or [])
         rows = []
@@ -92,6 +136,11 @@ class MockProvider:
         return rows
 
     def get_valuation(self, start_date: str, end_date: str, codes: List[str] = None) -> List[ValuationRow]:
+        """生成与行情日期对齐的估值行。
+
+        各倍数按股票序号递增，市值为元；`available_date` 与行情一致（次一开市日）。
+        数值是写死的样例，不能用于判断估值高低。
+        """
         calendar = self.get_trade_calendar(start_date, end_date)
         code_filter = set(codes or [])
         rows = []
@@ -115,6 +164,17 @@ class MockProvider:
         return rows
 
     def derive_valuation_from_daily_bars(self, daily_bars: List[DailyBarRow]) -> List[ValuationRow]:
+        """用已抓到的行情日期反推一批估值行。
+
+        这是 `QuantPipeline` 批量同步行情时优先调用的能力：只遍历一次行情就能同时
+        写入 `daily_bar` 与 `valuation`。未知代码按序号 0 处理（不会报错）。
+
+        Args:
+            daily_bars: 已获取的行情行，估值行的日期与 `available_date` 均从它复制。
+
+        Returns:
+            与输入等长的估值行列表。
+        """
         rows = []
         code_indexes = {code: index for index, (code, *_rest) in enumerate(self.codes)}
         for bar in daily_bars:
@@ -135,6 +195,11 @@ class MockProvider:
         return rows
 
     def get_financials(self) -> List[FinancialRow]:
+        """返回 6 只股票各一期 2023 年报。
+
+        公告日 2024-01-15、可用日 2024-01-16，正好落在默认同步区间内，便于测试
+        "财报在可见日之前不可用"；金额单位为元，比率字段为 0~1 小数。
+        """
         rows = []
         for code_index, (code, *_rest) in enumerate(self.codes):
             rows.append(FinancialRow(
@@ -156,6 +221,17 @@ class MockProvider:
         return rows
 
     def _available_date(self, calendar_row: TradeCalendarRow) -> str:
+        """计算一条行情最早可见的日期。
+
+        优先用日历里已有的下一个开市日；区间最后一天没有下一日时，向后逐日找第一个
+        "非周末且不在 `closed_dates`"的日期，避免返回空字符串让下游过滤失效。
+
+        Args:
+            calendar_row: 该行情对应的日历行。
+
+        Returns:
+            次一开市日的 ISO 日期字符串。
+        """
         if calendar_row.next_trade_date:
             return calendar_row.next_trade_date
 

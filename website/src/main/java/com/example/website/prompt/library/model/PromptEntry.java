@@ -1,5 +1,17 @@
 package com.example.website.prompt.library.model;
 
+/**
+ * 提示词库的单条记录，同时承担三个角色：{@code prompt_entry} 表行的查询结果、列表/详情映射的
+ * 数据来源，以及 {@code PromptLibraryDao#insert} 的写入参数。
+ *
+ * <p>字段里有三组容易混淆的内容：{@code sourceName}/{@code groupName} 是 Mapper 联表
+ * {@code prompt_source}/{@code prompt_group} 带出的展示名，不是表列；{@code entryKey} 是导入或
+ * 手动添加时生成的业务键（手动添加固定为 {@code manual-{uuid}} 形式）；{@code tags} 是英文逗号分隔的
+ * 字符串，服务端对外输出时才拆成数组。</p>
+ *
+ * <p>{@code preview} 只在列表查询（{@code searchPage}）里由 SQL 的 {@code left(prompt,200)} 填充，
+ * 详情查询不设置该字段，完整正文始终在 {@code prompt} 中。</p>
+ */
 public class PromptEntry {
 
     private Long id;

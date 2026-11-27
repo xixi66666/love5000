@@ -11,6 +11,15 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * {@link LotteryController} 的 Web 层测试：standalone MockMvc 加 mock 的
+ * {@link LotteryProcessManager}，不启动 Python、不连接 5179。
+ *
+ * <p>固定首页卡片依赖的响应契约：首次启动返回 200、{@code success=true}、
+ * {@code status=started} 与可直接打开的 url；已在线时返回 200 与
+ * {@code status=already-running}，页面据此提示「点击打开」；启动失败返回 503、
+ * {@code success=false}，并把可读原因原样放进 {@code message}；状态接口只读 manager。</p>
+ */
 class LotteryControllerTest {
 
     @Test

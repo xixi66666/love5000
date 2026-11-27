@@ -1,4 +1,17 @@
-"""增量更新写回、原子发布与失败重试测试（只使用临时数据）。"""
+"""增量更新写回、原子发布与失败重试测试（只使用临时数据）。
+
+覆盖分支：
+  * `publish` 的临时文件写入失败与 `os.replace` 失败：目标保持旧内容、临时文件清理；
+  * `prepare_merge` 只读不写盘，返回顺序为奖级在前、开奖在后；
+  * 缺值保留与整数格式（不出现 123.0）、UTF-8 BOM、可空整型列；
+  * 重复导入幂等；四个文件全部发布且奖级先于开奖；
+  * 奖级发布失败、开奖发布失败后按本轮备份补偿，重跑后收敛；
+  * 补偿本身失败要在日志里留痕；暂存失败不动任何目标文件；
+  * 数据目录锁被占用时本轮返回 1，释放后可重试成功。
+
+隔离：每个用例用 `tempfile.TemporaryDirectory` 建独立的 data 目录与日志文件，
+`fetch_ssq` / `fetch_dlt` 全部打桩，不联网，也不读写仓库里的真实 data/。
+"""
 import csv
 import io
 import sys
@@ -74,6 +87,8 @@ def dlt_row(issue, date, front_start, back_start):
 
 
 class UpdateDailyTests(unittest.TestCase):
+    """更新流水线测试；fixture 写入临时目录并保存原始字节用于前后比对。"""
+
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
         root = Path(self._tmp.name)

@@ -23,6 +23,19 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * 提示词控制台接口 {@link PromptConsoleController} 的 MVC 切片测试。
+ *
+ * <p>用 {@code @WebMvcTest} 只装配控制器，{@link PromptSourceFetchService} 与
+ * {@link PromptComposeService} 由 {@code @MockBean} 替换，固定三条响应约定：
+ * 来源列表与刷新都包在 {@code success=true} 里，把快照放进 {@code sources}；
+ * 组合接口把服务返回的变体放进 {@code results}，类型字段供前端分栏展示；
+ * 服务抛 {@link IllegalArgumentException}（场景只有空白）时仍然返回 HTTP 200，
+ * 用 {@code success=false} + {@code message} 表达业务错误——前端只看 {@code success}，
+ * 校验失败不该表现为 5xx。</p>
+ *
+ * <p>隔离：切片测试不加载数据库和 Druid，不发起真实抓取，也不真正拼装提示词。</p>
+ */
 @WebMvcTest(PromptConsoleController.class)
 class PromptConsoleControllerTest {
 
@@ -99,6 +112,7 @@ class PromptConsoleControllerTest {
     void composeBlankSceneReturnsErrorWrapper() throws Exception {
         when(composeService.compose(any())).thenThrow(new IllegalArgumentException("场景不能为空"));
 
+        // 业务校验失败不改变 HTTP 状态码：前端统一按 success 字段判断。
         mockMvc.perform(post("/api/prompts/compose")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"scene\":\" \"}"))

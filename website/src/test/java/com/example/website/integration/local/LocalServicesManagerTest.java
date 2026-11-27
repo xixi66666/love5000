@@ -12,6 +12,26 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+/**
+ * {@link LocalServicesManager} 的单元测试。
+ *
+ * <p>被测对象管理三个本机应用：Strata（9999，Qwen 本地模型）、AIMedia 操作台（8190）与
+ * H3 的 ComfyUI 引擎（8189）。本类用 mock 的 {@link LocalServiceClient} 与
+ * {@link LocalServiceProcessRunner} 替代真实 HTTP 与进程启动，因此不会加载模型、不会生成视频，
+ * 也不会留下子进程。</p>
+ *
+ * <p>固定的关键规则：</p>
+ * <ul>
+ *   <li>「服务在线」与「模型已加载」是两件事：Strata 在线但 {@code loaded=false} 时运行状态为真、
+ *       模型状态为假；</li>
+ *   <li>已在线则复用，不重复启动；{@code start} 只传 {@code --lazy}，不顺手打开浏览器；</li>
+ *   <li>只有 Strata 支持 {@code load}，AIMedia 不支持 {@code unload}；未知服务 404、未知操作 400；</li>
+ *   <li>忙碌（队列或操作台作业未完成，或上游直接返回 409）时拒绝卸载与停止；
+ *       读不到队列时按 503 失败关闭，宁可不操作也不误杀任务；</li>
+ *   <li>H3 空闲时 {@code unload} 只调 {@code /free} 释放显存，引擎继续在线；</li>
+ *   <li>启动命令复用已装好的 {@code ComfyUI/.venv-rocm} 解释器并带真实端口，不自动拉起浏览器。</li>
+ * </ul>
+ */
 class LocalServicesManagerTest {
     private final LocalServiceProperties properties = new LocalServiceProperties();
     private final LocalServiceClient client = mock(LocalServiceClient.class);
@@ -111,6 +131,7 @@ class LocalServicesManagerTest {
 
     @Test
     void videoCommandsUseTheExistingGpuEnvironmentAndActualEnginePort() {
+        // 必须复用已装好的 ROCm 虚拟环境、带上真实引擎端口，并且不额外拉起浏览器进程。
         List<String> command = manager.command("h3");
         assertTrue(command.get(0).replace('\\', '/').endsWith("ComfyUI/.venv-rocm/Scripts/python.exe"));
         assertTrue(command.contains("8189"));
@@ -118,5 +139,6 @@ class LocalServicesManagerTest {
         assertFalse(command.contains("--auto-launch"));
     }
 
+    /** 把测试内联的 JSON 字面量解析成 {@link JsonNode}，用来模拟本机应用返回的状态体。 */
     private JsonNode json(String source) throws Exception { return mapper.readTree(source); }
 }

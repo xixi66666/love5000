@@ -29,6 +29,22 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+/**
+ * 提示词库业务实现 {@link PromptLibraryServiceImpl} 的单元测试。
+ *
+ * <p>{@link PromptLibraryDao} 全部用 Mockito mock，因此不连远程 MySQL，只验证业务规则：
+ * meta 把统计行组装成「大分类 → 小分类 → 来源」的树并带上总数；search 会夹紧分页
+ * （page 最小 1、size 限定 1..100、缺省为 1/48）、对 LIKE 通配符逐字转义
+ * （{@code \}、{@code %}、{@code _} 各加一个反斜杠）、去掉过滤参数首尾空白、
+ * 页码超出总数时不发列表查询、列表预览优先用 SQL 已算好的 {@code preview}；
+ * detail 完成字段映射，id 为空或查不到时返回 null；create 覆盖必填校验与六条长度上限
+ * （标题 512、小分类 128、正文 60000、标签 1000、来源链接 512、授权 255）、
+ * 字段归一化与标签去重（半角/全角逗号都拆）、未知小分类归入 {@code other}，
+ * 并固定写入 {@code manual} 来源、{@code imported} 状态和 {@code manual-} 前缀的 entry_key。</p>
+ *
+ * <p>校验失败必须发生在任何 DAO 调用之前，用例用 {@code verifyNoInteractions} 守住这一点，
+ * 避免产生半条脏数据。隔离：除 mock DAO 外没有其它协作者，不联网。</p>
+ */
 class PromptLibraryServiceTest {
 
     private final PromptLibraryDao dao = mock(PromptLibraryDao.class);
@@ -70,6 +86,7 @@ class PromptLibraryServiceTest {
         PromptListResponse response = service.search(request);
 
         verify(dao).countByFilter("50\\%\\_off\\\\x", null, null, null, null);
+        // page=0 夹到 1、size=999 夹到 100，offset 仍是 0。
         verify(dao).searchPage("50\\%\\_off\\\\x", null, null, null, null, 0L, 100);
         assertThat(response.getPage()).isEqualTo(1);
         assertThat(response.getSize()).isEqualTo(100);
@@ -145,6 +162,7 @@ class PromptLibraryServiceTest {
 
         PromptListResponse response = service.search(request);
 
+        // page 取 Integer.MAX_VALUE 时 offset 会溢出，必须先用总数挡掉再查列表。
         assertThat(response.getPage()).isEqualTo(Integer.MAX_VALUE);
         assertThat(response.getSize()).isEqualTo(100);
         assertThat(response.getTotal()).isEqualTo(10L);
@@ -214,6 +232,7 @@ class PromptLibraryServiceTest {
         assertThat(inserted.getSourceId()).isEqualTo("manual");
         assertThat(inserted.getStatus()).isEqualTo("imported");
         assertThat(inserted.getEntryKey()).startsWith("manual-");
+        // 全角逗号也要拆开，重复标签只保留第一次出现。
         assertThat(inserted.getTags()).isEqualTo("标签A,标签B");
         assertThat(inserted.getSourceUrl()).isEqualTo("https://example.com/prompt");
         assertThat(inserted.getLicense()).isEmpty();
@@ -306,6 +325,7 @@ class PromptLibraryServiceTest {
                 .hasMessageContaining("授权")
                 .hasMessageContaining("255");
 
+        // 校验失败不能碰 DAO，否则会留下半条脏数据。
         verifyNoInteractions(dao);
     }
 
@@ -353,6 +373,7 @@ class PromptLibraryServiceTest {
         verifyNoInteractions(dao);
     }
 
+    /** 只填标题、小分类、正文三个必填字段的最小合法请求。 */
     private PromptCreateRequest validCreateRequest() {
         PromptCreateRequest request = new PromptCreateRequest();
         request.setTitle("标题");
@@ -361,12 +382,14 @@ class PromptLibraryServiceTest {
         return request;
     }
 
+    /** 生成恰好 {@code count} 个字符的字段值，用来卡在长度上限与超限之间。 */
     private String repeat(char value, int count) {
         char[] chars = new char[count];
         Arrays.fill(chars, value);
         return new String(chars);
     }
 
+    /** 模拟 insert 之后按回填 id 回查出来的整行，含大分类名与来源名。 */
     private PromptEntry createdRow(Long id, String groupSlug) {
         PromptEntry entry = new PromptEntry();
         entry.setId(id);
@@ -385,6 +408,7 @@ class PromptLibraryServiceTest {
         return entry;
     }
 
+    /** 列表与详情共用的行数据：tags 是逗号串，preview 已由 SQL 截好。 */
     private PromptEntry entry() {
         PromptEntry entry = new PromptEntry();
         entry.setId(1L);
@@ -402,6 +426,7 @@ class PromptLibraryServiceTest {
         return entry;
     }
 
+    /** 构造一行大分类统计，{@code count} 是该大分类下的条目数。 */
     private PromptGroupStat groupStat(String slug, String name, long count) {
         PromptGroupStat stat = new PromptGroupStat();
         stat.setSlug(slug);
@@ -410,6 +435,7 @@ class PromptLibraryServiceTest {
         return stat;
     }
 
+    /** 构造一行小分类统计，带所属大分类 slug，用于验证 meta 的嵌套关系。 */
     private PromptCategoryStat categoryStat(String groupSlug, String category, long count) {
         PromptCategoryStat stat = new PromptCategoryStat();
         stat.setGroupSlug(groupSlug);
@@ -418,6 +444,7 @@ class PromptLibraryServiceTest {
         return stat;
     }
 
+    /** 构造一行来源统计，含状态、条目数、授权与摘要。 */
     private PromptSourceStat sourceStat(String id, String name, String status, long count, String license, String summary) {
         PromptSourceStat stat = new PromptSourceStat();
         stat.setSourceId(id);

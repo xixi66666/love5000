@@ -1,3 +1,14 @@
+"""字幕可读性与时间戳真实性的校验。
+
+`align_script` 把口播稿和 ASR 实测词时间戳对齐成字幕条。这里锁死三条底线：
+1. 长句只在真实词边界处拆分，拼回去仍是完整原文，且相邻字幕首尾不重叠；
+2. 每条字幕的起止时间必须取自实测时间戳，不能为了让长度好看而均分时间；
+3. 英文名 `React`、版本号 `v2.5` 这类被 ASR 当成单个 token 的片段不能被再次切开。
+
+零时长的 ASR token 和 NaN/inf/负数/倒序等坏边界必须在进入渲染器前就抛错——
+渲染器拿到坏时间轴只会产出一帧都放不出来的成片。
+"""
+
 from itertools import pairwise
 
 import pytest
@@ -46,6 +57,8 @@ def test_zero_duration_asr_tokens_are_not_used_as_timing_anchors():
     assert cues == [{"text": "先看这个工具。", "start": 0.1, "end": 1.8}]
 
 
+# 四类坏边界：NaN 起点、inf 终点、负起点、终点早于起点，都来自异常的 ASR 结果；
+# 它们必须在字幕对齐阶段就抛出带 "timestamp" 的运行时错误，不能透传进渲染器。
 @pytest.mark.parametrize("start,end", [(float("nan"), 2), (0, float("inf")), (-1, 2), (2, 1)])
 def test_bad_measured_boundaries_fail_before_they_can_reach_renderer(start, end):
     with pytest.raises(RuntimeError, match="timestamp"):

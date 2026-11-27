@@ -1,3 +1,15 @@
+"""榜单与详情查询。
+
+列表查询把三个周期的榜单做成三个子查询，左连接到仓库主表，因此“不在某期榜单”的
+仓库仍会出现（对应增量为 ``None``，排序时被压到最后）。排序键固定带上总 Star 与 id，
+保证翻页不重复、不抖动。
+
+详情接口优先使用榜单页给出的增量，缺失时回退 ``star_snapshots`` 计算；中文简介只在
+这里读取已保存的 JSON，**从不**在请求里调用模型——缺失就返回 ``None``，由前端显示
+“暂未生成中文介绍”。
+
+只读：所有方法接收调用方的 ``AsyncSession``，不提交也不关闭。
+"""
 from __future__ import annotations
 
 import json
@@ -18,6 +30,12 @@ from app.schemas.repository import (
 
 
 class RepositoryService:
+    """榜单与详情服务（无状态，业务时区在构造时固定）。
+
+    时区用于把“今天”换算成业务日期，从而与采集写入的快照日期保持一致；
+    由路由依赖按 ``settings.business_timezone`` 构造。
+    """
+
     def __init__(self, business_timezone: str = "Asia/Shanghai") -> None:
         self._timezone = ZoneInfo(business_timezone)
 
@@ -32,6 +50,22 @@ class RepositoryService:
         min_stars: int | None,
         q: str | None,
     ) -> dict:
+        """分页查询榜单。
+
+        Args:
+            session: 调用方打开的只读会话，本方法不提交也不关闭。
+            page_params: 已校验的页码与每页条数。
+            sort: ``total_stars`` / ``monthly_stars`` / ``weekly_stars`` / ``daily_stars``，
+                未知值按 ``daily_stars`` 处理。
+            category: 分类过滤，匹配 ``categories`` JSON 文本中带引号的完整元素。
+            language: 语言精确匹配。
+            min_stars: 总 Star 下限（含）。
+            q: 关键词，对 owner/name/description 做 LIKE 模糊匹配。
+
+        Returns:
+            ``RepositoryListResponse`` 对应的字典。排序先按“该周期增量是否为 NULL”
+            升序（有值的在前），再按增量降序，最后用总 Star 与 id 兜底稳定分页。
+        """
         daily = self._trending_subquery("daily")
         weekly = self._trending_subquery("weekly")
         monthly = self._trending_subquery("monthly")
@@ -103,6 +137,23 @@ class RepositoryService:
     async def get_detail(
         self, session: AsyncSession, owner: str, name: str
     ) -> RepositoryDetail:
+        """按 ``owner`` / ``name`` 取仓库详情。
+
+        三个周期的增量优先取 ``trending_entries``；缺失时分别用 1/7/30 天的快照差回退。
+        软删除的仓库视为不存在。
+
+        Args:
+            session: 调用方打开的只读会话。
+            owner: 仓库所有者，精确匹配库中存值。
+            name: 仓库名，精确匹配库中存值。
+
+        Returns:
+            含简介、增量与近 30 天曲线的详情对象。
+
+        Raises:
+            ApiError: 仓库不存在或已软删除时抛 ``REPOSITORY_NOT_FOUND``（404），
+                由统一错误处理器转成错误体。
+        """
         result = await session.execute(
             select(Repository).where(
                 Repository.owner == owner,
@@ -164,6 +215,17 @@ class RepositoryService:
         )
 
     def _trending_subquery(self, period: str):
+        """构造“某周期的仓库增量”子查询，供列表左连接。
+
+        子查询只取 ``repository_id`` 与增量两列，列名带周期前缀（``daily_stars`` 等），
+        这样外层可以同时连接三个周期而不冲突。
+
+        Args:
+            period: ``daily`` / ``weekly`` / ``monthly``。
+
+        Returns:
+            可被 ``outerjoin`` 的 SQLAlchemy 子查询。
+        """
         return (
             select(
                 TrendingEntry.repository_id.label("repository_id"),
@@ -176,6 +238,15 @@ class RepositoryService:
     async def _trending_growth(
         self, session: AsyncSession, repository_id: int
     ) -> dict[str, int | None]:
+        """取某仓库在各周期榜单里的增量。
+
+        Args:
+            session: 调用方打开的只读会话。
+            repository_id: ``repositories.id``。
+
+        Returns:
+            ``{period: stars_gained}``；某周期没有记录时该键不存在，调用方据此回退。
+        """
         rows = await session.execute(
             select(TrendingEntry).where(TrendingEntry.repository_id == repository_id)
         )
@@ -191,6 +262,20 @@ class RepositoryService:
         weekly: int | None,
         monthly: int | None,
     ) -> RepositoryListItem:
+        """把一行查询结果映射成列表项。
+
+        ``topics`` / ``categories`` 在库里是 JSON 反序列化后的值，可能为 ``None``，
+        这里统一兜底成空列表，避免响应里出现 ``null``；列表不返回曲线，故 ``trend`` 为空。
+
+        Args:
+            row: ``(Repository, daily, weekly, monthly)`` 中的仓库 ORM 对象。
+            daily: 当日增量，可为 ``None``。
+            weekly: 本周增量，可为 ``None``。
+            monthly: 本月增量，可为 ``None``。
+
+        Returns:
+            列表项模型。
+        """
         return RepositoryListItem(
             id=row.id,
             owner=row.owner,
@@ -211,6 +296,20 @@ class RepositoryService:
     async def _growth_between(
         self, session: AsyncSession, repository_id: int, target: datetime.date, days: int
     ) -> int | None:
+        """用两条快照的差计算 N 天增量（回退路径）。
+
+        “基准”取 ``target - days`` 当天或之前最近的一条，“最新”取 ``target`` 当天或之前
+        最近的一条；任一缺失都返回 ``None``——宁可显示“—”，也不给出编造的增量。
+
+        Args:
+            session: 调用方打开的只读会话。
+            repository_id: ``repositories.id``。
+            target: 业务日期（今天）。
+            days: 回溯天数，1/7/30 分别对应日/周/月。
+
+        Returns:
+            Star 差值；快照不足时为 ``None``。
+        """
         cutoff = target - timedelta(days=days)
         base_row = await session.execute(
             select(StarSnapshot)
@@ -237,6 +336,16 @@ class RepositoryService:
         return latest.stars_count - base.stars_count
 
     async def _last_successful_collection(self, session: AsyncSession) -> str | None:
+        """取最近一次成功（含部分成功）采集的结束时间。
+
+        ``PARTIAL`` 也算成功：榜单至少部分更新过，前端可以照常展示。
+
+        Args:
+            session: 调用方打开的只读会话。
+
+        Returns:
+            UTC ISO 字符串；从未成功过时为 ``None``。
+        """
         row = await session.execute(
             select(CollectionRun)
             .where(CollectionRun.status.in_(("SUCCESS", "PARTIAL")))
@@ -248,6 +357,16 @@ class RepositoryService:
 
 
 def _iso(value: datetime | None) -> str | None:
+    """把可能需要补时区的时间统一成带 ``Z`` 的 UTC ISO 字符串。
+
+    MySQL DATETIME 取回来通常没有时区信息，这里按 UTC 解释，与写入时使用的时间一致。
+
+    Args:
+        value: 数据库时间或 ``None``。
+
+    Returns:
+        ISO 字符串；输入为 ``None`` 时返回 ``None``。
+    """
     if value is None:
         return None
     if value.tzinfo is None:
@@ -256,7 +375,18 @@ def _iso(value: datetime | None) -> str | None:
 
 
 def _parse_introduction(raw: str | None) -> RepositoryIntroduction | None:
-    """Parse the stored JSON introduction; fall back to a plain-text intro."""
+    """解析库里保存的简介 JSON，失败时退化成纯文本。
+
+    兼容两种历史数据：结构化 JSON（简介 + 亮点 + 前置条件 + 用法 + 受众 + 领域）和早期
+    写入的纯文本。JSON 解析失败或结构不符时，把整段原文当作 ``introduction`` 返回，
+    保证旧数据仍能展示；只有 ``introduction`` 字段为空的 JSON 才被视为“无简介”。
+
+    Args:
+        raw: ``repositories.introduction`` 的原始文本，可为 ``None``。
+
+    Returns:
+        结构化简介；无数据时为 ``None``。
+    """
     if not raw:
         return None
     try:

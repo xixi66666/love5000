@@ -13,6 +13,16 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.*;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.*;
 
+/**
+ * {@link DeepSeekFiles} 的上传—引用—删除三段式调用测试。
+ *
+ * <p>覆盖分支：PDF 走版面识别用途并成功返回正文；上游失败时仍尝试删除临时文件，并把
+ * 结果折成 502；传入型号覆盖默认的 {@code deepseek-flash}。</p>
+ *
+ * <p>隔离手段：用 {@link MockRestServiceServer} 绑定自建 {@link RestTemplate}，逐条断言
+ * 请求头、multipart 用途与过期时间、文件 id 引用与清理请求；不访问真实 DeepSeek 接口，
+ * 也不需要密钥。</p>
+ */
 class DeepSeekFilesTest {
     private final RestTemplate http = new RestTemplate();
     private final MockRestServiceServer server = MockRestServiceServer.bindTo(http).build();

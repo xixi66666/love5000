@@ -1,3 +1,18 @@
+"""last30days 服务层对 skill 导出的解析与降级。
+
+覆盖 `app.last30days.service` 的两个入口：
+
+- `fetch_last30days` 要把 agent JSON 导出映射成接口契约（`status`、去重后的
+  `sources`、`source_status`、`clusters`、`items`），命令行固定带
+  `--emit=json --json-profile=agent --auto-resolve`；
+- 本机没装 skill 时底层抛 `Last30DaysNotConfigured`，这里必须降级成
+  `status=unconfigured` 的空结果，不能变成 500；
+- `diagnose_last30days` 只读取 `available_sources` 并标记为 `working`。
+
+隔离方式：真正启动 Node 子进程的 `_run_last30days` 被 patch 成 `AsyncMock`，
+所以既不安装也不执行外部 skill，不发起任何网络请求。
+"""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
@@ -10,6 +25,8 @@ from app.last30days.service import (
     fetch_last30days,
 )
 
+# 与 last30days skill `--json-profile=agent` 输出一致的样例：四路来源状态
+# （polymarket 明确为 no-results）、一个簇、一条带互动数据的结果。
 AGENT_EXPORT = {
     "schema_version": "1.0",
     "query": "OpenAI",

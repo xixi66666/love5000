@@ -14,6 +14,13 @@
 // * See the License for the specific language governing permissions and
 // * limitations under the License.
 // */
+//
+// 说明：本文件整体被逐行注释，不参与编译，仅作为负载均衡 RestTemplate 的示例保留，
+// 不是站点实际暴露的接口（当前访问 /call/echo/{message} 不会命中任何处理器）。
+// 示例意图：用 @LoadBalanced 的 RestTemplate 把 http://nacos-service/... 中的服务名交给
+// 注册中心解析为实例地址，从而不需要写死提供者的主机和端口。
+// 恢复使用时需把包名改为 com.example.website，并确认 spring-cloud-loadbalancer 依赖存在。
+//
 //package com.example.love530.demos.nacosdiscoveryconsumer;
 //
 //import org.springframework.beans.factory.annotation.Autowired;

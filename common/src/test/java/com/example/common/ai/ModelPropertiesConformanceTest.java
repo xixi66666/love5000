@@ -72,6 +72,13 @@ class ModelPropertiesConformanceTest {
         }
     }
 
+    /**
+     * 逐字段比对单个提供商，确认字段名、列表顺序与可选配置都与共享用例一致。
+     *
+     * @param caseName 用例名，用于断言失败时定位
+     * @param provider 实际解析出的提供商
+     * @param expected 共享用例中声明的期望值
+     */
     private static void assertProvider(String caseName, ModelProperties.Provider provider, JsonNode expected) {
         String providerId = expected.path("id").asText();
         assertThat(provider.id()).as("case %s provider id", caseName).isEqualTo(providerId);
@@ -97,6 +104,15 @@ class ModelPropertiesConformanceTest {
         }
     }
 
+    /**
+     * 从当前工作目录向上查找共享一致性用例文件。
+     *
+     * <p>Maven 可能以模块目录或仓库根目录为工作目录，所以不能写死相对路径；
+     * 找不到时直接失败，避免测试被静默跳过。</p>
+     *
+     * @return 用例文件的绝对路径
+     * @throws IllegalStateException 一路向上都没有找到用例文件时抛出
+     */
     private static Path conformanceFile() {
         Path current = Paths.get("").toAbsolutePath().normalize();
         for (Path candidate = current; candidate != null; candidate = candidate.getParent()) {

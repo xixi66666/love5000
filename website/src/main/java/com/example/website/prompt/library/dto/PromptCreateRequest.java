@@ -1,5 +1,15 @@
 package com.example.website.prompt.library.dto;
 
+/**
+ * {@code POST /api/prompts} 的请求体，由 Jackson 从 JSON 反序列化。
+ *
+ * <p>六个字段都是字符串，且都允许缺省：{@code title}、{@code category}、{@code prompt} 为必填，
+ * 由 {@code PromptLibraryServiceImpl#create} 做去空白与长度校验，上限依次是标题 512、
+ * 小分类 128、正文 60000、标签 1000、来源链接 512、授权 255 个字符；超限统一抛
+ * {@link IllegalArgumentException} 并由控制器转成 HTTP 400。</p>
+ *
+ * <p>{@code tags} 允许用中文或英文逗号分隔，服务端会去空白、去重并以英文逗号重新拼接后落库。</p>
+ */
 public class PromptCreateRequest {
 
     private String title;

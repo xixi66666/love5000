@@ -1,3 +1,14 @@
+"""行情与研究数据提供方（services 下的 provider 模块）的契约测试。
+
+被测对象：
+    - ``research_provider`` 的公共协议：股票代码校验、成功/失败区块结构、外链白名单、
+      ``UrlLibHttpClient`` 的 GET/POST 与 ``EastmoneyRateLimiter`` 的最小调用间隔；
+    - 四个数据源适配器：腾讯行情、东方财富研究、新浪资金流、巨潮公告（含深交所备用接口）。
+
+隔离：所有网络访问都由 ``FakeTextClient`` / ``FakeJsonClient`` 接管，它们只记录调用参数并回放
+固定 payload，因此可以断言请求地址、编码与超时而不真正联网；``FakeClock`` 让限流器的等待时间
+可精确断言，``FakeHttpResponse`` 配合 ``mock.patch`` 替换 ``urlopen``，避免打开真实连接。
+"""
 import unittest
 from unittest import mock
 
@@ -17,6 +28,7 @@ from services.tencent_quote_provider import TencentQuoteProvider, market_prefix
 
 
 class FakeTextClient:
+    """文本接口替身：记录每次请求的 url/编码/超时，按需抛错或回放固定文本。"""
     def __init__(self, payload=None, error=None):
         self.payload = payload
         self.error = error
@@ -37,6 +49,7 @@ class FakeTextClient:
 
 
 class FakeJsonClient:
+    """JSON 接口替身：按调用顺序依次弹出预置 payload，并用完即报错暴露多余请求。"""
     def __init__(self, get_payloads=None, post_payloads=None, error=None):
         self.get_payloads = list(get_payloads or [])
         self.post_payloads = list(post_payloads or [])
@@ -69,6 +82,7 @@ class FakeJsonClient:
 
 
 class FakeClock:
+    """可手动推进的假时钟：sleep 只累加时间而不真正等待，便于断言限流等待值。"""
     def __init__(self):
         self.value = 10.0
         self.sleeps = []
@@ -82,6 +96,7 @@ class FakeClock:
 
 
 class FakeHttpResponse:
+    """满足 with 与 read() 的最小响应替身，配合 mock.patch 替换 urlopen。"""
     def __init__(self, payload):
         self.payload = payload
 
@@ -96,10 +111,12 @@ class FakeHttpResponse:
 
 
 def tencent_payload(values, prefix="sz", code="002580"):
+    """拼接腾讯行情接口的 ``v_sz002580="a~b~c"`` 文本，字段按 ~ 分隔、按位置取值。"""
     return 'v_{}{}="{}";'.format(prefix, code, "~".join(values))
 
 
 class ResearchProviderContractTests(unittest.TestCase):
+    """覆盖公共协议：股票代码校验、成功/失败区块、外链白名单、HTTP 客户端与限流器。"""
     def test_validate_stock_code_accepts_six_digits_only(self):
         self.assertEqual(validate_stock_code("002580"), "002580")
         for value in ("", "2580", "SH600519", "600519;drop"):
@@ -142,12 +159,14 @@ class ResearchProviderContractTests(unittest.TestCase):
 
 
 class TencentQuoteProviderTests(unittest.TestCase):
+    """覆盖市场前缀映射、字段与单位换算、缺失值留空、网络异常包装成可重试错误。"""
     def test_market_prefix_supports_a_share_markets(self):
         self.assertEqual(market_prefix("600519"), "sh")
         self.assertEqual(market_prefix("002580"), "sz")
         self.assertEqual(market_prefix("832000"), "bj")
 
     def test_fetch_parses_overview_fields_and_units(self):
+        # 腾讯接口按位置返回 ~ 分隔的字段表，这里先造 88 个空位，再只填要校验的那几列。
         values = [""] * 88
         values[1] = "圣阳股份"
         values[3] = "34.17"
@@ -199,6 +218,7 @@ class TencentQuoteProviderTests(unittest.TestCase):
 
 
 class EastmoneyRateLimiterTests(unittest.TestCase):
+    """只验证限流语义：两次调用间隔不足时补足睡眠，且补的秒数精确。"""
     def test_wait_serializes_calls_with_minimum_interval(self):
         clock = FakeClock()
         limiter = EastmoneyRateLimiter(min_interval=1.0, monotonic=clock.monotonic, sleep=clock.sleep)
@@ -213,6 +233,7 @@ class EastmoneyRateLimiterTests(unittest.TestCase):
 
 
 class EastmoneyResearchProviderTests(unittest.TestCase):
+    """覆盖四个分区：概览字段缩放、资金流周期汇总、两融/股东/解禁随日期解析、研报的安全 PDF 链接。"""
     def test_fetch_overview_normalizes_scaled_fields(self):
         client = FakeJsonClient(
             get_payloads=[
@@ -307,6 +328,7 @@ class EastmoneyResearchProviderTests(unittest.TestCase):
 
 
 class SinaFundFlowProviderTests(unittest.TestCase):
+    """覆盖 JSON 文本解析、来源标注，以及以最近若干个交易日累加的资金净流入口径。"""
     def test_fetch_parses_json_text_and_marks_sina(self):
         payload = '[{"opendate":"2026-07-11","trade":"34.17","netamount":"1200000","turnover":"50000000"},{"opendate":"2026-07-10","trade":"33.50","netamount":"-200000","turnover":"40000000"}]'
         client = FakeTextClient(payload)
@@ -319,6 +341,7 @@ class SinaFundFlowProviderTests(unittest.TestCase):
 
 
 class CninfoAnnouncementProviderTests(unittest.TestCase):
+    """覆盖主接口的标题/日期/链接映射，以及主接口失败后切换到深交所备用源并改用其下载域名。"""
     def test_fetch_maps_titles_dates_and_safe_links(self):
         client = FakeJsonClient(
             get_payloads=[{"stockList": [{"code": "002580", "orgId": "gssz0002580"}]}],

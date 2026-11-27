@@ -1,17 +1,27 @@
 package com.example.common.util;
 
+/**
+ * OSS 上传成功后的结果快照。
+ *
+ * <p>同时给出对象键与访问地址：{@code objectKey} 用于后续删除或幂等补偿，
+ * {@code url} 由 {@code OssUtil#getObjectUrl} 按当前配置拼接。两者不保证可以互相推导
+ * （配置了自定义 {@code url-prefix} 时尤其明显），所以调用方应持久化对象键，而不是只存 URL。</p>
+ */
 public class OssUploadResult {
 
     private String bucketName;
 
+    /** 对象键，即 Bucket 内的完整路径；删除与存在性判断都应使用它。 */
     private String objectKey;
 
     private String url;
 
+    /** OSS 返回的 ETag，可用于校验上传内容是否完整。 */
     private String etag;
 
     private String originalFilename;
 
+    /** 上传内容的字节数，直接回填调用方传入的长度，工具类本身不做二次校验。 */
     private long size;
 
     public OssUploadResult() {

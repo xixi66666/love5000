@@ -3,6 +3,15 @@ package com.example.website.prompt.dto;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * {@code POST /api/prompts/compose} 的请求体。
+ *
+ * <p>只有 {@code scene} 必填。{@code purpose} 决定输出的第一个模板类型（{@code image}、
+ * {@code video}、{@code poster}，其余取值落到通用版）；{@code tone} 缺省为
+ * “专业、清晰、有画面感”，{@code length} 缺省为 {@code balanced}；{@code sourceIds} 为空表示使用
+ * 全部白名单来源，全部无效时同样回退为全部来源。这些归一化规则都在
+ * {@code PromptComposeService#compose} 里执行，本类只承载入参。</p>
+ */
 public class PromptComposeRequest {
 
     private String scene;

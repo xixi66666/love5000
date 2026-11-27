@@ -2,6 +2,13 @@ package com.example.website.prompt.library.dto;
 
 import java.util.List;
 
+/**
+ * {@code GET /api/prompts} 的分页响应体。
+ *
+ * <p>{@code success} 恒为 {@code true}（该接口不返回业务错误）；
+ * {@code page}/{@code size} 是服务端纠正后的实际值，可能和请求参数不同；
+ * {@code total} 是满足筛选条件的总条数，前端据此计算总页数，而不是当前页条数。</p>
+ */
 public class PromptListResponse {
 
     private boolean success = true;
@@ -50,6 +57,13 @@ public class PromptListResponse {
         this.entries = entries;
     }
 
+    /**
+     * 列表中的单条摘要。
+     *
+     * <p>为控制响应体积，这里不含完整正文，只给 {@code preview}：优先使用 SQL 侧
+     * {@code left(prompt,200)} 的结果，为空时由服务层补算正文前 200 字（换行归一化为
+     * {@code \n}）。{@code tags} 已由服务层拆成列表，其余字段与详情一致。</p>
+     */
     public static class EntrySummary {
 
         private Long id;

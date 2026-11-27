@@ -1,3 +1,20 @@
+"""last30days 榜单的排序、缓存读取与刷新落库。
+
+三块逻辑都在 `app.last30days.service`：
+
+- `rank_items`：按 `engagement` 各数值之和排序并截断。非 dict 条目直接丢弃，
+  非数字字段（含 `bool`，因为 `True` 会被当 1 算）不计分，缺失 `engagement` 记 0——
+  输入是外部来源的 JSON，不能假定字段类型；
+- `get_ranking`：从 `last30days_reports` 读缓存；没有记录或表还没建时降级成
+  `no-results` 并给出建表提示，不能抛 500；
+- `refresh_ranking`：调用研究服务后取前 20 条落库并 commit；引擎降级
+  （`unconfigured`）时不写库，落库失败要 rollback 并返回 `error`，未知
+  `direction` 直接 `ValueError`。
+
+隔离方式：`Last30DaysReportStore` 与 `fetch_last30days` 均按模块路径 patch，
+会话用 `MagicMock` / `AsyncMock`，既不连数据库也不执行外部 skill。
+"""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -15,6 +32,7 @@ from app.last30days.service import (
 
 
 def _item(candidate_id: str, engagement: dict) -> dict:
+    """构造一条候选结果；`engagement` 由用例给定，用来覆盖各种脏数据。"""
     return {
         "candidate_id": candidate_id,
         "title": f"title-{candidate_id}",
@@ -29,6 +47,7 @@ def _item(candidate_id: str, engagement: dict) -> dict:
 
 
 def _engine_result(items: list[dict]) -> dict:
+    """构造研究服务返回值的外壳，`items` 由用例按需提供。"""
     return {
         "status": "working",
         "query": "AI agents",
@@ -42,6 +61,8 @@ def _engine_result(items: list[dict]) -> dict:
 
 
 class TestRankItems:
+    """排序与容错：只统计数字互动量，脏数据不参与排序。"""
+
     def test_sorts_by_engagement_total_and_truncates(self) -> None:
         items = [
             _item("low", {"score": 5}),
@@ -71,6 +92,8 @@ class TestRankItems:
 
 @pytest.mark.asyncio
 class TestGetRanking:
+    """缓存读取的三条路径：无记录、有记录、表缺失。"""
+
     async def test_returns_empty_state_when_no_report(self) -> None:
         session = MagicMock()
         with patch(
@@ -120,6 +143,8 @@ class TestGetRanking:
 
 @pytest.mark.asyncio
 class TestRefreshRanking:
+    """刷新链路：排序截断、引擎降级不落库、落库失败回滚、非法方向拒绝。"""
+
     async def test_ranks_and_persists_top_items(self) -> None:
         items = [_item(str(n), {"score": n}) for n in range(30)]
         engine = AsyncMock(return_value=_engine_result(items))

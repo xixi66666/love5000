@@ -1,3 +1,10 @@
+"""``model_properties`` 的单元测试。
+
+覆盖：正常配置的提供商与路由解析、文件缺失/未知提供方/缺冒号/空模型 ID 的降级，
+以及与 Java 侧共享的 ``conformance/cases.json`` 一致性用例（注释、续行、转义、重复键、BOM）。
+用例全部使用 ``tempfile`` 落盘，不读仓库里的真实 ``model.properties``，不联网。
+"""
+
 import json
 import tempfile
 import unittest
@@ -24,6 +31,12 @@ service.python-a=deepseek:deepseek-v4-pro
 
 
 class ModelPropertiesTests(unittest.TestCase):
+    """``ModelPropertiesTests`` 覆盖的解析分支。
+
+    ``test_reads_providers_and_routes``：正常路径、选项读取、非文本能力与未知提供方；
+    ``test_missing_file_and_invalid_routes``：文件缺失与三种非法路由写法；
+    ``test_shared_conformance_cases``：跨语言一致性用例，含期望抛 ``ValueError`` 的非法转义。
+    """
     def setUp(self):
         self.dir = tempfile.TemporaryDirectory()
         self.file = Path(self.dir.name) / "model.properties"

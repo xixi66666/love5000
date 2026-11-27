@@ -1,3 +1,12 @@
+"""集成测试：``sql/schema.sql`` 建出的表结构。
+
+覆盖三点：五张业务表齐全（不多不少）、唯一索引与模型声明的约束一致
+（``uk_repositories_github_id`` 等）、快照与榜单表上的外键存在。用于防止模型改动后
+建表脚本漏改。
+
+隔离：需要 ``TEST_DATABASE_URL``（专用测试库），未设置时整模块跳过；``engine`` fixture
+会先 ``DROP`` 五张表再执行建表脚本，因此只能用于可销毁的测试库。
+"""
 import os
 from pathlib import Path
 

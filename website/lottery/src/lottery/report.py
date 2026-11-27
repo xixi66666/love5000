@@ -1,4 +1,19 @@
-"""生成自包含的 HTML 研究报告（图片以 base64 内嵌，可离线打开）。"""
+"""生成自包含的 HTML 研究报告（图片以 base64 内嵌，可离线打开）。
+
+输入是 :class:`lottery.run.Bundle`（已算好的检验表、回测、模拟与图片路径），输出是单文件
+``output/report.html``：CSS 内联、图 1–16 以 base64 内嵌，不依赖网络、字体或外部脚本，
+拷走即可离线阅读。
+
+公开面只有 :func:`write_report`；其余 ``_img`` / ``_p`` / ``_table`` / ``_prize_table`` /
+``_test_table`` / ``_strategy_table`` / ``_pop_table`` / ``_nav`` 都是 HTML 片段拼装器，
+各自返回**字符串**，由 :func:`write_report` 按章节顺序组合。
+
+数据边界：页面里的数字全部来自 ``Bundle`` 与 :mod:`lottery.config` 的规则常量；
+只有文本类字段做了 ``html.escape``，数字直接插值。报告不使用任何用户输入。
+
+结论边界：报告描述的是历史样本。开奖相互独立，任何“策略命中更高”“回测收益率为正”
+都来自抽样噪声或个别中小奖，不是可复用的规律；报告不提供下一期预测，也不构成购彩建议。
+"""
 
 from __future__ import annotations
 
@@ -20,6 +35,7 @@ from .config import (
 )
 from .data import OUTPUT_DIR
 
+# 策略 key → 报告中的中文名称；未登记的 key 在表格里回退成原始 key。
 STRATEGY_LABELS = {
     "random": "随机基准",
     "hot_30": "热号（30 期）",
@@ -31,6 +47,8 @@ STRATEGY_LABELS = {
     "balanced": "形态均衡",
 }
 
+# 点击图片放大的灯箱：一段静态 HTML 加内联脚本，直接拼在页面末尾。
+# 字符串内部是浏览器脚本，不要在其中插入 Python 注释或改写语法。
 LIGHTBOX = """
 <div id="lightbox"><img alt="放大查看"></div>
 <script>
@@ -50,6 +68,7 @@ document.addEventListener('keydown', function (e) {
 </script>
 """
 
+# 报告样式表：整段内联进 <style>，保证单文件离线可读。
 CSS = """:root{
   --ink:#14213D; --red:#C1121F; --gold:#B8860B; --blue:#1D4E89;
   --paper:#FBF9F4; --card:#FFFFFF; --muted:#6E6A61; --line:#E6E0D2;
@@ -134,6 +153,18 @@ footer{border-top:1px solid var(--line);padding:34px 0 60px;font-size:12.8px;col
 
 
 def _img(bundle, name: str, caption: str) -> str:
+    """把一张 PNG 以 base64 内嵌成 ``<figure>`` 片段。
+
+    Args:
+        bundle: 提供 ``figures``（图名 → 路径）的运行结果。
+        name: ``bundle.figures`` 的键，例如 ``"fig01_odds_ladder.png"``。
+        caption: 图注；允许少量 ``<b>`` 标记，正文原样插入，同时转义后放进 ``alt`` 属性，
+            因此标签只影响正文、不会破坏属性。
+
+    Returns:
+        HTML 字符串；图片缺失时返回空串——报告宁可少一张图，也不能因为某张 PNG
+        没生成就整体失败。
+    """
     path = Path(bundle.figures.get(name, ""))
     if not path.exists():
         return ""
@@ -145,12 +176,23 @@ def _img(bundle, name: str, caption: str) -> str:
 
 
 def _p(value: float) -> str:
+    """p 值格式化：小于 1e-4 用科学计数法，其余保留 4 位小数。"""
     if value < 1e-4:
         return f"{value:.1e}"
     return f"{value:.4f}"
 
 
 def _table(headers: list[str], rows: list[list[str]], numeric: set[int] | None = None) -> str:
+    """拼一张带表头的表格。
+
+    Args:
+        headers: 表头文本。
+        rows: 单元格文本；**调用方负责转义**，文本类字段需先 ``html.escape``。
+        numeric: 需要右对齐并启用等宽数字的列下标集合。
+
+    Returns:
+        ``<table>`` 片段字符串；不含任何脚本，样式由模块级 :data:`CSS` 提供。
+    """
     numeric = numeric or set()
     head = "".join(
         f'<th class="{"num" if i in numeric else ""}">{h}</th>' for i, h in enumerate(headers)
@@ -165,7 +207,12 @@ def _table(headers: list[str], rows: list[list[str]], numeric: set[int] | None =
 
 
 def _dlt_7tier() -> list[tuple[int, str, float, str]]:
-    """2026-02-02 起生效的大乐透 7 个奖级（合并了 5+0/4+2 等）。"""
+    """2026-02-02 起生效的大乐透 7 个奖级（合并了 5+0/4+2 等）。
+
+    Returns:
+        ``[(奖级, 中奖条件, 概率, 单注奖金说明)]``，奖级 1–7；一、二等奖没有固定下限，
+        用“浮动（奖池均分）”描述。
+    """
     probs = dlt_probabilities_7()
     rows = []
     for tier in range(1, 8):
@@ -176,6 +223,18 @@ def _dlt_7tier() -> list[tuple[int, str, float, str]]:
 
 
 def _prize_table(key: str) -> str:
+    """按彩种生成奖级表（HTML 片段）。
+
+    大乐透用 7 级新规并附脚注说明合并区间；双色球用 6 级。概率来自精确的
+    :func:`lottery.combinatorics.tier_probabilities`。列固定为：奖级、中奖条件、
+    概率（``1/…``）、每亿注中奖注数、单注奖金。
+
+    Args:
+        key: 彩种标识。
+
+    Returns:
+        HTML 表格字符串；大乐透会额外拼接一段说明文字。
+    """
     game = GAMES[key]
     if key == "dlt":
         rows = [
@@ -205,6 +264,17 @@ def _prize_table(key: str) -> str:
 
 
 def _test_table(frame: pd.DataFrame) -> str:
+    """把假设检验表渲染成 HTML（每行一个检验）。
+
+    判定列取 ``significant_fdr``：BH 校正后 ``q<0.05`` 记为“不通过”（即不能维持
+    “均匀随机”的零假设），否则“通过”；统计量或自由度缺失时显示 ``—``。
+
+    Args:
+        frame: :func:`lottery.tests.analyze_game` 返回的 ``results`` 表。
+
+    Returns:
+        HTML 表格字符串。
+    """
     rows = []
     for _, row in frame.iterrows():
         bad = row["significant_fdr"]
@@ -224,6 +294,16 @@ def _test_table(frame: pd.DataFrame) -> str:
 
 
 def _strategy_table(bundle, key: str) -> str:
+    """回测汇总表：策略、平均命中、理论值、t 统计量、中奖率、回测收益率。
+
+    Args:
+        bundle: 运行结果。
+        key: 彩种标识。
+
+    Returns:
+        HTML 表格字符串。收益率是 ``奖金/投入 − 1``，受一两注中小奖主导，
+        因此阅读重点应放在“平均命中 vs 理论值”，而不是收益率。
+    """
     summary = bundle.backtests[key].summary.copy()
     rows = []
     for _, row in summary.iterrows():
@@ -241,6 +321,14 @@ def _strategy_table(bundle, key: str) -> str:
 
 
 def _pop_table(bundle) -> str:
+    """双色球流行度回归表：形态、系数、约当变化、z、p、q 与显著性判断。
+
+    显著性按 BH 校正后的 ``q_value < 0.05``；表中“约当变化”是 ``e^β − 1`` 的百分比
+    形式，而 β 已按标准差标准化，因此读作“每变动一个标准差”。
+
+    Returns:
+        HTML 表格字符串（只含双色球，其余彩种的样本期数不足以稳定估计）。
+    """
     frame = bundle.popularity["ssq"]
     rows = []
     for _, row in frame.iterrows():
@@ -260,6 +348,11 @@ def _pop_table(bundle) -> str:
 
 
 def _nav() -> str:
+    """生成左侧目录（HTML 片段）。
+
+    条目里的 ``s0``…``s10`` 锚点必须与 :func:`write_report` 中 ``sec()`` 传入的 ``sid``
+    一一对应，改名要两处同步，否则目录链接会跳空。
+    """
     items = [
         ("s0", "摘要", False),
         ("s1", "01 · 认识两种游戏", False),
@@ -280,6 +373,22 @@ def _nav() -> str:
 
 
 def write_report(bundle) -> Path:
+    """把 :class:`lottery.run.Bundle` 渲染成单文件研究报告。
+
+    Args:
+        bundle: 已包含检验、回测、模拟结果与图片路径的运行结果。
+
+    Returns:
+        写好的 ``output/report.html`` 路径。
+
+    Raises:
+        KeyError: ``bundle`` 缺少某个彩种的键，或回测汇总里没有约定的策略名
+            （``STRATEGY_LABELS`` 之外的名字会正常回退，但引用到的表必须存在）。
+        OSError: ``output/`` 不可写。
+
+    实现要点：所有章节先拼进 ``parts`` 再一次性写盘，中途异常不会留下半个 HTML 文件；
+    图片以 base64 内嵌，报告体积随图数线性增长（约数 MB）。
+    """
     k = bundle.kpis()
     ssq, dlt = k["ssq"], k["dlt"]
     total_draws = ssq["draws"] + dlt["draws"]
@@ -289,6 +398,7 @@ def write_report(bundle) -> Path:
     best_ssq = bt_ssq.summary.iloc[0]
     best_dlt = bt_dlt.summary.iloc[0]
     logloss = pd.concat([bt_ssq.logloss.assign(game="双色球"), bt_dlt.logloss.assign(game="大乐透")])
+    # 两彩种全部策略里“相对均匀分布”的最大改善；若为负，说明没有一个模型有预测力。
     max_lift = float(logloss["lift"].max())
 
     mc_ssq = bundle.mc["ssq"]
@@ -299,16 +409,19 @@ def write_report(bundle) -> Path:
     # 各彩种"历史最高头奖"对应的单注期望，以及追平票价的临界头奖
     tiers_ssq = tier_probabilities(GAMES["ssq"])
     fixed_ssq = sum(tiers_ssq[t] * amount for t, amount in FIXED_PRIZES["ssq"].items())
+    # 双色球历史最高单注一等奖（元），用于给期望值曲线一个现实上界。
     max_jackpot_ssq = float(bundle.data["ssq"].df["p1_amount"].max())
     second_ssq = 150_000.0
     ev_at_max = fixed_ssq + tiers_ssq[1] * max_jackpot_ssq + tiers_ssq[2] * second_ssq
+    # 令 fixed + p₁·J + p₂·15万 = 2 元解出 J：数学上要追平票价所需的头奖金额。
     breakeven_jackpot = (2.0 - fixed_ssq - tiers_ssq[2] * second_ssq) / tiers_ssq[1]
 
     pop = bundle.popularity["ssq"].set_index("variable")
     birthday_effect = float(pop.loc["n_le12", "effect_pct"])
     birthday_p = float(pop.loc["n_le12", "p_value"])
 
-    # 早期/晚期大乐透分段检验
+    # 早期/晚期大乐透分段检验：2007–2013 与 2014 起各做一次前区均匀性卡方。
+    # 期望 = 期数 × 5/35（每期摇 5 个前区号），自由度 34 = 35 − 1。
     from scipy import stats as sps
 
     dlt_data = bundle.data["dlt"]
@@ -324,6 +437,7 @@ def write_report(bundle) -> Path:
     p_late = float(sps.chi2.sf(chi_late, 34))
 
     def sec(sid, no, title, body):
+        """包一个章节：``<section id="sid">`` + 编号标题 + 正文，返回 HTML 字符串。"""
         return f'<section id="{sid}"><h2><span class="no">{no}</span>{title}</h2>{body}</section>'
 
     parts: list[str] = []
@@ -613,6 +727,7 @@ def write_report(bundle) -> Path:
     '''
     parts.append(sec("s10", "APPENDIX", "附录", body))
 
+    # 生成时间戳只进入页脚，不参与任何统计结果；每次重建都会变。
     generated = datetime.now().strftime("%Y-%m-%d %H:%M")
     page = f'''<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8">
@@ -651,6 +766,7 @@ def write_report(bundle) -> Path:
 {LIGHTBOX}
 </body></html>'''
 
+    # 固定写到 output/：控制台页与报告同目录，报告里的 console.html 相对链接才有效。
     path = OUTPUT_DIR / "report.html"
     path.write_text(page, encoding="utf-8")
     print(f"  [OK] {path}（{path.stat().st_size / 1e6:.1f} MB）")

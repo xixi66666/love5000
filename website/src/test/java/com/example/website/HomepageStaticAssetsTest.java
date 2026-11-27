@@ -14,12 +14,26 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * 首页静态资源契约测试。
+ *
+ * <p>直接读取 classpath 下的 {@code static/index.html}、{@code static/css/style.css}、
+ * {@code static/js/script.js} 与 {@code application.yml}，断言四段场景视频、液态玻璃 Dock、
+ * 01 的 9 个入口、03 Deep Woods 只保留个人资料库、02/04 空目录隐藏、顶栏只剩账户操作，
+ * 以及每张卡片挂的 {@code data-health-url} / {@code data-start-url}。这些字符串是前后端约定，
+ * 页面改动漏掉入口时这里先失败，不必等人工点页面。</p>
+ *
+ * <p>跨文件的一致性只在这一处校验：Dock 卡片数 = 健康清单条数 - 合并的本机服务 + 本地页面入口，
+ * 清单来自 SnakeYAML 解析后的 {@code website.service-health.services}，避免在测试里硬编码 11。
+ * 隔离方式：不起 Spring 上下文、不发 HTTP 请求、不连 MySQL，全部是字符串匹配。</p>
+ */
 class HomepageStaticAssetsTest {
 
     @Test
     void homepageContainsCinematicScenesAndEveryServiceEntry() throws IOException {
         String html = readResource("/static/index.html");
 
+        // 四段场景视频是写死在页面里的外部 URL，文件名本身就是契约。
         assertTrue(html.contains("hf_20260702_081127_0992a171-d3c6-4978-8213-0ec5df8b6d63.mp4"));
         assertTrue(html.contains("hf_20260702_092026_dd05b805-ea0f-40b2-8c52-332b88502592.mp4"));
         assertTrue(html.contains("hf_20260702_081042_df7202bf-bd80-4b2b-bbc6-1f09ba2870e9.mp4"));
@@ -41,6 +55,7 @@ class HomepageStaticAssetsTest {
         assertTrue(html.contains("data-start-url=\"/api/services/lottery/start\""));
         assertTrue(html.contains("data-app-url=\"http://127.0.0.1:5179/\""));
         assertTrue(html.contains("data-health-url=\"/local-services/index.html\""));
+        // 模型与视频管理页只能有一处链接，避免 Dock 里出现重复卡片。
         assertEquals(1, html.split("href=\"local-services/index.html", -1).length - 1);
         assertTrue(html.contains("data-auth-required=\"true\""));
     }
@@ -51,7 +66,7 @@ class HomepageStaticAssetsTest {
      * 新增此类入口时要同步 +1，否则下面的断言会失败。
      */
     private static final int LOCAL_ONLY_ENTRIES = 2;
-    // Strata、AIMedia、H3 的健康检测保留，首页合并到模型与视频管理页入口。
+    /** 首页合并为一个「模型与视频」入口的本机服务数量（Strata、AIMedia、H3）；各自健康探测仍保留。 */
     private static final int GROUPED_LOCAL_SERVICES = 3;
 
     @Test
@@ -86,6 +101,7 @@ class HomepageStaticAssetsTest {
         assertTrue(deepWoods.contains("OBSIDIAN + QUARTZ · 5178"));
         assertEquals(0, countCards(dock(html, "still-water-service-dock")));
         assertEquals(0, countCards(dock(html, "quiet-dawn-service-dock")));
+        // 其他场景的服务不得重复塞进 03 Deep Woods。
         assertFalse(deepWoods.contains("5174"));
         assertFalse(deepWoods.contains("5177"));
         assertFalse(deepWoods.contains("5179"));
@@ -122,10 +138,17 @@ class HomepageStaticAssetsTest {
         assertTrue(desktopNavigation.contains("auth-login-button"));
         assertTrue(desktopNavigation.contains("auth-register-button"));
         assertTrue(desktopNavigation.contains("auth-logout-button"));
+        // 顶栏不允许任何链接式入口，服务入口只出现在底部 Dock。
         assertFalse(desktopNavigation.contains("<a "));
         assertEquals(3, desktopNavigation.split("<button", -1).length - 1);
     }
 
+    /**
+     * 截取指定 id 的 section 内容，作为该场景的服务 Dock。
+     *
+     * <p>以最近的 {@code </section>} 作为结束边界。找不到 id 时先断言失败，
+     * 避免 substring 抛出的越界异常掩盖「入口被删」这个真实原因。</p>
+     */
     private String dock(String html, String id) {
         int start = html.indexOf("id=\"" + id + "\"");
         assertTrue(start >= 0, "Missing service dock: " + id);
@@ -134,10 +157,17 @@ class HomepageStaticAssetsTest {
         return html.substring(start, end);
     }
 
+    /** 统计片段中 {@code service-card} 的数量；split 保留空串，避免首尾卡片被漏算。 */
     private int countCards(String html) {
         return html.split("class=\"service-card\"", -1).length - 1;
     }
 
+    /**
+     * 按 UTF-8 读取 classpath 资源。
+     *
+     * <p>不走 Spring 的 ResourceLoader，这样不起上下文也能跑；资源缺失时先断言再读，
+     * 失败信息直接给出路径。读取后必须关闭输入流，解码固定 UTF-8 以免依赖平台默认编码。</p>
+     */
     private String readResource(String path) throws IOException {
         InputStream input = HomepageStaticAssetsTest.class.getResourceAsStream(path);
         assertTrue(input != null, "Missing classpath resource: " + path);

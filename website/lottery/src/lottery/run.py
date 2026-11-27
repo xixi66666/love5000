@@ -1,4 +1,14 @@
-"""一键运行：分析 → 回测 → 模拟 → 图表 → 报告。"""
+"""一键运行：分析 → 回测 → 模拟 → 图表 → 报告。
+
+公开面：:class:`Bundle`（一次运行的全部中间结果与 KPI）、:func:`build_bundle`
+（只做计算、不写 HTML）、:func:`main`（计算 + 出图 + 写操作台与报告）。
+
+输入：``data/`` 下的官方 CSV（只读）；输出：``output/figures/*.png``、
+``output/console.html``、``output/report.html``，以及 ``cache/`` 下的枚举缓存。
+
+边界：报告里所有“策略优势”“收益率”都是历史样本的描述。开奖相互独立，
+本流程不产生任何预测，也不构成购彩建议。
+"""
 
 from __future__ import annotations
 
@@ -26,11 +36,24 @@ from .simulation import (
 )
 from .tests import analyze_game
 
+# 回测默认只取最后 1500 期（约 10 年）：既保证样本量，又避免早期规则/设备差异主导结论。
 TEST_DRAWS = 1500
 
 
 @dataclass
 class Bundle:
+    """一次运行的完整结果，按彩种 key 组织。
+
+    Attributes:
+        data / features: 开奖数据与逐期特征表。
+        analysis: :func:`lottery.tests.analyze_game` 的返回字典（检验表、残差、熵等）。
+        backtests: :class:`lottery.backtest.BacktestResult`。
+        ev / ev_curve / rtp / waiting / coverage / system_bet: 决策层模拟的各类表。
+        mc: :func:`lottery.simulation.monte_carlo_bankroll` 的结果字典。
+        popularity / popularity_bins: 奖金分摊回归与其分箱表。
+        figures: 图表名 → PNG 路径，由 :func:`main` 在出图后填入。
+    """
+
     data: dict[str, LotteryData]
     features: dict[str, pd.DataFrame]
     analysis: dict[str, dict]
@@ -47,6 +70,18 @@ class Bundle:
     figures: dict[str, str] = field(default_factory=dict)
 
     def kpis(self) -> dict:
+        """抽取报告与操作台需要的 KPI 标量。
+
+        Returns:
+            ``{"ssq": {...}, "dlt": {...}}``。每个彩种包含：样本区间与期数、号码池与
+            组合总数、信息熵（bit）及其上限、检验数与 FDR 显著数、回测区间与最佳/随机
+            策略的命中数、蒙特卡洛盈利概率与中位回报（元）、返奖率中位数与单注期望
+            均值（元/注）。
+
+        Raises:
+            KeyError: 回测汇总里缺少 ``random`` 策略——策略列表被改动且没有保留基准时
+                会触发。
+        """
         out = {}
         for key in ("ssq", "dlt"):
             data = self.data[key]
@@ -88,6 +123,18 @@ class Bundle:
 
 
 def build_bundle(verbose: bool = True) -> Bundle:
+    """执行全部计算并返回 :class:`Bundle`（不写 HTML，只可能创建空目录）。
+
+    Args:
+        verbose: 是否打印每个彩种的阶段耗时。
+
+    Returns:
+        填好所有字段的 :class:`Bundle`；``figures`` 仍为空，出图在 :func:`main` 里完成。
+
+    Raises:
+        FileNotFoundError / KeyError / AssertionError: 由 :func:`lottery.data.load`
+            的读取与校验抛出，含义同该函数。
+    """
     ensure_dirs()
     data, features, analysis, backtests = {}, {}, {}, {}
     ev, curves, rtp, waiting, cover, system, mc = {}, {}, {}, {}, {}, {}, {}
@@ -104,6 +151,7 @@ def build_bundle(verbose: bool = True) -> Bundle:
             print(f"[{game.name}] 数据 {dataset.n} 期，统计检验完成（{time.time() - t0:.1f}s）")
 
         t0 = time.time()
+        # 起点同时受“只取最后 1500 期”和“至少 3 倍号码池期数”约束，保证各策略有足够历史。
         start = max(dataset.n - TEST_DRAWS, dataset.game.front_pool * 3)
         backtests[key] = run_backtest(dataset, result["features"], default_strategies(), start=start)
         if verbose:
@@ -139,9 +187,16 @@ def build_bundle(verbose: bool = True) -> Bundle:
 
 
 def main() -> None:
+    """完整流水线：计算 → 16 张图 → 操作台 → 报告。
+
+    副作用：写入 ``output/figures/``、``output/console.html`` 与 ``output/report.html``。
+    图表渲染顺序同时决定文件名与报告里的图号，改名需要与 :mod:`lottery.report`
+    的 ``figures`` 键保持一致。
+    """
     t0 = time.time()
     bundle = build_bundle()
 
+    # 顺序即图号：fig01…fig16 的文件名同时被 report.py 的 _img() 引用，改名要两处同步。
     renderers = [
         ("fig01_odds_ladder.png", charts.fig_odds),
         ("fig02_sales_pool.png", charts.fig_sales),

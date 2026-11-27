@@ -8,6 +8,18 @@ import java.nio.file.Files;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * 图片模板工作台静态资源的契约测试。
+ *
+ * <p>被校验的是打包进 classpath 的 {@code static/index.html}、{@code static/css/app.css}、
+ * {@code static/js/app.js} 以及 {@code static/vendor/} 下的 GSAP 资源，而不是运行中的服务：
+ * 读取文件文本后断言四场景（discover、deconstruct、direct、render）骨架、场景 Dock、
+ * 灵感大厅业务控件 id、月夜配色变量、筛选面板层级和无障碍降级仍然存在。</p>
+ *
+ * <p>断言锁定的是前端与后端共同依赖的契约：来源和原始分类必须放在“更多筛选”折叠面板内，
+ * 场景切换按钮与状态文案的 id 不能被删除，GSAP 必须保持 3.13.0 本地版本。测试只在测试
+ * 阶段读取解包后的 classpath 目录，不启动 Spring 上下文、不打开浏览器、不访问网络。</p>
+ */
 class ImageTemplateHomepageStaticAssetsTest {
 
     @Test
@@ -57,6 +69,7 @@ class ImageTemplateHomepageStaticAssetsTest {
                 .contains("vendor/gsap-3.13.0.min.js")
                 .contains("vendor/ScrollTrigger-3.13.0.min.js")
                 .doesNotContain("6 个公开提示词来源");
+        // 来源与原始分类属于“更多筛选”的二级内容，必须出现在折叠面板之后而不是常驻工具栏。
         assertThat(html.indexOf("id=\"sourceFilters\""))
                 .isGreaterThan(html.indexOf("id=\"advancedFilters\""));
         assertThat(html.indexOf("id=\"categorySelect\""))
@@ -174,6 +187,12 @@ class ImageTemplateHomepageStaticAssetsTest {
                 .isGreaterThan(firstOptionalSourceGuard);
     }
 
+    /**
+     * 以 UTF-8 读取 classpath 静态资源。
+     *
+     * <p>通过 {@link ClassPathResource#getFile()} 定位，因此要求资源以解包目录
+     * （{@code target/test-classes}）存在；打成 jar 后该方法不可用，此处仅服务于测试阶段。</p>
+     */
     private String read(String path) throws Exception {
         return new String(
                 Files.readAllBytes(new ClassPathResource(path).getFile().toPath()),

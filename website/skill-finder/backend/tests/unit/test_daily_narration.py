@@ -1,4 +1,18 @@
-"""验证口播清理、完整事实留存和长度预算，不调用模型或数据库。"""
+"""口播文案的清洗、事实留存与长度预算。
+
+被测对象是 `app.daily.pipeline` 的 `spoken_text` / `summarize` /
+`project_narration` / `compose`。日报口播是“念给人听”的，所以这里从两个相反方向
+锁定行为：
+
+- 只去掉不该念的内容：Markdown 标记、URL、HTML 标签和删除线里被撤回的说法；
+  但标识符下划线、版本号、`<` / `>` / `<=` 比较符和 `<max_tokens>` 这类参数占位符
+  必须原样保留——清洗不能顺手改掉事实；
+- 超长文案只按完整句子裁剪，裁剪后仍要带上末尾的限制条件与来源说明；实在放不进
+  预算时宁可不念，也不能把长句、英文模型名或数字从中间切断。
+
+隔离方式：全部是纯函数，只喂内存里的字符串与字典，不调用模型、不读写文件、
+不连数据库。
+"""
 import json
 
 from app.daily.pipeline import (
@@ -12,6 +26,11 @@ from app.daily.pipeline import (
 
 
 def project(summary, *, name="org/Agent-3.5", rank=1, stars=1234):
+    """构造一条日报条目，字段与 `compose` 的真实输入一致。
+
+    默认名 `org/Agent-3.5` 用来验证口播只念仓库名、不念 owner 前缀；
+    `rank` 决定“第 N 名”前缀，`stars` 则应当留在画面里而不是被念出来。
+    """
     return {"full_name": name, "summary": summary, "rank": rank, "daily_stars": stars}
 
 

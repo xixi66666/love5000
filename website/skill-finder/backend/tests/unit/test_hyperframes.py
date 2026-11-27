@@ -1,3 +1,22 @@
+"""HyperFrames 引擎的路由、前置检查与产物约束。
+
+HyperFrames 已是默认视频引擎，Remotion 只作显式备用。本模块锁定：
+
+- `media.render` 按 `DAILY_VIDEO_RENDERER` 路由：不设该变量时默认 HyperFrames，
+  只有 `.env` 显式写 `remotion` 才换引擎；任何情况下失败都不自动换引擎；
+- 前置检查必须早于付费 TTS：缺 `@hyperframes` 依赖、浏览器路径不可执行或不在 PATH
+  时直接报错，既不调用 `prepare` 也不回退 Remotion，操作台同时显示 renderer 未就绪；
+- 产物约定：保留渲染器写出的 manifest，音频母带与 Remotion 共用 `master_video`；
+  验收失败要删掉旧的 `render-result.json` 并把进度标成 `failed`，不能留下“看似完成”；
+- 样片与模板元数据跟随当前引擎（HyperFrames 只编辑 `src/template.html` /
+  `src/demo.html`），操作台不得回显 TTS 密钥，`legacy` 引擎不能生成样片。
+
+隔离方式：`runtime` fixture 在 `tmp_path` 下搭出假的 `hyperframes-renderer` 依赖树并
+把 `RENDERER_DIR` 指过去，`shutil.which`、`run`、`prepare`、`invoke_renderer`、
+`master_video` 全部替换，因此不会真的启动 node、浏览器或 ffmpeg；配置项用
+`Settings(_env_file=None)` 或 monkeypatch 控制，不依赖开发者本机 `.env`。
+"""
+
 import json
 from unittest.mock import Mock
 
@@ -8,6 +27,8 @@ from app.daily import console, hyperframes, media, remotion, sample
 
 
 def test_default_engine_routes_to_hyperframes_without_using_backup(monkeypatch, tmp_path):
+    """校验默认值：不设环境变量时必须是 HyperFrames，且备用引擎一次都不被调用。"""
+    # 显式给本地 sqlite 连接串，避免 Settings 去解析真实 MySQL 配置。
     monkeypatch.delenv("DAILY_VIDEO_RENDERER", raising=False)
     configured = Settings(_env_file=None, database_url="sqlite:///test-only.db")
     assert configured.daily_video_renderer == "hyperframes"
@@ -36,6 +57,13 @@ def test_remotion_remains_an_explicit_backup_setting(monkeypatch, tmp_path):
 
 @pytest.fixture
 def runtime(tmp_path, monkeypatch):
+    """搭一个最小可用的 HyperFrames 渲染器骨架。
+
+    只创建 `@hyperframes/producer` 与 `@hyperframes/engine` 的 `package.json` 占位，
+    足以让依赖检查通过；`shutil.which` 固定返回 node，浏览器路径清空以免命中本机
+    安装。注意 `hyperframes.shutil` 就是标准库的 `shutil` 模块本身，这里的替换在用例
+    内是全局生效的，由 monkeypatch 在结束后还原。
+    """
     renderer = tmp_path / "hyperframes-renderer"
     for package in ("producer", "engine"):
         dependency = renderer / "node_modules/@hyperframes" / package
@@ -171,6 +199,7 @@ def test_hyperframes_sample_uses_selected_engine_demo(tmp_path, monkeypatch):
 
 
 def test_hyperframes_console_shows_real_engine_without_remotion(runtime, monkeypatch):
+    """操作台只暴露引擎、工具与模型是否就绪，不回显 TTS 密钥或本机路径。"""
     from types import SimpleNamespace
 
     from app.services import model_settings

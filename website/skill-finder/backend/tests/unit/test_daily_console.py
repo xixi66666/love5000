@@ -1,3 +1,24 @@
+"""日报操作台的进度留痕、素材上传与派发护栏。
+
+被测对象是 `app.daily.console.snapshot`、`app.daily.progress` 的 Tracker/tracking，
+以及 `/api/v1/daily-reports` 的 console、generate、素材与样片接口。本模块锁定：
+
+- 失败步骤必须落盘为 `failed` 并把计数停在中断处，写入文件的异常信息要脱敏——
+  私有密钥与上游响应体不能出现在 `workflow.json` 或接口响应里；
+- 历史任务没有 `workflow.json` 时只把前 7 步标 `untracked`，绝不补造进度；
+  “审核”一步的状态取自日报状态，与进度记录无关；
+- 进程中断后遗留的 `generating` 必须先判定为 `interrupted` 才能重跑；
+- 素材上传的判定顺序是管理鉴权 → 真实图片 → 体积上限，坏文件和超限请求不得破坏
+  已经校验通过的素材；
+- 派发要挡住重复点击（`.dispatch.lock`）和覆盖已审核的版本；样片入口只暴露成片，
+  不能带出 `render-manifest.json` 这类工作文件。
+
+隔离方式：`workspace` fixture 把日报/素材目录指到 `tmp_path`、注入测试用
+`admin_key`、清空 QQ 目标并落一份假日报；`TestClient` 用 `http://localhost` 作为
+`base_url` 以通过“仅 HTTPS 或本机来源”的管理接口限制。全程不连数据库，不跑
+ffmpeg/node 渲染，也不发送任何通知。
+"""
+
 import io
 import json
 from datetime import timedelta
@@ -18,6 +39,13 @@ from app.main import app
 
 @pytest.fixture
 def workspace(tmp_path, monkeypatch):
+    """把日报目录、素材目录与管理密钥都固定到测试环境。
+
+    三个 `daily_*` 路径改成 `tmp_path` 下的子目录，避免读写 `backend/data/` 的真实
+    运行数据；`admin_key` 换成 `console-test-only`，供管理写接口直接带 header 调用；
+    清空 `daily_qq_target` 让通知步骤稳定停在 `skipped`。返回的假日报会写进日报
+    目录，供 `/console` 读取成真实输入。
+    """
     monkeypatch.setattr(settings, "daily_reports_dir", str(tmp_path / "reports"))
     monkeypatch.setattr(settings, "daily_assets_dir", str(tmp_path / "assets"))
     monkeypatch.setattr(settings, "admin_key", type(settings.admin_key)("console-test-only"))
@@ -30,6 +58,7 @@ def workspace(tmp_path, monkeypatch):
 
 
 def client():
+    """管理接口只放行 HTTPS 或本机来源，这里用 localhost 作为 base_url 通过校验。"""
     return TestClient(app, base_url="http://localhost")
 
 
@@ -48,6 +77,7 @@ def test_failed_stage_is_durable_and_sanitized(workspace):
 
 
 def test_legacy_history_has_no_invented_progress(workspace):
+    """前 7 步只标 `untracked`；第 8 步“审核”由日报状态推导，因此仍是 `waiting`。"""
     workspace["status"] = "pending_review"
     store.save(workspace)
     value = snapshot(workspace["date"])
@@ -63,6 +93,7 @@ def test_stopped_generation_is_recoverable(workspace):
     store.save(workspace)
     progress = Tracker(workspace["date"])
     progress.begin("render", "正在渲染。")
+    # 判定 stale 的阈值是 30 秒，把 updated_at 退到 2 分钟前才能命中 interrupted 分支。
     progress.data["updated_at"] = (datetime.fromisoformat(now()) - timedelta(minutes=2)).isoformat()
     (store.report_dir(workspace["date"]) / "workflow.json").write_text(json.dumps(progress.data))
     assert snapshot(workspace["date"])["status"] == "interrupted"
@@ -118,6 +149,7 @@ def test_upload_checks_authentication_and_actual_image(workspace):
 
 
 def test_upload_rejects_oversize_without_changing_assets(workspace, monkeypatch):
+    """体积上限在写盘前生效：超限直接 413，且素材目录里不会留下任何文件。"""
     monkeypatch.setattr("app.daily.assets.MAX_ASSET_BYTES", 3)
     response = client().put(
         f"/api/v1/daily-reports/{workspace['date']}/assets/org/demo",

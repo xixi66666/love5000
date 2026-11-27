@@ -1,3 +1,20 @@
+"""采集编排 `CollectionService.run` 的筛选、降级与结束状态。
+
+被测链路是「抓日/周/月榜 → AI 关键词过滤 → GitHub API 补全 → 写库 → 记任务结果」，
+本模块锁定三类语义：
+
+- 每个周期按 Star 增量取 Top N，跨周期按 `full_name` 去重后只补全一次；
+- 降级：单周期抓取失败、单仓库补全失败、某周期补全后一个都不剩（此时保留上一轮
+  榜单而不是写空表）都只降为 `PARTIAL`；只有鉴权、限流依次向上抛；
+- 中文简介开启时，认证失败立刻终止后续批次并记 `INTRO_AUTH_FAILED`，返回内容缺失
+  则记 `INTRO_GENERATION_FAILED`，两种情况都保住已抓到的榜单。
+
+隔离方式：爬虫、GitHub 客户端、四个仓储和数据库会话全部由本文件的 `Fake*` 替身承担
+（`FakeGitHubClient` 继承真实类，只覆盖三个网络方法），既不联网也不连库；
+`disable_introductions` 以 autouse 方式默认关掉简介生成，避免开发者本机 `.env` 里的
+`INTRO_ENABLED` 改变离线断言，需要覆盖简介分支的用例会自行打开。
+"""
+
 from __future__ import annotations
 
 import json
@@ -19,7 +36,11 @@ from app.collector.trending import TrendingRepository, TrendingScrapeError
 
 @pytest.fixture(autouse=True)
 def disable_introductions(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Keep collection tests independent of the local .env INTRO_ENABLED value."""
+    """默认关闭中文简介生成，让每条用例都从确定的“无简介”状态起步。
+
+    autouse 是为了防止本机 `backend/.env` 打开 `INTRO_ENABLED` 后，采集会去调用真实
+    模型服务；需要覆盖简介分支的用例自己再 monkeypatch 打开并替换生成函数。
+    """
     from app.collector import service as collector_service
 
     monkeypatch.setattr(collector_service.settings, "intro_enabled", False)
@@ -31,6 +52,11 @@ def make_trending(
     gained: int = 100,
     description: str = "An agent framework",
 ) -> TrendingRepository:
+    """构造一条榜单页解析结果，字段与 `TrendingScraper` 的真实产出一致。
+
+    默认描述含 “An agent framework”，因此默认就能通过 `ai_keywords="agent"` 的过滤；
+    需要制造被过滤掉的样本时传 `description="Just a tool"` 之类的描述。
+    """
     return TrendingRepository(
         owner=owner,
         name=name,
@@ -52,6 +78,11 @@ def make_repo(
     fork: bool = False,
     topics: list[str] | None = None,
 ) -> GitHubRepository:
+    """构造一条 GitHub API 补全结果。
+
+    `archived` / `disabled` / `fork` 用来覆盖“不合格仓库被跳过”的分支；`topics`
+    默认 `["ai-agent"]`，保证分类规则稳定命中 AGENT，从而让断言专注在采集流程上。
+    """
     owner, name = full_name.split("/")
     return GitHubRepository(
         github_id=github_id,
@@ -75,6 +106,12 @@ def make_repo(
 
 
 class FakeSession:
+    """只记录是否 commit 的会话替身。
+
+    采集要求在写榜单前先提交 `RUNNING`，好让其他连接查得到这次任务；
+    提交时序就靠这个标记断言。
+    """
+
     def __init__(self) -> None:
         self.committed = False
 
@@ -83,6 +120,12 @@ class FakeSession:
 
 
 class FakeRepositoryStore:
+    """仓库仓储替身：记录 upsert 与中文简介写回。
+
+    `upsert` 返回的对象只需带采集后续要用到的字段，因此用 `SimpleNamespace`
+    模拟落库后的 ORM 行，避免依赖真实模型。
+    """
+
     def __init__(self) -> None:
         self.upserted: list[tuple[GitHubRepository, object]] = []
         self.introductions: list[tuple[int, str]] = []
@@ -109,6 +152,8 @@ class FakeRepositoryStore:
 
 
 class FakeSnapshotStore:
+    """快照仓储替身：记录每日 Star 写入的（仓库 id、业务日期、总 Star）。"""
+
     def __init__(self) -> None:
         self.writes: list[tuple[int, object, int]] = []
 
@@ -117,6 +162,12 @@ class FakeSnapshotStore:
 
 
 class FakeTrendingStore:
+    """榜单仓储替身：记录每个周期的整表替换调用。
+
+    用替换而不是逐条写入，因此用例可以直接断言“哪个周期被写过、写了几条、排名如何”，
+    也能验证补全后一个都不剩时该周期根本不出现（保留上一轮数据）。
+    """
+
     def __init__(self) -> None:
         self.replaced: list[tuple[str, list, datetime]] = []
 
@@ -125,6 +176,8 @@ class FakeTrendingStore:
 
 
 class FakeRunStore:
+    """任务仓储替身：自增 run id，并记录结束时的状态与摘要。"""
+
     def __init__(self) -> None:
         self.finished: list[dict] = []
         self._next_id = 1
@@ -139,6 +192,12 @@ class FakeRunStore:
 
 
 class FakeScraper:
+    """榜单爬虫替身：按周期返回预置结果，`failures` 中的周期抛抓取错误。
+
+    `fetched` 记录请求过的周期，既能断言“三个周期都被请求”，也能验证全失败时应抛
+    `TrendingScrapeError`。
+    """
+
     def __init__(
         self,
         pages: dict[str, list[TrendingRepository]] | None = None,
@@ -156,6 +215,12 @@ class FakeScraper:
 
 
 class FakeGitHubClient(GitHubClient):
+    """GitHub API 替身：继承真实客户端以复用构造与重试参数，只覆盖三个网络方法。
+
+    `retry_delays` 全部置 0，避免用例在失败分支上真的等待退避；`repo_lookup` 的值可以
+    是 `None`（API 返回 404 之类），`failures` 则用来抛指定的异常类型。
+    """
+
     def __init__(
         self,
         repo_lookup: dict[str, GitHubRepository | None] | None = None,
@@ -181,6 +246,7 @@ class FakeGitHubClient(GitHubClient):
 
 
 def default_lookup(*names: str) -> dict[str, GitHubRepository]:
+    """为一批 full_name 生成补全结果，id 从 1 递增，省去每个用例手写字典。"""
     return {name: make_repo(index, name) for index, name in enumerate(names, start=1)}
 
 
@@ -191,6 +257,11 @@ def make_service(
     top_n: int = 10,
     ai_keywords: str = "agent",
 ) -> CollectionService:
+    """组装被测服务：全部依赖都是本文件的替身，只有参数按用例需要调整。
+
+    `top_n` 用于验证“每周期截断”，`ai_keywords` 用默认值 `agent` 让 AI 过滤生效；
+    服务把替身存成同名属性（如 `service.trending_store`），用例据此读取记录。
+    """
     return CollectionService(
         scraper=scraper,
         github_client=github,
@@ -447,6 +518,8 @@ async def test_intro_auth_failure_keeps_rankings_and_skips_remaining_batches(mon
 
     monkeypatch.setattr(collector_service.settings, "intro_enabled", True)
     monkeypatch.setattr(collector_service.settings, "intro_batch_size", 5)
+    # 兼容未提供专用 IntroductionAuthError 的旧实现：退化成通用生成错误后，
+    # “认证失败即停止后续批次”的语义仍必须成立。
     auth_error = getattr(
         introduction_service, "IntroductionAuthError", introduction_service.IntroductionGenerationError
     )

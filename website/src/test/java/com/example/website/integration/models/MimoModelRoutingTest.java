@@ -18,12 +18,36 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+/**
+ * MiMo（Xiaomi MiMo V2.6）在统一模型路由中的行为测试。
+ *
+ * <p>被测对象是 {@link ModelRoutingService}。本类用 mock 的 {@link ModelHttp} 代替真实网关、
+ * 用 mock 的 {@link ModelSources} 提供固定的配置内容，选择状态文件落在 {@link TempDir} 里，
+ * 因此不联网、不使用真实密钥、不写仓库文件。</p>
+ *
+ * <p>固定的关键规则：</p>
+ * <ul>
+ *   <li>模型目录只来自 {@code model.properties}，读取时不得回写或改写原文件；</li>
+ *   <li>目录与真实 {@code /models} 取交集，并过滤 TTS / ASR / 旧版与未显式配置的定制型号；</li>
+ *   <li>选择接口拒绝非文本模型与不可用模型，避免主页选中一个永远调不通的模型；</li>
+ *   <li>按官方规范把 {@code max_tokens} 转成 {@code max_completion_tokens}（缺省 8192），
+ *       默认关闭深度思考；显式开启思考时移除 {@code temperature} 与 {@code top_p}；</li>
+ *   <li>密钥与上游异常原文不得出现在目录或错误响应里。</li>
+ * </ul>
+ */
 class MimoModelRoutingTest {
     @TempDir Path dir;
     private final ObjectMapper json = new ObjectMapper();
     private ModelHttp http;
     private ModelRoutingService service;
 
+    /**
+     * 装配两件替身。
+     *
+     * <p>{@link ModelSources} 固定返回一条 MiMo 配置；{@link ModelHttp} 同时伪装目录与生成：
+     * {@code /models} 特意混入 TTS、ASR、旧版和定制型号，用来验证目录过滤；生成接口把入参深拷贝
+     * 后回传，既方便断言真正发出的请求体，也证明调用方入参没有被就地改写。</p>
+     */
     @BeforeEach void setup() throws Exception {
         http = mock(ModelHttp.class);
         ModelSources sources = mock(ModelSources.class);
@@ -53,6 +77,7 @@ class MimoModelRoutingTest {
         assertThat(fromFile.key).isEqualTo("test-local-key");
         assertThat(fromFile.base).isEqualTo("https://api.xiaomimimo.com/v1");
         assertThat(fromFile.configured).containsExactly("mimo-v2.6-pro", "mimo-v2.6-flash");
+        // 读取配置不能回写文件：与原内容逐字比较，任何格式化或密钥回填都会暴露。
         assertThat(new String(Files.readAllBytes(config), StandardCharsets.UTF_8)).isEqualTo(original);
     }
 
@@ -95,6 +120,7 @@ class MimoModelRoutingTest {
         assertThat(output.has("temperature")).isFalse();
         assertThat(output.has("top_p")).isFalse();
         assertThat(output.has("max_tokens")).isFalse();
+        // 去掉显式预算后应回落到默认 8192，而不是沿用上一次请求的值。
         input.remove(java.util.Arrays.asList("max_tokens", "max_completion_tokens", "thinking"));
         assertThat(service.chat("skill-finder", input).path("max_completion_tokens").asInt()).isEqualTo(8192);
     }

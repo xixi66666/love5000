@@ -1,3 +1,11 @@
+"""MySQL `caching_sha2_password` 认证的 RSA 公钥交换回归测试。
+
+`asyncmy` 在服务端要求密文传输密码时会先拿到 PEM 公钥，再用 `cryptography`
+把「密码 + 结尾 \0」与 20 字节 salt 逐字节异或后做 RSA-OAEP(SHA1) 加密。这里用
+自签的一对密钥走完整往返，确认 `sha2_rsa_encrypt` 的异或与填充约定没有被改动：
+若该约定被破坏，云端 MySQL（腾讯云 `xixi` 库强制 SHA-2）会直接认证失败。
+"""
+
 from asyncmy.auth import sha2_rsa_encrypt
 
 

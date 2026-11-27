@@ -14,6 +14,12 @@
 // * See the License for the specific language governing permissions and
 // * limitations under the License.
 // */
+//
+// 说明：本文件整体被逐行注释，不参与编译，仅作为 Nacos Discovery 消费端配置示例保留。
+// 示例意图：用 @EnableFeignClients 开启 @FeignClient 接口的扫描与代理生成，配合
+// EchoService 按服务名调用提供者。包名仍是迁移前的 com.example.love530，恢复使用时需改为
+// com.example.website 并重新引入 spring-cloud-openfeign 依赖。
+//
 //package com.example.love530.demos.nacosdiscoveryconsumer;
 //
 //import org.springframework.cloud.openfeign.EnableFeignClients;

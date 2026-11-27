@@ -25,6 +25,25 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+/**
+ * {@link PersonalAgentProcessManager} 的单元测试。
+ *
+ * <p>被测对象负责定位 personal-agent 的 jar、拼 {@code java -jar} 命令、探测健康，并决定
+ * 「复用 / 启动 / 报错」。本类不启动 JVM、不监听 5178：用 {@code Mockito.spy} 包住真实实例，
+ * 只替换 {@code launch}、{@code openHealthConnection}、{@code isPortInUse} 等出口，
+ * 命令拼装与启动状态机仍走真实代码。</p>
+ *
+ * <p>固定的关键行为：</p>
+ * <ul>
+ *   <li>只认「2xx + service=personal-agent + 布尔 success=true」；响应缺 service、非 2xx、
+ *       非 JSON 或读取超时都判为被其他应用占用（{@code OCCUPIED}）；</li>
+ *   <li>端口无人监听（{@code UNAVAILABLE}）才启动；被其他应用占用或已有实例未就绪时拒绝启动，
+ *       且不去停止占用者；</li>
+ *   <li>启动失败与超时只给可读提示，不暴露原始异常；超时不杀进程，下次点击复用同一进程；</li>
+ *   <li>并发点击只拉起一个进程，后到的请求返回 {@code already-running}；</li>
+ *   <li>仓库根目录与 {@code website} 模块目录下都能解析工作目录。</li>
+ * </ul>
+ */
 class PersonalAgentProcessManagerTest {
 
     @Test
@@ -230,6 +249,12 @@ class PersonalAgentProcessManagerTest {
         }
     }
 
+    /**
+     * 造一个「端口空闲且健康探测不可用」的实例，让 {@code start()} 直接进入启动分支。
+     *
+     * @param directory 冒充 personal-agent 模块根目录
+     * @return 已固定 {@code probeHealth} 与 {@code isPortInUse} 结果的 spy
+     */
     private PersonalAgentProcessManager offlineManager(Path directory) {
         PersonalAgentProcessManager manager = manager(directory, "java");
         doReturn(UNAVAILABLE).when(manager).probeHealth();
@@ -237,11 +262,31 @@ class PersonalAgentProcessManagerTest {
         return manager;
     }
 
+    /**
+     * 用 {@code Mockito.spy} 包住真实实例。
+     *
+     * <p>命令拼装与启动状态机仍走真实代码，只在用例里替换 {@code launch}、探测等出口，
+     * 这样既验证真实逻辑，又不会真的拉起 JVM 或连接 5178。</p>
+     *
+     * @param directory 冒充 personal-agent 模块根目录
+     * @param command   Java 命令
+     * @return 可替换部分方法的 spy
+     */
     private PersonalAgentProcessManager manager(Path directory, String command) {
         return spy(new PersonalAgentProcessManager(new ObjectMapper(), new ServiceHealthProperties(),
                 properties(directory, command)));
     }
 
+    /**
+     * 构造指向临时目录的配置。
+     *
+     * <p>工作目录固定为临时目录，避免误碰仓库里真实的 personal-agent 产物；命令由用例指定，
+     * 传空串即可覆盖「回退到当前 JVM 的 java」这条分支。</p>
+     *
+     * @param directory 冒充 personal-agent 模块根目录
+     * @param command   Java 命令，空串表示回退到当前 JVM 的 {@code bin/java}
+     * @return 已填好工作目录与命令的配置
+     */
     private PersonalAgentProperties properties(Path directory, String command) {
         PersonalAgentProperties properties = new PersonalAgentProperties();
         properties.setWorkDir(directory.toAbsolutePath().toString());
@@ -249,11 +294,31 @@ class PersonalAgentProcessManagerTest {
         return properties;
     }
 
+    /**
+     * 预置 Maven 产物的占位文件。
+     *
+     * <p>启动前的 jar 存在性校验必须先通过，用例才能走到「拉起进程」；这里只建空文件，
+     * 不触发任何真实构建。</p>
+     *
+     * @param directory 冒充 personal-agent 模块根目录
+     * @throws IOException 临时目录无法写入
+     */
     private void createEntry(Path directory) throws IOException {
         Files.createDirectories(directory.resolve("target"));
         Files.createFile(directory.resolve("target/personal-agent-0.0.1-SNAPSHOT.jar"));
     }
 
+    /**
+     * 伪造一次健康探测。
+     *
+     * <p>同时声明端口在监听，并按状态码选择 {@code getInputStream()} 或
+     * {@code getErrorStream()}，让被测代码用同一套解析逻辑读到给定响应体。</p>
+     *
+     * @param manager 被测实例，其 {@code openHealthConnection()} 被替换
+     * @param status  HTTP 状态码
+     * @param body    响应体，可以故意写成非法 JSON 以覆盖解析失败分支
+     * @return 可继续设置异常行为的 mock 连接
+     */
     private HttpURLConnection healthConnection(PersonalAgentProcessManager manager, int status, String body)
             throws Exception {
         doReturn(true).when(manager).isPortInUse();

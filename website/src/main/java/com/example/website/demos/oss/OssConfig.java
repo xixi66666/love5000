@@ -14,6 +14,13 @@
 // * limitations under the License.
 // */
 //
+//
+// 说明：本文件整体被逐行注释，不参与编译，也不会创建 OSS 客户端或建桶，仅作为阿里云 OSS
+// 的示例配置保留，不要把它当成站点的生产 OSS 路径。生产 OSS 能力在 common 模块：
+// OssAutoConfiguration 依据 LOVE530_OSS_ENABLED 与 LOVE530_OSS_* 凭据装配 OssUtil，默认关闭。
+// 示例里的 BUCKET_NAME 固定为 "spring-cloud-alibaba-test"（原示例桶），与本项目实际桶无关；
+// ossBucketInitRunner 会在应用启动时检查并按需建桶，属于有外部副作用且需要凭据的操作。
+//
 //package com.example.love530.demos.oss;
 //
 //import com.aliyun.oss.OSS;

@@ -1,3 +1,25 @@
+"""日报音频母带与成片验收的单元测试。
+
+被测对象是 `app.daily.audio` 的 `normalize_voice` / `prepare_music` /
+`validate_video` / `master_video`，以及它们与 `app.daily.remotion.render` 的衔接点。
+本模块锁定四组硬性行为：
+
+- 响度归一必须是实测两遍：第二遍带上 `measured_*` 与 offset 并输出 48 kHz；静音
+  （`-inf`）不能被当成归一成功，动态限峰时要回到原始 PCM 重新校正；
+- 配乐必须同时满足「无凭据的 HTTPS 署名」与「存在且格式合法的本地授权文件」，
+  并且在付费 TTS 之前就失败；文件先复制进本期目录再归一，事后改源文件不影响成片；
+- 成片验收只信真实文件（流数量、H.264 yuv420p + AAC、1080×1920@30、48 kHz 立体声、
+  时长与起始时间），不采信渲染器写出的结果 JSON；
+- 失败路径不泄漏 FFmpeg 命令行、私有路径或上游密文，也不留下 `render-result.json`
+  这类「看起来已完成」的半成品。
+
+隔离方式：`normalize_voice` / `validate_video` / `master_video` / `prepare_music` 都
+支持注入 `runner`，用例借此记录参数并返回伪造的 ffprobe / loudnorm JSON；目录一律用
+`tmp_path`，不产生真实编码。唯一的真实 FFmpeg 用例是
+`test_real_two_pass_master_retains_video_packets_and_sync`，本机缺少 ffmpeg/ffprobe
+时由 `skipif` 跳过，且素材全部由本机生成，不调用任何付费接口。
+"""
+
 import json
 import shutil
 import subprocess
@@ -10,12 +32,22 @@ from app.daily import audio, remotion
 
 
 def loudness(**changes):
+    """构造一份 ffmpeg loudnorm `print_format=json` 的测量结果。
+
+    `changes` 用来把某个字段改成异常值，例如 `input_i="-inf"` 表示静音、
+    `normalization_type="dynamic"` 表示峰值约束触发了动态限峰。
+    """
     return {"input_i": "-22.1", "input_tp": "-9.2", "input_lra": "4.2",
             "input_thresh": "-32.1", "target_offset": "0.02", "output_i": "-16.0",
             "output_tp": "-3.1", "normalization_type": "linear", **changes}
 
 
 def media_data(**video_changes):
+    """构造一份 ffprobe 音视频元数据。
+
+    默认就是验收通过时的形状（1080×1920、30 FPS、H.264 yuv420p、AAC 48 kHz 立体声、
+    4 秒），`video_changes` 用于把视频流改成某种不合规取值。
+    """
     return {"format": {"duration": "4.0"}, "streams": [
         {"codec_type": "video", "width": 1080, "height": 1920, "avg_frame_rate": "30/1",
          "duration": "4.0", "start_time": "0", "codec_name": "h264", "pix_fmt": "yuv420p", **video_changes},
@@ -26,11 +58,17 @@ def media_data(**video_changes):
 
 @pytest.fixture(autouse=True)
 def no_background_music(monkeypatch):
+    """默认清空配乐配置。
+
+    开发者本机 `.env` 里的 `DAILY_BGM_FILE` / `DAILY_BGM_SOURCE` 一旦生效，成片流程会
+    多做一遍混音，无关用例的断言就会跟着变；这里统一从「无配乐」起步。
+    """
     monkeypatch.setattr(settings, "daily_bgm_file", "")
     monkeypatch.setattr(settings, "daily_bgm_source", "")
 
 
 def test_loudnorm_second_pass_uses_actual_measurements_and_48khz(tmp_path):
+    """第二遍必须带实测值而非默认值，并且返回结果里不能混入 FFmpeg 的私有诊断文本。"""
     calls = []
 
     def execute(args):
@@ -86,6 +124,8 @@ def test_dynamic_loudness_deviation_is_corrected_from_original_source(tmp_path):
     assert result["processing_passes"] == 2
 
 
+# 五类不合法的配乐署名：空串、非 HTTPS、带用户名密码、带 query、带 fragment。
+# 只要有一项不满足，就必须在调用 TTS 之前抛出 ValueError。
 @pytest.mark.parametrize("source", ["", "http://example.com/license", "https://user:secret@example.com",
                                     "https://example.com?token=private", "https://example.com#private"])
 def test_music_without_valid_attribution_is_rejected_before_tts(tmp_path, monkeypatch, source):
@@ -120,6 +160,7 @@ def test_music_is_frozen_in_production_directory(tmp_path, monkeypatch):
     assert str(tmp_path) not in json.dumps(result)
 
 
+# 逐项改坏一条硬性指标：宽、高、帧率、时长、视频编码、像素格式，都必须被拒绝。
 @pytest.mark.parametrize("changes", [{"width": 720}, {"height": 1280},
                                      {"avg_frame_rate": "25/1"}, {"duration": "3.8"},
                                      {"codec_name": "vp9"}, {"pix_fmt": "yuv444p"}])

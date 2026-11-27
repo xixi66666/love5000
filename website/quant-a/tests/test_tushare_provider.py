@@ -1,3 +1,14 @@
+"""`TushareProvider` 的映射与错误分支测试。
+
+覆盖分支：缺 token 时调用接口的固定报错；token 存在但未安装 `tushare` 时的安装提示
+（错误顺序为 token → 依赖）；`stock_basic`/`trade_cal`/`daily`/`daily_basic` 的入参与
+字段映射（代码去后缀、日期补短横线、`prev`/`next` 交易日、`pcf` 回退）；财务与指数
+成分因权限未开通而抛 `NotImplementedError`。
+
+隔离方式：用 `monkeypatch.setitem(sys.modules, "tushare", fake)` 注入 `FakePro`，
+记录调用参数；用 `monkeypatch.setenv/delenv` 控制 token；不发真实请求、不安装依赖。
+"""
+
 import sys
 import types
 
@@ -7,6 +18,8 @@ from quant.providers.tushare_provider import TushareProvider
 
 
 class FakePro:
+    """Tushare Pro 客户端替身：返回固定记录并记录调用参数。"""
+
     def __init__(self):
         self.calls = []
 

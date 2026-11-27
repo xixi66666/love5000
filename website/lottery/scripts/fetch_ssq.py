@@ -1,11 +1,21 @@
-"""Fetch every 双色球 draw into data/ssq.csv.
+"""全量回填双色球开奖，写出 data/ssq.csv 与 data/ssq_prizes.csv。
 
-Sources:
+数据来源（两段拼接；官方接口只覆盖 2013 年之后，更早的期次来自 500.com）：
   2003-2012  https://datachart.500.com/ssq/history/newinc/history.php
   2013-now   https://www.cwl.gov.cn official JSON API
 
 Usage:
   python scripts/fetch_ssq.py
+
+命令行参数：无。
+
+副作用：覆盖写 data/ssq.csv 与 data/ssq_prizes.csv，并把两站的原始响应保存在
+data/raw/ssq/ 供回查。合并口径以官方接口为主、官方缺失字段用 500.com 补，
+500.com 独有的存量期次保留；号码不一致与缺期只打印 WARN 不中断，因此跑完仍需
+看一眼输出里的 WARN 行。
+
+退出码：没有显式退出码。抓取、解析或校验失败时抛异常，进程以 1 退出，且此时
+尚未写任何 CSV，已有数据不会被破坏。
 """
 
 from __future__ import annotations
@@ -84,10 +94,26 @@ PRIZE_FIELDS = [
 
 
 def parse_date(value):
+    """把上游日期归一化成 ISO 字符串。
+
+    500.com 只给日期，官方接口带时分秒，统一截前 10 位再解析；解析失败直接
+    抛 `ValueError`，宁可整轮中止也不写入畸形日期。
+    """
     return datetime.strptime(str(value).strip()[:10], "%Y-%m-%d").date().isoformat()
 
 
 def parse_number(value, low, high, label):
+    """解析并校验一个球号，越界即中止本轮抓取。
+
+    Args:
+        value: 单元格或 JSON 字段原文。
+        low: 允许的最小号码。
+        high: 允许的最大号码（红球 33、蓝球 16）。
+        label: 写进错误信息的字段名，便于判断是哪个来源、哪一类号码出错。
+
+    Raises:
+        ValueError: 无法解析为整数或超出 `[low, high]`。
+    """
     number = to_int(value)
     if number is None or not low <= number <= high:
         raise ValueError(f"invalid {label}: {value!r}")
@@ -95,6 +121,20 @@ def parse_number(value, low, high, label):
 
 
 def fetch_500():
+    """抓取并解析 500.com 的历史开奖表格。
+
+    页面是单个 HTML 表格，列数固定为 16；先用 `\\d{5,7}` 过滤掉表头与统计行，
+    再按位置解包，因此站点一旦调整列顺序会立刻报错，而不是静默错位。
+    原始 HTML 落盘到 `data/raw/ssq/history_500.html` 便于复盘。
+
+    Returns:
+        `(rows, prize_rows)`：`rows` 以期号为键、值可直接写成 CSV；
+        `prize_rows` 只含 1、2 等奖的中奖注数与单注金额。
+
+    Raises:
+        RuntimeError: 页面中找不到 `tablelist` 表格，通常是被反爬拦截或改版。
+        ValueError: 期号重复、号码越界或红球重复。
+    """
     response = get(
         C500_URL,
         params={"start": "03001", "end": "99999"},
@@ -187,6 +227,19 @@ def fetch_500():
 
 
 def fetch_cwl():
+    """抓取官方接口的全部分页并解析。
+
+    先取第一页读 `pageNum` / `total` 判断总页数，再逐页拉取；页间 sleep 0.25s
+    以避开官方站点限流，每页原始 JSON 落盘到 `data/raw/ssq/`。
+
+    Returns:
+        `(rows, prize_rows)`：`rows` 以官方 7 位期号为键，含 1-6 等奖的注数与金额；
+        `prize_rows` 为按奖级展开的明细，供 `ssq_prizes.csv` 使用。
+
+    Raises:
+        RuntimeError: 第一页没有返回期数或页数，说明接口不可用或参数已失效。
+        ValueError: 期号重复、红球个数或号码非法。
+    """
     raw_dir = RAW_DIR / "ssq"
     raw_dir.mkdir(parents=True, exist_ok=True)
     base_params = {
@@ -275,6 +328,20 @@ def fetch_cwl():
 
 
 def check_rows(rows):
+    """打印覆盖范围、来源分布与缺期警告，返回按日期排序的行列表。
+
+    只检查与排序，不改写任何字段：缺期可能来自官方停售或数据源差异，因此打印
+    WARN 而不抛异常，避免为历史上个别期次阻断整次全量回填。
+
+    Args:
+        rows: 以期号为键的行字典。
+
+    Returns:
+        按 `(date, issue)` 升序排列的行列表，即 CSV 的写出顺序。
+
+    Raises:
+        RuntimeError: 传入空字典，此时没有可写的数据。
+    """
     if not rows:
         raise RuntimeError("no SSQ rows")
 
@@ -305,6 +372,20 @@ def check_rows(rows):
 
 
 def main():
+    """两源抓取、交叉核对、合并后写出两个 CSV。
+
+    合并口径：先用 500.com 的存量期次打底，再用官方数据覆盖同期字段；官方为空而
+    500.com 有值的字段回填，并把 `aux_source` 记为 `500.com`，便于日后判断某个
+    字段究竟来自哪个站点。中奖注数为 0 时金额归零，避免「0 注却有大额奖金」的
+    自相矛盾行。
+
+    号码不一致只累计并打印前 5 条 WARN，不改变输出：两站历史上确有录入差异，
+    最终以官方号码为准。
+
+    Raises:
+        RuntimeError / ValueError: 任一源抓取失败或数据非法时向上抛出，
+            此时尚未写 CSV，已有数据保持原样。
+    """
     five_rows, five_prizes = fetch_500()
     cwl_rows, cwl_prizes = fetch_cwl()
 

@@ -1,4 +1,16 @@
-"""选号策略及 HTTP 接口验证。"""
+"""选号策略与 HTTP 接口的回归测试。
+
+覆盖分支：
+  * `selection.generate` 在双色球/大乐透真实历史下，五种方法都能给出合法号码；
+  * 冷热号与最大遗漏的排序方向（patch `load_draws` 构造 100 期固定数据）；
+  * 每注形态与号码一致（和值、跨度、三区计数闭合、AC 范围、重号范围）；
+  * 非法彩种、非法方法、0 注与 11 注等越界参数；
+  * `Handler` 的 `/api/selection` 与 `/api/recent` 成功路径与参数错误。
+
+隔离：`HandlerTests` 在 `127.0.0.1:0` 起真实 `ThreadingHTTPServer`，只占用回环随机
+端口、不出网；导入 `server.py` 时用空模块顶替 pandas，因此没装 pandas 也能跑接口分支。
+用例只读 `data/` 下的真实 CSV，不写任何文件。
+"""
 import http.client
 import importlib.util
 import json
@@ -16,6 +28,8 @@ import selection
 
 
 class SelectionTests(unittest.TestCase):
+    """选号策略单元测试：真实历史校验合法性，构造历史校验排序方向。"""
+
     def test_real_history_produces_legal_selections(self):
         for game, pool, pick, back_pool, back_pick in (("ssq", 33, 6, 16, 1), ("dlt", 35, 5, 12, 2)):
             for method in selection.METHODS:
@@ -58,6 +72,8 @@ class SelectionTests(unittest.TestCase):
 
 
 class HandlerTests(unittest.TestCase):
+    """HTTP 处理器测试；整个类共用一个监听随机回环端口的真实服务器。"""
+
     @classmethod
     def setUpClass(cls):
         # 接口测试不需要 pandas，仅替代本机可能缺失的 pandas 依赖。

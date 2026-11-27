@@ -28,6 +28,21 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * 提示词库接口 {@link PromptLibraryController} 的 MVC 契约测试。
+ *
+ * <p>用 standalone MockMvc 只装配控制器，{@link PromptLibraryService} 全部 mock，
+ * 逐条固定对前端的承诺：meta 返回大分类、小分类与来源；列表把 keyword、group、category、
+ * source、status 五个过滤条件全部绑定到 {@link PromptSearchRequest}，缺省时 page=1、size=48 且
+ * 各过滤条件保持 {@code null}；详情返回完整正文；条目不存在时 HTTP 404 加
+ * {@code success=false} 与固定提示「提示词不存在」；手动添加成功返回完整详情，
+ * 服务抛 {@link IllegalArgumentException} 时 HTTP 400 加同形状的错误体。</p>
+ *
+ * <p>用 {@link ArgumentCaptor} 断言控制器只做参数绑定和状态码映射，业务规则（LIKE 转义、
+ * 大分类推导、字段长度）留在 service，两边可以分别演进。</p>
+ *
+ * <p>隔离：{@code standaloneSetup} 不起 Spring 上下文、不建数据源、不发真实 HTTP 请求。</p>
+ */
 class PromptLibraryControllerTest {
 
     private final PromptLibraryService service = mock(PromptLibraryService.class);
@@ -110,6 +125,7 @@ class PromptLibraryControllerTest {
         ArgumentCaptor<PromptSearchRequest> captor = ArgumentCaptor.forClass(PromptSearchRequest.class);
         verify(service).search(captor.capture());
         PromptSearchRequest request = captor.getValue();
+        // 空过滤条件必须保持 null 而不是空串，否则 SQL 会多出一段 like '%%'。
         assertThat(request.getPage()).isEqualTo(1);
         assertThat(request.getSize()).isEqualTo(48);
         assertThat(request.getKeyword()).isNull();

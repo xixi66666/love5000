@@ -1,3 +1,18 @@
+"""GitHub Trending 页面的解析、AI 关键词匹配与 Top N 选择。
+
+覆盖 `app.collector.trending` 的纯函数部分：
+
+- `parse_trending_html` 从榜单行中取出 owner/name、描述、语言、总 Star 与本期增量。
+  Star 带千分位逗号，增量文案有 today / this week / this month 三种写法；缺描述或
+  缺语言时返回 `None` 而不是空串；页面上没有行时返回空列表；
+- `build_ai_matcher` 按词边界匹配关键词，`ai` 不能命中 `email` 或 `gains`；
+- `is_ai_related` 同时检查仓库名与描述；
+- `select_trending` 先按关键词过滤、再按 Star 增量降序截断，关键词为空时保留全部。
+
+隔离方式：`ROW` / `HTML` 是内嵌的榜单页面片段（结构与 GitHub 真实页面一致），
+不抓取网络；本模块不涉及数据库、模型与文件读写。
+"""
+
 from __future__ import annotations
 
 from app.collector.trending import (
@@ -39,6 +54,11 @@ def make_row(
     description: str = '<p class="col-9">An agent framework</p>',
     language: str = '<span itemprop="programmingLanguage">Python</span>',
 ) -> str:
+    """按 `ROW` 模板拼一行榜单 HTML。
+
+    `stars` 与 `gained` 保持字符串形态，方便构造带千分位或异常文案的样本；
+    把 `description` / `language` 传空串即可覆盖“字段缺失”的分支。
+    """
     return ROW.format(
         owner=owner,
         name=name,
@@ -49,6 +69,7 @@ def make_row(
     )
 
 
+# 三行榜单：四位数增量与不同的语言、量级组合，用来验证千分位解析与排序结果。
 HTML = "<html><body>" + "".join(
     [
         make_row("openai", "agents", stars="12,345", gained="1,234 stars today"),
@@ -120,6 +141,7 @@ def test_empty_page_returns_no_repositories() -> None:
 def make_repo(
     name: str, gained: int, rank: int, description: str = "AI agent toolkit"
 ) -> TrendingRepository:
+    """构造一个已解析的榜单条目，用于关键词过滤与排序用例。"""
     return TrendingRepository(
         owner="acme",
         name=name,

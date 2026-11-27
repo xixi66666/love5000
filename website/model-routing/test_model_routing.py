@@ -1,3 +1,13 @@
+"""``model_routing`` 的单元测试。
+
+覆盖：统一入口请求只打固定服务路径且不带 ``Authorization``；已选模型时网关离线不回退；
+``try_chat`` 只接受 200/204；超时、HTTP 错误、非法 JSON 一律抛错；原配置直连保留鉴权但
+错误只暴露状态码；异步通道与同步共用同一套地址校验；部署副本与公共源码逐字节一致。
+
+``model_routing`` 通过 ``importlib`` 从文件加载（目录名带连字符，无法当包导入），
+``_open``/``_state_path`` 用 mock 替换，不启动 website、不联网。
+"""
+
 import asyncio
 import importlib.util
 import json
@@ -13,6 +23,14 @@ spec.loader.exec_module(routing)
 
 
 class ModelRoutingTests(unittest.TestCase):
+    """``ModelRoutingTests`` 覆盖的分支。
+
+    - 统一入口：请求路径、方法、自定义头与“不携带提供方密钥”；
+    - 离线判定：已选模型直接报错、显式 ``native`` 允许回退、状态文件损坏按已选处理；
+    - 生成：``try_chat`` 的 200/204 语义，以及超时/HTTP 错误/非法 JSON 一律不回退；
+    - 原配置直连：鉴权头与请求体保留、错误信息脱敏、异步客户端参数；
+    - 打包：三个部署副本与公共源码逐字节一致，副本可独立运行。
+    """
     def test_actual_request_uses_fixed_service_and_never_sends_original_key(self):
         response = MagicMock()
         response.__enter__.return_value.read.return_value = b'{"model":"selected"}'

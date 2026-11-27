@@ -1,3 +1,13 @@
+"""成交记录与 AI 解析草稿服务（services.trade_service.TradeService）的单元测试。
+
+被测对象：``TradeService`` 的两块业务 —— 成交记录的方向/交易日期归一与按日筛选，以及解析草稿
+的状态机（pending → confirming → confirmed / rejected），重点是确认入口的幂等性、写入前的整批
+校验，以及对历史草稿（缺 status、已手动确认）的兼容。
+
+隔离：每个用例用 ``make_service`` 在 ``tempfile.TemporaryDirectory`` 上建立独立 JsonStore，
+``tearDown`` 清理；模拟写盘失败时用 ``mock.patch.object`` 替换 store.write_list，不产生真实
+IO 错误，也不读写用户 vault。
+"""
 import tempfile
 import unittest
 from pathlib import Path
@@ -8,11 +18,13 @@ from services.trade_service import DRAFTS_FILE, TradeService
 
 
 class TradeServiceTests(unittest.TestCase):
+    """覆盖成交记录的归一与筛选，以及草稿状态机的幂等、整批校验和旧数据兼容分支。"""
     def make_service(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         return TradeService(JsonStore(Path(self.temp_dir.name)))
 
     def sample_trade(self):
+        """构造一条字段齐全的买入成交，供确认草稿的用例复用。"""
         return {
             "stock_code": "601991",
             "stock_name": "大唐发电",
@@ -131,6 +143,7 @@ class TradeServiceTests(unittest.TestCase):
         draft_write_count = {"value": 0}
 
         def fail_second_draft_write(relative_path, rows):
+            # 只让“确认后回写草稿状态”这一步失败，模拟成交已落盘但状态没保存的中断场景。
             if relative_path == DRAFTS_FILE:
                 draft_write_count["value"] += 1
                 if draft_write_count["value"] == 2:
@@ -154,6 +167,7 @@ class TradeServiceTests(unittest.TestCase):
         service = self.make_service()
         draft = service.create_parse_draft("trades_screenshot", "2026-06-05", {"trades": []}, [])
         drafts = service.store.read_list(DRAFTS_FILE)
+        # 模拟旧版本数据：状态已是 confirmed，但没有本版本的 created_trades 记录。
         drafts[0]["status"] = "confirmed"
         drafts[0]["confirmed_at"] = "2026-06-05T15:00:00+08:00"
         service.store.write_list(DRAFTS_FILE, drafts)

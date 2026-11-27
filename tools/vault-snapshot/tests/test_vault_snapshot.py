@@ -1,3 +1,25 @@
+"""vault-snapshot 离线工具的行为测试。
+
+覆盖的关键分支：
+
+* CLI 往返：``create`` 的成员顺序、固定时间戳、清单字段与摘要，以及 ``verify`` /
+  ``restore`` 的输出与退出码。
+* 确定性与空 Vault：相同内容在不同工作目录产出逐字节相同的归档；空 Vault 得到
+  空清单，并可恢复为空目录。
+* 覆盖保护：目标归档或目标目录已存在（普通文件、空目录、断链）时拒绝，原内容
+  保持不变；发布瞬间被并发放置文件或空目录时同样拒绝覆盖。
+* 原子发布能力缺失（EOPNOTSUPP）时报告错误，而不是降级为覆盖写入。
+* 先校验后发布：强制校验失败时目标不存在，随后可直接重试成功。
+* 路径安全：工作目录落在 Vault 内、Vault 含符号链接、``..`` 穿越、Windows 非法
+  字符与保留设备名、重复 ZIP 成员、符号链接成员、大小写冲突。
+* 清理语义：占位目录只删除自己创建且仍为空的那些；创建或恢复失败后不残留临时
+  归档与暂存目录。
+
+隔离手段：每个用例使用独立临时目录；CLI 以子进程方式在 ``tools/vault-snapshot``
+目录下运行并清空 ``PYTHONPATH``，避免继承外部导入路径；全程不联网、不接触真实
+Vault。竞态用例通过 ``mock.patch.object`` 在「校验完成、发布之前」注入并发写入。
+"""
+
 from __future__ import annotations
 
 import errno
@@ -16,6 +38,8 @@ from typing import Dict, Iterable, Optional, Sequence, Tuple
 from unittest import mock
 
 TOOL_ROOT = Path(__file__).resolve().parents[1]
+# 把工具根目录插到 sys.path 首位，使测试可以直接导入未安装的 vault_snapshot 包；
+# 先判断再插入，避免重复导入时产生重复条目。
 if str(TOOL_ROOT) not in sys.path:
     sys.path.insert(0, str(TOOL_ROOT))
 
@@ -29,12 +53,23 @@ from vault_snapshot.core import (  # noqa: E402
     restore_archive,
 )
 
+# 以下三个值刻意写成字面量而不从 core 导入：归档格式一旦变化，测试应当失败，
+# 而不是跟着常量一起静默漂移。
 MANIFEST = "MANIFEST.json"
 PAYLOAD_PREFIX = "files/"
 FIXED_TIME = (1980, 1, 1, 0, 0, 0)
 
 
 class VaultSnapshotTests(unittest.TestCase):
+    """vault-snapshot 的端到端、边界与竞态用例集合。
+
+    每个用例在 ``setUp`` 中建立相互隔离的 ``vault`` / ``work`` / ``restore-parent``
+    三个目录，并在 ``addCleanup`` 中注册临时目录清理。CLI 用例走子进程，验证真实
+    的退出码与标准错误输出；竞态与清理用例直接调用 ``core``，用
+    ``mock.patch.object`` 在关键窗口注入并发写入。``assert_no_create_temp`` 与
+    ``assert_no_restore_stage`` 统一断言失败路径没有留下临时归档或暂存目录。
+    """
+
     def setUp(self) -> None:
         self._temp = tempfile.TemporaryDirectory(prefix="vault-snapshot-test-")
         self.addCleanup(self._temp.cleanup)
@@ -676,7 +711,7 @@ class VaultSnapshotTests(unittest.TestCase):
             ("notes/a.md", b"# a\n"),
         ]
         manifest = self.manifest_for(files)
-        # Python's code-point sort already places "Notes" before "notes".
+        # Python 的码点排序本身就先把 "Notes" 排在 "notes" 之前，清单因此合法。
         self.assertEqual(
             [entry["path"] for entry in manifest["files"]],
             ["Notes/A.md", "notes/a.md"],
@@ -738,7 +773,7 @@ class VaultSnapshotTests(unittest.TestCase):
         self.assertEqual(invalid_result.returncode, 1)
         self.assertIn("INVALID_MANIFEST", invalid_result.stderr)
 
-    # -- helpers ---------------------------------------------------------
+    # -- 测试辅助方法 -----------------------------------------------------
 
     def rewrite_archive(
         self,
@@ -747,6 +782,8 @@ class VaultSnapshotTests(unittest.TestCase):
         skip: str = "",
         replace: Optional[Dict[str, bytes]] = None,
     ) -> None:
+        # 按成员名重写归档：skip 用于模拟「清单有、归档缺」，replace 用于模拟
+        # 同长度内容被替换（长度不变才只能靠 SHA-256 发现）。
         replace = replace or {}
         with zipfile.ZipFile(source, "r") as zin, zipfile.ZipFile(
             destination, "w"
@@ -763,6 +800,8 @@ class VaultSnapshotTests(unittest.TestCase):
         payloads: Sequence[Tuple[str, bytes, int]],
         manifest: dict,
     ) -> None:
+        # 手工拼装「敌意」归档：成员名、权限位与清单都由调用方指定，用来构造
+        # 正常 create 流程绝不会产出、但攻击者可以伪造的输入。
         manifest_bytes = (
             json.dumps(
                 manifest,

@@ -30,13 +30,29 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+/**
+ * 后台巡检调度器 {@link ServiceHealthMonitor} 的调度与并发测试。
+ *
+ * <p>固定住的行为：{@code start()} 只巡检一次，并注册固定延迟任务（间隔 1800000ms，即 30 分钟，
+ * 首次执行时间不早于「现在 + 间隔」）；重复调用 {@code start()} 是幂等的；浏览器先读、
+ * 启动事件后到，两者共用同一次探测；定时任务抛异常时保留上一份快照，不让接口变成空结果；
+ * {@code scheduled-enabled=false} 时完全不接触调度器；刷新探测进行中 {@code snapshot()}
+ * 仍立即返回旧快照而不阻塞；并发首读共享同一个慢探测；两个定时回调同时触发也只跑一个探测。</p>
+ *
+ * <p>隔离：{@link TaskScheduler} 与 {@link ScheduledFuture} 都是 mock，测试把注册进去的回调
+ * 捕获出来自己 {@code run()}，用「手动触发一次」代替真的等 30 分钟；聚合器换成
+ * {@link ControlledAggregator}，每次探测由 {@link Probe} 的闩锁控制进入与放行，
+ * 全程不发 HTTP 请求、不连 MySQL。线程池在 {@link #shutdownExecutor()} 中回收。</p>
+ */
 class ServiceHealthMonitorTest {
 
+    /** 单个用例的等待上限；并发用例宁可失败也不要在 CI 上挂死。 */
     private static final long TIMEOUT_SECONDS = 5;
 
     private final TaskScheduler scheduler = mock(TaskScheduler.class);
     private final ScheduledFuture<?> future = mock(ScheduledFuture.class);
     private final ServiceHealthProperties properties = new ServiceHealthProperties();
+    /** 三个快照依次是「在线 → 部分离线 → 在线」，用来验证快照被整体替换而不是就地修改。 */
     private final ServiceHealthSummary first =
             new ServiceHealthSummary(true, true, Collections.emptyList());
     private final ServiceHealthSummary second =
@@ -48,6 +64,7 @@ class ServiceHealthMonitorTest {
 
     @AfterEach
     void shutdownExecutor() {
+        // 用例里自己起的线程池由用例负责关，否则非守护线程会拖住测试进程退出。
         if (executor != null) {
             executor.shutdownNow();
         }
@@ -229,12 +246,24 @@ class ServiceHealthMonitorTest {
         assertThat(aggregator.unexpectedCalls()).isZero();
     }
 
+    /**
+     * 造一个调度器已被打桩的 monitor。
+     *
+     * <p>{@code scheduleWithFixedDelay} 返回 mock 的 {@link ScheduledFuture}，
+     * 这样 {@code stop()} 里的 cancel 可以验证；间隔固定为 30 分钟，与生产配置一致。</p>
+     */
     private ServiceHealthMonitor monitor(ServiceHealthAggregator aggregator) {
         doReturn(future).when(scheduler)
                 .scheduleWithFixedDelay(any(Runnable.class), any(Date.class), eq(1800000L));
         return new ServiceHealthMonitor(aggregator, properties, scheduler);
     }
 
+    /**
+     * 从 mock 调度器里取出已注册的定时回调。
+     *
+     * <p>测试线程直接调用它，等价于「30 分钟到了、调度器触发了一次」；
+     * 既不真实等待，也不会引入额外的调度线程干扰并发断言。</p>
+     */
     private Runnable scheduledTask() {
         ArgumentCaptor<Runnable> task = ArgumentCaptor.forClass(Runnable.class);
         verify(scheduler).scheduleWithFixedDelay(task.capture(), any(Date.class), eq(1800000L));
@@ -244,6 +273,10 @@ class ServiceHealthMonitorTest {
     /**
      * 受控的慢健康服务：每次探测先占用一个槽位并等待测试释放，用来观察并发与阻塞。
      * 不发起任何网络请求。
+     *
+     * <p>同时记录三类计数：{@code calls} 总调用次数、{@code maxActive} 峰值并发数
+     * （应始终为 1）、{@code unexpected} 没有排到 probe 却仍被调用的次数（正常应为 0）。
+     * probe 队列按调用顺序消费，因此可以用排队顺序精确表达「第 n 次探测返回什么」。</p>
      */
     private static final class ControlledAggregator extends ServiceHealthAggregator {
 
@@ -258,12 +291,14 @@ class ServiceHealthMonitorTest {
             super(new ServiceHealthProperties(), null, Runnable::run);
         }
 
+        /** 排队一次需要测试手动放行的探测。 */
         private Probe enqueue(ServiceHealthSummary summary) {
             Probe probe = new Probe(summary, null);
             probes.add(probe);
             return probe;
         }
 
+        /** 排队一次立即返回的探测，用于启动巡检这类不关心阻塞的用例。 */
         private Probe enqueueImmediate(ServiceHealthSummary summary) {
             Probe probe = new Probe(summary, null);
             probe.completeNow();
@@ -271,6 +306,7 @@ class ServiceHealthMonitorTest {
             return probe;
         }
 
+        /** 排队一次立即失败的探测，用来模拟聚合器抛异常。 */
         private Probe enqueueFailure(RuntimeException failure) {
             Probe probe = new Probe(null, failure);
             probe.completeNow();
@@ -286,6 +322,7 @@ class ServiceHealthMonitorTest {
             return maxActive.get();
         }
 
+        /** 没有排到 probe 却仍被调用的次数；任何用例里都应该保持 0。 */
         private int unexpectedCalls() {
             return unexpected.get();
         }
@@ -317,6 +354,12 @@ class ServiceHealthMonitorTest {
         }
     }
 
+    /**
+     * 一次受控探测：{@code entered} 表示 {@code checkAll} 已进入，{@code release} 放行返回。
+     *
+     * <p>{@code failure} 非空时在放行后抛出，用来模拟聚合器异常；
+     * {@code completeNow()} 供不希望阻塞的用例直接放行。</p>
+     */
     private static final class Probe {
 
         private final ServiceHealthSummary summary;

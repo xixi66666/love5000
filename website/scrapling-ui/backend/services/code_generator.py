@@ -1,3 +1,26 @@
+"""把录制的操作历史编译成可独立运行的 Scrapling 抓取脚本。
+
+纯字符串拼接：不执行代码、不触网，输入是 `core.session.Session.history`
+（navigate/click/fill/scroll/back/forward/reload/extract/extract_list/pagination），
+输出是一份带 ``run_scraper()`` 的 Python 源码，供前端下载、``/api/run-code`` 试跑
+或调度器落盘执行。
+
+生成规则：
+
+- 起始 URL 取历史里第一条 ``navigate``，缺失时退回 ``https://example.com``。
+- 三个开关只在偏离 Scrapling 默认值时才写进 ``StealthyFetcher.fetch`` 的参数，
+  所以默认配置下生成的脚本更短。
+- 有 ``pagination`` 步骤时切成「翻页循环」结构：分页前的交互放进
+  ``perform_actions``，循环体里每页重新 ``Adaptor(page.content())`` 再提取；
+  没有分页则所有交互与提取都顺序写在 ``run_scraper()`` 里。
+- 选择器只转义反斜杠，其余字符原样嵌入单引号字符串，因此含单引号的
+  选择器需要调用方自行保证合法。
+
+失败行为：函数本身不主动抛异常，无法识别的 ``action`` 静默跳过；可选字段缺失时
+用默认值兜底。但历史里缺 ``selector``/``attribute``/``max_pages`` 这类必需键时会
+抛 ``KeyError``——这些字段由前端保证填写完整。
+"""
+
 from typing import List, Dict, Any
 
 def generate_scrapling_code(
@@ -6,6 +29,22 @@ def generate_scrapling_code(
     block_ads: bool = True,
     disable_resources: bool = False
 ) -> str:
+    """根据操作历史生成 Scrapling 抓取脚本源码。
+
+    Args:
+        history: 会话历史，元素为 ``{"action": ..., ...}`` 字典；空列表也能生成
+            一份只访问示例网址的骨架脚本。
+        solve_cloudflare: 是否启用过盾；为 ``False`` 时在 fetch 参数里显式写出，
+            因为 Scrapling 的默认值是 ``True``。
+        block_ads: 是否拦截广告；为 ``False`` 时显式写出。
+        disable_resources: 是否屏蔽图片/媒体等资源；为 ``True`` 时才写出。
+
+    Returns:
+        完整脚本源码（含 ``if __name__ == '__main__'`` 入口），以 ``\\n`` 连接，
+        不带行尾换行。
+
+    只使用历史中出现的动作；``pagination`` 只取第一条，多条分页会被忽略。
+    """
     pagination_step = next((step for step in history if step["action"] == "pagination"), None)
     
     lines = []
@@ -21,11 +60,15 @@ def generate_scrapling_code(
             start_url = step["url"]
             break
 
+    # 交互与提取必须分开收集：交互要按原顺序放进 perform_actions，
+    # 提取则只在拿到响应之后执行，混在一起会对着还没加载的页面取数据。
     interactions = [step for step in history if step["action"] in ["click", "fill", "scroll", "back", "forward", "reload"]]
     extractions = [step for step in history if step["action"] == "extract"]
     list_extractions = [step for step in history if step["action"] == "extract_list"]
     
     # Build dynamic fetch arguments
+    # Scrapling 的默认值是「过盾开、拦广告开、保资源」，所以只在被关掉/打开时才补参数，
+    # 生成的脚本更短，也不至于覆盖掉上游默认行为。
     fetch_args = f"'{start_url}', headless=True"
     if not solve_cloudflare:
         fetch_args += ", solve_cloudflare=False"
@@ -83,6 +126,8 @@ def generate_scrapling_code(
             lines.append("")
 
         # Pagination loop
+        # 分页选择器同样只转义反斜杠；max_pages 直接内联成字面量，
+        # 因此不支持运行期再改页数，改页数需要重新生成脚本。
         pag_selector = pagination_step["selector"].replace('\\', '\\\\')
         max_pages = pagination_step["max_pages"]
         lines.append(f"    # Pagination loop: extract page-by-page")
@@ -93,6 +138,8 @@ def generate_scrapling_code(
         lines.append("")
         
         # Single extractions inside loop
+        # 变量名统一「小写 + 空格转下划线」，这样同一份历史重复生成时变量名稳定，
+        # 也避免用户输入的空格/大小写产生非法标识符。
         for step in extractions:
             var_name = step.get("name", "data").lower().replace(" ", "_")
             selector = step["selector"].replace('\\', '\\\\')
@@ -127,6 +174,8 @@ def generate_scrapling_code(
             
             lines.append("")
             lines.append("        # Print structured table rows")
+            # 各列先用 zip 配成一行再打印成字典，调度器正是靠这种「以 { 开头、以 } 结尾」
+            # 的行还原成结构化数据，改动这里的输出格式会同时影响 webhook 报文。
             vars_zip = ", ".join([f"{step['name'].lower().replace(' ', '_')}" for step in list_extractions])
             vars_list = ", ".join([f"{step['name'].lower().replace(' ', '_')}_list" for step in list_extractions])
             lines.append(f"        for {vars_zip} in zip({vars_list}):")
@@ -242,6 +291,8 @@ def generate_scrapling_code(
             lines.append(f"        print({{{dict_items}}})")
             lines.append("")
                 
+    # 生成物以可执行脚本收尾，用户既能 `python recipe.py` 直接跑，
+    # 也能被调度器原样落盘执行。
     lines.append("if __name__ == '__main__':")
     lines.append("    run_scraper()")
     

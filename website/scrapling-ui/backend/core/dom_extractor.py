@@ -1,3 +1,23 @@
+"""注入页面的 DOM 提取脚本。
+
+模块只有一个常量 `DOM_EXTRACTOR_JS`：一段自包含的 JavaScript 箭头函数字符串，
+由 `core.session.Session.get_state` 通过 ``page.evaluate`` 在目标页面里求值，
+结果作为「元素树」一并回传给前端画布。脚本剔除 script/style/iframe 等噪声标签、
+跳过 display:none 或 visibility:hidden 的元素，并为每个节点同时给出 CSS 选择器与
+XPath，前端据此高亮并生成配方。
+
+注意：这是浏览器里执行的代码，不是 Python。字符串内的任何字符改动都会改变
+提取结果，因此这里的注释只写在字符串外的 Python 侧；修改脚本后必须用真实页面
+验证选择器与坐标，单靠 Python 侧的类型检查发现不了问题。
+
+失败行为：脚本内部对单个节点的取值是纯读取、不做异常兜底，异常会一路抛给
+`get_state` 的外层 try/except——那里把 ``dom_tree`` 降级成 ``None``，
+截图与其余状态照常返回，前端不会整页失败。
+"""
+
+# 返回结构：body 起的一棵树，节点字段为 tag/id/classes/text/selector/xpath/rect/children。
+# text 只取直接文本子节点并截断到 100 字符（避免把整段文章塞进响应）；
+# rect 已加上滚动偏移，换算成文档坐标系后前端才能与整页截图对齐。
 DOM_EXTRACTOR_JS = """
 () => {
   function getUniqueSelector(el) {

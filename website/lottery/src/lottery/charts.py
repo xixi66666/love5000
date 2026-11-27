@@ -2,6 +2,19 @@
 
 统一视觉规范：米白底、深墨蓝主色、朱红/鎏金点缀；
 所有图都回答一个明确问题，不做"为了好看"的装饰性图表。
+
+公开面：16 个 ``fig_*`` 构建函数，签名统一为“接收 bundle、返回 PNG 路径字符串”。
+它们只读 :class:`lottery.run.Bundle` 里已经算好的表，把 PNG 写到 ``output/figures/``，
+返回**文件路径字符串**（不是图像对象，也不是 HTML 片段）。
+
+约定：
+    * 每张图的输出形状（几栏、左右各画什么、单位）写在各自 docstring 里；
+    * 颜色语义跨图复用（:data:`INK` 墨蓝、:data:`RED` 双色球、:data:`BLUE` 大乐透、
+      :data:`GOLD` 参照线或警示），不要在单个图里另起配色；
+    * 本模块强制使用无界面 ``Agg`` 后端，因此可在服务器与 CI 上直接运行。
+
+结论边界：图 11（回测）与图 12（校准/对数损失）里的策略差异只是历史回测结果，
+用来证明“这些方法没有跑赢随机”，既不能外推成预测，也不构成中奖保证。
 """
 
 from __future__ import annotations
@@ -11,6 +24,7 @@ from typing import TYPE_CHECKING
 
 import matplotlib
 
+# 必须在 import pyplot 之前切到无界面后端，否则没有 DISPLAY 的环境会直接失败。
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -29,6 +43,7 @@ from .data import FIGURE_DIR
 if TYPE_CHECKING:
     from .run import Bundle
 
+# 全报告共用的色板：墨蓝是主色，朱红/宝蓝区分钟彩种，鎏金表示参照线或警示。
 INK = "#14213D"
 RED = "#C1121F"
 BLUE = "#1D4E89"
@@ -38,6 +53,7 @@ LIGHT = "#F6F3EC"
 GREEN = "#2A6F4E"
 PURPLE = "#6A4C93"
 
+# 需要多于两个系列时的备用顺序（例如多策略对比），按对比度排序。
 PALETTE = [INK, RED, BLUE, GOLD, GREEN, PURPLE, GRAY, "#B56576"]
 
 plt.rcParams.update(
@@ -68,6 +84,13 @@ plt.rcParams.update(
 
 
 def _clean(ax, grid_axis="y"):
+    """统一坐标轴外观：去掉上/右框线、加淡网格并把网格压到数据之下。
+
+    Args:
+        ax: matplotlib 的 Axes。
+        grid_axis: 网格方向，``"y"`` 或 ``"x"``；传 ``None`` 表示只留边框不画网格，
+            用于散点、热力图这类自带基准线的图。
+    """
     for side in ("top", "right"):
         ax.spines[side].set_visible(False)
     ax.spines["left"].set_color("#C9C4B8")
@@ -78,6 +101,12 @@ def _clean(ax, grid_axis="y"):
 
 
 def _save(fig, name: str) -> str:
+    """把图保存到 ``output/figures/<name>`` 并关闭 figure。
+
+    Returns:
+        绝对路径字符串。:func:`lottery.report._img` 会按这个路径读文件转 base64，
+        因此返回值必须指向真实存在的文件。
+    """
     FIGURE_DIR.mkdir(parents=True, exist_ok=True)
     path = FIGURE_DIR / name
     fig.savefig(path, facecolor="white")
@@ -86,11 +115,17 @@ def _save(fig, name: str) -> str:
 
 
 def _year(game: Game, issue: np.ndarray) -> np.ndarray:
+    """从期号推出开奖年份。
+
+    双色球期号是 7 位 ``YYYYNNN``，整除 1000 即为年份；大乐透期号是 5 位 ``YYNNN``，
+    需要补上 2000。两处格式不同，因此不能只按一种规则解析。
+    """
     year = issue.astype(np.int64) // 1000
     return year if game.key == "ssq" else 2000 + year
 
 
 def _issue_label(game: Game, issue: int) -> str:
+    """期号的展示形式：双色球原样输出，大乐透补零到 5 位。"""
     return str(issue) if game.key == "ssq" else f"{issue:05d}"
 
 
@@ -98,6 +133,11 @@ def _issue_label(game: Game, issue: int) -> str:
 # 1. 奖级概率阶梯
 # ---------------------------------------------------------------------------
 def fig_odds(bundle: "Bundle") -> str:
+    """图 1：两栏的奖级概率阶梯（对数纵轴）。
+
+    左栏双色球一至六等奖、右栏大乐透按 2026 年新规的一至七等奖；柱高为中奖概率（%），
+    概率低于 0.1% 的档位改标成 ``1/赔率`` 以便阅读。返回 PNG 路径。
+    """
     fig, axes = plt.subplots(1, 2, figsize=(12.4, 5.2), gridspec_kw={"wspace": 0.28})
     for ax, key in zip(axes, ("ssq", "dlt")):
         game = GAMES[key]
@@ -151,6 +191,11 @@ def fig_odds(bundle: "Bundle") -> str:
 # 2. 销量与奖池
 # ---------------------------------------------------------------------------
 def fig_sales(bundle: "Bundle") -> str:
+    """图 2：两行（双色球 / 大乐透）的年度销量柱状图加奖池中位数折线。
+
+    销量按年求和（亿元），奖池取当年中位数（亿元），双纵轴；缺 ``sales`` 的期次
+    整行剔除，因此个别年份的柱子会偏高或缺失，属于数据本身的状态。返回 PNG 路径。
+    """
     fig, axes = plt.subplots(2, 1, figsize=(12.4, 7.2), sharex=False)
     for ax, key, color in zip(axes, ("ssq", "dlt"), (RED, BLUE)):
         data = bundle.data[key]
@@ -181,6 +226,16 @@ def fig_sales(bundle: "Bundle") -> str:
 # 3. 频率热力图
 # ---------------------------------------------------------------------------
 def fig_frequency_heatmap(bundle: "Bundle") -> str:
+    """图 3：4 个面板（两彩种 × 前/后区）的号码年度频率热力图。
+
+    颜色是“当年出现次数相对全样本平均出现率”的标准化残差 z（截断到 ±3），
+    纵轴为号码、横轴为年份。大乐透前区面板额外画出 2014 年规则调整的分隔线。
+    返回 PNG 路径。
+
+    Raises:
+        ValueError: 大乐透数据里找不到 2014 年（``list(...).index(2014)`` 失败），
+            通常意味着数据被裁剪过。
+    """
     fig, axes = plt.subplots(2, 2, figsize=(14.0, 9.2), gridspec_kw={"wspace": 0.16, "hspace": 0.36})
     panels = [
         ("ssq", "front", "红球（1–33）"),
@@ -210,6 +265,7 @@ def fig_frequency_heatmap(bundle: "Bundle") -> str:
         ax.set_title(title, loc="left", fontsize=11)
         ax.grid(False)
         if key == "dlt" and area == "front":
+            # 2014 年的规则调整是数据里唯一的结构性断点；缺这一年会抛 ValueError。
             idx = list(unique_years).index(2014)
             ax.axvline(idx - 0.5, color=INK, linewidth=1.4, linestyle=(0, (4, 3)))
             ax.text(
@@ -240,6 +296,11 @@ def fig_frequency_heatmap(bundle: "Bundle") -> str:
 # 4. 均匀性残差
 # ---------------------------------------------------------------------------
 def fig_residuals(bundle: "Bundle") -> str:
+    """图 4：两栏的全样本号码频数标准化残差柱状图。
+
+    残差取 :func:`lottery.tests.number_uniformity` 的结果 ``(O−E)/√(E(1−p))``，
+    ``|z|>2`` 的号码用朱红标出，虚线是 ±2σ 参照。返回 PNG 路径。
+    """
     fig, axes = plt.subplots(1, 2, figsize=(12.6, 4.8))
     for ax, key in zip(axes, ("ssq", "dlt")):
         analysis = bundle.analysis[key]
@@ -273,6 +334,11 @@ def fig_residuals(bundle: "Bundle") -> str:
 # 5. 遗漏值
 # ---------------------------------------------------------------------------
 def fig_omission(bundle: "Bundle") -> str:
+    """图 5：遗漏值的两个视角。
+
+    左：两彩种当前遗漏（期）的并排柱状图；右：把每个号码的遗漏间隔汇总后与理论几何
+    分布对比（对数纵轴，最后一箱是“≥30 期”的合并尾）。返回 PNG 路径。
+    """
     fig, axes = plt.subplots(1, 2, figsize=(13.2, 4.9), gridspec_kw={"width_ratios": [1.35, 1]})
     ax = axes[0]
     width = 0.38
@@ -317,6 +383,10 @@ def fig_omission(bundle: "Bundle") -> str:
 # 6. 和值分布
 # ---------------------------------------------------------------------------
 def fig_sum(bundle: "Bundle") -> str:
+    """图 6：两栏的和值分布，精确组合分布（灰柱）与实测频率（红线）对照。
+
+    纵轴为概率（%），竖虚线标出精确分布的理论均值。返回 PNG 路径。
+    """
     fig, axes = plt.subplots(1, 2, figsize=(12.8, 4.8))
     for ax, key in zip(axes, ("ssq", "dlt")):
         data = bundle.data[key]
@@ -344,6 +414,11 @@ def fig_sum(bundle: "Bundle") -> str:
 # 7. 形态分布网格
 # ---------------------------------------------------------------------------
 def fig_shape(bundle: "Bundle") -> str:
+    """图 7：2×4 网格，两彩种 ×（奇数个数、大号个数、连号组数、AC 值）。
+
+    每个面板都是“灰柱 = 精确组合分布、折线 = 实测概率（%）”，横轴为该形态的取值。
+    返回 PNG 路径。
+    """
     specs = [("odd", "奇数个数"), ("big", "大号个数"), ("consecutive", "连号组数"), ("ac", "AC 值")]
     fig, axes = plt.subplots(2, 4, figsize=(14.2, 6.4), gridspec_kw={"hspace": 0.55, "wspace": 0.32})
     for row, key in enumerate(("ssq", "dlt")):
@@ -372,12 +447,22 @@ def fig_shape(bundle: "Bundle") -> str:
 # 8. 序列与自相关
 # ---------------------------------------------------------------------------
 def _acf(series: np.ndarray, lags: int = 30) -> np.ndarray:
+    """自相关函数，返回滞后 1..lags 的相关系数。
+
+    分母用整段序列的平方和，因此严格说是有偏估计；在 ``n ≫ lags`` 时偏差可忽略，
+    而这里的序列至少上千期，lag 最多 30。
+    """
     x = series - series.mean()
     denom = np.dot(x, x)
     return np.array([np.dot(x[:-k], x[k:]) / denom for k in range(1, lags + 1)])
 
 
 def fig_sequence(bundle: "Bundle") -> str:
+    """图 8：两行的和值序列诊断。
+
+    左栏：和值原始序列、100 期滚动均值与理论均值（大乐透额外标出 2014 年断点）；
+    右栏：和值的自相关函数与 ``±1.96/√n`` 的 95% 置信带。返回 PNG 路径。
+    """
     fig = plt.figure(figsize=(13.0, 6.8))
     gs = fig.add_gridspec(2, 2, height_ratios=[1.5, 1], width_ratios=[1.6, 1], hspace=0.45, wspace=0.22)
     for row, key in enumerate(("ssq", "dlt")):
@@ -421,6 +506,11 @@ def fig_sequence(bundle: "Bundle") -> str:
 # 9. p 值 QQ 图
 # ---------------------------------------------------------------------------
 def fig_pvalues(bundle: "Bundle") -> str:
+    """图 9：两栏 p 值 QQ 图。
+
+    横轴为 Uniform(0,1) 的理论分位数，纵轴为排序后的实测 p 值；点落在对角线附近
+    说明检验结果与“纯随机”一致。返回 PNG 路径。
+    """
     fig, axes = plt.subplots(1, 2, figsize=(11.6, 5.0))
     for ax, key in zip(axes, ("ssq", "dlt")):
         frame = bundle.analysis[key]["results"]
@@ -446,6 +536,11 @@ def fig_pvalues(bundle: "Bundle") -> str:
 # 10. 号码对共现
 # ---------------------------------------------------------------------------
 def fig_pairs(bundle: "Bundle") -> str:
+    """图 10：两栏号码对共现的标准化残差热力图。
+
+    对角线置 ``nan`` 以隐藏；图注给出蒙特卡洛 p 值与 ``|z|>3`` 的号码对数量
+    （先在上三角统计，再除以 2 还原成对称对的真实数量）。返回 PNG 路径。
+    """
     fig, axes = plt.subplots(1, 2, figsize=(13.0, 5.6), gridspec_kw={"wspace": 0.18})
     for ax, key in zip(axes, ("ssq", "dlt")):
         analysis = bundle.analysis[key]
@@ -477,6 +572,16 @@ def fig_pairs(bundle: "Bundle") -> str:
 # 11. 回测结果
 # ---------------------------------------------------------------------------
 def fig_backtest(bundle: "Bundle") -> str:
+    """图 11：回测结果。
+
+    左：各策略“平均命中 / 理论期望”的比值与 95% 置信区间（1.0 表示与随机无异，
+    两个彩种上下错开半格避免点重叠）；右：双色球命中数分布，超几何理论与热号 30 期
+    实测对照。返回 PNG 路径。
+
+    Raises:
+        KeyError: 大乐透回测汇总缺少某个策略——左侧按双色球的策略顺序对齐两个彩种，
+            ``.loc[order]`` 找不到对应行时抛错。
+    """
     fig = plt.figure(figsize=(13.2, 6.2))
     gs = fig.add_gridspec(1, 2, width_ratios=[1.15, 1], wspace=0.25)
     ax = fig.add_subplot(gs[0, 0])
@@ -535,6 +640,12 @@ def fig_backtest(bundle: "Bundle") -> str:
 # 12. 概率校准
 # ---------------------------------------------------------------------------
 def fig_calibration(bundle: "Bundle") -> str:
+    """图 12：概率校准与对数损失。
+
+    左：贝叶斯、马尔可夫、热号 100 三个策略的校准曲线（预测概率 vs 实际出现频率），
+    对角线是完美校准；右：各策略相对均匀分布的对数损失改善，大于 0 才代表有预测力。
+    返回 PNG 路径。
+    """
     fig, axes = plt.subplots(1, 2, figsize=(12.2, 4.8), gridspec_kw={"wspace": 0.26})
     ax = axes[0]
     for i, (key, color) in enumerate((("ssq", RED), ("dlt", BLUE))):
@@ -590,6 +701,11 @@ def fig_calibration(bundle: "Bundle") -> str:
 # 13. 期望值
 # ---------------------------------------------------------------------------
 def fig_ev(bundle: "Bundle") -> str:
+    """图 13：期望值。
+
+    左：期望回报随一等奖单注奖金变化的曲线，标出各彩种历史最高头奖与 2 元票价参照线；
+    右：逐期返奖率的 100 期滚动均值（0.5 为理论返奖率参照）。返回 PNG 路径。
+    """
     fig, axes = plt.subplots(1, 2, figsize=(12.8, 4.8), gridspec_kw={"wspace": 0.26})
     ax = axes[0]
     for key, color in (("ssq", RED), ("dlt", BLUE)):
@@ -633,6 +749,12 @@ def fig_ev(bundle: "Bundle") -> str:
 # 14. 等待时间与蒙特卡洛
 # ---------------------------------------------------------------------------
 def fig_waiting(bundle: "Bundle") -> str:
+    """图 14：等待时间与蒙特卡洛。
+
+    左：至少中一次头奖的概率随连续购买年数的变化（双对数轴，按每年 150 期折算，
+    标出 50% / 95% 所需年数）；右：4000 次模拟的 15 年总回报直方图与关键分位数。
+    返回 PNG 路径。
+    """
     fig, axes = plt.subplots(1, 2, figsize=(12.8, 4.9), gridspec_kw={"wspace": 0.28})
     ax = axes[0]
     years_grid = np.logspace(0, 6, 400)
@@ -703,6 +825,12 @@ def fig_waiting(bundle: "Bundle") -> str:
 # 15. 覆盖
 # ---------------------------------------------------------------------------
 def fig_coverage(bundle: "Bundle") -> str:
+    """图 15：覆盖率与复式成本。
+
+    左：投入金额与“至少中一次头奖”概率的关系（双对数轴，竖线标出 1 注 / 1000 注 /
+    100 万注）；右：双色球复式投注（红球 a 个 × 蓝球 b 个）的金额热力图，
+    格子内标注实际金额（元），颜色是金额的 log10。返回 PNG 路径。
+    """
     fig, axes = plt.subplots(1, 2, figsize=(12.8, 4.9), gridspec_kw={"wspace": 0.26})
     ax = axes[0]
     for key, color in (("ssq", RED), ("dlt", BLUE)):
@@ -745,6 +873,12 @@ def fig_coverage(bundle: "Bundle") -> str:
 # 16. 流行度与奖金分摊
 # ---------------------------------------------------------------------------
 def fig_popularity(bundle: "Bundle") -> str:
+    """图 16：流行度与奖金分摊。
+
+    左：和值分箱后的“每百万元销量的一等奖注数”（中位数）；右：控制销量后各形态对
+    一等奖注数的约当影响（%），FDR ``q<0.05`` 的用朱红标出。右图不画 ``all_even``：
+    全偶数组合在样本里极少，系数不稳定，留在图上会压缩其他形态的横轴。返回 PNG 路径。
+    """
     fig, axes = plt.subplots(1, 2, figsize=(12.8, 4.9), gridspec_kw={"wspace": 0.3})
     ax = axes[0]
     for key, color in (("ssq", RED), ("dlt", BLUE)):

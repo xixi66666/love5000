@@ -1,9 +1,38 @@
+"""因子引擎 `FactorEngine`。
+
+对股票池计算价值、质量、动量三类原始因子，再按横截面百分位（0~100）合成维度分：
+
+- 价值：`pb`/`pe_ttm`/`ps_ttm` 的倒数（越大越便宜）；
+- 质量：`roe`、经营现金流/净利润、毛利率、`1 - 负债率`；
+- 动量：剔除最近 5 个交易日的 60 日与 120 日收益，以及 5 日均线是否在 20 日均线之上。
+
+防前视：估值、财务、行情三条查询都附加 `available_date <= trade_date`，即只用决策日
+当天已经可见的数据；财务还按"报告期 + 可用日"倒序取最新一条。
+
+输入缺失或非法（`pe_ttm`/`pb`/`ps_ttm` 非正、`net_profit` 非正、行情为空）时抛
+`ValueError` 而不是用 0 填充，避免把"缺数据"算成"很便宜"。`risk_penalty` 与
+`liquidity_flag` 目前固定为 0.0 与 `ok`，尚未接入风控规则。
+"""
+
 from typing import Dict, List
 
 from quant.storage.repository import QuantRepository
 
 
 def rank_percentile(values: List[float], higher_is_better: bool = True) -> List[float]:
+    """把一组数值转换成 0~100 的横截面百分位分数。
+
+    最优值得 100、最差值得 0；相同值（并列）取并列名次的平均值，因此同组内的并列
+    会得到完全相同的分数，不会被随机拆开。只有一个元素时直接返回 `[100.0]`
+    （分母为 0，无法归一化）。
+
+    Args:
+        values: 同一维度、同一横截面的原始因子值。
+        higher_is_better: 为真时值越大分越高；为假时按升序排名。
+
+    Returns:
+        与输入等长、同序的分数列表；每个分数保留 4 位小数。
+    """
     indexed = list(enumerate(values))
     indexed.sort(key=lambda item: item[1], reverse=higher_is_better)
     if len(indexed) == 1:
@@ -22,10 +51,37 @@ def rank_percentile(values: List[float], higher_is_better: bool = True) -> List[
 
 
 class FactorEngine:
+    """计算 VQM 三类原始因子并转为横截面分数。"""
+
     def __init__(self, repository: QuantRepository):
+        """注入仓储；引擎本身无状态。
+
+        Args:
+            repository: 提供估值、财务与日线查询的仓储。
+        """
         self.repository = repository
 
     def calculate(self, trade_date: str, universe: List[Dict[str, object]]) -> List[Dict[str, object]]:
+        """为股票池计算原始因子与三个维度分。
+
+        逐只股票校验输入：估值倍数必须为正（倒数为因子），净利润必须为正（现金流
+        比率的分母），其余质量字段必须存在且可转 float。任何一只不满足都会立刻抛错，
+        尽管错误前缀写的是复数 "codes"——实际上是碰到第一只坏股票就中止。
+
+        Args:
+            trade_date: 决策日（ISO 日期），所有查询都以它为可见性上界。
+            universe: 股票池行，至少含 `code`/`name`/`industry`。
+
+        Returns:
+            与 `universe` 等长的因子行：原始因子放在 `factor_raw_values`，
+            另有 `value_score`/`quality_score`/`momentum_score`（0~100）、
+            `risk_penalty`（当前恒 0.0）、`liquidity_flag`（当前恒 `ok`）等字段；
+            股票池为空时返回空列表。
+
+        Raises:
+            ValueError: 任一股票的估值、财务或行情输入缺失/非法，消息形如
+                `Invalid or missing factor inputs for codes: 600001: pb`。
+        """
         codes = [str(item["code"]) for item in universe]
         if not codes:
             return []
@@ -81,6 +137,15 @@ class FactorEngine:
         errors: List[str],
         positive: bool = False,
     ) -> None:
+        """校验某个字段存在且可转成数值，失败时把 `代码: 字段` 追加到 `errors`。
+
+        Args:
+            row: 数据行（估值或财务）。
+            code: 股票代码，仅用于错误信息。
+            field: 字段名。
+            errors: 调用方传入的错误累加列表，命中问题时原地追加。
+            positive: 为真时要求数值大于 0（用于估值倍数与净利润这类做分母的字段）。
+        """
         try:
             value = row[field]
             numeric_value = float(value)
@@ -98,6 +163,17 @@ class FactorEngine:
         financials: Dict[str, Dict[str, object]],
         returns: Dict[str, Dict[str, float]],
     ) -> List[str]:
+        """校验单只股票的估值、财务与行情输入，返回错误描述列表。
+
+        Args:
+            code: 股票代码。
+            valuations: 代码 → 最新估值行。
+            financials: 代码 → 最新财报行。
+            returns: 代码 → 动量指标，缺失表示没有可用行情。
+
+        Returns:
+            形如 `["600001: pb", "600001: financial"]` 的错误列表；为空表示输入齐全。
+        """
         errors = []
         valuation = valuations.get(code)
         if valuation is None:
@@ -119,6 +195,18 @@ class FactorEngine:
         return errors
 
     def _latest_valuations(self, trade_date: str, codes: List[str]) -> Dict[str, Dict[str, object]]:
+        """取每只股票在决策日可见的最新估值。
+
+        用 `row_number()` 按 `trade_date`、`available_date` 倒序取 rn=1，并限制
+        `available_date <= 决策日`，因此不会用到决策日收盘后才更新的估值。
+
+        Args:
+            trade_date: 决策日。
+            codes: 股票代码列表。
+
+        Returns:
+            代码 → 估值行字典；没有可用数据的代码不出现在结果里。
+        """
         placeholders = ", ".join(["?"] * len(codes))
         rows = self.repository.fetch_dicts(
             f"""
@@ -138,6 +226,18 @@ class FactorEngine:
         return {str(row["code"]): dict(row) for row in rows}
 
     def _latest_financials(self, trade_date: str, codes: List[str]) -> Dict[str, Dict[str, object]]:
+        """取每只股票在决策日可见的最新一期财报。
+
+        按 `report_period`、`available_date` 倒序取第一条，并限制
+        `available_date <= 决策日`：报告期更晚但尚未公告的财报不会被选中。
+
+        Args:
+            trade_date: 决策日。
+            codes: 股票代码列表。
+
+        Returns:
+            代码 → 财报行字典；无可用财报的代码不出现在结果里。
+        """
         placeholders = ", ".join(["?"] * len(codes))
         rows = self.repository.fetch_dicts(
             f"""
@@ -156,6 +256,18 @@ class FactorEngine:
         return {str(row["code"]): dict(row) for row in rows}
 
     def _dimension_score(self, rows: List[Dict[str, object]], factor_names: List[str]) -> List[float]:
+        """把一组因子合成一个 0~100 的维度分：各因子百分位的等权平均。
+
+        每个因子都按"越大越好"排名，因此调用方必须先把方向逆转过
+        （如 `pb_inverse`、`debt_ratio_inverse`）。
+
+        Args:
+            rows: 已填充 `factor_raw_values` 的因子行。
+            factor_names: 参与合成的原始因子名，至少一个。
+
+        Returns:
+            与 `rows` 同序的维度分，保留 4 位小数。
+        """
         per_factor_scores = []
         for name in factor_names:
             values = [float(row["factor_raw_values"][name]) for row in rows]
@@ -166,6 +278,21 @@ class FactorEngine:
         return result
 
     def _momentum_returns(self, trade_date: str, codes: List[str]) -> Dict[str, Dict[str, float]]:
+        """计算剔除最近 5 个交易日后的 60 日/120 日收益与均线趋势。
+
+        以倒数第 6 根 K 线为终点（`latest_index = len - 6`），去掉最近一周，避免短期
+        反转污染动量信号；同时限制 `available_date <= 决策日`，不使用未来价格。
+        历史不足时窗口向前截断到序列起点（`max(0, ...)`），因此新股得到的是"上市以来"
+        收益而不是 `None`。均线用可用收盘价的简单平均，`ma5 >= ma20` 记 1.0，否则 0.0。
+
+        Args:
+            trade_date: 决策日。
+            codes: 股票代码列表。
+
+        Returns:
+            代码 → `{return_60d_exclude_5d, return_120d_exclude_5d, ma_trend_score}`；
+            没有任何行情的代码不会出现在结果中（由 `_validate_inputs` 报缺失）。
+        """
         placeholders = ", ".join(["?"] * len(codes))
         rows = self.repository.fetch_dicts(
             f"""

@@ -1,3 +1,16 @@
+"""last30days 多源研究接口的对外契约。
+
+覆盖 `/api/v1/last30days`、`/api/v1/last30days/status` 以及
+`/api/v1/last30days/rankings` 与其 `/refresh`：请求里的 `query` 要先去掉首尾空白再
+交给服务层；空主题和未知 `direction` 由 FastAPI 校验回 422；服务层返回
+`unconfigured`（本机没装 last30days skill）时必须原样透出 `message`，不能包装成
+“成功但为空”；`direction` 缺省为 `agent`。
+
+隔离方式：只把 `app.api.v1.last30days` 中的 `fetch_last30days` /
+`diagnose_last30days` / `get_ranking` / `refresh_ranking` patch 成 `AsyncMock`，
+不启动 Node skill、不访问 Reddit / Hacker News / GitHub 等外部来源，也不连数据库。
+"""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
@@ -10,6 +23,7 @@ client = TestClient(app)
 
 
 def _research_result() -> dict:
+    """构造一份多源研究结果，字段与 last30days skill 的 agent 导出对齐。"""
     return {
         "status": "working",
         "query": "OpenAI",
@@ -107,6 +121,7 @@ def test_research_endpoint_preserves_unconfigured_status() -> None:
 
 
 def _ranking_result(direction: str = "agent") -> dict:
+    """构造一份榜单报告；`direction` 用于确认接口把这个参数原样传给服务层。"""
     return {
         "direction": direction,
         "status": "working",

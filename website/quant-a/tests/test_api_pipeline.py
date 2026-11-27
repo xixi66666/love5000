@@ -1,3 +1,15 @@
+"""`/api/**` 接口与流水线的集成测试（进程内，不联网）。
+
+覆盖分支：全量同步后评分（`scores` 数量、版本号与排名）；`/api/status` 的数据完整性
+与最近可评分日期；缺估值时 `score_ready=false` 且给出中文阻断原因；评分接口把
+`ValueError` 转成 HTTP 400；当日同步命中快照直接返回 `cached`；缺快照时注册后台任务；
+快照不完整时返回 `syncing` 并带补齐进度；回测接口产出 `nav`/`orders`/报告与偏差披露。
+
+隔离方式：每个用例在 `tmp_path` 建独立 DuckDB 并用 `MockProvider`，
+通过 `app.dependency_overrides` 注入流水线与假后台任务；清理时释放 `daily_sync_lock`，
+不启动 uvicorn、不请求真实行情。
+"""
+
 from datetime import date
 
 from fastapi.testclient import TestClient

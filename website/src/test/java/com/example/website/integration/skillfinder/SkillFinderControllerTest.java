@@ -11,6 +11,16 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * {@link SkillFinderController} 的 Web 层测试：standalone MockMvc 加 mock 的
+ * {@link SkillFinderProcessManager}，不启动 Python、不连接 5177，也不访问与 website
+ * 共用的 MySQL。
+ *
+ * <p>固定首页卡片依赖的响应契约：启动成功返回 200、{@code success=true}、
+ * {@code status=started} 与可打开的 url；已在线时 {@code status=already-running}；
+ * 失败返回 503、{@code success=false} 与可读 {@code message}（例如前端未构建）；
+ * 状态接口只读 manager。</p>
+ */
 class SkillFinderControllerTest {
 
     @Test

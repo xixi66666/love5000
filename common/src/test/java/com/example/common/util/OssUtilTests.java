@@ -7,6 +7,13 @@ import java.io.ByteArrayInputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+/**
+ * {@code OssUtil} 的地址拼接与对象键校验测试。
+ *
+ * <p>全部用例只做纯计算断言，不连接阿里云 OSS，也不使用真实 AccessKey：
+ * 覆盖自定义 CDN 前缀拼接、带 query 参数的 URL 反解，以及预声明对象键的格式校验
+ * （以斜杠开头的路径、路径穿越和带 query 的键都会被拒绝）。</p>
+ */
 class OssUtilTests {
 
     @Test

@@ -1,3 +1,12 @@
+"""研究数据编排服务（services.stock_research_service.StockResearchService）的单元测试。
+
+被测对象：overview / capital / events 三个分区如何组合多个数据源、缓存与强制刷新、单一数据源
+失败后的回退（且 ``provider`` 与 ``fallback_used`` 必须如实反映真正取数的来源）、事件分页校验，
+以及 build_snapshot 生成的紧凑快照。
+
+隔离：全部通过替身完成 —— Fake*Provider 返回固定数据或按名字抛错，FakeMetadataService 提供
+元数据，FakeClock 让 monotonic 可控从而精确测试缓存命中；不联网、不读 model.properties。
+"""
 import unittest
 
 from services.research_provider import ResearchProviderError, success_block
@@ -5,6 +14,7 @@ from services.stock_research_service import StockResearchService
 
 
 class FakeClock:
+    """只有 monotonic 的假时钟，用来把缓存是否过期控制成确定行为。"""
     def __init__(self):
         self.value = 100.0
 
@@ -13,6 +23,7 @@ class FakeClock:
 
 
 class FakeTencentProvider:
+    """伪造腾讯行情：可配置为直接抛错，调用次数用于断言缓存命中与强制刷新。"""
     def __init__(self, error=None):
         self.error = error
         self.calls = 0
@@ -29,6 +40,7 @@ class FakeTencentProvider:
 
 
 class FakeEastmoneyProvider:
+    """伪造东方财富研究接口：按方法名登记失败项，可只让某几个分区失败以验证分区级降级。"""
     def __init__(self, failures=None):
         self.failures = set(failures or [])
         self.calls = []
@@ -76,6 +88,7 @@ class FakeEastmoneyProvider:
 
 
 class FakeSinaProvider:
+    """伪造新浪资金流接口，用于验证资金流分区可以独立于东方财富回退。"""
     def __init__(self):
         self.calls = 0
 
@@ -89,6 +102,7 @@ class FakeSinaProvider:
 
 
 class FakeCninfoProvider:
+    """伪造巨潮公告接口：主接口可配置为失败，备用接口返回深交所公告。"""
     def __init__(self, primary_fails=False):
         self.primary_fails = primary_fails
         self.calls = []
@@ -113,6 +127,7 @@ class FakeCninfoProvider:
 
 
 class FakeMetadataService:
+    """伪造元数据服务，固定返回行业与概念，让 overview 的元数据区块可预测。"""
     def get_stock_metadata(self, code, fallback=None):
         return {
             "code": code,
@@ -123,6 +138,7 @@ class FakeMetadataService:
 
 
 def make_service(tencent=None, eastmoney=None, sina=None, cninfo=None, clock=None):
+    """按默认替身组装被测服务，只需为要定制的那一路传入自己的替身。"""
     return StockResearchService(
         tencent_provider=tencent or FakeTencentProvider(),
         eastmoney_provider=eastmoney or FakeEastmoneyProvider(),
@@ -134,6 +150,7 @@ def make_service(tencent=None, eastmoney=None, sina=None, cninfo=None, clock=Non
 
 
 class StockResearchServiceTests(unittest.TestCase):
+    """覆盖六个关注点：多源并行取值、回退后来源标注、部分失败、缓存与强制刷新、事件分页、快照裁剪。"""
     def test_overview_keeps_valuation_and_metadata_sources_independent(self):
         result = make_service().get_overview("002580")
 

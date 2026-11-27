@@ -20,6 +20,13 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * 认证服务的业务规则测试。
+ *
+ * <p>用内存版仓储替代真实数据库，覆盖 BCrypt 摘要与比对、注册成功后写入会话、
+ * 错误密码被拒，以及用户名或密码不合规时的错误码与逐条提示。
+ * 不连接 MySQL，也不发送真实 HTTP 请求。</p>
+ */
 class AuthServiceImplTests {
 
     @Test
@@ -84,6 +91,7 @@ class AuthServiceImplTests {
         assertTrue(passwordException.getDetails().size() >= 4);
     }
 
+    /** 内存版用户仓储：用 Map 保存记录，使测试完全不依赖数据库。 */
     private static class FakeAuthUserRepository implements AuthUserRepository {
 
         private final Map<Long, AuthUser> users = new HashMap<Long, AuthUser>();

@@ -1,3 +1,15 @@
+"""`AkShareProvider` 的解析与降级测试。
+
+覆盖分支：AkShare 缺失时的可读报错；代码/名称解析、交易所推断与 ST/默认上市日；
+AkShare 单只股票异常被隔离并记入 `errors`；东方财富 K 线与新浪日线的两级兜底
+（含 `secid` 市场号、超时透传、`pre_close` 反推、`amount` 估算）；中性估值/财务的
+`derived-neutral` 标记；指数成分回退为全市场时写入警告。
+
+隔离方式：用 `monkeypatch.setitem(sys.modules, "akshare", 假模块)` 提供假 DataFrame，
+用 `monkeypatch.setattr(..., "requests.get", 假响应)` 替换 HTTP 调用，全程不联网、
+不读真实行情。
+"""
+
 import sys
 import types
 
@@ -7,6 +19,8 @@ from quant.providers.akshare_provider import AkShareProvider
 
 
 class FakeDataFrame:
+    """只实现 `to_dict(orient="records")` 的最小 DataFrame 替身。"""
+
     def __init__(self, rows):
         self.rows = rows
 
@@ -16,6 +30,8 @@ class FakeDataFrame:
 
 
 class FakeResponse:
+    """只实现 `raise_for_status()` 与 `json()` 的最小 HTTP 响应替身。"""
+
     def __init__(self, payload):
         self.payload = payload
 

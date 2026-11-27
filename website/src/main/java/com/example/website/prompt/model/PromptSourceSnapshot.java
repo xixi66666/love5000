@@ -5,6 +5,16 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * 某个来源在某一时刻的快照，是 {@code /api/prompt-sources} 的对外数据。
+ *
+ * <p>{@code status} 只有三种取值：{@code live} 表示实时抓取成功；{@code fallback} 表示使用内置摘要
+ * （抓取失败、或者还没有刷新过）；{@code failed} 表示来源 id 不在白名单。{@code message} 给出原因，
+ * 前端据此区分真实数据与降级数据。</p>
+ *
+ * <p>{@code lastFetchedAt} 是生成快照的本地时间，内置快照同样会赋值，因此不能仅凭它判断该来源
+ * 是否真的抓取过。</p>
+ */
 public class PromptSourceSnapshot {
 
     private String sourceId;
@@ -20,6 +30,19 @@ public class PromptSourceSnapshot {
     public PromptSourceSnapshot() {
     }
 
+    /**
+     * 全量构造一个快照。
+     *
+     * @param sourceId      来源 id；白名单外的 id 也会被保留，用于回显用户传入了什么
+     * @param name          来源展示名
+     * @param url           来源地址；白名单外一般为空串
+     * @param type          来源分类
+     * @param tags          标签列表，允许 {@code null}（转为空列表）；会复制一份再保存
+     * @param status        {@code live}、{@code fallback} 或 {@code failed}
+     * @param summary       摘要文本
+     * @param lastFetchedAt 生成快照的本地时间，可能为 {@code null}
+     * @param message       面向使用者的说明，解释为什么是降级数据
+     */
     public PromptSourceSnapshot(String sourceId,
                                 String name,
                                 String url,

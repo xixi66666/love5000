@@ -31,6 +31,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+/**
+ * {@link PhotoServiceImpl} 的单元测试。
+ *
+ * <p>DAO 与 {@code OssUtil} 都是 Mockito 替身，不连接真实 MySQL、不访问 OSS。
+ * 覆盖重点：预声明对象键的格式与回填、落库路径、insert 失败或返回 0 行时补偿删除孤儿对象、
+ * OSS 响应丢失、清理失败时把异常挂到原始异常的 suppressed、输入校验与 OSS 未配置、
+ * 列表的 URL 解析，以及删除顺序（先库后 OSS）、并发重复删除按成功处理等分支。</p>
+ */
 class PhotoServiceImplTests {
 
     @Test

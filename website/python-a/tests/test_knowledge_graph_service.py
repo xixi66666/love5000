@@ -1,3 +1,12 @@
+"""Obsidian 知识图谱服务（services.knowledge_graph_service）的单元测试。
+
+被测对象：``ObsidianKnowledgeGraphService`` 的双链推导（个股、行业、概念、技术形态、风险模式、
+交易错误、观察计划）以及概念笔记落盘的目录结构与正文。
+
+隔离：写入类用例使用 ``tempfile.TemporaryDirectory`` 作为 vault 根，不会写入真实的
+obsidian-vault/A股AI；纯计算用例传入不存在的路径也不触盘，因为 ``build_review_context``
+只做字符串组装。
+"""
 import tempfile
 import unittest
 from pathlib import Path
@@ -6,7 +15,9 @@ from services.knowledge_graph_service import ObsidianKnowledgeGraphService
 
 
 class ObsidianKnowledgeGraphServiceTests(unittest.TestCase):
+    """覆盖两类行为：复盘上下文里的 wiki 双链集合，以及概念笔记落盘后的目录与反向链接。"""
     def test_build_review_context_links_metadata_and_detected_patterns(self):
+        # build_review_context 只组装链接、不写盘，所以这里可以传一个并不存在的 vault 根。
         service = ObsidianKnowledgeGraphService(Path("unused"))
 
         context = service.build_review_context(

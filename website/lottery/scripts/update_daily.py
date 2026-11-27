@@ -9,6 +9,28 @@
     python scripts/update_daily.py --check      # 只看有没有新数据，不写文件
     python scripts/update_daily.py --no-build   # 只更新数据，不重建报告
     python scripts/update_daily.py --loop 240   # 常驻，每 240 分钟跑一次
+
+命令行参数与默认值：
+    --data-dir      数据目录，默认 <lottery>/data（测试传临时目录）。
+    --check         只抓取并汇总有没有新数据，不写任何文件。
+    --no-build      只更新数据，不触发重建。
+    --force-build   即使没有新数据也重建一次。
+    --loop          常驻模式的间隔分钟数，默认 0 表示只跑一次；实际间隔不小于 60 分钟。
+    --log           日志文件，默认 <lottery>/logs/update.log。
+    --build-target  full（报告+图表+操作台，默认）或 console（只重建操作台）。
+    --console-port  console 重建时写进刷新按钮的端口，默认 8777；服务端调用时传 5179。
+
+数据安全约定（修改本文件时必须保持）：
+  * 先校验后追加：`validate_ssq` / `validate_dlt` 在写盘前拒绝旧期号、越界号码与重号。
+  * 每次真正写盘前备份到 `data/backup/<时间戳>/`，只保留最近 10 份。
+  * 失败不动现有数据：抓取、合并或序列化失败都在写目标文件之前返回 1；
+    发布阶段中途失败会用本轮备份逐个补偿已发布文件。
+  * 同一数据目录同时只允许一个更新进程（`_data_lock`），拿不到锁直接返回 1。
+  * 日志同时写 stdout 与日志文件；`server.py` 把子进程输出按纯文本流回页面。
+
+退出码：0 表示本轮成功（含「无更新」与 `--check`）；1 表示抓取失败、校验失败、
+发布失败、缺少基础数据文件或已有另一个更新进程；`--loop` 模式下单轮失败只记录并
+继续，收到 Ctrl+C 时返回 0。
 """
 
 from __future__ import annotations
@@ -47,6 +69,16 @@ LEVEL_NAMES_SSQ = {1: "一等奖", 2: "二等奖", 3: "三等奖", 4: "四等奖
 
 
 def log(path: Path, message: str) -> None:
+    """追加一条带时间戳的日志，同时写 stdout 与日志文件。
+
+    Args:
+        path: 日志文件路径，父目录不存在时自动创建。
+        message: 日志正文，时间戳由本函数补上。
+
+    stdout 立即 flush、文件逐行追加，是为了让 `server.py` 以管道逐行读取时能看到
+    实时进度，而不是等缓冲区填满才一次性吐出。`pythonw` 下 `sys.stdout` 为 `None`，
+    因此打印前先判空。
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     line = f"[{stamp}] {message}"
@@ -57,7 +89,11 @@ def log(path: Path, message: str) -> None:
 
 
 def _safe_log(path: Path, message: str) -> None:
-    """日志写不进去时不能影响数据发布或补偿。"""
+    """日志写不进去时不能影响数据发布或补偿。
+
+    发布与补偿路径本身已在处理异常，这里若再抛出 IO 异常会掩盖真正的失败原因，
+    因此统一吞掉。
+    """
     try:
         log(path, message)
     except Exception:
@@ -95,6 +131,12 @@ def _data_lock(data_dir: Path):
 
 
 def _read(path: Path) -> pd.DataFrame:
+    """读取开奖或奖级 CSV。
+
+    统一用 `utf-8-sig`：写盘时带 BOM，缺了它 pandas 会把首列名读成带 BOM 前缀的
+    「issue」，后续按列名取值就全部落空。文件或列缺失由 pandas 直接抛异常，
+    由调用方判定为「缺数据、不写盘」。
+    """
     return pd.read_csv(path, encoding="utf-8-sig")
 
 
@@ -128,6 +170,7 @@ def _temp_path(path: Path) -> Path:
 
 
 def _discard_temp(path: Path) -> None:
+    """尽力删除临时文件；清理失败不上抛，避免掩盖真正的发布异常。"""
     try:
         path.unlink()
     except OSError:
@@ -156,6 +199,21 @@ def _stage(path: Path, frame: pd.DataFrame) -> Path:
 # 抓取
 # ---------------------------------------------------------------------------
 def fetch_ssq(since: int, max_pages: int = 3) -> tuple[list[dict], list[dict]]:
+    """抓取双色球中比 `since` 更新的期次，从最新一页往回读。
+
+    Args:
+        since: 本地已有最大期号；遇到不更新的期次即停止翻页。
+        max_pages: 最多翻页数，默认 3 页（每页 100 期），足够覆盖停机数天。
+
+    Returns:
+        `(rows, prizes)`：开奖行与六档奖级明细，均只含 `issue > since` 的期次；
+        没有新期次时返回两个空列表。
+
+    Raises:
+        RuntimeError: 网络或 HTTP 失败（由 `_common.get_json` 抛出）。
+        KeyError / ValueError: 上游字段缺失或号码无法解析，调用方据此整轮放弃，
+            不写任何数据。
+    """
     rows, prizes = [], []
     for page in range(1, max_pages + 1):
         payload = get_json(
@@ -214,6 +272,10 @@ def fetch_ssq(since: int, max_pages: int = 3) -> tuple[list[dict], list[dict]]:
 
 
 def _normalize_level(value) -> str:
+    """把奖级名称的括号与空白归一化，用于判断追加奖。
+
+    官方在同一字段里混用全角/半角括号，先归一化才能可靠比较 `一等奖` 这类基名。
+    """
     return (
         str(value or "")
         .strip()
@@ -224,6 +286,24 @@ def _normalize_level(value) -> str:
 
 
 def fetch_dlt(since: int, max_pages: int = 3) -> tuple[list[dict], list[dict]]:
+    """抓取大乐透中比 `since` 更新的期次，从最新一页往回读。
+
+    大乐透的奖级名称带「(追加)」后缀，同一期有普通与追加两套奖金，因此这里把
+    `(基名, 是否追加)` 当作键归并奖级，再拆成一、二等奖的普通/追加四个字段。
+
+    Args:
+        since: 本地已有最大期号；遇到不更新的期次即停止翻页。
+        max_pages: 最多翻页数，默认 3 页（每页 100 期）。
+
+    Returns:
+        `(rows, prizes)`：开奖行与奖级明细，均只含 `issue > since` 的期次；
+        没有新期次时返回两个空列表。
+
+    Raises:
+        RuntimeError: 网络或 HTTP 失败。
+        KeyError / ValueError: 上游字段缺失，或开奖号码不是 7 个合法数字。
+            这类数据直接放弃整轮，避免把错号码写进历史。
+    """
     rows, prizes = [], []
     for page in range(1, max_pages + 1):
         payload = get_json(
@@ -299,6 +379,18 @@ def fetch_dlt(since: int, max_pages: int = 3) -> tuple[list[dict], list[dict]]:
 # 校验与写回
 # ---------------------------------------------------------------------------
 def validate_ssq(rows: list[dict], since: int) -> None:
+    """校验双色球新行，任何一条不合法就整轮放弃。
+
+    这是写盘前的最后一道闸门，检查三件事：期号确实比本地新（上游回退或镜像错乱
+    会导致重复追加）、6 个红球互不相同且都在 1-33、蓝球在 1-16。
+
+    Args:
+        rows: `fetch_ssq` 返回的开奖行，可为空（无更新时视为通过）。
+        since: 本地已有最大期号。
+
+    Raises:
+        ValueError: 期号没有变新、红球非法或蓝球非法。
+    """
     for row in rows:
         issue = row["issue"]
         if issue <= since:
@@ -311,6 +403,18 @@ def validate_ssq(rows: list[dict], since: int) -> None:
 
 
 def validate_dlt(rows: list[dict], since: int) -> None:
+    """校验大乐透新行，任何一条不合法就整轮放弃。
+
+    与双色球的差别只在区域：前区 5 个互不相同且都在 1-35，后区 2 个互不相同且都在
+    1-12；期号仍需严格大于本地最大值。
+
+    Args:
+        rows: `fetch_dlt` 返回的开奖行，可为空（无更新时视为通过）。
+        since: 本地已有最大期号。
+
+    Raises:
+        ValueError: 期号没有变新、前区非法或后区非法。
+    """
     for row in rows:
         issue = row["issue"]
         if issue <= since:
@@ -324,6 +428,18 @@ def validate_dlt(rows: list[dict], since: int) -> None:
 
 
 def backup(data_dir: Path, stamp: str) -> Path:
+    """把当前四个 CSV 复制到 `data/backup/<stamp>/`，并清理过旧备份。
+
+    Args:
+        data_dir: 数据目录。
+        stamp: 目录名时间戳，由调用方用 `%Y%m%d_%H%M%S_%f` 生成，保证多次运行不重名。
+
+    Returns:
+        本轮备份目录；发布中途失败时用它逐个补偿已发布的文件。
+
+    只保留最近 10 份：每轮都留档会让目录无限增长，10 份已够覆盖连续排障。
+    只复制存在的文件，首次运行还没有奖级 CSV 时不会因此失败。
+    """
     target = data_dir / "backup" / stamp
     target.mkdir(parents=True, exist_ok=True)
     for name in ("ssq.csv", "dlt.csv", "ssq_prizes.csv", "dlt_prizes.csv"):
@@ -449,6 +565,23 @@ def run_once(
     build_target: str = "full",
     console_port: int = 8777,
 ) -> int:
+    """外层入口：按需取跨进程数据锁后执行一轮更新。
+
+    `--check` 与数据目录不存在时不取锁：前者本来就不写文件，后者没有可锁的目录，
+    而且缺目录需要靠 `_run_once` 给出「请先运行全量抓取脚本」的明确提示。
+
+    Args:
+        data_dir: 数据目录。
+        log_path: 日志文件。
+        check_only: 只检查不写盘。
+        build: 是否在更新后重建。
+        force_build: 无新数据也重建。
+        build_target: `full` 或 `console`。
+        console_port: console 重建写给刷新按钮的端口。
+
+    Returns:
+        进程退出码：0 成功或无需更新，1 失败或同一数据目录已有另一个更新进程。
+    """
     args = (data_dir, log_path, check_only, build, force_build, build_target, console_port)
     if check_only or not data_dir.is_dir():
         return _run_once(*args)
@@ -469,6 +602,16 @@ def _run_once(
     build_target: str,
     console_port: int,
 ) -> int:
+    """执行一轮完整流程：读本地最大期号 → 抓取 → 校验 → 备份 → 发布 → 重建。
+
+    顺序刻意固定为「先校验、再备份、最后按奖级→开奖的顺序发布」：奖级文件先发布、
+    开奖文件最后发布，中途失败时开奖期次仍是旧值，下一轮会重新抓到同一批数据，
+    把两半各自补齐，因此同类失败可以重试收敛。
+
+    Returns:
+        进程退出码。所有失败分支都在写目标文件之前或补偿之后返回 1，
+        因此返回 1 代表现有数据未被破坏。
+    """
     started = time.time()
     ssq_main, ssq_prize = data_dir / "ssq.csv", data_dir / "ssq_prizes.csv"
     dlt_main, dlt_prize = data_dir / "dlt.csv", data_dir / "dlt_prizes.csv"
@@ -565,6 +708,14 @@ def _run_once(
 
 
 def main() -> int:
+    """解析参数并单次执行，或按分钟数常驻循环。
+
+    `--loop` 的最小间隔被抬到 60 分钟：官方一天只开几期，更密的轮询没有收益，
+    也更容易被上游限流。循环里单轮失败只记录并继续，交给下一轮自然重试。
+
+    Returns:
+        单次模式的退出码即 `run_once` 的返回值；循环模式在收到 Ctrl+C 时返回 0。
+    """
     parser = argparse.ArgumentParser(description="增量更新开奖数据")
     parser.add_argument("--data-dir", default=str(ROOT / "data"), help="数据目录（测试用）")
     parser.add_argument("--check", action="store_true", help="只检查，不写文件")

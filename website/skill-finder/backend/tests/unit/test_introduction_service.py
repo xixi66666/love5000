@@ -1,3 +1,24 @@
+"""中文简介服务的提示词、解析、模型链与降级策略。
+
+被测对象是 `app.services.introduction_service`：`_build_prompt` 的提示词结构、
+`_parse_introductions` 的宽松解析（JSON 数组、裸字符串、夹带说明文字或代码围栏）、
+`_model_chain` 的模型链去重、`_resolve_api_key` 的密钥来源，以及
+`generate_introductions(_resilient)` 的模型回退与批次拆分。
+
+重点是几条“宁可不写也不能写错”的边界：
+
+- HTTP 401 必须立刻停止：不换模型、不拆批次，错误信息里不能出现上游响应体；
+- 已选统一模型时优先走 `model_hub.try_chat`，且不再读取原提供方密钥；统一模型失败
+  也只报一次，不回退到原配置；
+- 宽松降级只在非认证错误时发生：先整批、再拆单条、最后去掉 README 重试，仍失败的
+  条目返回 `None`，不能编造简介。
+
+隔离方式：`isolate_private_intro_configuration` 以 autouse 方式把 `model_hub.try_chat`
+改成“未选择统一模型”，并把密钥、地址、模型链替换为测试值，因此不读本机
+`model.properties`；HTTP 全部由 respx 拦截，`asyncio.sleep` 换成空实现，
+不联网也不真的等待重试退避。
+"""
+
 import json
 
 import httpx
@@ -20,6 +41,12 @@ GATEWAY = "https://opencode.ai/zen/go/v1/chat/completions"
 
 @pytest.fixture(autouse=True)
 def isolate_private_intro_configuration(monkeypatch):
+    """把简介配置与统一模型入口固定成测试值，避免读取本机私有配置。
+
+    `model_hub.try_chat` 默认返回 `None`，表示“没有选统一模型”，服务因此走原配置
+    链路（这样才能用 respx 观察请求体）；密钥置空、地址指向测试网关、模型链按传入
+    字符串解析。需要验证统一模型分支的用例会自己再覆盖 `try_chat`。
+    """
     from app.services import introduction_service as module
     from app.services import model_hub
 
@@ -108,6 +135,11 @@ def make_brief(
     topics: list[str] | None = None,
     readme: str | None = None,
 ) -> RepositoryBrief:
+    """构造一条仓库简介输入。
+
+    默认带 `ai-skills` topic 与 GitHub 地址，足够拼出完整提示词；传 `readme` 可以
+    让用例走到“带 README”与“去掉 README 重试”两条分支。
+    """
     return RepositoryBrief(
         owner="octocat",
         name=name,
@@ -122,6 +154,11 @@ def make_brief(
 
 
 def rich_payload(**overrides: object) -> dict:
+    """构造解析后的标准结构。
+
+    除 `introduction` 外的字段都给了默认值（空列表或空串），这正是解析器对缺失字段
+    补齐的结果，因此可以直接和 `_parse_introductions` 的输出比对。
+    """
     payload = {
         "introduction": "简介",
         "highlights": [],
@@ -135,6 +172,7 @@ def rich_payload(**overrides: object) -> dict:
 
 
 def _content_payload(text: str) -> dict:
+    """包一层 OpenAI 兼容的 chat completions 响应壳，`content` 放模型输出文本。"""
     return {
         "choices": [{"message": {"role": "assistant", "content": text}}],
         "usage": {"total_tokens": 100},
@@ -327,7 +365,8 @@ async def test_generate_raises_when_all_models_fail(
 
 
 async def _noop_sleep(seconds: float) -> None:
-    return None
+    """替代 `asyncio.sleep`，让模型回退之间的退避不真的等待。"""
+    return None  # noqa: RET501
 
 
 @pytest.mark.asyncio
@@ -348,6 +387,7 @@ async def test_resilient_returns_batch_result(
 async def test_resilient_splits_batch_and_skips_risky_repo(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """整批失败后拆成单条；单条仍失败则去掉 README 再试一次，两次都失败才记为缺失。"""
     import app.services.introduction_service as intro_module
 
     calls: list[list[str]] = []

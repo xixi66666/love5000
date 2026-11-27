@@ -1,3 +1,16 @@
+"""service-doctor 的 unittest 测试。
+
+被测对象是同目录上一级的 ``service_doctor.py``（临时插入 ``sys.path`` 后导入为
+``sd``）。覆盖清单校验与 URL 安全限制、``check_service`` 的全部状态分类、有界并发
+与结果顺序、HTML 报告的逃逸与“不写响应正文”，以及 CLI 的退出码 0/1/2。
+
+隔离手段：所有网络用例都打到一个绑定 ``127.0.0.1:0``（端口由操作系统分配）的临时
+HTTP fixture；连接拒绝用 ``mock`` 替换 ``HTTPConnection`` 制造，不依赖未监听端口的
+真实行为；清单与报告只写入本工具目录下的临时目录并在用例结束时清理；``main`` 的
+stdout/stderr 用 ``redirect_stdout``/``redirect_stderr`` 捕获。测试不探测
+8080/8081/5174–5179 等真实服务，也不启动或停止任何进程。
+"""
+
 import io
 import json
 import os
@@ -24,6 +37,14 @@ BODY_MARKER = "REPORT_BODY_SECRET_MARKER_9c1"
 
 
 class _FixtureHandler(BaseHTTPRequestHandler):
+    """临时 fixture 的请求路由。
+
+    按路径返回各类健康/畸形响应（正常、聚合、字符串布尔、空体、超大响应、500、302、
+    慢响应、可配延迟的并发响应），并把命中路径与并发峰值记在服务器对象上，供“重定向
+    不被跟随”和“并发有上限且保持顺序”的断言使用。``log_message`` 等钩子被清空，避免
+    测试输出噪音。
+    """
+
     protocol_version = "HTTP/1.1"
 
     def log_message(self, format, *args):
@@ -145,6 +166,12 @@ class _FixtureHandler(BaseHTTPRequestHandler):
 
 
 class _FixtureServer(ThreadingHTTPServer):
+    """线程化的回环 HTTP fixture 服务器，端口由操作系统分配。
+
+    ``hits`` 记录请求路径，``active``/``max_active`` 记录同时在处理的请求数，全部用
+    锁保护；``handle_error`` 被清空，避免客户端提前断开时打印堆栈到测试输出。
+    """
+
     daemon_threads = True
     allow_reuse_address = True
 
@@ -170,6 +197,13 @@ class _FixtureServer(ThreadingHTTPServer):
 
 
 class _LoopbackServerTestCase(unittest.TestCase):
+    """在类级别启动 fixture 服务器的公共基类。
+
+    每个用例开始前重置命中与并发统计，并在工具目录下创建一个 ``.test-tmp-`` 前缀的
+    临时目录（用例结束时由 ``addCleanup`` 删除）存放清单和报告。辅助方法负责写清单、
+    构建 ``ServiceSpec``，以及捕获 ``main`` 的 stdout/stderr。
+    """
+
     @classmethod
     def setUpClass(cls):
         cls.server = _FixtureServer(("127.0.0.1", 0), _FixtureHandler)
@@ -229,6 +263,14 @@ class _LoopbackServerTestCase(unittest.TestCase):
 
 
 class CheckStatusTests(_LoopbackServerTestCase):
+    """覆盖 ``check_service`` 的状态分类分支。
+
+    包括标准服务健康、聚合接口健康与 ``healthy=false``、``success`` 必须是字面布尔、
+    ``service`` 的类型与取值匹配、坏 JSON 与非对象顶层、空体与超大响应、HTTP 错误与
+    3xx 不跟随、连接拒绝、超时、其它连接错误、代理环境变量被忽略，以及有界并发下
+    结果仍按输入顺序返回且并发不超过 ``jobs``。
+    """
+
     def test_standard_service_healthy(self):
         result = sd.check_service(self._spec("/ok"), timeout=1.0)
         self.assertEqual(sd.STATUS_HEALTHY, result.status)
@@ -402,6 +444,12 @@ class CheckStatusTests(_LoopbackServerTestCase):
 
 
 class ReportTests(_LoopbackServerTestCase):
+    """覆盖 HTML 报告生成。
+
+    断言所有插值都被 HTML 逃逸、报告不含响应正文 marker、全部状态标签都出现，并且
+    文档自包含（只内联 ``<style>``，不出现 ``<link>``/``<img>``）。
+    """
+
     def test_html_escapes_every_interpolation(self):
         result = sd.CheckResult(
             name="<script>{0}</script>",
@@ -461,6 +509,14 @@ class ReportTests(_LoopbackServerTestCase):
 
 
 class ManifestValidationTests(unittest.TestCase):
+    """覆盖清单校验，不涉及网络。
+
+    包括内置清单的名称顺序/``kind``/路径、IPv4 与 IPv6 回环地址、各类非回环或危险
+    URL 被拒绝、结构严格性（未知字段、缺 ``expected_service``、聚合接口携带
+    ``expected_service``、重复名称、非法 JSON、空数组）以及清单文件缺失。清单只写入
+    临时目录。
+    """
+
     def setUp(self):
         self.tmpdir = tempfile.TemporaryDirectory(
             dir=str(TOOL_DIR), prefix=".test-tmp-"
@@ -595,6 +651,14 @@ class ManifestValidationTests(unittest.TestCase):
 
 
 class CliTests(_LoopbackServerTestCase):
+    """覆盖 ``main`` 的退出码与输出。
+
+    成功路径断言 ``EXIT_OK``、终端摘要、报告文件存在且不含响应正文；服务失败返回
+    ``EXIT_SERVICE_FAILURE``；非法 URL 清单、越界 ``--timeout`` 和报告写入失败都返回
+    ``EXIT_CONFIG_ERROR``。越界 ``--timeout`` 还要求 fixture 一次都没被访问，以锁住
+    “配置错误先于探测”的顺序。
+    """
+
     def test_exit_zero_and_html_report_on_success(self):
         manifest = self._write_manifest(
             [

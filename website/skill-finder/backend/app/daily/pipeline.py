@@ -1,3 +1,13 @@
+"""每日日报主流程：选题 → 写稿 → 画面 → 母带 → 待审核。
+
+`generate` 全程持有日报全局锁并负责失败落盘；`compose` 生成片头、项目与片尾分镜；
+`build` 写 `script.txt`、`report.md` 后调用 `media.render` 产出成片。已经进入
+`pending_review` 及之后状态的报告是不可变的，cron 重试不会覆盖人工批准的结果。
+
+数据来自数据库（`RepositoryStore.daily_report_candidates`），不直接抓取网络；外部
+命令（node / ffmpeg / ffprobe）经渲染与母带模块间接调用。口播只截完整句并优先保留
+限制条件；当天 AI 项目不足 10 个时如实标注，不补旧数据、不虚构项目。
+"""
 from __future__ import annotations
 
 import asyncio
@@ -19,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 NARRATION_LIMIT = 360
 SOURCE_NOTICE = "完整说明与使用限制，请查看日报中的项目来源。"
+# 口播预算裁剪时用来识别不能丢的限制条件：风险、许可、硬件、付费、实验状态等。
 CAUTION = re.compile(
     r"注意|限制|风险|不(?:支持|适合|可|能|建议)|尚未|暂不|仅(?:供|支持|适用|限)|"
     r"需要|仍需|必须|依赖|付费|收费|商用|许可|协议|实验|测试阶段|内测|显存|内存|GPU|CPU",
@@ -27,10 +38,20 @@ CAUTION = re.compile(
 
 
 def now() -> str:
+    """返回业务时区下的 ISO 时间戳。
+
+    时区来自 `settings.business_timezone`（默认 Asia/Shanghai），报告里所有时间都
+    用它书写，与服务器本地时区无关。
+    """
     return datetime.now(ZoneInfo(settings.business_timezone)).isoformat()
 
 
 def summarize(introduction: str | None, description: str | None) -> str:
+    """从数据库字段里取一段可展示的项目简介。
+
+    `introduction` 既可能是 JSON（`{"introduction": ...}`）也可能是纯文本，两种
+    都要兼容；都为空时给出一句明确的缺省说明，而不是空字符串。
+    """
     if introduction:
         try:
             payload = json.loads(introduction)
@@ -44,7 +65,15 @@ def summarize(introduction: str | None, description: str | None) -> str:
 
 
 def spoken_text(text: str) -> str:
-    """仅清理展示语法，不改写项目用途、名称、数值和使用条件。"""
+    """仅清理展示语法，不改写项目用途、名称、数值和使用条件。
+
+    去掉链接与引用式链接定义、代码围栏、HTML 展示标签、标题与列表前缀、强调标记；
+    删除线代表撤回，整段丢弃而不是朗读。只识别明确的展示标签，保住 `RAM < 16 GB`、
+    `> 0.5` 这类比较条件和占位符。
+
+    Returns:
+        以中文句号收尾的单段文本。
+    """
     value = html.unescape(text)
     value = re.sub(r"(?m)^\s*\[[^]\n]+\]:\s*https?://\S+.*$", "", value)
     value = re.sub(r"!?\[([^]\n]*)\]\((?:[^()\n]|\([^()\n]*\))*\)", r"\1", value)
@@ -76,7 +105,19 @@ def spoken_text(text: str) -> str:
 
 
 def narration_excerpt(text: str, budget: int) -> str:
-    """长简介只选完整句，优先保留明确限制；放不下时提示用户查看完整来源。"""
+    """长简介只选完整句，优先保留明确限制；放不下时提示用户查看完整来源。
+
+    含 `CAUTION` 关键词的句子（限制、风险、许可、硬件要求等）必定入选，其余句子
+    按原顺序填满预算；限制本身放不下时只返回 `SOURCE_NOTICE`，绝不截断限制条件
+    或凭猜测压缩原文。
+
+    Args:
+        text: 已清理过的简介文本。
+        budget: 口播可用字数，包含来源提示本身。
+
+    Returns:
+        可直接朗读的文本；完整原文仍保留在日报的 `summary` 字段里。
+    """
     if len(text) <= budget:
         return text
     sentences = [piece.strip() for piece in re.findall(r"[^。！？!?]+[。！？!?]*", text)
@@ -96,6 +137,17 @@ def narration_excerpt(text: str, budget: int) -> str:
 
 
 def project_narration(item: dict) -> str:
+    """拼出单个项目的口播句：排名、名称和受预算约束的简介。
+
+    简介已以项目名开头时不再重复名称（按词边界判断，避免把 `ReactFlow` 当成
+    `React` 的前缀）；名称与 Star 仍完整出现在画面和日报里。
+
+    Args:
+        item: `candidates` 产出的项目字典，需含 `rank`、`full_name`、`summary`。
+
+    Returns:
+        以句号结尾的口播文本。
+    """
     name = item["full_name"].rsplit("/", 1)[-1]
     text = spoken_text(item["summary"])
     # 原简介已以项目名称开头时不连续重复名称；仓库全名和 Star 仍展示在画面及日报。
@@ -107,6 +159,19 @@ def project_narration(item: dict) -> str:
 
 
 async def candidates(day: str) -> list[dict]:
+    """读取当天截止时刻之前入库的候选项目，并按榜单顺序编号。
+
+    Args:
+        day: `YYYY-MM-DD`，其 00:00（业务时区）换算成 UTC 作为截止时间。
+
+    Returns:
+        按今日新增 Star 排序的项目列表，每项含 `rank`、`full_name`、`url`、
+        `description`、`summary`、`daily_stars`、`total_stars`、`snapshot_at`；
+        数据库没有数据时返回空列表，由调用方决定失败文案。
+
+    Notes:
+        复用全局 async session 工厂，必须与采集步骤在同一事件循环里调用。
+    """
     timezone = ZoneInfo(settings.business_timezone)
     cutoff = datetime.combine(datetime.fromisoformat(day).date(), time.min, timezone)
     cutoff = cutoff.astimezone(UTC).replace(tzinfo=None)
@@ -128,6 +193,14 @@ async def candidates(day: str) -> list[dict]:
 
 
 def compose(items: list[dict], day: str) -> tuple[str, list[dict]]:
+    """把项目列表编排成分镜：片头、逆序项目、片尾。
+
+    口播从最后一名讲到第一名，画面仍标注真实 rank；片头和片尾是固定文案，不含
+    任何未观测到的数据。
+
+    Returns:
+        `(标题, 分镜列表)`；标题形如 `MM月DD日 GitHub AI Top N`。
+    """
     count = len(items)
     title = f"{day[5:7]}月{day[8:]}日 GitHub AI Top {count}"
     scenes = [{
@@ -151,13 +224,28 @@ def compose(items: list[dict], day: str) -> tuple[str, list[dict]]:
 
 
 def generate(*, collect: bool = False) -> dict:
+    """生成当天日报并停在待审核状态。
+
+    全程持有日报全局锁。已经进入审核流程（`pending_review` 及之后）的报告不可变，
+    直接原样返回，避免 cron 重试覆盖人工批准。失败时把报告写成 `failed` 并记录异常
+    类型，不写入任何伪造的产物。
+
+    Args:
+        collect: 是否在生成前真正执行一次采集；默认复用数据库已有榜单。
+
+    Returns:
+        报告字典；成功时 `status` 为 `pending_review`。
+
+    Raises:
+        透传 `build` 的异常，便于 CLI 与调度器记录失败。
+    """
     with store.lock():
         day = now()[:10]
         try:
             existing = store.load(day)
         except FileNotFoundError:
             existing = None
-        # A report that has reached review is immutable; no cron retry can replace an approval.
+        # 已进入审核流程的报告不可变；cron 重试不能覆盖人工批准。
         if existing and existing.get("status") in {
             "pending_review", "approved", "rejected", "publishing", "published", "publish_unknown",
         }:
@@ -180,6 +268,24 @@ def generate(*, collect: bool = False) -> dict:
 
 
 def build(report: dict, day: str, collect: bool, progress) -> dict:
+    """执行选题之后的全部步骤：写稿、落盘、渲染、标记待审核。
+
+    依次写 `script.txt` 与 `report.md`，再调用 `media.render` 产出成片；渲染结果
+    只从 `render-result.json` 读取（那是统一验收后的正式结果），并记录成片的
+    SHA-256 与审核摘要，供发布前比对。
+
+    Args:
+        report: 已保存的骨架报告，本函数原地更新并多次持久化。
+        day: `YYYY-MM-DD`。
+        collect: 透传给 `prepare`。
+        progress: `progress.Tracker` 实例。
+
+    Returns:
+        完成后的报告字典，`status="pending_review"`。
+
+    Raises:
+        RuntimeError: 当天没有有效榜单项。
+    """
     items = asyncio.run(prepare(day, collect=collect))
     if not items:
         raise RuntimeError("No fresh daily AI ranking; collect data and retry")
@@ -224,7 +330,19 @@ def build(report: dict, day: str, collect: bool, progress) -> dict:
 
 
 async def prepare(day: str, *, collect: bool) -> list[dict]:
-    # The global SQLAlchemy async pool must stay on the same event loop for both steps.
+    """可选采集加选题，返回带真实排名的项目列表。
+
+    Args:
+        day: `YYYY-MM-DD`。
+        collect: 为真时调用调度器的采集流程，否则复用数据库已有榜单。
+
+    Returns:
+        项目列表；不足 10 个时按实际数量返回，不补旧数据。
+
+    Raises:
+        RuntimeError: 采集之后仍没有符合范围的数据。
+    """
+    # 采集与选题必须共用同一事件循环上的 SQLAlchemy 异步连接池。
     progress = current()
     if collect:
         if progress:

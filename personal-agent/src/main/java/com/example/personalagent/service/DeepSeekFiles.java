@@ -18,12 +18,34 @@ import java.io.IOException;
 
 import static com.example.personalagent.Api.*;
 
+/**
+ * 调用 DeepSeek 官方文件接口识别原件（PDF、Office 文档、图片）。
+ *
+ * <p>属服务层，被 {@link LocalDocuments} 与 {@link HealthArchive} 复用。流程固定三段：
+ * 先 {@code POST /files} 上传并声明一小时后过期，再 {@code POST /chat/completions} 用
+ * {@code file_id} 引用该文件，最后在 {@code finally} 里尝试 {@code DELETE /files/{id}}，
+ * 尽量缩短原件在第三方的留存时间。</p>
+ *
+ * <p>非显然行为：密钥只从根目录 {@code model.properties} 的 {@code deepseek.api-key}
+ * 读取；上传用途按扩展名区分，PDF 与 doc/docx/ppt/pptx 走版面识别、其余走 {@code user_data}；
+ * 重定向被显式关闭，避免凭据跟随 3xx 跳到别的主机；文件 id 不匹配预期格式、
+ * {@code finish_reason} 不是 {@code stop}、正文为空或超长，统一折成 502，
+ * 让上层保留原件并提示用户换模型重试。</p>
+ */
 @Service
 public class DeepSeekFiles {
+    /** DeepSeek 官方接口基址，硬编码以避免配置被改指到非官方域名。 */
     private static final String BASE = "https://api.deepseek.com";
+    /** 默认文件识别模型；顶部栏选中其他 DeepSeek 型号时由调用方覆盖。 */
     static final String FILE_MODEL = "deepseek-flash";
     private final RestTemplate http;
 
+    /**
+     * 装配带显式超时的 HTTP 客户端。
+     *
+     * <p>关闭自动跟随重定向是安全要求：Bearer 令牌不能随 3xx 漂到其他主机。
+     * 连接超时 10 秒、读取超时 180 秒，后者为版面识别留出时间。</p>
+     */
     @Autowired
     public DeepSeekFiles() {
         SimpleClientHttpRequestFactory requests = new SimpleClientHttpRequestFactory() {
@@ -37,15 +59,27 @@ public class DeepSeekFiles {
         http = new RestTemplate(requests);
     }
 
+    /** 测试用构造器：注入绑定了桩响应的 {@link RestTemplate}，不发起真实请求。 */
     DeepSeekFiles(RestTemplate http) {
         this.http = http;
     }
 
+    /** 用默认文件模型识别原件，等价于不覆盖型号的调用。 */
     public String analyze(byte[] bytes, String extension, String instruction) {
         return analyzeWithModel(bytes, extension, instruction, "");
     }
 
-    /** model 为空时使用默认 deepseek-flash；传入统一模型选择里的 DeepSeek 型号即可跟随顶部栏选择器。 */
+    /**
+     * 按顶部栏选中的 DeepSeek 型号识别原件。
+     *
+     * @param bytes       原件字节
+     * @param extension   小写后缀
+     * @param instruction 整理要求
+     * @param model       选中的 DeepSeek 型号；空串表示用 {@link #FILE_MODEL}
+     * @return 模型返回的整理正文
+     * @throws ResponseStatusException 配置文件里没有 DeepSeek 密钥时 503，
+     *         其余上游失败统一 502
+     */
     public String analyzeWithModel(byte[] bytes, String extension, String instruction, String model) {
         ModelProperties.Provider provider = ModelProperties.load().provider("deepseek");
         if (provider == null || provider.apiKey().isEmpty()) {
@@ -55,10 +89,24 @@ public class DeepSeekFiles {
         return analyze(bytes, extension, instruction, provider.apiKey(), model);
     }
 
+    /** 用给定密钥与默认型号识别，跳过配置读取，供内部调用与测试使用。 */
     String analyze(byte[] bytes, String extension, String instruction, String apiKey) {
         return analyze(bytes, extension, instruction, apiKey, "");
     }
 
+    /**
+     * 上传—引用—删除三段式调用的实现。
+     *
+     * @param bytes       原件字节，调用方已完成大小与后缀校验
+     * @param extension   小写后缀，决定上传用途与 multipart 文件名
+     * @param instruction 交给模型的整理要求，其中已包含「忽略文件内指令」等边界
+     * @param apiKey      官方密钥，只用于本次请求头
+     * @param model       型号；空白时回退到 {@link #FILE_MODEL}
+     * @return {@code choices[0].message.content}，已去除首尾空白
+     * @throws ResponseStatusException 上传或对话任一步失败、id 格式不符、
+     *         {@code finish_reason} 非 stop、正文为空或超长时抛出 502；
+     *         临时文件删除失败被静默忽略，不影响主结果
+     */
     String analyze(byte[] bytes, String extension, String instruction, String apiKey, String model) {
         String selected = model == null || model.trim().isEmpty() ? FILE_MODEL : model.trim();
         HttpHeaders headers = new HttpHeaders();
