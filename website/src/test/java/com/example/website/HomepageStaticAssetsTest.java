@@ -82,7 +82,7 @@ class HomepageStaticAssetsTest {
         assertEquals(services.size() - GROUPED_LOCAL_SERVICES + LOCAL_ONLY_ENTRIES, homepageCards,
                 "首页 Dock 卡片数 = service-health 清单 - 合并的本机服务 + 本地页面入口");
 
-        assertEquals("lottery", ((Map<?, ?>) services.get(services.size() - 1)).get("name"),
+        assertEquals("health", ((Map<?, ?>) services.get(services.size() - 1)).get("name"),
                 "新服务追加在健康清单末尾，不改变原服务顺序");
     }
 
@@ -96,7 +96,8 @@ class HomepageStaticAssetsTest {
         assertFalse(goldenHour.contains("personal-agent"));
         assertTrue(goldenHour.contains("data-health-service=\"lottery\""));
         assertTrue(goldenHour.contains("LOTTERY DESK · 5179"));
-        assertEquals(1, countCards(deepWoods));
+        assertEquals(2, countCards(deepWoods));
+        assertTrue(deepWoods.contains("data-start-url=\"/api/services/health/start\""));
         assertTrue(deepWoods.contains("data-app-url=\"http://127.0.0.1:5178/\""));
         assertTrue(deepWoods.contains("OBSIDIAN + QUARTZ · 5178"));
         assertEquals(0, countCards(dock(html, "still-water-service-dock")));

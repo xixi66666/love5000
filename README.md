@@ -6,9 +6,9 @@
 ## 统一健康检查
 
 `lovestory`、`imagetemplate`、`python-a`、`quant-a`、`scrapling-ui`、`skill-finder`、
-`personal-agent` 和 `lottery` 统一提供 `GET /api/health`，响应顶层包含 `success=true`
+`personal-agent`、`lottery` 和 `health` 统一提供 `GET /api/health`，响应顶层包含 `success=true`
 与稳定的 `service`。启动 `website` 后可通过
-`GET http://127.0.0.1:8080/api/services/health` 读取最近一次并行巡检结果。默认检查 11 个目标，包括上述八个服务，
+`GET http://127.0.0.1:8080/api/services/health` 读取最近一次并行巡检结果。默认检查 12 个目标，包括上述九个服务，
 以及经 `website` 适配的 `strata`、`aimedia`、`h3`
 （`/api/services/local/{service}/health`）；顺序以
 `website/src/main/resources/application.yml` 的 `website.service-health.services` 为准。
@@ -31,6 +31,8 @@ Maven 聚合模块：
 - `common`：公共 OSS 工具、自动配置和通用 Session 认证能力。
 - `lovestory`：恋爱相册、照片上传、留言板和吉他视频卡片 Web 应用。
 - `personal-agent`：Java 个人长期资料库（5178），真实 Obsidian Vault + Quartz 阅读/检索/双链 + 引用式 AI 分析；由首页 03 Deep Woods 的“个人资料库”卡片点击启动。
+- `health`：独立健康管理（5180），体检归档、Mirobody 本机解析、授权 OCR 和历年对照；由首页 03 Deep Woods 的“健康管理”卡片点击启动。
+- `vault-core`：`personal-agent` 与 `health` 的 Vault、登录与模型路由公共库。
 - `website`：电影化个人主页/展示站点、提示词控制台，以及 9 个服务入口、实时健康状态和 Python 子服务自动启动；首页提供四场景视频切换与响应式液态玻璃服务 Dock。
 - `imagetemplate`：聚合 47 条精选图片模板和 Prompt Console 的 4409 条公开提示词，总计 4456 条，并按 15 个一级功能与二级场景检索；提供按需详情和 OpenAI Images API 生成服务（默认模型 `gpt-image-2.5-sunburst`），前端采用虎主题编辑式黑色工作台、橙色高对比操作、dense 模板展廊和本地 GSAP 滚动动效，模板 JSON 与变量剧本均可手工编辑。
 
@@ -61,9 +63,9 @@ mvn -pl website -am spring-boot:run
 
 `website` 默认端口为 `8080`，启动时会检查并自动拉起 `website/python-a` 和 `website/quant-a`。如果对应健康检查已经可用，会复用已有服务。`website/scrapling-ui`、`website/skill-finder`、`website/lottery` 和首页 03 Deep Woods 的 `personal-agent` 不随启动拉起，由对应 Dock 卡片点击启动：离线时点击调用 `POST /api/services/scrapling-ui/start`、`POST /api/services/skill-finder/start`、`POST /api/services/lottery/start` 或 `POST /api/services/personal-agent/start` 拉起服务，启动过程只在卡片内提示“启动中…”（不打开中间页面）；就绪后自动打开对应页面，若浏览器拦截新窗口，卡片会显示“已启动 · 点击打开”，再点一次即可打开。在线时点击直接打开。
 
-首页是无需前端构建的单视口原生页面，01 Golden Hour 集中展示恋爱相册、图片模板、Prompt Console、A 股研究台、Quant 研究台、Scrapling 抓取工坊、Skill Finder、模型与视频和开奖数据操作台共 9 个入口；03 Deep Woods 展示“个人资料库”。每个入口保留端口标识和实时状态；顶部只保留登录、注册账户操作，登录后切换为退出，移动端继续使用横向可滑动服务 Dock。
+首页是无需前端构建的单视口原生页面，01 Golden Hour 集中展示恋爱相册、图片模板、Prompt Console、A 股研究台、Quant 研究台、Scrapling 抓取工坊、Skill Finder、模型与视频和开奖数据操作台共 9 个入口；03 Deep Woods 展示“个人资料库”和“健康管理”。每个入口保留端口标识和实时状态；顶部只保留登录、注册账户操作，登录后切换为退出，移动端继续使用横向可滑动服务 Dock。
 
-四个场景分别支持独立文案与服务目录：01 Golden Hour 保留原诗句和 9 个服务入口；03 Deep Woods 展示“个人资料库”（5178），由卡片点击启动；02 Still Water、04 Quiet Dawn 服务区留空并隐藏，切回 01 恢复原目录。四场景已去除车窗图片覆盖及其晃动动画，仅展示原风景视频，保留视频动画与切换时序；文案在首页各按钮的 `data-scene-title`、`data-scene-statement`、`data-scene-badge` 中配置，新服务沿用 `service-card` 放入各自的 `still-water-service-dock`、`deep-woods-service-dock`、`quiet-dawn-service-dock`。
+四个场景分别支持独立文案与服务目录：01 Golden Hour 保留原诗句和 9 个服务入口；03 Deep Woods 展示“个人资料库”和“健康管理”（5178），由卡片点击启动；02 Still Water、04 Quiet Dawn 服务区留空并隐藏，切回 01 恢复原目录。四场景已去除车窗图片覆盖及其晃动动画，仅展示原风景视频，保留视频动画与切换时序；文案在首页各按钮的 `data-scene-title`、`data-scene-statement`、`data-scene-badge` 中配置，新服务沿用 `service-card` 放入各自的 `still-water-service-dock`、`deep-woods-service-dock`、`quiet-dawn-service-dock`。
 
 四段场景片都是 10.04 秒，首帧和末帧不是同一个镜头，浏览器原生 `loop` 会在片尾停帧再瞬间跳回片头，看起来就是“突然顿住 + 硬切”。首页因此在原视频进入最后 1 秒时，用一层同源的 `scene-video--loop` 从第一帧起播并接管画面，两层用 1000ms 交叉淡化完成循环；原视频在自己已经不可见之后才回到片头。**只能让上层补层改变不透明度，下层原视频必须始终不透明**：两层是上下叠放，同时半透明时合成覆盖率只有 `上层 + 下层 × (1 − 上层)`（中点 75%），会透出深色背景，看起来像“突然黑一下”。补层由脚本动态创建、默认暂停且不进入无障碍树，`play()` 被拒绝或片段过短时自动退回原生 `loop`，`prefers-reduced-motion` 下按 1ms 切换，缓推镜头的相位在接管时同步；切换场景会等新视频 `readyState ≥ 2` 再淡入，避免把画面淡成背景。回归命令：`node website/src/test/js/homepage-video-loop.test.js`。
 
@@ -230,7 +232,7 @@ python tools/service-doctor/service_doctor.py --html service-report.html
 
 三个应用继续独立运行，不加入 Maven modules，不随 website 自动启动或关闭。`website.local-services` 配置本机目录、端口和180秒启动等待；目录可通过 `STRATA_HOME`、`AIMEDIA_HOME` 覆盖。入口仅适用于运行这些应用的 Windows 主机；使用 UU 远程操作主机上的浏览器也可管理。
 
-API：`GET /api/services/local/{strata|aimedia|h3}/status`；同路径 `/health` 在在线时返回HTTP200、`success=true`和稳定的`service`标识，离线时HTTP503。`POST /api/services/local/{service}/{start|load|unload|stop}` 执行操作，只有Strata支持load，AIMedia不支持unload。修改请求需 `X-Love530-Local: 1`；仅允许回环地址、localhost/127.0.0.1/::1 Host与同源Origin，不能传入自定义命令或PID。统一 `/api/services/health` 默认检查 11 个目标，包括上述三个本机适配与八个独立服务。
+API：`GET /api/services/local/{strata|aimedia|h3}/status`；同路径 `/health` 在在线时返回HTTP200、`success=true`和稳定的`service`标识，离线时HTTP503。`POST /api/services/local/{service}/{start|load|unload|stop}` 执行操作，只有Strata支持load，AIMedia不支持unload。修改请求需 `X-Love530-Local: 1`；仅允许回环地址、localhost/127.0.0.1/::1 Host与同源Origin，不能传入自定义命令或PID。统一 `/api/services/health` 默认检查 12 个目标，包括上述三个本机适配与九个独立服务。
 
 Strata以`--lazy`启动服务，第一条生成请求或「加载模型」按钮才加载权重；「卸载模型」保留API和权重文件。AIMedia通过已有GPU Python环境直接启动操作台后端，不在这里顺带启动H3。H3在提交生成任务后才加载权重，页面不把「引擎在线」或「权重已安装」谎报为「模型已加载」。释放调用ComfyUI `/free`，是异步请求，作用于该引擎缓存的模型，不删除权重和作品。视频队列或操作台作业忙碌时返回409，无法确认队列时拒绝释放/停止。启动生成任务前先卸载Qwen，避免两个大型模型争用内存和显存。
 
@@ -240,11 +242,11 @@ Strata以`--lazy`启动服务，第一条生成请求或「加载模型」按钮
 
 ## 个人长期资料库（Obsidian + Quartz，03 Deep Woods，5178）
 
-健康档案默认展示最近检查、可核对的摘录、原报告建议和各次报告原值对照；人体图默认显示在报告选择器下方，健康文档双链可展开查看。详情的 `analysis_version` 区分空档、旧稿和新版。各资料领域通过 `GET /api/vault/overview?domain=...` 读取双链与编辑统计。
+健康档案首先通过 `GET /api/exams/timeline` 展示可核对的跨次指标与检查主题，然后打开各次原件与解读。可搜索 PDF 新版解读由模型选择原件页行号、本机回填证据，详情的 `analysis_version` 区分旧草稿与新版。原报告范围缺失时，已核验的外部参考直接显示在范围栏，并标注来源与适用条件。人体图、笔记双链及各资料领域的编辑统计仍可从对应页面打开。
 
 个人资料库总览展示真实 Vault 的最近笔记和至多 48 个节点的双链图（`GET /api/vault/overview`）。`GET /api/note` 同时提供安全 Markdown 阅读预览与反向链接，完整图谱、嵌入和 Bases 仍通过私有 Quartz 浏览页查看。
 
-个人资料总览可一次导入多份体检报告，每份单独确认检查日期，归档失败项可重试。健康档案按年份分组，使用 `/api/exams` 逐份归档，经 `GET /api/exams/{id}/preview` 本地预览 PDF 文字。确认后可将按页提取的文字交给所选文本模型，后端校验摘录与页码。扫描件和复杂版面可确认发送完整 PDF 给 DeepSeek Flash。旧解读可重新生成新版，原件和历次草稿保留。通用导入使用 `/api/documents`。具体路径和验证见 `personal-agent/README.md`。
+独立健康管理应用 `health`（5180）在 03 Deep Woods 点击启动，提供本机 Mirobody 解析、授权 OCR、异常/正常分类与历年报告。旧 `/#health` 导航迁往 5180。持久化仍使用原有 Obsidian Vault，`vault-core` 为两个模块共享基础库。入口为 `POST /api/services/health/start`，安装与验证见 `health/README.md`。
 
 `personal-agent/` 是 Java 8 + Spring Boot 2.6.13 Maven 模块，服务标识仍为 `personal-agent`，监听 `127.0.0.1:5178`。内容已替换为真实 Obsidian Vault 的个人长期资料库，覆盖财务、健康、工作、生活等领域；网页提供资料记录、关键词搜索、版本校验编辑，以及用户确认来源后发起的 AI 分析。Quartz 5.1.0 的真实源码位于 `personal-agent/quartz/`，负责阅读、全文搜索、双链图、反向链接与原生 `.base` 视图。
 

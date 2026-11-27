@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#e8f1ea">
+  <title>健康管理 · 体检档案</title>
+  <link rel="stylesheet" href="/health-app.css?v=2">
+  <script src="/model-picker.js" defer></script>
+  <script src="/health-app.js?v=2" defer></script>
+</head>
+<body>
+<!-- THESIS: 以体检证据为入口，将历次检查连成一份可回查档案。
+     OWN-WORLD: 海玻璃、雾白、墨绿和酸橙高光。数字沿细线排列，异常用暖橙强调。
+     STORY: 从总览筛查异常，沿日期打开原值与报告，归档下一份检查。
+     FIRST VIEWPORT: 左侧窄导轨，大幅浅绿色画面和右下方的检查索引，下面直接进入异常结果。
+     FORM: 高亮的档案扉页、轻量导轨和紧凑证据表。方向种子 6c2e6405，场景 5。 -->
+<main id="welcome" class="welcome">
+  <section class="welcome-card" aria-labelledby="welcome-title">
+    <div class="welcome-art" aria-hidden="true"></div>
+    <div class="welcome-copy">
+      <a class="brand" href="/" aria-label="健康管理首页"><span class="brand-mark" aria-hidden="true">✳</span>健康管理</a>
+      <h1 id="welcome-title">每一次检查，<br>都可以回看。</h1>
+      <p id="welcome-description">正在连接本机健康档案…</p>
+      <form id="auth-form" hidden>
+        <label for="password">档案密码</label>
+        <div class="login-controls"><input id="password" name="password" type="password" required autocomplete="current-password"><button class="button primary" type="submit" id="auth-submit">登录 <span aria-hidden="true">↗</span></button></div>
+      </form>
+      <p id="auth-status" class="notice" role="status"></p>
+      <button id="auth-retry" class="button quiet" hidden>重试连接</button>
+    </div>
+  </section>
+</main>
+<div id="shell" class="shell" hidden>
+  <aside class="rail">
+    <a class="brand" href="#overview" aria-label="健康管理总览"><span class="brand-mark" aria-hidden="true">✳</span><span>健康管理</span></a>
+    <nav aria-label="健康档案导航">
+      <a href="#overview" data-nav="overview"><span aria-hidden="true">◫</span>档案总览</a>
+      <a href="#reports" data-nav="reports"><span aria-hidden="true">▤</span>体检报告</a>
+      <a href="#import" data-nav="import"><span aria-hidden="true">＋</span>导入报告</a>
+      <a href="#settings" data-nav="settings"><span aria-hidden="true">⚙</span>档案设置</a>
+    </nav>
+    <div class="rail-foot"><a href="http://127.0.0.1:5178/#notes" class="quiet-link">个人资料库 <span aria-hidden="true">↗</span></a></div>
+  </aside>
+  <div class="stage">
+    <header class="toolbar"><span id="breadcrumb">健康档案</span><div class="toolbar-actions"><div data-model-picker data-model-scope="personal-agent" data-model-theme="knowledge"></div><button type="button" class="button quiet" id="logout">退出</button></div></header>
+    <main id="view" tabindex="-1" aria-live="off"></main>
+  </div>
+</div>
+</body>
+</html>

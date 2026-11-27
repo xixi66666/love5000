@@ -64,14 +64,24 @@ public class PersonalAgentProcessManager {
     private final ServiceHealthProperties healthProperties;
     /** 点击启动配置：工作目录、Java 命令、端口、等待秒数与日志路由。 */
     private final PersonalAgentProperties properties;
+    private final String serviceId;
+    private final String serviceName;
     /** 最近一次由本类拉起的子进程；为 {@code null} 或已退出时不影响对已在线外部实例的复用。 */
     private Process process;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public PersonalAgentProcessManager(ObjectMapper objectMapper, ServiceHealthProperties healthProperties,
                                        PersonalAgentProperties properties) {
+        this(objectMapper,healthProperties,properties,"personal-agent","个人资料库");
+    }
+
+    PersonalAgentProcessManager(ObjectMapper objectMapper, ServiceHealthProperties healthProperties,
+                                PersonalAgentProperties properties,String serviceId,String serviceName) {
         this.objectMapper = objectMapper;
         this.healthProperties = healthProperties;
         this.properties = properties;
+        this.serviceId = serviceId;
+        this.serviceName = serviceName;
     }
 
     /**
@@ -108,17 +118,17 @@ public class PersonalAgentProcessManager {
         try {
             workDir = resolveWorkDir();
         } catch (IOException exception) {
-            throw new PersonalAgentStartException("个人资料库 工作目录解析失败，请检查 personal-agent.click-start.work-dir");
+            throw new PersonalAgentStartException(serviceName + "工作目录解析失败，请检查 " + serviceId + ".click-start.work-dir");
         }
         if (!jarFile(workDir).isFile()) {
-            throw new PersonalAgentStartException("个人资料库 尚未构建，请先在仓库根目录执行 "
-                    + "mvn -pl personal-agent -am package -DskipTests");
+            throw new PersonalAgentStartException(serviceName + " 尚未构建，请先在仓库根目录执行 "
+                    + "mvn -pl " + serviceId + " -am package -DskipTests");
         }
 
         try {
             process = launch(createProcessBuilder(workDir));
         } catch (IOException exception) {
-            throw new PersonalAgentStartException("个人资料库 启动失败，请检查 Java 运行环境或 "
+            throw new PersonalAgentStartException(serviceName + " 启动失败，请检查 Java 运行环境或 "
                     + "PERSONAL_AGENT_COMMAND 指定的 Java 可执行文件，以及 Maven 构建产物");
         }
         if (!waitUntilHealthy()) {
@@ -230,7 +240,7 @@ public class PersonalAgentProcessManager {
      * @return jar 文件句柄；可能并不存在，由调用方校验
      */
     private File jarFile(File workDir) {
-        return new File(workDir, "target" + File.separator + "personal-agent-0.0.1-SNAPSHOT.jar");
+        return new File(workDir, "target" + File.separator + serviceId + "-0.0.1-SNAPSHOT.jar");
     }
 
     /**
@@ -288,7 +298,7 @@ public class PersonalAgentProcessManager {
                     return HealthStatus.OCCUPIED;
                 }
                 JsonNode body = objectMapper.readTree(input);
-                if (body == null || !"personal-agent".equals(body.path("service").asText())) {
+                if (body == null || !serviceId.equals(body.path("service").asText())) {
                     return HealthStatus.OCCUPIED;
                 }
                 JsonNode success = body.path("success");
@@ -373,7 +383,7 @@ public class PersonalAgentProcessManager {
      * @return 带端口号的可读异常
      */
     private PersonalAgentStartException occupiedPort() {
-        return new PersonalAgentStartException("个人资料库 端口 " + properties.getPort()
+        return new PersonalAgentStartException(serviceName + " 端口 " + properties.getPort()
                 + " 已被占用或已有实例尚未就绪，请检查该端口；未启动或停止其他应用");
     }
 
@@ -385,7 +395,7 @@ public class PersonalAgentProcessManager {
      * @return 带等待秒数的可读异常
      */
     private PersonalAgentStartException notReady() {
-        return new PersonalAgentStartException("个人资料库 在 " + properties.getStartupTimeoutSeconds()
+        return new PersonalAgentStartException(serviceName + " 在 " + properties.getStartupTimeoutSeconds()
                 + " 秒内未就绪，请检查服务日志；再次点击会复用仍在启动的进程");
     }
 }

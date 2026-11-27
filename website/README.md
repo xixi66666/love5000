@@ -5,10 +5,10 @@
 
 ## 聚合健康检查
 
-`GET /api/services/health` 返回最近一次并行巡检结果。默认在启动时巡检一次，之后间隔 30 分钟。默认 11 个目标包括：
+`GET /api/services/health` 返回最近一次并行巡检结果。默认在启动时巡检一次，之后间隔 30 分钟。默认 12 个目标包括：
 `lovestory`、`imagetemplate`、`python-a`、`quant-a`、`scrapling-ui`、`skill-finder`、
 经 `website` 适配的 `strata`、`aimedia`、`h3`（`/api/services/local/{service}/health`），
-以及 `personal-agent`、`lottery`；顺序以 `src/main/resources/application.yml` 的
+以及 `personal-agent`、`lottery`、`health`；顺序以 `src/main/resources/application.yml` 的
 `website.service-health.services` 为准。HTTP 200 表示成功返回聚合响应。
 顶层 `success=true` 表示巡检已生成汇总，即使全部目标离线仍可为 true，`healthy` 表示是否全部在线，`services` 包含状态码、耗时和失败摘要。
 单个目标在 HTTP 2xx 且响应顶层布尔值 `success=true` 时判定为健康。默认连接超时 2000ms，读取超时 3000ms。
@@ -26,7 +26,7 @@ mvn -pl website -am '-Dtest=ServiceHealthCheckerTest,ServiceHealthAggregatorTest
 - 个人主页静态站点。
 - 单视口电影化服务主页：四段背景视频可切换，支持仅包含登录/注册账户操作的液态玻璃顶栏和 Deep Woods 场景配色。
 - 提示词控制台和静态提示词库页面（深色影院式设计，本地 GSAP + ScrollTrigger 动效，`prefers-reduced-motion` 可降级）。
-- 01 Golden Hour 展示恋爱相册、图片模板、Prompt Console、`python-a`、`quant-a`、`scrapling-ui`、`skill-finder`、模型与视频、`lottery` 共 9 个入口及实时健康状态；03 Deep Woods 展示“个人资料库”（`personal-agent`，5178）。
+- 01 Golden Hour 展示恋爱相册、图片模板、Prompt Console、`python-a`、`quant-a`、`scrapling-ui`、`skill-finder`、模型与视频、`lottery` 共 9 个入口及实时健康状态；03 Deep Woods 展示“个人资料库”和“健康管理”（`personal-agent`，5178）。
 - `scrapling-ui` 卡片是“点击启动”按钮：离线时点击拉起服务并在卡片内显示“启动中…”，就绪后自动打开工作台；若浏览器拦截新窗口则提示“已启动 · 点击打开”。在线时点击直接打开。
 - `skill-finder` 卡片同样是“点击启动”按钮：离线时点击拉起服务并在卡片内显示“启动中…”，就绪后自动打开趋势站；若浏览器拦截新窗口则提示“已启动 · 点击打开”。在线时点击直接打开。
 - `lottery` 卡片和 03 Deep Woods 的“个人资料库”卡片也由首页点击启动，接口分别为 `POST /api/services/lottery/start` 与 `POST /api/services/personal-agent/start`，启动表现与上面两张卡片一致。
@@ -136,7 +136,7 @@ lottery/
 该解释器完整路径，重启 `website` 所在终端或 IDE。显式 Python 配置直接执行
 `<python> -m uvicorn`，不使用 `.venv`；未设置时仍保留 uv 模式。
 
-首页场景内容在 `index.html` 的四个场景按钮上分别配置：`data-scene-title` 为主句、`data-scene-statement` 为副句、`data-scene-badge` 为上方提示，`data-scene-dock` 指定服务目录。01 Golden Hour 保持原诗句和九个入口；03 Deep Woods 的 `deep-woods-service-dock` 展示“个人资料库”（5178，点击启动）；02 Still Water、04 Quiet Dawn 各自使用暂定文案和独立目录，目录为空时不显示 Dock，也不显示指向隐藏目录的跳转链接；切回 01 恢复原服务。暂定主句分别为“让心事慢慢沉静”“把故事写进林间”“等晨光轻轻落下”，可独立替换为个人文案。新入口直接放入各自的 `service-grid` 并沿用 `service-card` 结构、健康检测和按需启动属性；四场景移除独立车窗覆盖图及其晃动动画，仅展示原风景视频，保留暗角、颗粒、四段视频动画和 1000ms 切换时序。
+首页场景内容在 `index.html` 的四个场景按钮上分别配置：`data-scene-title` 为主句、`data-scene-statement` 为副句、`data-scene-badge` 为上方提示，`data-scene-dock` 指定服务目录。01 Golden Hour 保持原诗句和九个入口；03 Deep Woods 的 `deep-woods-service-dock` 展示“个人资料库”（5178）和“健康管理”（5180），均点击启动；02 Still Water、04 Quiet Dawn 各自使用暂定文案和独立目录，目录为空时不显示 Dock，也不显示指向隐藏目录的跳转链接；切回 01 恢复原服务。暂定主句分别为“让心事慢慢沉静”“把故事写进林间”“等晨光轻轻落下”，可独立替换为个人文案。新入口直接放入各自的 `service-grid` 并沿用 `service-card` 结构、健康检测和按需启动属性；四场景移除独立车窗覆盖图及其晃动动画，仅展示原风景视频，保留暗角、颗粒、四段视频动画和 1000ms 切换时序。
 
 四段场景片均为 10.04 秒且首尾不是同一个镜头，原生 `loop` 会在片尾停帧再跳回第一帧，观感就是“突然顿住 + 硬切”。`setupVideoSwitcher` 因此为当前场景额外创建一层同源补层（`.scene-video--loop`，`static/js` 动态创建，不写进 `index.html`），在原视频进入最后 1 秒时从第一帧起播并接管画面，用 1000ms 交叉淡化完成循环；原视频在自己不可见之后才回到片头。
 
@@ -189,7 +189,7 @@ python scripts/run-regression.py
 
 三个应用继续独立运行，不加入 Maven modules，不随 website 自动启动或关闭。`website.local-services` 配置本机目录、端口和180秒启动等待；目录可通过 `STRATA_HOME`、`AIMEDIA_HOME` 覆盖。入口仅适用于运行这些应用的 Windows 主机；使用 UU 远程操作主机上的浏览器也可管理。
 
-API：`GET /api/services/local/{strata|aimedia|h3}/status`；同路径 `/health` 在在线时返回HTTP200、`success=true`和稳定的`service`标识，离线时HTTP503。`POST /api/services/local/{service}/{start|load|unload|stop}` 执行操作，只有Strata支持load，AIMedia不支持unload。修改请求需 `X-Love530-Local: 1`；仅允许回环地址、localhost/127.0.0.1/::1 Host与同源Origin，不能传入自定义命令或PID。统一 `/api/services/health` 默认检查 11 个目标，包括上述三个本机适配与八个独立服务。
+API：`GET /api/services/local/{strata|aimedia|h3}/status`；同路径 `/health` 在在线时返回HTTP200、`success=true`和稳定的`service`标识，离线时HTTP503。`POST /api/services/local/{service}/{start|load|unload|stop}` 执行操作，只有Strata支持load，AIMedia不支持unload。修改请求需 `X-Love530-Local: 1`；仅允许回环地址、localhost/127.0.0.1/::1 Host与同源Origin，不能传入自定义命令或PID。统一 `/api/services/health` 默认检查 12 个目标，包括上述三个本机适配与九个独立服务。
 
 Strata以`--lazy`启动服务，第一条生成请求或「加载模型」按钮才加载权重；「卸载模型」保留API和权重文件。AIMedia通过已有GPU Python环境直接启动操作台后端，不在这里顺带启动H3。H3在提交生成任务后才加载权重，页面不把「引擎在线」或「权重已安装」谎报为「模型已加载」。释放调用ComfyUI `/free`，是异步请求，作用于该引擎缓存的模型，不删除权重和作品。视频队列或操作台作业忙碌时返回409，无法确认队列时拒绝释放/停止。启动生成任务前先卸载Qwen，避免两个大型模型争用内存和显存。
 
@@ -199,11 +199,11 @@ Strata以`--lazy`启动服务，第一条生成请求或「加载模型」按钮
 
 ## 个人长期资料库（Obsidian + Quartz，03 Deep Woods，5178）
 
-健康档案默认展示最近检查、可核对的摘录、原报告建议和各次报告原值对照；人体图默认显示在报告选择器下方，健康文档双链可展开查看。详情的 `analysis_version` 区分空档、旧稿和新版。各资料领域通过 `GET /api/vault/overview?domain=...` 读取双链与编辑统计。
+健康档案首先通过 `GET /api/exams/timeline` 展示可核对的跨次指标与检查主题，然后打开各次原件与解读。可搜索 PDF 新版解读由模型选择原件页行号、本机回填证据，详情的 `analysis_version` 区分旧草稿与新版。原报告范围缺失时，已核验的外部参考直接显示在范围栏，并标注来源与适用条件。人体图、笔记双链及各资料领域的编辑统计仍可从对应页面打开。
 
 个人资料库总览展示真实 Vault 的最近笔记和至多 48 个节点的双链图（`GET /api/vault/overview`）。`GET /api/note` 同时提供安全 Markdown 阅读预览与反向链接，完整图谱、嵌入和 Bases 仍通过私有 Quartz 浏览页查看。
 
-个人资料总览可一次导入多份体检报告，每份单独确认检查日期，归档失败项可重试。健康档案按年份分组，使用 `/api/exams` 逐份归档，经 `GET /api/exams/{id}/preview` 本地预览 PDF 文字。确认后可将按页提取的文字交给所选文本模型，后端校验摘录与页码。扫描件和复杂版面可确认发送完整 PDF 给 DeepSeek Flash。旧解读可重新生成新版，原件和历次草稿保留。通用导入使用 `/api/documents`。具体路径和验证见 `personal-agent/README.md`。
+独立健康管理应用 `health`（5180）在 03 Deep Woods 点击启动，提供本机 Mirobody 解析、授权 OCR、异常/正常分类与历年报告。旧 `/#health` 导航迁往 5180。持久化仍使用原有 Obsidian Vault，`vault-core` 为两个模块共享基础库。入口为 `POST /api/services/health/start`，安装与验证见 `health/README.md`。
 
 `personal-agent/` 是 Java 8 + Spring Boot 2.6.13 Maven 模块，服务标识仍为 `personal-agent`，监听 `127.0.0.1:5178`。内容已替换为真实 Obsidian Vault 的个人长期资料库，覆盖财务、健康、工作、生活等领域；网页提供资料记录、关键词搜索、版本校验编辑，以及用户确认来源后发起的 AI 分析。Quartz 5.1.0 的真实源码位于 `personal-agent/quartz/`，负责阅读、全文搜索、双链图、反向链接与原生 `.base` 视图。
 

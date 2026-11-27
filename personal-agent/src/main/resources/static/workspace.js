@@ -19,7 +19,7 @@ window.renderPersonalOverview = function (view, vault, data, escape, onSearch) {
   </header>
   <div class="workspace-board">
     <section class="graph-panel" aria-labelledby="graph-title">
-      <header class="board-header"><h2 id="graph-title">双链图谱</h2><span>${hasNotes ? `${data.nodes.length} 节点 · ${data.edges.length} 链接` : '笔记尚未导入'}</span></header>
+      <header class="board-header"><h2 id="graph-title">笔记双链图谱</h2><span>${hasNotes ? `${data.nodes.length} 节点 · ${data.edges.length} 链接` : '笔记尚未导入'}</span><a href="#health">历年健康关联 ↗</a></header>
       <div class="graph-stage" id="overview-graph" ${hasNotes ? '' : 'data-empty'}><canvas aria-hidden="true"></canvas>
         ${hasNotes ? '' : '<div class="graph-empty"><b>[[笔记名称]]</b><p>在 Markdown 里引用一篇笔记，<br>两者的连接就会出现在这里。</p><a href="#notes">浏览资料目录 ↗</a></div>'}
       </div>

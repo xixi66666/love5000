@@ -14,6 +14,8 @@
         <module>common</module>
         <module>imagetemplate</module>
         <module>personal-agent</module>
+        <module>vault-core</module>
+        <module>health</module>
     </modules>
     <properties>
         <java.version>1.8</java.version>

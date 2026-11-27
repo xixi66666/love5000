@@ -84,7 +84,7 @@ image.proxy-type=HTTP
 image.proxy-host=
 image.proxy-port=0
 
-# --- 视觉识别（python-a 截图解析）------------------------------------------
+# --- 视觉识别（python-a 截图解析与 personal-agent 分页体检识别）---------------
 vision.label=视觉识别
 vision.base-url=https://api.openai.com/v1
 vision.api-key=

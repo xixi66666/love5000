@@ -22,6 +22,8 @@ public class AgentConfig {
     // 四个字段全部来自 agent.* 配置；留空表示不覆盖下面的默认探测逻辑。
     private String dataDir="";
     private String vaultDir="",quartzDir="",nodeCommand="node";
+    private boolean examOwner;
+    private String legacyStateDir="";
     /**
      * 状态与产物根目录：登录哈希、仓库选择、笔记备份、Quartz 构建输出都落在这里。
      *
@@ -30,8 +32,16 @@ public class AgentConfig {
      *         并统一追加 {@code Love530/PersonalAgent}
      */
     public Path dataPath() {
+        return (dataDir.isEmpty()?localData(examOwner?"Health":"PersonalAgent"):Paths.get(dataDir)).toAbsolutePath().normalize();
+    }
+
+    private static Path localData(String app) {
         String local=System.getenv("LOCALAPPDATA");
-        return (dataDir.isEmpty()?Paths.get(local==null?System.getProperty("user.home")+"/.local/share":local,"Love530","PersonalAgent"):Paths.get(dataDir)).toAbsolutePath().normalize();
+        return Paths.get(local==null?System.getProperty("user.home")+"/.local/share":local,"Love530",app);
+    }
+
+    public Path legacyPersonalAgentData() {
+        return (legacyStateDir.isEmpty()?localData("PersonalAgent"):Paths.get(legacyStateDir)).toAbsolutePath().normalize();
     }
     /**
      * 默认 Obsidian Vault 路径，仅在状态文件尚未记录仓库选择时使用。
@@ -45,7 +55,7 @@ public class AgentConfig {
         if(!vaultDir.isEmpty())return Paths.get(vaultDir).toAbsolutePath().normalize();
         // Windows 的个人资料集中放在 D 盘，服务状态目录仍可独立配置。
         if(System.getProperty("os.name","").startsWith("Windows"))return Paths.get("D:/个人资料/Obsidian Vault").toAbsolutePath().normalize();
-        return dataPath().resolve("knowledge-vault");
+        return (examOwner?legacyPersonalAgentData():dataPath()).resolve("knowledge-vault");
     }
     /**
      * 定位外部 Quartz 5.1 源码目录（需含 {@code package.json}），用于调用其构建脚本。
@@ -67,4 +77,6 @@ public class AgentConfig {
     public String getVaultDir(){return vaultDir;} public void setVaultDir(String v){vaultDir=v;}
     public String getQuartzDir(){return quartzDir;} public void setQuartzDir(String v){quartzDir=v;}
     public String getNodeCommand(){return nodeCommand;} public void setNodeCommand(String v){nodeCommand=v;}
+    public boolean isExamOwner(){return examOwner;} public void setExamOwner(boolean v){examOwner=v;}
+    public String getLegacyStateDir(){return legacyStateDir;} public void setLegacyStateDir(String v){legacyStateDir=v;}
 }

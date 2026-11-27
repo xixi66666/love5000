@@ -84,6 +84,13 @@ lottery:
     startup-timeout-seconds: 60
     log-to-console: true
 
+health:
+  click-start:
+    enabled: true
+    work-dir: health
+    command: ${HEALTH_COMMAND:}
+    port: 5180
+
 website:
   local-services:
     strata-dir: ${STRATA_HOME:F:/model/Strata}
@@ -121,3 +128,5 @@ website:
         url: http://127.0.0.1:5178/api/health
       - name: lottery
         url: http://127.0.0.1:5179/api/health
+      - name: health
+        url: http://127.0.0.1:5180/api/health

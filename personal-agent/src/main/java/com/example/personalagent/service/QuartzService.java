@@ -79,7 +79,7 @@ public class QuartzService {
                 for(Path original:vault.files()){
                     Path relative=root.relativize(original),target=source.resolve(relative);
                     String relativePath = relative.toString().replace('\\','/');
-                    if(relativePath.startsWith(HealthArchive.ORIGINALS) || relativePath.startsWith(LocalDocuments.ORIGINALS))continue;
+                    if(relativePath.startsWith(ExamPaths.ORIGINALS) || relativePath.startsWith(LocalDocuments.ORIGINALS))continue;
                     Files.createDirectories(target.getParent());
                     // 只复制经过根目录/链接检查的允许文件，不包含 .obsidian 与服务配置。
                     Files.copy(vault.safe(relativePath),target,StandardCopyOption.COPY_ATTRIBUTES);

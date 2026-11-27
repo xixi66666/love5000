@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static com.example.personalagent.Api.map;
 
@@ -78,19 +79,13 @@ final class ExamPdfText {
         return this;
     }
 
-    Object preview() {
+    Map<String,Object> preview() {
         List<Object> entries = new ArrayList<>();
         for (int index = 0; index < pages.size(); index++) {
             entries.add(map("page", index + 1, "text", pages.get(index)));
         }
         return map("mode", mode, "message", message, "page_count", pageCount,
             "readable_pages", readableCount, "pages", entries);
-    }
-
-    String modelInput() {
-        List<String> sections = new ArrayList<>();
-        for (int index = 0; index < pages.size(); index++) sections.add("[第 " + (index + 1) + " 页]\n" + pages.get(index));
-        return String.join("\n\n", sections);
     }
 
     private static final class TextLimitException extends IOException {}

@@ -1,0 +1,22 @@
+server:
+  address: 127.0.0.1
+  port: ${HEALTH_PORT:5180}
+  servlet:
+    session:
+      cookie:
+        name: HEALTH_SESSION
+        http-only: true
+        same-site: strict
+      timeout: 8h
+spring:
+  application:
+    name: health
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
+agent:
+  exam-owner: true
+  data-dir: ${HEALTH_DATA_DIR:}
+  vault-dir: ${HEALTH_VAULT_DIR:${PERSONAL_AGENT_VAULT_DIR:}}
+  legacy-state-dir: ${PERSONAL_AGENT_DATA_DIR:}

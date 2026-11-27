@@ -98,9 +98,8 @@
         }});
     }
     else if(tab==='health') {
-      const startImport = routeValue === 'health-import';
-      if (startImport) window.history.replaceState(null,'','#health');
-      await window.showHealthArchive({view:$('#view'),api,escape,refresh,startImport,alive:()=>token===epoch,dirty:value=>{if(token===epoch)editing=value;}});
+      const target = routeValue === 'health-import' ? '#import' : '#overview';
+      window.location.replace('http://127.0.0.1:5180/'+target);
     }
     else if(tab==='analysis')analysisView();else if(tab==='settings')await settingsView(token);else await notesView(token);
   }

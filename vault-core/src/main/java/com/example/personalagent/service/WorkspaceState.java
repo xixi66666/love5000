@@ -38,12 +38,34 @@ public class WorkspaceState {
     public WorkspaceState(AgentConfig config,ObjectMapper json)throws Exception {
         this.json=json;
         Files.createDirectories(config.dataPath());
+        if (config.isExamOwner() && Files.exists(config.legacyPersonalAgentData())
+            && Files.isSameFile(config.dataPath(),config.legacyPersonalAgentData())) {
+            throw new IllegalStateException("健康管理和个人资料库必须使用独立运行目录");
+        }
         channel=FileChannel.open(config.dataPath().resolve(".knowledge.lock"),StandardOpenOption.CREATE,StandardOpenOption.WRITE);
         lock=channel.tryLock();
         if(lock==null){channel.close();throw new IllegalStateException("此资料空间已由另一个实例打开");}
         file=config.dataPath().resolve("knowledge-state.json");
-        try{state=Files.exists(file)?json.readValue(file.toFile(),new TypeReference<Map<String,Object>>(){}):new LinkedHashMap<>();}
+        try{state=Files.exists(file)?json.readValue(file.toFile(),new TypeReference<Map<String,Object>>(){}):initialState(config);}
         catch(Exception e){lock.release();channel.close();throw new IllegalStateException("knowledge-state.json 损坏，请恢复备份",e);}
+    }
+
+    private Map<String,Object> initialState(AgentConfig config)throws Exception {
+        Map<String,Object> next = new LinkedHashMap<>();
+        if (!config.isExamOwner()) return next;
+        Path legacy = config.legacyPersonalAgentData().resolve("knowledge-state.json");
+        if (file.equals(legacy)) throw new IllegalStateException("健康管理和个人资料库必须使用独立运行目录");
+        if (Files.isRegularFile(legacy)) {
+            Map<String,Object> previous = json.readValue(legacy.toFile(),new TypeReference<Map<String,Object>>(){});
+            if (previous.get("auth") instanceof Map) next.put("auth",previous.get("auth"));
+            if (config.getVaultDir().isEmpty() && previous.get("vault_path") instanceof String) {
+                String selected = (String) previous.get("vault_path");
+                Path vault = Paths.get(selected);
+                if (Files.isDirectory(vault.resolve(".obsidian")) && !Files.isSymbolicLink(vault)) next.put("vault_path",selected);
+            }
+        }
+        atomic(file,json.writerWithDefaultPrettyPrinter().writeValueAsBytes(next));
+        return next;
     }
     /**
      * 读取并深拷贝一个状态值。

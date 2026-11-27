@@ -22,6 +22,21 @@ import static org.mockito.AdditionalMatchers.aryEq;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+/**
+ * 资料库端到端集成测试：真实 Spring 上下文加 MockMvc，覆盖从 HTTP 层到文件系统的完整链路。
+ *
+ * <p>覆盖分支：领域图谱裁剪与体检草稿纳入、双链解析与安全渲染（脚本标签、{@code javascript:}
+ * 链接、远程图片）、导入授权的三条拒绝路径（缺 CSRF、未登录、无 consent）、重复导入与
+ * 失败导入的孤儿附件、导入后免重建索引即可检索、体检批量重试的幂等与冲突、体检解读的
+ * 版本回退与外来草稿占用、PDF 文字层的引用校验、模型缺失与越界引用的标记、本机访问与
+ * 首页导航例外、乐观锁与编辑备份、路径穿越与符号链接、YAML 危险构造、初始化幂等、
+ * 预览排除规则、Quartz 快照过期以及换仓库不搬动文件。</p>
+ *
+ * <p>隔离手段：数据目录与 Vault 都指向 {@code target/} 下的随机目录，通过
+ * {@code @DynamicPropertySource} 显式注入，绝不读写 D 盘真实资料；AI 相关协作者
+ * （{@link AiGateway}、{@link DeepSeekFiles}、{@link ModelRoute}）全部用 Mockito 替身，
+ * 不发起任何真实模型或网络调用；PDF 用 PDFBox 现场生成合成内容。</p>
+ */
 @SpringBootTest(properties="logging.level.root=WARN")
 @AutoConfigureMockMvc
 class KnowledgeIntegrationTest {
@@ -35,6 +50,7 @@ class KnowledgeIntegrationTest {
     @Autowired AnalysisService analyses;@Autowired QuartzService quartz;@MockBean AiGateway gateway;
     @MockBean DeepSeekFiles files;
     @MockBean ModelRoute route;
+
     MockHttpSession session;String csrf;
     @BeforeEach void prepare()throws Exception {
         for(int i=0;i<200&&analyses.busy();i++)Thread.sleep(20);
@@ -180,207 +196,20 @@ class KnowledgeIntegrationTest {
         verifyNoInteractions(gateway);
     }
 
-    @Test void examBatchItemRetryReusesRecordWithoutChangingOtherYears() throws Exception {
-        byte[] bytes = "构造体检记录".getBytes(StandardCharsets.UTF_8);
-        org.springframework.mock.web.MockMultipartFile file = new org.springframework.mock.web.MockMultipartFile("file","exam.txt","text/plain",bytes);
-        String oldId = UUID.randomUUID().toString();
-        String newId = UUID.randomUUID().toString();
-        for (String id : Arrays.asList(oldId, newId, oldId)) {
-            mvc.perform(multipart("/api/exams").file(file).session(session).header("X-CSRF-Token",csrf)
-                .param("workspace",vault.root().toString()).param("date",id.equals(oldId) ? "2022-03-14" : "2025-06-15")
-                .param("mode","archive").param("import_id",id))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.data.id").value(id));
-        }
-        mvc.perform(multipart("/api/exams").file(file).session(session).header("X-CSRF-Token",csrf)
-            .param("workspace",vault.root().toString()).param("date","2024-01-01").param("mode","archive").param("import_id",oldId))
-            .andExpect(status().isConflict());
-        org.springframework.mock.web.MockMultipartFile different = new org.springframework.mock.web.MockMultipartFile("file","exam.txt","text/plain",new byte[]{1,2,3});
-        mvc.perform(multipart("/api/exams").file(different).session(session).header("X-CSRF-Token",csrf)
-            .param("workspace",vault.root().toString()).param("date","2022-03-14").param("mode","archive").param("import_id",oldId))
-            .andExpect(status().isConflict());
-        mvc.perform(get("/api/exams").session(session)).andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.reports.length()").value(2))
-            .andExpect(jsonPath("$.data.reports[0].id").value(newId))
-            .andExpect(jsonPath("$.data.reports[1].id").value(oldId));
-        mvc.perform(get("/api/exams/"+oldId+"/original").session(session)).andExpect(content().bytes(bytes));
-        verifyNoInteractions(files,gateway);
-    }
-
-    @Test void examArchiveOnlyKeepsOriginalAndCanAnalyzeLater()throws Exception {
-        byte[] original;
-        try (org.apache.pdfbox.pdmodel.PDDocument pdf = new org.apache.pdfbox.pdmodel.PDDocument();
-             java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream()) {
-            addPdfLine(pdf, "Synthetic screening results");
-            pdf.addPage(new org.apache.pdfbox.pdmodel.PDPage());
-            pdf.save(bytes);
-            original = bytes.toByteArray();
-        }
-        org.springframework.mock.web.MockMultipartFile file = new org.springframework.mock.web.MockMultipartFile("file","exam.pdf","application/pdf",original);
-        JsonNode saved = utf8(mvc.perform(multipart("/api/exams").file(file).session(session).header("X-CSRF-Token",csrf)
-            .param("workspace",vault.root().toString()).param("date","2024-02-18").param("mode","archive"))
-            .andExpect(status().isOk()).andReturn());
-        String endpoint = "/api/exams/" + saved.path("id").asText();
-        verifyNoInteractions(files);
-        mvc.perform(get(endpoint+"/original").session(session)).andExpect(content().bytes(original));
-        mvc.perform(get(endpoint+"/preview").session(session)).andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.mode").value("original"))
-            .andExpect(jsonPath("$.data.readable_pages").value(1))
-            .andExpect(jsonPath("$.data.page_count").value(2));
-        Map<String,Object> input = map("revision",saved.path("revision").asText(),"consent",true,"workspace",vault.root().toString());
-        String payload = json.writeValueAsString(input);
-        mvc.perform(post(endpoint+"/analysis").session(session).header("X-CSRF-Token",csrf).contentType("application/json").content("{}"))
-            .andExpect(status().isUnprocessableEntity());
-        input.put("evidence_mode","pdf_text");
-        mvc.perform(post(endpoint+"/analysis").session(session).header("X-CSRF-Token",csrf)
-            .contentType("application/json").content(json.writeValueAsString(input))).andExpect(status().isConflict());
-        verifyNoInteractions(files);
-        String legacyName = "体检/" + saved.path("id").asText() + "-" + saved.path("revision").asText();
-        vault.saveReport(legacyName, "---\ndomain: analysis\nfindings: {\"summary\":\"旧版构造解读\"}\n---\n");
-        mvc.perform(get(endpoint).session(session)).andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.analysis_version").value(1));
-        doReturn(examDraft()).when(files).analyze(any(byte[].class),eq("pdf"),anyString());
-        JsonNode analysis = utf8(mvc.perform(post(endpoint+"/analysis").session(session).header("X-CSRF-Token",csrf)
-            .contentType("application/json").content(payload)).andExpect(status().isOk()).andReturn());
-        assertEquals("第 2 页", analysis.path("findings").path("metrics").get(0).path("location").asText());
-        assertEquals(3, analysis.path("analysis_version").asInt());
-        assertEquals("按报告建议复核。", analysis.path("findings").path("recommendations").get(0).path("quote").asText());
-        assertEquals("80-AI分析/" + legacyName + "-v3.md", analysis.path("report_path").asText());
-        assertEquals("80-AI分析/" + legacyName + ".md", analysis.path("previous_report_path").asText());
-        assertTrue(java.nio.file.Files.isRegularFile(vault.root().resolve("80-AI分析/" + legacyName + ".md")));
-        assertFalse(vault.read(analysis.path("report_path").asText()).eligibleForAi());
-        mvc.perform(post(endpoint+"/analysis").session(session).header("X-CSRF-Token",csrf)
-            .contentType("application/json").content(payload)).andExpect(status().isOk());
-        verify(files).analyze(aryEq(original),eq("pdf"),anyString());
-        verifyNoInteractions(gateway);
-    }
-
-    @Test void foreignCurrentExamDraftIsIgnoredAndBlocksAnalysisWithoutModelCall()throws Exception {
-        // 新版路径被一份来源不匹配的构造报告占用。
-        byte[] original = "构造体检原件，仅用于草稿路径占用测试。".getBytes(StandardCharsets.UTF_8);
-        org.springframework.mock.web.MockMultipartFile file = new org.springframework.mock.web.MockMultipartFile("file","exam.txt","text/plain",original);
-        JsonNode saved = utf8(mvc.perform(multipart("/api/exams").file(file).session(session).header("X-CSRF-Token",csrf)
-            .param("workspace",vault.root().toString()).param("date","2024-02-18").param("mode","archive"))
-            .andExpect(status().isOk()).andReturn());
-        String id = saved.path("id").asText(), revision = saved.path("revision").asText();
-        String endpoint = "/api/exams/" + id;
-        String legacyName = "体检/" + id + "-" + revision;
-        String legacyPath = "80-AI分析/" + legacyName + ".md";
-        String occupiedPath = "80-AI分析/" + legacyName + "-v3.md";
-        vault.saveReport(legacyName + "-v3", "---\ndomain: analysis\nrecord_type: exam_analysis\n"
-            + "source_revision: wrong-source-revision\nfindings: {\"summary\":\"外来构造草稿\"}\n---\n\n外来内容不得覆盖。\n");
-
-        JsonNode withoutLegacy = utf8(mvc.perform(get(endpoint).session(session)).andExpect(status().isOk()).andReturn());
-        assertEquals(0,withoutLegacy.path("analysis_version").asInt());
-        assertTrue(withoutLegacy.path("report_path").isNull() || withoutLegacy.path("report_path").isMissingNode());
-        assertTrue(withoutLegacy.path("findings").isNull() || withoutLegacy.path("findings").isMissingNode());
-
-        vault.saveReport(legacyName, "---\ndomain: analysis\nfindings: {\"summary\":\"旧版构造解读\"}\n---\n");
-        mvc.perform(get(endpoint).session(session)).andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.analysis_version").value(1))
-            .andExpect(jsonPath("$.data.report_path").value(legacyPath));
-
-        byte[] occupied = Files.readAllBytes(vault.safe(occupiedPath));
-        byte[] legacy = Files.readAllBytes(vault.safe(legacyPath));
-        String payload = json.writeValueAsString(map("revision",revision,"consent",true,"workspace",vault.root().toString()));
-        mvc.perform(post(endpoint+"/analysis").session(session).header("X-CSRF-Token",csrf)
-                .contentType("application/json").content(payload))
-            .andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.message").value("体检分析草稿路径已被其他内容占用，请先备份并移走该文件后重试"));
-        verifyNoInteractions(files, gateway);
-        assertArrayEquals(occupied,Files.readAllBytes(vault.safe(occupiedPath)));
-        assertArrayEquals(legacy,Files.readAllBytes(vault.safe(legacyPath)));
-        mvc.perform(get(endpoint).session(session)).andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.report_path").value(legacyPath));
-    }
-
-    @Test void searchableExamPdfUsesLocalPageTextAndChecksCitations() throws Exception {
-        byte[] original;
-        try (org.apache.pdfbox.pdmodel.PDDocument pdf = new org.apache.pdfbox.pdmodel.PDDocument();
-             java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream()) {
-            addPdfLine(pdf, "Synthetic screening results");
-            addPdfLine(pdf, "TEST ALT 62 U/L 8-40 H");
-            pdf.save(bytes);
-            original = bytes.toByteArray();
-        }
-        org.springframework.mock.web.MockMultipartFile file = new org.springframework.mock.web.MockMultipartFile("file","exam.pdf","application/pdf",original);
-        JsonNode saved = utf8(mvc.perform(multipart("/api/exams").file(file).session(session).header("X-CSRF-Token",csrf)
-            .param("workspace",vault.root().toString()).param("date","2024-02-18").param("mode","archive"))
-            .andExpect(status().isOk()).andReturn());
-        String endpoint = "/api/exams/" + saved.path("id").asText();
-        mvc.perform(get(endpoint+"/preview")).andExpect(status().isUnauthorized());
-        mvc.perform(get(endpoint+"/preview").session(session)).andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.mode").value("pdf_text"))
-            .andExpect(jsonPath("$.data.pages[1].text").value("TEST ALT 62 U/L 8-40 H"));
-        verifyNoInteractions(files,gateway);
-        String payload = json.writeValueAsString(map("revision",saved.path("revision").asText(),"consent",true,
-            "workspace",vault.root().toString(),"evidence_mode","pdf_text"));
-        String goodDraft = json.writeValueAsString(map("summary","构造解读","questions",Collections.emptyList(),
-            "limitations",Collections.emptyList(),"observations",Collections.emptyList(),"recommendations",Collections.emptyList(),
-            "metrics",Collections.singletonList(map("name","TEST ALT","value","62","unit","U/L","range","8-40",
-                "flag","H","quote","TEST ALT 62 U/L 8-40 H","location","第 1 页"))));
-        doReturn(goodDraft.replace("62","63"),goodDraft).when(gateway).complete(anyString(),anyString());
-        mvc.perform(post(endpoint+"/analysis").session(session).header("X-CSRF-Token",csrf)
-            .contentType("application/json").content(payload)).andExpect(status().isBadGateway());
-        mvc.perform(post(endpoint+"/analysis").session(session).header("X-CSRF-Token",csrf)
-            .contentType("application/json").content(payload)).andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.findings.metrics[0].location").value("第 2 页"))
-            .andExpect(jsonPath("$.data.findings.textEvidenceVerified").value(true));
-        verify(gateway,times(2)).complete(anyString(),contains("[第 2 页]\nTEST ALT 62 U/L 8-40 H"));
-        verifyNoInteractions(files);
-    }
-
-    private void addPdfLine(org.apache.pdfbox.pdmodel.PDDocument pdf, String line) throws Exception {
-        org.apache.pdfbox.pdmodel.PDPage page = new org.apache.pdfbox.pdmodel.PDPage();
-        pdf.addPage(page);
-        try (org.apache.pdfbox.pdmodel.PDPageContentStream stream = new org.apache.pdfbox.pdmodel.PDPageContentStream(pdf,page)) {
-            stream.beginText();
-            stream.setFont(org.apache.pdfbox.pdmodel.font.PDType1Font.HELVETICA,12);
-            stream.newLineAtOffset(40,720);
-            stream.showText(line);
-            stream.endText();
-        }
-    }
-
-    @Test void examTextRejectsModelQuoteMissingFromOriginal() throws Exception {
-        byte[] original = "构造文本，含有不同的检查记录。".getBytes(StandardCharsets.UTF_8);
-        org.springframework.mock.web.MockMultipartFile file = new org.springframework.mock.web.MockMultipartFile("file","exam.txt","text/plain",original);
-        JsonNode saved = utf8(mvc.perform(multipart("/api/exams").file(file).session(session).header("X-CSRF-Token",csrf)
-            .param("workspace",vault.root().toString()).param("date","2024-02-18").param("mode","archive"))
-            .andExpect(status().isOk()).andReturn());
-        String endpoint = "/api/exams/" + saved.path("id").asText();
-        String payload = json.writeValueAsString(map("revision",saved.path("revision").asText(),"consent",true,"workspace",vault.root().toString()));
-        doReturn(examDraft()).when(files).analyze(aryEq(original),eq("txt"),anyString());
-        mvc.perform(post(endpoint+"/analysis").session(session).header("X-CSRF-Token",csrf)
-            .contentType("application/json").content(payload)).andExpect(status().isBadGateway());
-        mvc.perform(get(endpoint).session(session)).andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.analysis_version").value(0));
-        mvc.perform(get(endpoint+"/original").session(session)).andExpect(content().bytes(original));
-    }
-
-    @Test void examImportKeepsOriginalWhenProviderFails()throws Exception {
-        byte[] original = "构造图片占位".getBytes(StandardCharsets.UTF_8);
-        org.springframework.mock.web.MockMultipartFile file = new org.springframework.mock.web.MockMultipartFile("file","exam.jpg","image/jpeg",original);
-        doThrow(new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_GATEWAY,"测试替身暂不可用"))
-            .when(files).analyze(any(byte[].class),eq("jpg"),anyString());
-        JsonNode saved = utf8(mvc.perform(multipart("/api/exams").file(file).session(session).header("X-CSRF-Token",csrf)
-            .param("workspace",vault.root().toString()).param("date","2024-02-18").param("mode","analyze").param("consent","true"))
-            .andExpect(status().isOk()).andReturn());
-        assertEquals("测试替身暂不可用", saved.path("warning").asText());
-        mvc.perform(get("/api/exams/"+saved.path("id").asText()+"/original").session(session)).andExpect(content().bytes(original));
-        assertEquals(1, vault.notes().size());
-    }
-
-    String examDraft() throws Exception {
-        return json.writeValueAsString(map("summary","构造解读","questions",Collections.emptyList(),
-            "limitations",Collections.singletonList("报告未注明检测方法。"),
-            "observations",Collections.singletonList(map("quote","构造指标 12 U/L 8-10 ↑","location","第 2 页",
-                "interpretation","数值超出原报告参考区间。")),
-            "recommendations",Collections.singletonList(map("quote","按报告建议复核。","location","第 3 页")),
-            "metrics",Collections.singletonList(map("name","构造指标","value","12","unit","U/L","range","8-10",
-                "flag","↑","quote","构造指标 12 U/L 8-10 ↑","location","第 2 页"))));
-    }
     VaultNote fixture(String domain,String body)throws Exception {
         return vault.save(map("domain",domain,"content","---\ntitle: 构造资料（仅测试）\ndomain: "+domain+"\nstatus: current\nobserved_at: \"2024-01-01\"\nsource: 测试替身\n---\n\n"+body));
+    }
+
+    @Test void healthRecordsRemainReadableAndAreOwnedByTheHealthApplication() throws Exception {
+        String path = ExamPaths.SOURCES+UUID.randomUUID()+".md";
+        String source = "---\ntitle: 构造体检\ndomain: health\nrecord_type: exam_source\n---\n\n原始测试记录";
+        WorkspaceState.atomic(vault.safe(path), source.getBytes(StandardCharsets.UTF_8));
+        VaultNote note = vault.read(path);
+        assertEquals(source,note.content);
+        assertThrows(org.springframework.web.server.ResponseStatusException.class, () -> vault.save(map("path",path,
+            "content",source+"修改","expected_revision",note.revision)));
+        assertEquals(note.revision,vault.read(path).revision);
+        mvc.perform(get("/api/exams").session(session)).andExpect(status().isNotFound());
     }
     Map<String,Object> request(VaultNote n){return map("question","请整理构造资料的缺失信息","sources",Arrays.asList(map("path",n.path,"revision",n.revision)),"consent",true);}
     Map<String,Object> waitFor(String id)throws Exception {

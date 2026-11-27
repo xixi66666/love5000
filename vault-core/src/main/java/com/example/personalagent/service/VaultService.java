@@ -122,7 +122,7 @@ public class VaultService {
             @Override public FileVisitResult visitFile(Path file,BasicFileAttributes attrs)throws IOException {
                 String name=file.getFileName().toString().toLowerCase(Locale.ROOT);
                 String relative = base.relativize(file).toString().replace('\\','/');
-                boolean archived = relative.startsWith(HealthArchive.ORIGINALS) || relative.startsWith(LocalDocuments.ORIGINALS);
+                boolean archived = relative.startsWith(ExamPaths.ORIGINALS) || relative.startsWith(LocalDocuments.ORIGINALS);
                 if(attrs.isRegularFile()&&!Files.isSymbolicLink(file)&&!name.startsWith(".")
                     &&(name.matches(".*\\.(md|base|canvas|png|jpe?g|webp|gif|pdf|mp3|mp4|wav)$")
                     || (archived && name.matches(".*\\.(" + LocalDocuments.TYPES + ")")))){
@@ -358,7 +358,7 @@ public class VaultService {
             String domain=text(input,"domain");require(DOMAINS.containsKey(domain)&&!domain.equals("analysis"),"资料领域无效");
             path=DOMAINS.get(domain)+"/"+id()+".md";
         }
-        require(path.endsWith(".md"),"仅可保存 Markdown 笔记");parse(path,content);Path file=safe(path);
+        require(path.endsWith(".md"),"仅可保存 Markdown 笔记");checkOwner(path);parse(path,content);Path file=safe(path);
         if(Files.exists(file)){
             byte[] previous=Files.readAllBytes(file);
             if(!hash(previous).equals(expected))throw conflict("笔记已在 Obsidian 或其他页面修改，请重新加载后合并");
@@ -378,8 +378,14 @@ public class VaultService {
      * @throws Exception 目标已存在或路径越界时抛出
      */
     public synchronized void saveReport(String filename,String content)throws Exception {
-        Path target=safe(DOMAINS.get("analysis")+"/"+filename+".md");
+        String relative=DOMAINS.get("analysis")+"/"+filename+".md";
+        checkOwner(relative);
+        Path target=safe(relative);
         require(!Files.exists(target),"分析报告已存在");WorkspaceState.atomic(target,content.getBytes(StandardCharsets.UTF_8));state.put("quartz_publication",null);
+    }
+
+    private void checkOwner(String path) {
+        require(!ExamPaths.manages(path) || config.isExamOwner(),"体检记录由健康管理维护，请前往健康管理应用");
     }
     /**
      * 初始化仓库骨架：领域目录、模板、导航 Bases、说明笔记与 {@code .obsidian}。

@@ -21,7 +21,7 @@ import static com.example.personalagent.Api.*;
  *
  * <p>属 Controller 层，只负责入参形状校验、并发前置判断与响应包装；路径约束、乐观锁、
  * 内容哈希与构建流程分别在 {@link VaultService}、{@link QuartzService}、
- * {@link AnalysisService}、{@link HealthArchive} 中实现，本类不直接碰文件系统。</p>
+ * {@link AnalysisService} 中实现，本类不直接碰文件系统。</p>
  *
  * <p>非显然行为：{@code /api/health} 与三个 {@code /api/auth/} 接口放行匿名访问——前者供首页 no-cors 探活，后者只处理登录本身；
  * 切换仓库前先确认分析、Quartz 构建、体检解读三者都不在运行，避免后台任务把结果写进
@@ -31,8 +31,8 @@ import static com.example.personalagent.Api.*;
 @RestController
 public class KnowledgeController {
     private final VaultService vault;private final QuartzService quartz;private final AnalysisService analyses;
-    private final LocalSecurity security;private final AgentConfig config;private final HealthArchive exams;
-    public KnowledgeController(VaultService vault,QuartzService quartz,AnalysisService analyses,LocalSecurity security,AgentConfig config,HealthArchive exams){this.vault=vault;this.quartz=quartz;this.analyses=analyses;this.security=security;this.config=config;this.exams=exams;}
+    private final LocalSecurity security;private final AgentConfig config;
+    public KnowledgeController(VaultService vault,QuartzService quartz,AnalysisService analyses,LocalSecurity security,AgentConfig config){this.vault=vault;this.quartz=quartz;this.analyses=analyses;this.security=security;this.config=config;}
     /** 统一健康检查：返回固定服务标识，供首页探活与巡检脚本使用，无需登录。 */
     @GetMapping("/api/health") public Object health(){return map("success",true,"service","personal-agent");}
     /** 登录状态与 CSRF 令牌；未登录时 {@code csrf_token} 为 {@code null}。 */
@@ -53,7 +53,7 @@ public class KnowledgeController {
      * @throws Exception 目录无效、根目录是符号链接，或分析/构建/解读正在运行时抛出 422
      */
     @PostMapping("/api/vault/connect") public Object connect(@RequestBody Map<String,Object> body)throws Exception {
-        require(!analyses.busy()&&!quartz.busy()&&!exams.busy(),"请等待分析和构建完成后切换仓库");vault.connect(text(body,"path"));return vault();
+        require(!analyses.busy()&&!quartz.busy(),"请等待分析和构建完成后切换仓库");vault.connect(text(body,"path"));return vault();
     }
     /** 在空仓库里补齐领域目录、模板、导航 Bases 与说明笔记；可重复执行且不覆盖既有文件。 */
     @PostMapping("/api/vault/initialize") public Object initialize()throws Exception{vault.initialize();return vault();}
