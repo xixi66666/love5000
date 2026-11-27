@@ -74,8 +74,40 @@
 .exam-metric-filters input[type=search] { flex: 1 1 12rem; min-width: 0; max-width: 22rem; min-height: 44px; }
 .exam-metrics .exam-metric-filters button { min-height: 44px; margin: 0; }
 .exam-metric-status { flex-basis: 100%; min-height: 1.4em; margin: 0; color: var(--muted); font-size: 14px; }
+.exam-preview h3 { margin: 0 0 8px; }
+.exam-preview-summary, .exam-send-scope { margin-block: 10px; max-width: 68ch; }
+.exam-local-text > summary { cursor: pointer; padding-block: 10px; color: var(--accent); }
+.exam-local-text select { width: auto; max-width: 100%; }
+.exam-sheet .exam-page-link { min-height: 44px; margin: 0; padding-inline: 8px; color: var(--accent); }
+.exam-local-text pre {
+  margin-block: 12px;
+  padding: 12px;
+  overflow: auto;
+  max-height: 22rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.document-file { min-height: 44px; }
+.document-file::file-selector-button { margin-inline-end: 12px; color: var(--accent); background: var(--tint); border: 0; padding: 8px 12px; cursor: pointer; }
+.exam-import-form { max-width: 54rem; }
+.exam-import-queue { margin: 20px 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+.exam-import-queue:empty { display: none; }
+.exam-import-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(10rem, 14rem) auto; align-items: start; gap: 12px; padding-block: 16px; border-bottom: 1px solid var(--line); }
+.exam-import-file { min-width: 0; overflow-wrap: anywhere; }
+.exam-import-row label { margin: 0; }
+.exam-import-row label input { display: block; margin-block: 4px; }
+.exam-import-row small { color: var(--muted); }
+.exam-import-row-status { margin: 4px 0 0; }
+.exam-import-row-status:empty, #exam-import-progress:empty { display: none; }
+.exam-import-row button { min-height: 44px; }
 @media (max-width: 540px) {
   .exam-metric-filters { flex-direction: column; align-items: stretch; gap: 8px; }
-  .exam-metric-filters input[type=search] { width: 100%; max-width: none; }
+  .exam-metric-filters input[type=search] { flex: 0 1 auto; width: 100%; max-width: none; }
   .exam-metric-filters button { width: 100%; }
+  .exam-import-row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+  .exam-import-row label { grid-column: 1 / -1; grid-row: 2; }
+  .exam-import-row button { grid-column: 2; grid-row: 1; }
 }

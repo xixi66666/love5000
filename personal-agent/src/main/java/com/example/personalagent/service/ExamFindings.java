@@ -12,12 +12,13 @@ final class ExamFindings {
         + "{\"name\":\"项目原文\",\"value\":\"结果原文\",\"unit\":\"原文单位\",\"range\":\"原文参考范围\",\"flag\":\"报告原有标记\",\"quote\":\"本项连续原文\",\"location\":\"页码或报告位置\"}],"
         + "\"observations\":[{\"quote\":\"支撑重点的原报告连续摘录\",\"location\":\"位置\",\"interpretation\":\"解读该摘录及其局限\"}],"
         + "\"recommendations\":[{\"quote\":\"报告明确写出的建议原文\",\"location\":\"位置\"}],\"limitations\":[\"原件的具体缺失或无法确认的信息\"]}。"
-        + "先核对报告自身的异常标记、影像或体格检查结论及具体建议。summary 按重要性列出实际项目、原值、单位或原报告所写结论，"
-        + "只写文件能支撑的要点，不写通用健康模板或泛泛的生活建议。"
-        + "metrics 最多24项，优先录入有标记或关联结论的项目，每个非空字段必须逐字出现在相应 quote 中，缺项填空字符串。"
-        + "observations 最多8项，优先覆盖需要回查的结论，也可包含有标记的数值行；interpretation 解释本条结果对本次检查说明了什么、还缺什么信息。"
+        + "先核对原报告总检结论、各科检查和化验表格，再写 summary。用简明中文列出最值得优先核对的实际项目、数值和单位或报告结论。"
+        + "优先展示原报告明确要求跟进的事项，再列出有原报告标记的指标或明确的影像发现。资料不完整时不要概括为正常。"
+        + "metrics 最多16项，每项 quote 只引用同一项目的结果行，不跨行拼接其他项目。保留不等号、小数、单位和本次参考范围，"
+        + "每个非空字段按原样逐字引用，无法确认列归属时省略该行，并在 limitations 中说明。"
+        + "observations 最多6项，interpretation 用易懂的中文解释摘录说明了什么、为何值得核对、单凭该结果还不能确定什么。"
         + "recommendations 最多8项，只摘录原报告明确写出的建议，原样保留其中的时间或条件；没有就填空数组。"
-        + "limitations 和 questions 各最多5条，针对具体项目和缺失信息，无法从原件确定时如实指出。"
+        + "limitations 和 questions 各最多5条，问题应带具体发现和需要医生确认的事项。"
         + "页码不明时用可辨识的章节名或填位置未明确。没有数值或没有能引用的内容时填空数组，并在 limitations 说明原因。"
         + "不推算异常标记，不套用通用参考值，不自行定诊断、风险等级、复查期限或给用药方案，不将历史报告描述为当前状况，不复述身份信息。";
 
@@ -28,6 +29,7 @@ final class ExamFindings {
     public List<Map<String,String>> recommendations = new ArrayList<>();
     public List<String> limitations = new ArrayList<>();
     public boolean textEvidenceVerified;
+    public boolean pdfPageEvidenceVerified;
 
     static ExamFindings parse(ObjectMapper mapper, String answer) throws IOException {
         String raw = answer.trim().replaceFirst("(?i)^```(?:json)?\\s*", "").replaceFirst("\\s*```$", "");
@@ -72,6 +74,27 @@ final class ExamFindings {
             }
         }
         textEvidenceVerified = hasEvidence;
+    }
+
+    void verifyPdfEvidence(List<String> originals) throws IOException {
+        List<String> pages = new ArrayList<>();
+        for (String text : originals) pages.add(normalize(text));
+        boolean hasEvidence = false;
+        for (List<Map<String,String>> entries : Arrays.asList(metrics, observations, recommendations)) {
+            for (Map<String,String> entry : entries) {
+                String quote = normalize(entry.get("quote"));
+                List<String> matches = new ArrayList<>();
+                for (int index = 0; index < pages.size(); index++) {
+                    if (pages.get(index).contains(quote)) matches.add("第 " + (index + 1) + " 页");
+                }
+                if (matches.isEmpty()) throw new IOException();
+                if (matches.size() == 1) entry.put("location", matches.get(0));
+                else if (!matches.contains(entry.get("location"))) throw new IOException();
+                hasEvidence = true;
+            }
+        }
+        textEvidenceVerified = hasEvidence;
+        pdfPageEvidenceVerified = hasEvidence;
     }
 
     private static String normalize(String text) {

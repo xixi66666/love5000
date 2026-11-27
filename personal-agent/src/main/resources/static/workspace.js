@@ -11,6 +11,11 @@ window.renderPersonalOverview = function (view, vault, data, escape, onSearch) {
     <h1>个人资料总览</h1>
     <div class="workspace-intro-bar"><p>${escape(vault.name)}<span> / </span>${escape(vault.notes) || '0'} 篇笔记</p>
     <form id="overview-search"><input id="overview-query" aria-label="搜索全部笔记" placeholder="搜索笔记标题或正文…" maxlength="300"><button type="submit">搜索 <span aria-hidden="true">↵</span></button></form></div>
+    <div class="actions workspace-shortcuts">
+      <a href="#import" class="button primary">导入资料</a>
+      <a href="#health-import" class="button">导入体检报告</a>
+      <a href="#analysis" class="button">分析已有笔记</a>
+    </div>
   </header>
   <div class="workspace-board">
     <section class="graph-panel" aria-labelledby="graph-title">
@@ -23,7 +28,6 @@ window.renderPersonalOverview = function (view, vault, data, escape, onSearch) {
     <section class="recent-panel" aria-labelledby="recent-title">
       <header class="board-header"><h2 id="recent-title">最近编辑</h2><a href="#notes">全部笔记 ↗</a></header>
       ${data.recent.length ? `<ul>${data.recent.map(note=>`<li><a href="${window.noteHash(note.path)}"><span>${escape(note.title)}</span><small>${escape(window.personalAreas[note.domain]?.[0] || (note.domain === 'analysis' ? 'AI 报告' : note.domain))} · ${escape(date(note.modified_at))}</small></a></li>`).join('')}</ul>` : '<p class="recent-empty">编辑过的笔记会出现在这里。</p>'}
-      <a href="#import" class="button primary workspace-upload">＋ 导入资料</a>
     </section>
   </div>
   <section class="workspace-areas" aria-labelledby="workspace-areas-title">

@@ -20,6 +20,7 @@ import static com.example.personalagent.service.LocalDocuments.*;
 public class HealthArchive {
     static final String SOURCES = "30-健康/体检/", ORIGINALS = "99-附件/体检/";
     private static final String REPORTS = "80-AI分析/体检/";
+    private static final int ANALYSIS_VERSION = 3;
     private final VaultService vault;
     private final ObjectMapper json;
     private final LocalDocuments documents;
@@ -32,15 +33,34 @@ public class HealthArchive {
     public Object archive(MultipartFile file, Map<String,String> fields) throws Exception {
         boolean analyze = wantsAnalysis(fields);
         String date = fields.getOrDefault("date", ""), workspace = fields.get("workspace");
+        String importId = fields.getOrDefault("import_id", "");
+        require(importId.isEmpty() || (!analyze
+            && importId.matches("[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}")), "归档编号无效");
         require(date.matches("\\d{4}-\\d{2}-\\d{2}"), "请填写报告上的检查日期");
         try { LocalDate.parse(date); } catch (java.time.DateTimeException invalid) { require(false, "检查日期无效"); }
         Attachment document = new Attachment(file);
-        String key = id(), path = SOURCES + key + ".md", attachment = ORIGINALS + key + "." + document.storageExtension();
+        String key = importId.isEmpty() ? id() : importId;
+        String path = SOURCES + key + ".md", attachment = ORIGINALS + key + "." + document.storageExtension();
         String note = "---\ntitle: 体检记录 · " + date + "\ndomain: health\nrecord_type: exam_source\nstatus: historical"
             + "\nsource: 体检原件\nobserved_at: \"" + date + "\"\nrecorded_at: \"" + now() + "\"\nai_exclude: true"
             + "\nattachment: " + attachment + "\nattachment_sha256: " + document.hash
             + "\n---\n\n[[" + attachment + "|体检原件]]\n";
-        VaultNote saved = documents.save(document, workspace, path, attachment, note);
+        VaultNote saved;
+        synchronized (vault) {
+            documents.checkWorkspace(workspace);
+            if (!importId.isEmpty() && Files.isRegularFile(vault.safe(path))) {
+                // 响应丢失后允许重试同一文件，防止生成重复记录或覆盖其他原件。
+                saved = source(key);
+                if (!date.equals(saved.properties.get("observed_at"))
+                    || !document.hash.equals(saved.properties.get("attachment_sha256"))
+                    || !attachment.equals(saved.properties.get("attachment"))) {
+                    throw conflict("此归档编号已用于另一份记录，请返回健康档案核对");
+                }
+                documents.original(saved, ORIGINALS, key);
+            } else {
+                saved = documents.save(document, workspace, path, attachment, note);
+            }
+        }
         Map<String,Object> result = map("id", key, "revision", saved.revision, "path", path);
         if (analyze) {
             try { analyze(key, map("consent",true,"revision",saved.revision,"workspace",workspace)); }
@@ -56,7 +76,7 @@ public class HealthArchive {
                 if (!note.path.matches(SOURCES + "[0-9a-f-]{36}\\.md") || !"exam_source".equals(note.properties.get("record_type"))) continue;
                 String key = note.path.substring(SOURCES.length(), note.path.length()-3);
                 exams.add(map("id", key, "date", note.properties.get("observed_at"), "title", note.title,
-                    "ready", existingReport(key,note) != null));
+                    "ready", existingVersion(key,note) != 0));
             }
             exams.sort(Comparator.comparing((Map<String,Object> item) -> text(item,"date")).reversed());
             return map("reports",exams,"workspace",vault.root().toString());
@@ -66,12 +86,24 @@ public class HealthArchive {
     public Object detail(String key) throws Exception {
         synchronized (vault) {
             VaultNote source = source(key);
-            String report = existingReport(key,source);
+            int version = existingVersion(key,source);
+            String report = version == 0 ? null : reportPath(key,source,version);
+            int previous = version == ANALYSIS_VERSION ? previousVersion(key,source) : 0;
             return map("id",key,"title",source.title,"date",source.properties.get("observed_at"),"source_path",source.path,"revision",source.revision,
                 "transcript",reviewedText(source),"report_path",report,
-                "analysis_version",report == null ? 0 : report.equals(reportPath(key,source)) ? 2 : 1,
+                "analysis_version",version,"previous_report_path",previous == 0 ? null : reportPath(key,source,previous),
                 "findings",report == null ? null : vault.read(report).properties.get("findings"));
         }
+    }
+
+    public Object preview(String key) throws Exception {
+        Attachment document;
+        synchronized (vault) {
+            VaultNote source = source(key);
+            document = new Attachment(documents.original(source, ORIGINALS, key));
+            if (!document.hash.equals(source.properties.get("attachment_sha256"))) throw conflict("原件已变化，请在 Obsidian 核实");
+        }
+        return ExamPdfText.inspect(document).preview();
     }
 
     public Object analyze(String key, Map<String,Object> input) throws Exception {
@@ -83,22 +115,33 @@ public class HealthArchive {
                 documents.checkWorkspace(text(input,"workspace"));
                 source = source(key); workspace = vault.root();
                 if (!source.revision.equals(input.get("revision"))) throw conflict("来源已变化，请刷新后重新确认");
-                report = reportPath(key,source);
+                report = reportPath(key,source,ANALYSIS_VERSION);
                 if (Files.isRegularFile(vault.safe(report))) {
-                    if (!validV2Report(report,source)) throw conflict("体检分析草稿路径已被其他内容占用，请先备份并移走该文件后重试");
+                    if (!validReport(report,source)) throw conflict("体检分析草稿路径已被其他内容占用，请先备份并移走该文件后重试");
                     return detail(key);
                 }
                 document = new Attachment(documents.original(source, ORIGINALS, key));
                 if (!document.hash.equals(source.properties.get("attachment_sha256"))) throw conflict("原件已变化，请在 Obsidian 核实");
             }
-            String answer = documents.analyze(document, ExamFindings.INSTRUCTIONS);
+            ExamPdfText pdf = ExamPdfText.inspect(document);
+            require(!"unavailable".equals(pdf.mode), pdf.message);
+            String approvedMode = text(input,"evidence_mode");
+            boolean useOriginalPdf = "original".equals(approvedMode) && "pdf_text".equals(pdf.mode);
+            if (!approvedMode.isEmpty() && !approvedMode.equals(pdf.mode) && !useOriginalPdf) {
+                throw conflict("可用的原件解析方式已变化，请重新打开这份报告并确认");
+            }
+            boolean localPdf = "pdf_text".equals(pdf.mode) && !useOriginalPdf;
+            String answer = localPdf ? documents.analyzeExtractedText(pdf.modelInput(), ExamFindings.INSTRUCTIONS
+                + "用户消息为本机提取的 PDF 文字，按 [第 N 页] 标注实际页码。引用同一页的连续文字，不将页码标签放进摘录。")
+                : documents.analyze(document, ExamFindings.INSTRUCTIONS);
             ExamFindings findings;
             try {
                 findings = ExamFindings.parse(json, answer);
                 String text = utf8Evidence(document);
-                if (text != null) findings.verifyTextEvidence(text);
+                if (localPdf) findings.verifyPdfEvidence(pdf.pages);
+                else if (text != null) findings.verifyTextEvidence(text);
             }
-            catch (java.io.IOException invalid) { throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,"模型未返回可用的体检草稿，请核对原件后重试"); }
+            catch (java.io.IOException invalid) { throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,"模型输出格式不完整或摘录无法与原件匹配。原件已保存，可更换模型后重试。"); }
             synchronized (vault) {
                 if (!vault.root().equals(workspace) || !source(key).revision.equals(source.revision)) throw conflict("仓库或报告已变化，未写入分析，请重新核对");
                 if (Files.isRegularFile(vault.safe(report))) throw conflict("体检分析草稿路径已被其他内容占用，请先备份并移走该文件后重试");
@@ -109,8 +152,12 @@ public class HealthArchive {
                     .append(json.writeValueAsString("体检解读 · " + date)).append("\nrecorded_at: \"").append(now()).append("\"\nsource_revision: ").append(source.revision)
                     .append("\nfindings: ").append(json.writeValueAsString(findings)).append("\n---\n\n> AI 草稿，仅解释本次报告，不替代医生诊断。\n\n## 本次概览\n\n")
                     .append(indent(findings.summary)).append("\n\n");
-                appendEvidence(markdown, "重点发现", findings.observations);
                 appendEvidence(markdown, "原报告建议", findings.recommendations);
+                appendEvidence(markdown, "重点发现", findings.observations);
+                if (!findings.questions.isEmpty()) {
+                    markdown.append("## 就医沟通\n\n");
+                    for (String question : findings.questions) markdown.append(indent(question)).append("\n\n");
+                }
                 if (!findings.limitations.isEmpty()) {
                     markdown.append("## 资料局限\n\n");
                     for (String limitation : findings.limitations) markdown.append(indent(limitation)).append("\n\n");
@@ -119,8 +166,6 @@ public class HealthArchive {
                 for (Map<String,String> metric : findings.metrics) markdown.append(indent(metric.get("name") + "：" + metric.get("value") + " " + metric.get("unit")
                     + "  参考：" + metric.get("range") + "  标记：" + metric.get("flag") + "\n摘录：" + metric.get("quote")
                     + "\n位置：" + metric.get("location"))).append("\n\n");
-                markdown.append("## 就医沟通\n\n");
-                for (String question : findings.questions) markdown.append(indent(question)).append("\n\n");
                 markdown.append("## 来源\n\n[[").append(source.path).append("|体检记录]] · 来源 SHA-256 `").append(source.revision)
                     .append("` · 原件 SHA-256 `").append(document.hash).append("`\n");
                 vault.saveReport(report.substring("80-AI分析/".length(),report.length()-3),markdown.toString());
@@ -141,17 +186,19 @@ public class HealthArchive {
         VaultNote note = vault.read(SOURCES + key + ".md");
         require("exam_source".equals(note.properties.get("record_type")), "不是体检报告来源"); return note;
     }
-    private String existingReport(String key, VaultNote note) throws Exception {
-        String current = reportPath(key,note);
-        if (validV2Report(current,note)) return current;
-        String legacy = REPORTS + key + "-" + note.revision + ".md";
-        return Files.isRegularFile(vault.safe(legacy)) ? legacy : null;
+    private int existingVersion(String key, VaultNote note) throws Exception {
+        return validReport(reportPath(key,note,ANALYSIS_VERSION),note) ? ANALYSIS_VERSION : previousVersion(key,note);
     }
 
-    private boolean validV2Report(String path, VaultNote note) throws Exception {
+    private int previousVersion(String key, VaultNote note) throws Exception {
+        if (validReport(reportPath(key,note,2),note)) return 2;
+        return Files.isRegularFile(vault.safe(reportPath(key,note,1))) ? 1 : 0;
+    }
+
+    private boolean validReport(String path, VaultNote note) throws Exception {
         if (!Files.isRegularFile(vault.safe(path))) return false;
         try {
-            // 只有本来源的 exam_analysis 草稿才算 v2；外来、恢复或手工改写的文件只按旧版回退。
+            // 仅展示当前来源版本生成的草稿，忽略占用路径的外来文件。
             VaultNote report = vault.read(path);
             return "exam_analysis".equals(report.properties.get("record_type"))
                 && Objects.equals(note.revision, String.valueOf(report.properties.get("source_revision")));
@@ -160,8 +207,8 @@ public class HealthArchive {
         }
     }
 
-    private static String reportPath(String key, VaultNote note) {
-        return REPORTS + key + "-" + note.revision + "-v2.md";
+    private static String reportPath(String key, VaultNote note, int version) {
+        return REPORTS + key + "-" + note.revision + (version == 1 ? "" : "-v" + version) + ".md";
     }
 
     private static String utf8Evidence(Attachment document) {

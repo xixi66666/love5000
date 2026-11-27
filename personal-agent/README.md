@@ -22,27 +22,28 @@
 
 ## 健康档案：从体检原件到可回查的解读
 
-登录后打开 **健康档案**（`/#health`）→ **导入报告**。选文件、填写检查日期后可直接发送给 DeepSeek 生成体检解读或仅归档。解析失败时原件已保存，可打开该次记录重试。
+登录后从总览选 **导入体检报告**，也可从 **健康档案**（`/#health`）选 **导入报告**。可一次选多份不同年份的 PDF，每份单独核对检查日期。只有文件名含唯一有效完整日期时才预填。点击 **归档报告** 后逐份保存，每份最多 12 MB。失败项可以在当前页面重试，已归档的报告可以按年份查看。展开逐页文字可检查报告的数值、单位和列是否对齐。
 
-健康页默认打开最近一次检查，先显示报告摘要、重点发现、原报告建议和资料局限。指标可按名称、单位和原报告标记筛选，展开后查看原值、范围与摘录。UTF-8 文本原件支持摘录匹配校验，其他原件的摘录和位置可下载原件复核。历史对照可选较早、有草稿的记录，只并列同名且同单位的唯一匹配，分别显示各自参考区间。旧草稿可在重新确认发送后生成新版，原版、原件和旧核对正文继续可读。
+可搜索 PDF 按页提取文字，确认之后通过统一模型路由发送提取结果。文字可能含姓名等个人信息。系统将指标、重点发现和原报告建议的摘录匹配到 PDF 文字层，按原件定位页码。扫描 PDF、有不可读页的混合 PDF，或需要查看表格版面、图表的 PDF，可以确认将完整文件发给 DeepSeek Flash 做版面识别。识别所得摘录和位置需要对照原件核实。PDF 最多 50 页、提取文字最多 40,000 字符，超限请拆分。导入和本地预览期间原件保存在 Vault，解析或分析失败后可打开已归档的记录处理。
 
-人体示意图默认显示在报告选择器下方，无报告时也显示部位示意。它把所选报告中可识别的指标按名称分到部位或系统。点击热点可查看数值并展开原件摘录。橙色表示报告有显式标记，浅蓝表示有记录，灰色表示未见相关记录。未归类指标可在「其他与待归类」查看。
+健康页默认打开最近一次检查。解读按报告建议、重点发现、就医沟通问题、资料局限和指标组织。指标可按名称、单位和原报告标记筛选，展开后查看原值、范围与摘录。历史对照只并列两份报告里同名且同单位的唯一匹配。旧草稿可在重新确认后生成新版。页面底部「按部位浏览指标」可以打开人体示意图，点击部位查看原报告标记及相关指标。
 
 | Vault 中的文件 | 用途 |
 |---|---|
 | `99-附件/体检/<id>.<ext>` | 原件保留在本地；Markdown 原件以 `.txt` 保存。下载校验 SHA-256；Quartz 不复制该目录。 |
 | `30-健康/体检/<id>.md` | 历史记录，包含检查日期、原件双链和哈希。 |
-| `80-AI分析/体检/<id>-<来源版本>-v2.md` | 新版 AI 草稿，`ai_exclude: true`。同一来源版本已有新版时复用。 |
-| `80-AI分析/体检/<id>-<来源版本>.md` | 保留的旧版草稿。没有新版时优先展示此旧稿。 |
+| `80-AI分析/体检/<id>-<来源版本>-v3.md` | 新版 AI 草稿，`ai_exclude: true`。同一来源版本已有新版时复用。 |
+| `80-AI分析/体检/<id>-<来源版本>-v2.md` 和 `<id>-<来源版本>.md` | 保留的旧版草稿。在生成新版前展示最近一版，可从新版详情打开上一版。 |
 
 接口均为本机登录 Session，写入需要 `X-CSRF-Token`。JSON 成功为 `{success:true,data:...}`，失败为 `{success:false,message:...}`。
 
 | 方法及路径 | 输入 → 结果 |
 |---|---|
 | `GET /api/exams` | 当前 `workspace` 和按检查日期倒序的 `reports`（`id/date/title/ready`） |
-| `POST /api/exams` | multipart `file/date/workspace/mode` → `id/revision/path`。分析模式须传 `consent=true`。原件已归档但分析失败时返回 `warning`。 |
-| `GET /api/exams/{id}` | 来源、版本、`analysis_version`（0 无草稿，1 旧稿，2 新稿）、`findings` 和草稿路径，兼容旧版核对正文。 |
-| `POST /api/exams/{id}/analysis` | JSON `{workspace,revision,consent:true}` → 同详情；409 需刷新，502 可重试，503 需配置官方密钥。 |
+| `POST /api/exams` | multipart `file/date/workspace/mode` → `id/revision/path`。批量界面逐份调用此接口。归档模式可传 `import_id`（UUID v4），重试相同日期及原件时返回同一记录。分析模式须传 `consent=true`，原件已归档但分析失败时返回 `warning`。 |
+| `GET /api/exams/{id}` | 来源、`analysis_version`（0 无草稿，1 至 3 为草稿版本）、`findings`、草稿及上一版路径。 |
+| `GET /api/exams/{id}/preview` | 只在本机读取。返回 `mode`（`pdf_text`、`original`、`unavailable`）、`message`、`page_count`、`readable_pages` 及 `pages`（`page/text`）。 |
+| `POST /api/exams/{id}/analysis` | JSON `{workspace,revision,consent:true,evidence_mode}` → 同详情。`evidence_mode` 为 `pdf_text` 或 `original`，与授权的发送范围一致。旧客户端可省略，后端按文件类型选取。 |
 | `GET /api/exams/{id}/original` | 以下载附件返回原件，禁止缓存 |
 
 验证使用 `mvn -pl personal-agent -am clean package` 和 `node --check personal-agent/src/main/resources/static/health.js`。集成测试使用临时 Vault 和官方接口替身。更新 jar 后重启已有的 5178 进程。

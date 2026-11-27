@@ -21,6 +21,7 @@ import static com.example.personalagent.Api.*;
 @Service
 public class DeepSeekFiles {
     private static final String BASE = "https://api.deepseek.com";
+    static final String FILE_MODEL = "deepseek-flash";
     private final RestTemplate http;
 
     @Autowired
@@ -59,7 +60,7 @@ public class DeepSeekFiles {
     }
 
     String analyze(byte[] bytes, String extension, String instruction, String apiKey, String model) {
-        String selected = model == null || model.trim().isEmpty() ? "deepseek-flash" : model.trim();
+        String selected = model == null || model.trim().isEmpty() ? FILE_MODEL : model.trim();
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(apiKey);
         HttpHeaders uploadHeaders = new HttpHeaders();

@@ -34,6 +34,8 @@ button.primary:hover,.button.primary:hover{filter:brightness(1.09);color:var(--o
 .workspace-intro h1{font-size:clamp(33px,4.3vw,54px);margin:0 0 7px;line-height:1.16;font-weight:720}
 .workspace-intro-bar{display:flex;align-items:center;justify-content:space-between;gap:12px 20px;flex-wrap:wrap}
 .workspace-intro-bar p{margin:0;color:var(--muted);overflow-wrap:anywhere}.workspace-intro-bar p span{padding-inline:5px;color:var(--accent)}
+.workspace-shortcuts{margin-top:16px}
+.skip:not(:focus){clip-path:inset(50%)}
 #overview-search{display:flex;flex:0 1 350px;gap:7px;align-items:center;min-width:0}
 #overview-search input{min-width:0}#overview-search button{flex-shrink:0}#overview-search button span{color:var(--accent)}
 .workspace-board{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(0,1fr);border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--paper)}
@@ -58,7 +60,6 @@ button.primary:hover,.button.primary:hover{filter:brightness(1.09);color:var(--o
 .recent-panel li a{display:grid;color:var(--ink);padding:9px 16px;font-size:14px;line-height:1.55;overflow-wrap:anywhere}
 .recent-panel li a:hover{background:var(--tint);color:var(--accent)}
 .recent-panel small,.recent-empty{color:var(--muted);font-size:12px}.recent-empty{padding:18px 16px}
-.workspace-upload{align-self:start;margin:auto 14px 14px}
 .workspace-areas{margin-top:24px}.workspace-areas .board-header{padding:8px 0;border-bottom:0}
 .workspace-areas summary{color:var(--ink)}
 .reading-page{max-width:800px;margin:0 auto}.reading-back{display:inline-block;margin-bottom:18px;color:var(--accent)}
@@ -93,6 +94,6 @@ button.primary:hover,.button.primary:hover{filter:brightness(1.09);color:var(--o
   .shell{display:block}.shell main{padding:0 14px 28px}.shell .sidebar{height:auto;padding:12px 14px 0;border:0}
   .brand{margin:0 0 12px}.topbar{min-height:58px}.shell .context{padding:18px}
   .workspace-board{grid-template-columns:minmax(0,1fr)}.graph-panel{border-right:0;border-bottom:1px solid var(--line)}
-  .graph-stage,.graph-empty{min-height:258px}.workspace-upload{margin-top:10px}
+  .graph-stage,.graph-empty{min-height:258px}
   .workspace-intro{padding-top:0}.workspace-intro-bar{gap:10px}.topbar button{min-height:38px}
 }

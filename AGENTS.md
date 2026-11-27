@@ -1113,7 +1113,7 @@ Strata以`--lazy`启动服务，第一条生成请求或「加载模型」按钮
 
 个人资料库总览展示真实 Vault 的最近笔记和至多 48 个节点的双链图（`GET /api/vault/overview`）。`GET /api/note` 同时提供安全 Markdown 阅读预览与反向链接，完整图谱、嵌入和 Bases 仍通过私有 Quartz 浏览页查看。
 
-个人资料总览的通用导入（`/api/documents`）和健康档案（`/api/exams`）支持仅归档或经确认后把原件发给 DeepSeek 官方 Files API，使用 `deepseek-flash` 生成 Markdown 草稿。官方密钥读取根目录 `model.properties` 的 `deepseek.api-key`。体检解读保留指标摘录和历史对照。具体路径和验证见 `personal-agent/README.md`。
+个人资料总览可一次导入多份体检报告，每份单独确认检查日期，归档失败项可重试。健康档案按年份分组，使用 `/api/exams` 逐份归档，经 `GET /api/exams/{id}/preview` 本地预览 PDF 文字。确认后可将按页提取的文字交给所选文本模型，后端校验摘录与页码。扫描件和复杂版面可确认发送完整 PDF 给 DeepSeek Flash。旧解读可重新生成新版，原件和历次草稿保留。通用导入使用 `/api/documents`。具体路径和验证见 `personal-agent/README.md`。
 
 `personal-agent/` 是 Java 8 + Spring Boot 2.6.13 Maven 模块，服务标识仍为 `personal-agent`，监听 `127.0.0.1:5178`。内容已替换为真实 Obsidian Vault 的个人长期资料库，覆盖财务、健康、工作、生活等领域；网页提供资料记录、关键词搜索、版本校验编辑，以及用户确认来源后发起的 AI 分析。Quartz 5.1.0 的真实源码位于 `personal-agent/quartz/`，负责阅读、全文搜索、双链图、反向链接与原生 `.base` 视图。
 

@@ -109,11 +109,29 @@ public class LocalDocuments {
         }
     }
 
+    String analyzeExtractedText(String text, String instruction) {
+        require(analyzing.tryAcquire(), "另一份附件正在处理，请稍后重试");
+        try {
+            return gateway.complete(instruction, text);
+        } catch (AiGateway.MissingModelException missing) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "请先在顶部选择文本模型或配置 personal-agent 原模型");
+        } catch (ResponseStatusException failure) {
+            throw failure;
+        } catch (Exception failure) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "文本模型处理失败，请检查模型配置或更换模型后重试");
+        } finally {
+            analyzing.release();
+        }
+    }
+
     /** 跟随顶部栏选择器：DeepSeek 型号走官方文件接口，其他提供方仅在文本类附件时走统一入口。 */
     private String analyzeWithSelectedModel(Attachment document, String instruction) throws Exception {
         String selected = route.current("personal-agent");
         if (selected == null || selected.isEmpty()) return files.analyze(document.bytes, document.extension, instruction);
         String deepSeek = deepSeekModel(selected);
+        if ("pdf".equals(document.extension) && !DeepSeekFiles.FILE_MODEL.equals(deepSeek)) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "完整 PDF 识别需要 DeepSeek Flash，请在顶部切换模型后重试");
+        }
         if (!deepSeek.isEmpty()) return files.analyzeWithModel(document.bytes, document.extension, instruction, deepSeek);
         if (!textLike(document.extension)) throw unsupportedOriginal();
         String text = new String(document.bytes, StandardCharsets.UTF_8);

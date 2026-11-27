@@ -1,10 +1,11 @@
 # 个人长期资料库（5178）
 
-- 登录默认打开 `/#overview`。通用导入 `/#import` 与体检共用导入表单。仅归档写入 Vault。获得原件发送确认后，附件通过 DeepSeek 官方 `/files` 和 `deepseek-flash` 分析。使用根 `model.properties` 的 `deepseek.api-key`，上传设置一小时过期且处理后尝试删除。`/api/documents` 的原件保存在 `99-附件/导入资料/` 并排除在 Quartz 快照之外。
+- 登录默认打开 `/#overview`。通用导入 `/#import` 可仅归档或经确认分析。DeepSeek 原件识别通过官方 `/files`，使用根 `model.properties` 的 `deepseek.api-key`，上传设置一小时过期且处理后尝试删除。`/api/documents` 的原件保存在 `99-附件/导入资料/` 并排除在 Quartz 快照之外。
 
-- 健康档案 `/#health` 使用 `/api/exams`。`HealthArchive` 管理 `30-健康/体检`、`99-附件/体检` 和 `80-AI分析/体检`。Quartz 不复制体检原件。新版草稿带重点发现、原报告建议、资料局限及位置，UTF-8 文本原件校验摘录是否存在。详情以 `analysis_version` 标记版本，再次确认分析可另存新版 `-v2.md`，旧稿继续可读。前端另验 `node --check personal-agent/src/main/resources/static/health.js`。
+- 健康档案 `/#health` 使用 `/api/exams`。`HealthArchive` 管理 `30-健康/体检`、`99-附件/体检` 和 `80-AI分析/体检`。Quartz 不复制体检原件。归档后通过 `GET /api/exams/{id}/preview` 在本机预览 PDF 的文字层。明确授权后，可搜索 PDF 默认发送按页提取的文字给所选文本模型，并校验摘录及页码。扫描件或需版面识别时可确认发送完整 PDF 给 DeepSeek Flash。详情以 `analysis_version` 标记版本，新草稿存为 `-v3.md`，旧稿继续可读。前端另验 `node --check personal-agent/src/main/resources/static/health.js`。
+- 体检多选导入逐份确认检查日期，按顺序调用 `POST /api/exams` 仅归档，使用可选的 `import_id`（UUID v4）支持失败重试。日期与原件一致的重试返回同一记录。健康档案按年份分组、检查日期倒序。
 
-- 健康人体图默认可见，无报告时显示空白指标状态。人体图按所选报告的指标名称归类，标记沿用报告原有标记，未知显示为未见记录。领域工作台使用 `GET /api/vault/overview?domain=...` 的局部双链和六个月最后编辑统计。健康图谱额外纳入体检解读草稿；图片是通用人体示意，不包含个人资料。
+- 健康人体图位于报告下方的「按部位浏览指标」折叠区。人体图按所选报告的指标名称归类，标记沿用报告原有标记，未知显示为未见记录。领域工作台使用 `GET /api/vault/overview?domain=...` 的局部双链和六个月最后编辑统计。健康图谱额外纳入体检解读草稿。图片是通用人体示意，无个人数据。
 
 - 本模块是 Java 8 + Spring Boot 2.6.13 Maven 模块，主类 PersonalAgentApplication，服务标识保持 personal-agent。只由 website 03 Deep Woods“个人资料库”点击启动已构建 jar，不自动启停。
 - 用户已授权替换原 Agent 业务。旧财务/对话/读书/记忆/自动复盘代码与森林背景已移除；旧 agent.mv.db、vault 与 backups 私人目录必须保留，不能自动导入为当前事实。

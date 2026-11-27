@@ -17,6 +17,7 @@ public class ExamController {
 
     @GetMapping public Object list() throws Exception { return ok(archive.overview()); }
     @GetMapping("/{id}") public Object detail(@PathVariable String id) throws Exception { return ok(archive.detail(id)); }
+    @GetMapping("/{id}/preview") public Object preview(@PathVariable String id) throws Exception { return ok(archive.preview(id)); }
     @PostMapping(consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
     public Object save(@RequestParam MultipartFile file, @RequestParam Map<String,String> fields) throws Exception {
         return ok(archive.archive(file, fields));

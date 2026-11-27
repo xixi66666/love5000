@@ -67,7 +67,7 @@
     const token=++epoch;editing=false;
     const routeValue = location.hash.slice(1);
     const noteQuery = routeValue.startsWith('note=') ? new URLSearchParams(routeValue) : null;
-    const tab = noteQuery ? 'notes' : routeValue || 'overview';
+    const tab = noteQuery ? 'notes' : routeValue === 'health-import' ? 'health' : routeValue || 'overview';
     $('#app').dataset.view = noteQuery ? 'note' : tab;
     $('#vault-context').hidden = tab !== 'overview';
     document.querySelectorAll('[data-tab]').forEach(link=>{
@@ -97,7 +97,11 @@
           await route();notice('原件和 Markdown 已保存到 Vault。');
         }});
     }
-    else if(tab==='health')await window.showHealthArchive({view:$('#view'),api,escape,refresh,alive:()=>token===epoch,dirty:value=>{if(token===epoch)editing=value;}});
+    else if(tab==='health') {
+      const startImport = routeValue === 'health-import';
+      if (startImport) window.history.replaceState(null,'','#health');
+      await window.showHealthArchive({view:$('#view'),api,escape,refresh,startImport,alive:()=>token===epoch,dirty:value=>{if(token===epoch)editing=value;}});
+    }
     else if(tab==='analysis')analysisView();else if(tab==='settings')await settingsView(token);else await notesView(token);
   }
   async function notesView(token=++epoch) {
