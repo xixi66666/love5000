@@ -249,9 +249,8 @@ def test_month_end_signal_is_not_executed_after_end_date(tmp_path: Path):
     assert all(order["trade_date"] <= end_date for order in baseline["orders"])
     assert all(order["signal_date"] != "2024-03-29" for order in baseline["orders"])
 
-    # 2024-04-01 is the next trading day for the final month-end signal. It is
-    # outside the requested window, so prices on and after that date must not
-    # influence the backtest.
+    # 2024-04-01 是最后一个月末信号的下一个交易日，已在请求窗口之外；
+    # 该日及之后的行情不得影响回测结果。
     assert mutate_prices_after(repository, end_date) > 0
     changed = backtest.run("2024-01-02", end_date, scores_by_date, initial_cash=1000000.0)
     assert_same_backtest_result(baseline, changed)

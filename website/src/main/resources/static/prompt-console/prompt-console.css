@@ -88,7 +88,7 @@ img {
     transform: translateY(0);
 }
 
-/* ---------- Navigation: floating glass pill ---------- */
+/* ---------- 导航：悬浮玻璃胶囊 ---------- */
 
 .site-nav {
     position: sticky;
@@ -182,7 +182,7 @@ img {
     background: var(--amber-strong);
 }
 
-/* ---------- Page shell ---------- */
+/* ---------- 页面骨架 ---------- */
 
 .page-shell {
     width: min(1240px, calc(100% - 28px));
@@ -200,7 +200,7 @@ img {
     scroll-margin-top: 130px;
 }
 
-/* ---------- Hero ---------- */
+/* ---------- 首屏 ---------- */
 
 .hero {
     position: relative;
@@ -348,7 +348,7 @@ img {
     text-transform: uppercase;
 }
 
-/* ---------- Toolbar ---------- */
+/* ---------- 工具栏 ---------- */
 
 .toolbar-panel {
     position: sticky;
@@ -402,7 +402,7 @@ img {
     background: var(--bg-2);
 }
 
-/* ---------- Interest: capabilities bento ---------- */
+/* ---------- 关注点：能力 bento ---------- */
 
 .capabilities {
     display: grid;
@@ -529,7 +529,7 @@ img {
     padding: 26px 26px 26px 0;
 }
 
-/* ---------- Category bento ---------- */
+/* ---------- 分类 bento ---------- */
 
 .category-panel {
     display: grid;
@@ -726,7 +726,7 @@ img {
     color: var(--amber-ink);
 }
 
-/* ---------- Sources + entries ---------- */
+/* ---------- 来源与条目 ---------- */
 
 .library-layout {
     display: grid;
@@ -919,7 +919,7 @@ img {
     font-weight: 300;
 }
 
-/* ---------- Marquee ---------- */
+/* ---------- 跑马灯 ---------- */
 
 .marquee {
     overflow: hidden;
@@ -956,7 +956,7 @@ img {
     }
 }
 
-/* ---------- Footer ---------- */
+/* ---------- 页脚 ---------- */
 
 .site-footer {
     display: grid;
@@ -1038,7 +1038,7 @@ img {
     color: var(--amber);
 }
 
-/* ---------- Add dialog ---------- */
+/* ---------- 新增对话框 ---------- */
 
 .add-dialog {
     width: min(720px, calc(100vw - 28px));
@@ -1188,7 +1188,7 @@ img {
     color: var(--amber);
 }
 
-/* ---------- Dialog ---------- */
+/* ---------- 对话框 ---------- */
 
 .entry-dialog {
     width: min(880px, calc(100vw - 28px));
@@ -1319,7 +1319,7 @@ img {
     color: var(--amber);
 }
 
-/* ---------- Motion helpers ---------- */
+/* ---------- 动效辅助类 ---------- */
 
 @keyframes card-in {
     from {
@@ -1342,7 +1342,7 @@ img {
 .entry-card:nth-child(9) { animation-delay: 0.4s; }
 .entry-card:nth-child(10) { animation-delay: 0.45s; }
 
-/* ---------- Responsive ---------- */
+/* ---------- 响应式 ---------- */
 
 @media (max-width: 1080px) {
     .library-layout {

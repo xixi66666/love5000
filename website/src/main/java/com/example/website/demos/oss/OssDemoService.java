@@ -40,10 +40,8 @@
 //import org.springframework.util.StreamUtils;
 //
 ///**
-// * This demo code show you how to use oss in your application. You can use is directly or
-// * refactor is to implement your own logic|architecture.
+// * 本示例演示如何在应用里使用 OSS：可以直接照用，也可以按自己的分层重构。
 // *
-// * @author <a href="mailto:chenxilzx1@gmail.com">theonefx</a>
 // */
 //@Service
 //public class OssDemoService {
@@ -52,13 +50,13 @@
 //    private OSS ossClient;
 //
 //    /**
-//     * the file in local machine.
+//     * 本机上的文件。
 //     */
 //    @Value("classpath:/oss-test.json")
 //    private Resource localFile;
 //
 //    /**
-//     * the file in oss remote server.
+//     * OSS 远端服务器上的文件。
 //     */
 //    @Value("oss://" + OssConfig.BUCKET_NAME + "/oss-test.json")
 //    private Resource remoteFile;

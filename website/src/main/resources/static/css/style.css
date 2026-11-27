@@ -680,7 +680,7 @@ body.video-ready .scene-video--loop {
     scroll-snap-type: x proximity;
 }
 
-/* Deep Woods owns one service; keep Golden Hour's eight-column layout intact. */
+/* Deep Woods 只有一个服务入口，不要影响 Golden Hour 的八列布局。 */
 #deep-woods-service-dock .service-grid {
     grid-template-columns: repeat(auto-fit, minmax(180px, 220px));
 }

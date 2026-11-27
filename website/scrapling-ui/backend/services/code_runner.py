@@ -47,7 +47,7 @@ def make_code_async(code: str) -> str:
     methods = ["click", "fill", "wait_for_load_state", "evaluate", "wait_for_timeout", "go_back", "go_forward", "reload"]
     for method in methods:
         normalized = normalized.replace(f"await page.{method}(", f"page.{method}(")
-    # Safely handle perform_actions signature conversion, preventing async doubling
+    # 统一 perform_actions 的签名：先降级再升级，避免 await 被叠加两次
     normalized = normalized.replace("async def perform_actions(page):", "def perform_actions(page):")
     normalized = normalized.replace("def perform_actions(page):", "async def perform_actions(page):")
     for method in methods:

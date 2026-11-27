@@ -50,7 +50,7 @@ class Session:
         self.history: List[Dict[str, Any]] = []
         self._request_map = {}
 
-        # Set up listeners
+        # 注册请求/响应监听，供网络日志与重放使用
         self.page.on("request", self._handle_request)
         self.page.on("response", self._handle_response)
 
@@ -151,15 +151,15 @@ class Session:
         ``page.screenshot`` 本身失败（页面已崩溃）会抛出，DOM 提取失败只让
         ``dom_tree`` 变成 ``None``。
         """
-        # Wait a small bit for any rendering/animations to settle
+        # 稍等片刻，让渲染与动画稳定下来，避免截到中间态
         await asyncio.sleep(0.5)
 
-        # Capture full page screenshot so the user can scroll it in the canvas
+        # 截整页图，前端画布可直接滚动查看
         screenshot_bytes = await self.page.screenshot(type="jpeg", quality=80, full_page=True)
         screenshot_b64 = base64.b64encode(screenshot_bytes).decode("utf-8")
         screenshot_data_uri = f"data:image/jpeg;base64,{screenshot_b64}"
         
-        # DOM Tree
+        # 提取 DOM 树
         try:
             dom_tree = await self.page.evaluate(DOM_EXTRACTOR_JS)
         except Exception as e:
@@ -219,7 +219,7 @@ class Session:
                 print(f"Error executing list extraction: {e}")
                 columns[name] = []
                 
-        # Transform columns to rows
+        # 列转行：按最长一列补齐缺失值
         rows = []
         for i in range(max_len):
             row = {}
@@ -248,7 +248,7 @@ class Session:
         self.network_logs = []
         self._request_map = {}
         
-        # Find the navigate action
+        # 定位历史中的导航动作，作为重放起点
         start_url = None
         for step in new_history:
             if step["action"] == "navigate":

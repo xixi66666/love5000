@@ -17,7 +17,9 @@ class EastmoneyProvider:
     """东方财富行情接入的最小骨架。"""
 
     def __init__(self, timeout_seconds: int = 10):
-        """Args:
+        """构造提供方并记录超时。
+
+        Args:
             timeout_seconds: 单次 HTTP 请求超时秒数；上游卡顿时以超时失败而不是无限等待。
         """
         self.timeout_seconds = timeout_seconds

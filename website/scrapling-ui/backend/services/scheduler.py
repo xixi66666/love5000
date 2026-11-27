@@ -26,7 +26,6 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from core.db import get_job, get_all_jobs, update_job_runs, update_job_enabled
 
-# Initialize scheduler
 # 进程级单例：路由层用它摘除单个定时器，lifespan 用它启停。
 scheduler = AsyncIOScheduler()
 
@@ -46,10 +45,9 @@ async def run_crawler_job(job_id: str):
         
     print(f"⏰ [Scheduler] Triggered crawler run for job '{job['name']}' ({job_id})")
     
-    # Imports code generator dynamically to avoid circular dependencies
+    # 动态导入代码生成器，避免循环依赖
     from services.code_generator import generate_scrapling_code
     
-    # 1. Compile history into Python Scrapling recipe
     # 定时执行固定使用「过盾 + 拦广告 + 保留资源」的配置，不支持按任务覆盖。
     code = generate_scrapling_code(
         job["history"], 
@@ -60,12 +58,12 @@ async def run_crawler_job(job_id: str):
     
     temp_file_path = None
     try:
-        # 2. Write code to temp file
+        # 2. 把生成的配方写入临时文件
         with tempfile.NamedTemporaryFile(suffix=".py", delete=False, mode="w") as f:
             f.write(code)
             temp_file_path = f.name
             
-        # 3. Launch subprocess headless run
+        # 3. 以无头方式启动子进程执行
         process = await asyncio.create_subprocess_exec(
             sys.executable, temp_file_path,
             stdout=asyncio.subprocess.PIPE,
@@ -76,7 +74,6 @@ async def run_crawler_job(job_id: str):
         stdout_str = stdout.decode("utf-8", errors="ignore")
         stderr_str = stderr.decode("utf-8", errors="ignore")
         
-        # 4. Extract printed dictionary objects
         # 配方用 print(dict) 输出每一行数据，这里按「以 { 开头、以 } 结尾」逐行还原；
         # 用 literal_eval 而不是 eval，避免执行抓取结果里的任意表达式。
         scraped_data = []
@@ -94,7 +91,6 @@ async def run_crawler_job(job_id: str):
         if stderr_str.strip():
             print(f"⚠️ [Scheduler] Warnings/Errors for '{job['name']}':\n{stderr_str}")
             
-        # 5. Dispatch webhook POST
         # 没有抓到任何数据时不回传：避免下游把空数组覆盖掉上一次的好结果。
         if job.get("webhook_url") and scraped_data:
             webhook_url = job["webhook_url"]
@@ -122,10 +118,9 @@ async def run_crawler_job(job_id: str):
             except Exception as wh_err:
                 print(f"❌ [Scheduler] Webhook dispatch failed for job '{job['name']}': {wh_err}")
                 
-        # 6. Update database record with execution details
+        # 6. 回写本次执行结果
         last_run_str = datetime.utcnow().isoformat()
         
-        # Calculate next run time
         # 只有仍在调度表里的任务才有 next_run_time；手动触发且任务被停用时为 None，
         # 此时 update_job_runs 会保留库里原有的 next_run。
         aps_job = scheduler.get_job(job_id)
@@ -151,7 +146,7 @@ def sync_db_to_scheduler():
     因此它是「全量重建」而不是增量同步：任何一条任务的改动都会重排其余任务。
     单条任务的 cron 非法只打印日志并跳过该任务，其余任务照常调度。
     """
-    # 1. Clear existing jobs to reload
+    # 1. 先清空现有定时器，准备全量重建
     for active_job in scheduler.get_jobs():
         scheduler.remove_job(active_job.id)
         
@@ -168,7 +163,7 @@ def sync_db_to_scheduler():
                 )
                 print(f"📅 [Scheduler] Scheduled job '{job['name']}' (Cron: {job['cron_expression']})")
                 
-                # Fetch next run time to save in db
+                # 取下次执行时间并写回数据库
                 aps_job = scheduler.get_job(job["id"])
                 if aps_job and aps_job.next_run_time:
                     update_job_runs(job["id"], job.get("last_run"), aps_job.next_run_time.isoformat())

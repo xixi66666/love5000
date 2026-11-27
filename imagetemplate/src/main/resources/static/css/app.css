@@ -1893,7 +1893,7 @@ select:focus-visible,
     outline-offset: 3px;
 }
 
-/* Deep Woods light prompt-library workspace */
+/* Deep Woods 浅色提示词库工作区 */
 .gallery-panel,
 .deconstruct-panel,
 .prompt-builder,
@@ -2853,7 +2853,7 @@ input::placeholder {
     }
 }
 
-/* Editorial studio refinement */
+/* 编辑式工作室的细节打磨 */
 :root {
     --studio-orange: #ff8a1f;
     --studio-orange-soft: rgba(255, 138, 31, .18);

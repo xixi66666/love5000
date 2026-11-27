@@ -59,8 +59,8 @@ public class LocalSecurity implements WebMvcConfigurer,HandlerInterceptor {
         String origin=req.getHeader("Origin"),fetch=req.getHeader("Sec-Fetch-Site");
         if(origin!=null){try{URI u=URI.create(origin);int port=u.getPort()<0?80:u.getPort();if(!"http".equals(u.getScheme())||!host.equalsIgnoreCase(u.getHost())||port!=req.getServerPort())return fail(res,403,"来源不被允许");}catch(Exception e){return fail(res,403,"来源无效");}}
         String path=req.getRequestURI();
-        // Health has no private fields and remains usable by the homepage no-cors probe.
-        // Opening the public entry from localhost:8080 to 127.0.0.1 is a cross-site document navigation.
+        // 健康接口不含私有字段，保持可被首页的 no-cors 探针调用。
+        // 从 localhost:8080 打开 127.0.0.1 的公开入口属于跨站文档导航，需要放行。
         boolean entryNavigation=origin==null&&"GET".equals(req.getMethod())&&("/".equals(path)||"/index.html".equals(path))
                 &&"navigate".equals(req.getHeader("Sec-Fetch-Mode"))&&"document".equals(req.getHeader("Sec-Fetch-Dest"));
         if("cross-site".equals(fetch)&&!entryNavigation)return fail(res,403,"来源不被允许");

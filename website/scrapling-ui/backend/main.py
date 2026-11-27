@@ -36,12 +36,11 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
-# Windows sometimes registers ".js" as "text/plain" (HKEY_CLASSES_ROOT\.js
-# Content Type), which blocks ES module scripts under strict MIME checking.
+# Windows 注册表常把 .js 记成 text/plain，浏览器对 ES module 的严格 MIME 校验会拒绝执行。
 mimetypes.add_type("text/javascript", ".js")
 mimetypes.add_type("text/javascript", ".mjs")
 
-# Local module imports
+# 本地模块导入
 from models import (
     StartSessionRequest,
     ActionRequest,
@@ -73,23 +72,22 @@ async def lifespan(app: FastAPI):
     关闭阶段先停调度器，再逐个关闭会话、清空 ``active_sessions``，最后关浏览器。
     某次会话关闭失败不会阻断后续清理（`Session.close` 自己吞异常）。
     """
-    # Initialize Playwright browser manager
+    # 初始化 Playwright 浏览器管理器
     await pw_manager.start()
-    # Start background scheduler
+    # 启动后台调度器
     start_scheduler()
     yield
-    # Stop background scheduler
+    # 停止后台调度器
     stop_scheduler()
-    # Clean up active browser sessions
+    # 关闭全部活动会话
     for session in list(active_sessions.values()):
         await session.close()
     active_sessions.clear()
-    # Close browser manager
+    # 关闭浏览器管理器
     await pw_manager.stop()
 
 app = FastAPI(lifespan=lifespan)
 
-# Configure CORS Middleware
 # 工作台前端与 API 同源，理论上不需要 CORS；这里全放开是为了让本机调试页面
 # （例如 file:// 打开或换端口起的开发服务器）也能直接调接口。
 app.add_middleware(
@@ -128,7 +126,7 @@ async def start_session(req: StartSessionRequest):
     
     session_id = str(uuid.uuid4())
     try:
-        # Create a new context and page
+        # 为本次会话创建独立的浏览器上下文与页面
         context = await pw_manager.browser.new_context(
             viewport={"width": req.width, "height": req.height},
             # 固定桌面 Chrome UA：部分站点会对 HeadlessChrome 直接返回不同页面。
@@ -147,7 +145,7 @@ async def start_session(req: StartSessionRequest):
         )
         active_sessions[session_id] = session
         
-        # Configure route blocking for Ad Blocking & Speed Mode
+        # 配置请求拦截：广告拦截与极速模式
         if req.block_ads or req.disable_resources:
             async def route_filter(route, request):
                 """页面路由过滤器：按开关中断资源请求，其余放行。
@@ -159,10 +157,10 @@ async def start_session(req: StartSessionRequest):
                 url = request.url.lower()
                 resource_type = request.resource_type
                 
-                # Speed Mode: block media, fonts, images, stylesheets
+                # 极速模式：中断媒体、字体、图片与样式表请求
                 if req.disable_resources and resource_type in ["image", "media", "font", "stylesheet"]:
                     await route.abort()
-                # Ad Blocking: check simple ad-blocking patterns
+                # 广告拦截：按域名关键词做简单匹配
                 elif req.block_ads and any(ad_word in url for ad_word in ["googleads", "googlesyndication", "doubleclick", "adservice", "analytics", "telemetry"]):
                     await route.abort()
                 else:
@@ -170,7 +168,6 @@ async def start_session(req: StartSessionRequest):
             
             await page.route("**/*", route_filter)
             
-        # Add a default navigate step in history
         # 首个 navigate 必须先入历史，重放与代码生成都靠它确定入口网址。
         session.history.append({"action": "navigate", "url": req.url})
         
@@ -178,7 +175,7 @@ async def start_session(req: StartSessionRequest):
         
         return await session.get_state()
     except Exception as e:
-        # Cleanup if failure occurs during start
+        # 启动失败时清理已登记的会话，避免留下泄漏的上下文
         if session_id in active_sessions:
             await active_sessions[session_id].close()
             del active_sessions[session_id]
@@ -205,9 +202,9 @@ async def execute_action(req: ActionRequest):
         if req.action_type == "click":
             if not req.selector:
                 raise HTTPException(status_code=400, detail="Selector required for click action")
-            # Log action
+            # 先写历史再执行，保证重放时动作顺序一致
             session.history.append({"action": "click", "selector": req.selector})
-            # Click
+            # 执行点击
             await session.page.click(req.selector, timeout=5000)
             
         elif req.action_type == "fill":
@@ -217,7 +214,6 @@ async def execute_action(req: ActionRequest):
             await session.page.fill(req.selector, req.value, timeout=5000)
             
         elif req.action_type == "scroll":
-            # Scroll relative to the page
             # 优先用字符串 value 当像素值（前端输入框直传），其次才用整数 y；
             # 解析失败静默退回默认 300px，不因为一个坏参数让整次操作 400。
             y_scroll = 300
@@ -561,7 +557,7 @@ async def update_todo_list(req: TodoListUpdateRequest):
             
     return {"status": "success", "tasks": req.tasks}
 
-# Add scheduled endpoints
+# 定时任务接口
 @app.get("/api/scheduler/jobs")
 async def list_jobs():
     """``GET /api/scheduler/jobs``：列出全部定时任务。
@@ -638,7 +634,6 @@ async def trigger_job_run(job_id: str):
     asyncio.create_task(run_crawler_job(job_id))
     return {"status": "success", "message": "Job execution triggered headlessly in background"}
 
-# Serve the built frontend (frontend/dist) from the same origin as the API.
 # 只在构建产物存在时挂载 /assets，避免 dist 未构建时模块导入即报错；
 # 之后所有非 API 路径由下面的 catch-all 路由处理。
 if (FRONTEND_DIST_DIR / "assets").is_dir():

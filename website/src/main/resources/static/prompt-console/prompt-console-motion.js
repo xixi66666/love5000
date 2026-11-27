@@ -18,7 +18,7 @@
         var ScrollTrigger = window.ScrollTrigger;
         gsap.registerPlugin(ScrollTrigger);
 
-        // Hero entrance
+        // 首屏入场
         var heroTl = gsap.timeline({ defaults: { ease: "power3.out" } });
         heroTl
             .from(".hero-title", { y: 46, opacity: 0, duration: 1.1 })
@@ -26,7 +26,7 @@
             .from(".hero-actions .btn", { y: 18, opacity: 0, stagger: 0.12, duration: 0.7 }, "-=0.55")
             .from(".hero-hint", { opacity: 0, duration: 0.5 }, "-=0.25");
 
-        // Hero media parallax
+        // 首屏媒体视差
         gsap.to(".hero-media", {
             yPercent: 10,
             ease: "none",
@@ -38,7 +38,7 @@
             }
         });
 
-        // Capabilities bento entrance
+        // 能力速览 bento 入场
         gsap.from(".bento-card", {
             y: 44,
             opacity: 0,
@@ -51,7 +51,7 @@
             }
         });
 
-        // Image scale & fade for the capabilities photo card
+        // 能力速览图片卡片的缩放与淡入
         var bentoPhoto = document.querySelector(".bento-photo");
         if (bentoPhoto) {
             gsap.fromTo(bentoPhoto, { scale: 0.9, opacity: 0.6 }, {
@@ -67,7 +67,7 @@
             });
         }
 
-        // Infinite marquee
+        // 无限跑马灯
         var track = document.querySelector(".marquee-track");
         if (track) {
             track.innerHTML += track.innerHTML;

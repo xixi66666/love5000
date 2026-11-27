@@ -54,7 +54,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(filters.value))
     } catch {
-      /* storage unavailable */
+      /* 存储不可用（隐私模式或配额已满），本轮只更内存状态 */
     }
   }
 
@@ -68,7 +68,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
     try {
       localStorage.setItem(THEME_KEY, next)
     } catch {
-      /* storage unavailable */
+      /* 存储不可用（隐私模式或配额已满），本轮只更内存状态 */
     }
   }
 

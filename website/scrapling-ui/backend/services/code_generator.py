@@ -66,7 +66,6 @@ def generate_scrapling_code(
     extractions = [step for step in history if step["action"] == "extract"]
     list_extractions = [step for step in history if step["action"] == "extract_list"]
     
-    # Build dynamic fetch arguments
     # Scrapling 的默认值是「过盾开、拦广告开、保资源」，所以只在被关掉/打开时才补参数，
     # 生成的脚本更短，也不至于覆盖掉上游默认行为。
     fetch_args = f"'{start_url}', headless=True"
@@ -78,7 +77,7 @@ def generate_scrapling_code(
         fetch_args += ", disable_resources=True"
         
     if pagination_step:
-        # Setup interactions (before pagination)
+        # 先执行分页前的交互动作
         setup_interactions = []
         for step in history:
             if step == pagination_step:
@@ -125,7 +124,6 @@ def generate_scrapling_code(
             lines.append("    pass")
             lines.append("")
 
-        # Pagination loop
         # 分页选择器同样只转义反斜杠；max_pages 直接内联成字面量，
         # 因此不支持运行期再改页数，改页数需要重新生成脚本。
         pag_selector = pagination_step["selector"].replace('\\', '\\\\')
@@ -137,7 +135,6 @@ def generate_scrapling_code(
         lines.append(f"        response = Adaptor(page.content())")
         lines.append("")
         
-        # Single extractions inside loop
         # 变量名统一「小写 + 空格转下划线」，这样同一份历史重复生成时变量名稳定，
         # 也避免用户输入的空格/大小写产生非法标识符。
         for step in extractions:
@@ -158,7 +155,7 @@ def generate_scrapling_code(
             lines.append(f"        print('{step['name']}:', {var_name})")
             lines.append("")
 
-        # List extractions inside loop
+        # 循环内的列表抽取
         if list_extractions:
             for step in list_extractions:
                 var_name = step.get("name", "data").lower().replace(" ", "_")
@@ -183,7 +180,7 @@ def generate_scrapling_code(
             lines.append(f"            print({{{dict_items}}})")
             lines.append("")
 
-        # Click next page logic
+        # 翻页点击逻辑
         lines.append(f"        if page_num < max_pages:")
         lines.append(f"            try:")
         lines.append(f"                # Click pagination element")

@@ -37,8 +37,7 @@ from app.api.v1 import (
 from app.core.config import settings
 from app.core.scheduler import start_scheduler
 
-# Windows registers .js/.mjs as text/plain, which breaks strict MIME checks for ES modules.
-# 中文说明：Python 的 mimetypes 在 Windows 会读注册表，注册表常把 .js 标成 text/plain，
+# Python 的 mimetypes 在 Windows 会读注册表，注册表常把 .js 标成 text/plain，
 # 浏览器对 <script type="module"> 做严格 MIME 校验后直接拒绝执行，表现为页面黑屏。
 # 这两行必须在任何静态文件响应前生效；test_health.py 中的 MIME 断言覆盖该回归，不要删除。
 mimetypes.add_type("text/javascript", ".js")
@@ -96,8 +95,8 @@ app.add_exception_handler(ApiError, api_error_handler)
 app.add_exception_handler(Exception, internal_error_handler)
 
 
-# Serve the built frontend (frontend/dist) from the same origin as the API.
-# 中文说明：只在 dist/assets 存在时挂载，未构建时根路径走下面的 503 提示而不是启动失败。
+# 与 API 同源托管前端构建产物：只在 dist/assets 存在时挂载，
+# 未构建时根路径走下面的 503 提示，而不是启动失败。
 if (FRONTEND_DIST_DIR / "assets").is_dir():
     app.mount("/assets", StaticFiles(directory=FRONTEND_DIST_DIR / "assets"), name="frontend-assets")
 

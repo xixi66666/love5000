@@ -39,7 +39,7 @@
 //public class OssConfig {
 //
 //    /**
-//     * Bucket Name of OSS Example.
+//     * OSS 示例使用的 Bucket 名称。
 //     */
 //    public static final String BUCKET_NAME = "spring-cloud-alibaba-test";
 //
@@ -47,8 +47,8 @@
 //    private OSS ossClient;
 //
 //    /**
-//     * You can use these code to check or create oss bucket. Or manage buckets in
-//     * <a href="https://oss.console.aliyun.com/bucket">oss console</a>.
+//     * 可用这段代码检查或创建 OSS Bucket，也可以到
+//     * <a href="https://oss.console.aliyun.com/bucket">OSS 控制台</a> 管理。
 //     */
 //    @Bean
 //    public ApplicationRunner ossBucketInitRunner() {

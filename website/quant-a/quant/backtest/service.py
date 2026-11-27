@@ -127,8 +127,7 @@ class BacktestService:
             except ValueError:
                 continue
             if execution_date > end_date:
-                # Never consume a session beyond the requested window; doing so
-                # would make the backtest depend on future prices.
+                # 不消费请求窗口之外的交易时段：否则回测会用到未来价格。
                 continue
             scheduled.setdefault(execution_date, []).append(signal_date)
         return scheduled
